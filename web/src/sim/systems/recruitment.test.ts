@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AVATAR, HIPPIE, SIM_DT } from '../constants';
 import { spawnBuilding, spawnHippie } from '../factory';
+import { normalizeMatch } from '../matchSettings';
+import { createMatch } from '../setup';
 import type { Hippie } from '../types';
 import { damageEntity } from './combat';
 import { eventsOf, freeThickFacet, newMatch, run } from './econ/testkit';
@@ -97,10 +99,14 @@ describe('shared population recruitment', () => {
     expect(eventsOf(m, 'recruited').map((e) => e.via)).toEqual(['throw']);
   });
 
-  it('recruits beyond capacity and drains only the newest excess recruits while idle at home', () => {
+  it.each([0, 6])('with %i Drum Circles, recruits beyond capacity and drains only the newest excess recruits while idle at home', (circles) => {
     const { world } = arena();
     const home = world.hearthOf(0)!;
     const at = { x: home.pos.x + 6, z: home.pos.z };
+    for (let i = 0; i < circles; i++) {
+      spawnBuilding(world, 'drumcircle', 0, freeThickFacet(world, home.pos.x, home.pos.z, 12, 'drumcircle'), 1);
+    }
+    expect(popCap(world, 0)).toBe(12 + 6 * circles);
     // The oldest entity joins last: recruitment time, not entity age, chooses the excess.
     const extra = spawnHippie(world, -1, at);
     const established = Array.from({ length: popCap(world, 0) }, () => spawnHippie(world, 0, at));
@@ -131,6 +137,19 @@ describe('shared population recruitment', () => {
     holdIdle(extra);
     updateHippies(world, 1);
     expect(extra.attention).toBe(50 - HIPPIE.overCapAttentionDrain);
+  });
+
+  it('one camp can recruit more than 40 from a larger configured world population', () => {
+    const world = createMatch({ seed: 'large-population', difficulty: 'normal', humans: [0], mode: 'standard',
+      match: normalizeMatch({ maxSignifiers: 60, startingSignifiers: 0 }) });
+    const gcc = world.gccOf(0)!;
+    const ids = [...world.hippies.keys()];
+    for (const h of world.hippies.values()) Object.assign(h.pos, { x: gcc.pos.x + 8, z: gcc.pos.z });
+    for (let i = 0; i < 50; i++) expect(recruitNear(world, gcc)).toBe(true);
+    expect(population(world, 0)).toBe(50);
+    expect(popCap(world, 0)).toBe(12);
+    expect([...world.hippies.values()].filter((h) => h.faction === -1)).toHaveLength(10);
+    expect([...world.hippies.keys()]).toEqual(ids);
   });
 
   it('KO and camp elimination retain the same hippie, which respawns neutral and can join another camp', () => {

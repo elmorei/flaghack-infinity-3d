@@ -41,7 +41,7 @@ describe('configurable matches', () => {
     });
     expect(normalizeMatch({ jumpHeight: 99, maxSignifiers: 999 })).toMatchObject({ jumpHeight: 5, maxSignifiers: 200 });
   });
-  it.each([0, 2, 40])('keeps all camps and neutrals within one shared population of %i', (maxSignifiers) => {
+  it.each([0, 2, 40, 60, 200])('keeps all camps and neutrals within one shared population of %i', (maxSignifiers) => {
     const w = createMatch(options({ maxSignifiers, startingSignifiers: 12 }));
     expect(w.hippies.size).toBe(maxSignifiers);
     for (const f of FACTION_IDS) expect(w.hippiesOf(f)).toHaveLength(Math.min(12, Math.floor(maxSignifiers / 4)));

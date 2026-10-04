@@ -49,7 +49,7 @@ export function popCap(world: World, f: FactionId): number {
   for (const b of world.buildings.values()) {
     if (b.faction === f && b.kind === 'drumcircle' && b.built >= 1 && !b.disabled) circles++;
   }
-  return Math.min(HIPPIE.popCapMax, HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle);
+  return HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle;
 }
 
 /** Active affiliated hippies; knocked-out workers will return neutral. */

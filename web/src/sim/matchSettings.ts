@@ -1,4 +1,4 @@
-import { BURN_TIME, DAWN_TIME, HIPPIE } from './constants';
+import { BURN_TIME, DAWN_TIME } from './constants';
 import type { MatchOptions, FactionId } from './types';
 export interface MatchSettings {
   active: FactionId[];
@@ -21,7 +21,7 @@ export const DEFAULT_MATCH: MatchSettings = {
   startingFlags: 14,
   startingSignifiers: 6,
   jumpHeight: 1,
-  maxSignifiers: HIPPIE.popCapMax,
+  maxSignifiers: 40,
   structuresBlockFlagPlacement: false,
 };
 export const MATCH_RANGES = {

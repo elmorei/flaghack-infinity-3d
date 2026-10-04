@@ -166,7 +166,6 @@ export const HIPPIE = {
   sosRespondRadius: 60,
   popCapBase: 12,
   popCapPerDrumCircle: 6,
-  popCapMax: 40,
   pickupTime: 0.3,
   /** Reach from a building's edge for stock pickup, delivery and deposits. */
   interactReach: 2.5,
