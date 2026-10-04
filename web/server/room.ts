@@ -1,3 +1,4 @@
+import { DEFAULT_MATCH, normalizeMatch } from "../src/sim/matchSettings";
 /**
  * The host's single room: connections and their handshake, players (seats, ready flags, the
  * leader, chat), the lobby phases (lobby → playing → ended → lobby) and the running Match.
@@ -149,7 +150,7 @@ export class Room {
   private readonly players = new Map<string, Player>();
   private readonly byToken = new Map<string, Player>();
   private phase: LobbyPhase = 'lobby';
-  private readonly settings: LobbySettings = { difficulty: 'normal', seed: null };
+  private readonly settings: LobbySettings = { difficulty: 'normal', seed: null, match: normalizeMatch(DEFAULT_MATCH) };
   private leaderId: string | null = null;
   private match: Match | null = null;
   private nextPlayer = 1;
@@ -332,7 +333,7 @@ export class Room {
       changedAt: 0,
     };
     // In the lobby newcomers sit down at the lowest free seat; mid-match they watch first.
-    if (this.phase === 'lobby') player.seat = FACTION_IDS.find((f) => !this.ownerOf(f)) ?? null;
+    if (this.phase === 'lobby') player.seat = FACTION_IDS.find((f) => normalizeMatch(this.settings.match).active.includes(f) && !this.ownerOf(f)) ?? null;
     this.players.set(player.id, player);
     this.byToken.set(player.token, player);
     return player;
@@ -456,6 +457,7 @@ export class Room {
     if (seat === player.seat || this.phase === 'ended') return false;
     const match = this.match;
     if (seat !== null) {
+      if(!normalizeMatch(this.settings.match).active.includes(seat))return false;
       const holder = this.ownerOf(seat);
       if (holder && (holder.conn || Date.now() - holder.disconnectedAt < SEAT_GRACE_MS)) return false;
       if (match && !match.world.factions[seat].alive) return false;
@@ -489,6 +491,10 @@ export class Room {
   private changeSettings(player: Player, patch: Partial<LobbySettings>): boolean {
     if (player.id !== this.leaderId || this.phase !== 'lobby') return false;
     const changes: string[] = [];
+    if(patch.match) {
+      if(this.humanSeats().some(f=>!patch.match!.active.includes(f))) {this.tell(player,"Move players out of a camp before disabling it.");return false;}
+      this.settings.match=normalizeMatch(patch.match);changes.push("the game setup");
+    }
     if (patch.difficulty !== undefined && patch.difficulty !== this.settings.difficulty) {
       this.settings.difficulty = patch.difficulty;
       changes.push(`the NPC rivals to ${DIFFICULTY_NAMES[patch.difficulty]}`);
@@ -518,6 +524,7 @@ export class Room {
       difficulty: this.settings.difficulty,
       humans,
       mode: 'standard',
+      match: normalizeMatch(this.settings.match),
     };
     const t0 = performance.now();
     let match: Match;
@@ -750,7 +757,7 @@ export class Room {
       serverName: this.serverName,
       phase: this.phase,
       leaderId: this.leaderId,
-      settings: { difficulty: this.settings.difficulty, seed: this.settings.seed },
+      settings: { difficulty: this.settings.difficulty, seed: this.settings.seed, match: this.settings.match },
       seats: FACTION_IDS.map((faction) => ({ faction, playerId: this.ownerOf(faction)?.id ?? null })),
       players,
       match: this.match ? { time: this.match.world.time, winner: this.match.world.winner } : null,

@@ -4096,3 +4096,16 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Fork setup and controls remain usable on short screens. */
+.title-col { max-height: 100vh; overflow-y: auto; }
+.settings-box { max-height: 90vh; overflow-y: auto; }
+.match-setup { margin: 12px 0; padding: 10px; border: 1px solid #ffffff22; }
+.match-setup h3 { margin: 0 0 8px; }
+.setup-field { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
+.setup-field > span { flex: 1; }
+.setup-field .field-in { width: 130px; }
+.control-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.control-table td, .control-table th { padding: 5px; text-align: left; }
+.control-table .field-in { width: 120px; font-size: 11px; }
+.control-settings { overflow-x: auto; margin-top: 15px; }

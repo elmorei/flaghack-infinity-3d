@@ -1,3 +1,4 @@
+import { burnTime, dayClock } from "../../sim/matchSettings";
 /**
  * Post-processing: an EffectComposer chain of
  *   RenderPass (scene into a multisampled linear HDR target)
@@ -116,7 +117,7 @@ export class PostFx {
     // The Burn grade follows the fire: full while the effigy blazes, easing as it smoulders
     // (so the night can deepen) and giving way as daylight returns at Dawn.
     const world = ctx.world;
-    if (world.suddenDeath && this.burnStartedAt === Infinity) this.burnStartedAt = burnStartFor(world.time);
+    if (world.suddenDeath && this.burnStartedAt === Infinity) this.burnStartedAt = world.options.mode === "tutorial" ? burnStartFor(world.time) : burnTime(world.options);
     const fire = world.suddenDeath
       ? fireIntensity(Math.max(0, world.time - this.burnStartedAt)) * (1 - BURN_DAYLIGHT_FALLOFF * daylight)
       : 0;

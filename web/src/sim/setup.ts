@@ -1,3 +1,4 @@
+import { matchSettings } from "./matchSettings";
 /**
  * Match setup: map, lattice, physics, nav, factions, four corner camps (Hearth + GCC +
  * avatar + hippies + stock + home ring), lumber piles, neutral hippies.
@@ -68,7 +69,7 @@ export function createMatch(options: MatchOptions): World {
   const world = new World(options);
   const map = generateMap(options.seed);
   world.map = map;
-  world.lattice = Lattice.generate(options.seed, { isBlockedAt: map.isBlockedAt });
+  world.lattice = Lattice.generate(options.seed, { isBlockedAt: map.isBlockedAt, edge: matchSettings(options).gridScale });
   world.collision = CollisionWorld.fromMap(map);
   world.nav = NavGrid.fromMap(map);
   world.survey = createSurveyState(world.lattice);
@@ -77,7 +78,10 @@ export function createMatch(options: MatchOptions): World {
   for (const f of FACTION_IDS) {
     world.factions.push(createFaction(f, options.humans.includes(f), options.difficulty));
   }
-  for (const f of FACTION_IDS) setupCamp(world, f);
+  for (const f of FACTION_IDS) {
+    if (matchSettings(options).active.includes(f)) setupCamp(world, f);
+    else world.factions[f].alive = false;
+  }
 
   for (const spot of map.pileSpots) {
     spawnPile(world, world.rng.chance(0.55) ? 'pallets' : 'moop', spot, world.rng.int(PILE_MIN, PILE_MAX));
@@ -115,7 +119,7 @@ export function nearestBuildableFacet(world: World, x: number, z: number, exclud
 function setupCamp(world: World, f: FactionId): void {
   const fac = world.factions[f];
   const c = CAMP_CENTERS[f];
-  fac.lumber = START_LUMBER;
+  fac.lumber = matchSettings(world.options).startingLumber;
   // Unit vector from the camp toward the map centre (the effigy).
   const toCentre = Math.hypot(c.x, c.z);
   const dirX = -c.x / toCentre;
@@ -135,7 +139,7 @@ function setupCamp(world: World, f: FactionId): void {
   av.yaw = Math.atan2(-av.pos.x, -av.pos.z);
   av.input.yaw = av.yaw;
 
-  for (let i = 0; i < START_STOCK_FLAGS; i++) {
+  for (let i = 0; i < matchSettings(world.options).startingFlags; i++) {
     spawnFlag(world, { state: 'stock', owner: f, holder: hearth.id, pos: { x: hearth.pos.x, y: 0, z: hearth.pos.z } });
   }
   for (let i = 0; i < START_CARRIED_FLAGS; i++) {
@@ -145,8 +149,8 @@ function setupCamp(world: World, f: FactionId): void {
 
   // Hippies circle the Hearth inside the ring, starting half a step away from the GCC.
   const gccAngle = Math.atan2(gcc.pos.z - hearth.pos.z, gcc.pos.x - hearth.pos.x);
-  for (let i = 0; i < START_HIPPIES; i++) {
-    const a = gccAngle + ((i + 0.5) / START_HIPPIES) * Math.PI * 2;
+  for (let i = 0; i < matchSettings(world.options).startingSignifiers; i++) {
+    const a = gccAngle + ((i + 0.5) / Math.max(1, matchSettings(world.options).startingSignifiers)) * Math.PI * 2;
     spawnHippie(world, f, clearSpot(world, hearth, gcc, a, HIPPIE_CIRCLE, HIPPIE.radius));
   }
 }

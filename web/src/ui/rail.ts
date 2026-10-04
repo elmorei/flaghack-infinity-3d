@@ -1,3 +1,4 @@
+import { matchSettings, endTime } from "../sim/matchSettings";
 /**
  * Hearth rail (left): all four camps, always visible. Colour, name, title, the Signifier's
  * handle online, capture-stage badge, per-attacker pressure bars, overwrite countdown,
@@ -165,6 +166,7 @@ export class HearthRail implements UiPart {
     for (const f of world.factions) {
       const card = this.cards[f.id];
       if (!card) continue;
+      show(card.root,matchSettings(world.options).active.includes(f.id));
       setClass(card.root, 'dead', !f.alive);
       // Online: who plays the camp; a dropped Signifier's camp is run by the AI until they return.
       const handle = s.playerNames[f.id] ?? '';
@@ -242,9 +244,9 @@ export class HearthRail implements UiPart {
         c.dawnRole = role;
         setText(c.dawnLabel, r.label);
         c.dawnRoleIcon.innerHTML = r.icon;
-        setText(c.dawnTag, `${r.tag} · dawn at ${DAWN_CLOCK}`);
+        setText(c.dawnTag, `${r.tag} · dawn at ${fmtClock(endTime(world.options))}`);
         c.dawnAct.className = r.tone;
-        setText(c.dawnAct, r.act);
+        setText(c.dawnAct, r.act.replace(DAWN_CLOCK,fmtClock(endTime(world.options))));
         show(c.dawnAct, r.act !== '');
       }
       // Text only: the reason names camps by their Signifiers' handles online.

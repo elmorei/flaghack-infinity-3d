@@ -49,7 +49,7 @@ const PHASE_BASE = 3;
 const PHASE_STEP = Math.floor(PERCEIVE_TICKS / FACTION_IDS.length);
 
 export function createAi(world: World, factions: readonly FactionId[]): AiController {
-  const brains = factions.map((f) => {
+  const brains = factions.filter(f=>world.factions[f].alive).map((f) => {
     const b = new Brain(world, f, PHASE_BASE + f * PHASE_STEP);
     b.nextPerceiveTick = alignedTick(world.tick, PERCEIVE_TICKS, b.phase);
     b.nextDecideTick = alignedTick(world.tick, b.decideTicks, b.phase + 1);

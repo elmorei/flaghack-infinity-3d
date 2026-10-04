@@ -22,7 +22,7 @@ import type { GameEvent } from '../sim/events';
 import type { DeltaSnapshot, FullSnapshot } from './codec';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -53,6 +53,7 @@ export interface HostInfo {
 export type LobbyPhase = 'lobby' | 'playing' | 'ended';
 
 export interface LobbySettings {
+  match?: import("../sim/matchSettings").MatchSettings;
   /** Difficulty of the AI seats. */
   difficulty: Difficulty;
   /** Map seed; null = a fresh random burn each match. */

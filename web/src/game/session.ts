@@ -2,6 +2,8 @@
  * Session: player-side presentation state (never simulation truth). Shared by game/
  * (controls write it), render/ (reads it) and ui/ (reads + writes panels/tools).
  */
+import { DEFAULT_MATCH } from "../sim/matchSettings";
+import { defaultControls } from "./bindings";
 import type { Severity } from '../sim/events';
 import type { V2, V3 } from '../sim/math';
 import type { BuildingKind, Difficulty, EntityId, FactionId, HippieOrder, PieceKind } from '../sim/types';
@@ -93,6 +95,8 @@ export interface FeedItem {
 }
 
 export interface Settings {
+  match: import("../sim/matchSettings").MatchSettings;
+  controls: import("./bindings").ControlSettings;
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
@@ -144,6 +148,8 @@ export class Session {
   feed: FeedItem[] = [];
   camera: CameraState = { yaw: 0, pitch: 0.35, dist: 6.5, cmdX: 0, cmdZ: 0, cmdHeight: 120 };
   settings: Settings = {
+    match: {...DEFAULT_MATCH, active:[...DEFAULT_MATCH.active]},
+    controls: defaultControls(),
     masterVolume: 0.8,
     musicVolume: 0.6,
     sfxVolume: 0.9,

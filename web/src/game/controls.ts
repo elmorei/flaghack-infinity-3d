@@ -1,3 +1,4 @@
+import { matchSettings } from "../sim/matchSettings";
 /**
  * Player controls: keyboard/mouse → camera, Session presentation state and Commands. Only
  * `app.submit(cmd)` changes the simulation: the continuous avatarInput every tick, and discrete
@@ -240,7 +241,8 @@ export class Controls {
     this.input = new Input(canvas);
     this.command = new CommandView(this.input, this.queue);
     const input = this.input;
-    input.capturesKey = (code) => app.session.screen === 'playing' && GAME_KEYS[code] === true;
+    input.capturesKey = (code) => app.session.screen === 'playing' && (GAME_KEYS[code] === true || input.owns(code));
+    input.onMenuBack = ()=>{const s=app.session;if(s.panels.settings)s.panels.settings=false;else if(s.panels.codex)s.panels.codex=false;else if(s.panels.help)s.panels.help=false;else if(s.panels.chakras)s.panels.chakras=false;else if(s.screen==='paused')app.setPaused(false);};
     input.onLockLost = () => {
       const s = app.session;
       if (s.screen === 'playing' && s.view === 'action' && !this.cursorWanted(s) && !this.spectating()) app.setPaused(true);
@@ -278,7 +280,9 @@ export class Controls {
     const inPlay = s.screen === 'playing' && av !== undefined && (seated(world, s) || s.spectator);
     const watcher = inPlay && watching(world, s);
     // A text field (chat) has the keyboard: keys held when it opened must not keep the vexillomancer running.
+    this.input.controls = s.settings.controls;
     const typing = this.input.typing;
+    this.input.pollGamepad(Math.min(dt,0.05),inPlay&&!typing&&!this.cursorWanted(s),s.view==='command');
     if (typing) this.input.clear();
     if (inPlay && av && this.freshWorld) this.beginMatch(s, av);
 
@@ -327,8 +331,8 @@ export class Controls {
     out.sprint = false;
     if (s.view === 'action' && av.koUntil <= world.time) {
       // WASD relative to the camera yaw; yaw 0 faces +z, screen-right is (-cos, sin).
-      const fwd = (inp.isDown('KeyW') ? 1 : 0) - (inp.isDown('KeyS') ? 1 : 0);
-      const side = (inp.isDown('KeyD') ? 1 : 0) - (inp.isDown('KeyA') ? 1 : 0);
+      const fwd = (inp.isDown('KeyW') ? 1 : 0) - (inp.isDown('KeyS') ? 1 : 0) - inp.moveY;
+      const side = (inp.isDown('KeyD') ? 1 : 0) - (inp.isDown('KeyA') ? 1 : 0) + inp.moveX;
       const yaw = s.camera.yaw;
       let mx = Math.sin(yaw) * fwd - Math.cos(yaw) * side;
       let mz = Math.cos(yaw) * fwd + Math.sin(yaw) * side;
@@ -582,7 +586,7 @@ export class Controls {
 
   private look(s: Session): void {
     const inp = this.input;
-    if ((!inp.locked && !inp.lockUnavailable) || this.cursorWanted(s)) return;
+    if ((!inp.locked && !inp.lockUnavailable && !inp.gamepadActive) || this.cursorWanted(s)) return;
     const k = LOOK_SPEED * s.settings.mouseSensitivity * (s.aim.active ? AIM_LOOK_SCALE : 1);
     const cam = s.camera;
     cam.yaw = wrapAngle(cam.yaw - inp.dx * k);
@@ -676,7 +680,7 @@ export class Controls {
       // Metres per pixel at the cursor's depth: tiny Signifiers stay clickable from on high.
       const wpp = (2 * picker.dist * Math.tan((camera.fov * DEG) / 2)) / this.input.height;
       minR = Math.min(6, CMD_PICK_PX * wpp);
-      nodeR = clamp(CMD_PICK_PX * wpp, NODE_PICK, LEY_EDGE / 2);
+      nodeR = clamp(CMD_PICK_PX * wpp, NODE_PICK, matchSettings(world.options).gridScale / 2);
     }
     const lat = world.lattice;
     hv.node = lat.nearestNode(p.x, p.z, nodeR);

@@ -1,3 +1,5 @@
+import { saveSettings } from "./settings";
+import { MatchSetup } from "./matchSetup";
 /**
  * Title screen (session.screen 'title'): the attract match plays behind a left-hand column
  * with the five-Flag pinwheel sigil, the FLAGHACK ∞ logo, rotating scripture, the menu (Begin
@@ -70,6 +72,7 @@ export function sigilSvg(cls: string): string {
 }
 
 export class TitleScreen implements UiPart {
+  private setup: MatchSetup;
   private host: UiHost;
   private root: HTMLElement;
   private quote: HTMLElement;
@@ -168,6 +171,7 @@ export class TitleScreen implements UiPart {
       this.diffButtons.set(d, b);
     }
     this.diffDesc = el('div', 'diff-desc', diff, '');
+    this.setup = new MatchSetup(menu,()=>s.settings.match,v=>{s.settings.match=v;saveSettings(s.settings);});
     const row = el('div', 'menu-row', menu);
     button('btn', row, 'Liber HH', () => {
       s.panels.codex = true;
@@ -322,6 +326,7 @@ export class TitleScreen implements UiPart {
     if (visible && !this.wasVisible) this.showTraining();
     this.wasVisible = visible;
     if (!visible) return;
+    this.setup.update();
     // Panels opened from the title (codex/settings) sit above it; keep the menu out of the way.
     setClass(this.root, 'dimmed', s.panels.codex || s.panels.settings);
     for (const [d, b] of this.diffButtons) setClass(b, 'on', s.settings.difficulty === d);

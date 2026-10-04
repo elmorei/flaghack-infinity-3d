@@ -11,6 +11,12 @@ friends join from their browsers with a password.
 
 > Under no conditions should you attempt to play a game that claims to be Flaghack.
 
+## This fork
+
+Windows: download **[Flaghack-Launcher.exe](./Flaghack-Launcher.exe)** and choose `elmorei/flaghack-infinity-3d`, branch `iteration`. See [launcher instructions](launcher/README.md).
+
+This iteration adds camp toggles, 1–5 days or Unlimited, advanced match settings, gamepad input and customizable controls. See [the fork guide](docs/fork-iteration.md).
+
 ## Play
 
 ```sh

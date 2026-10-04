@@ -1,3 +1,4 @@
+import { normalizeMatch } from "../src/sim/matchSettings";
 /**
  * The host over real sockets: startHost in-process on an ephemeral port, `ws` clients speaking the
  * protocol. The host ticks on wall time, so match tests wait on conditions with deadlines.
@@ -120,6 +121,20 @@ describe('handshake', () => {
 });
 
 describe('lobby', () => {
+  it('replicates custom setup and refuses disabled seats', async()=>{
+    const h=await host();const alice=await join(h,'alice');
+    const match=normalizeMatch({active:[0],days:3,dayLength:300,gridScale:10});
+    alice.c.send({t:'settings',settings:{match}});
+    const changed=await alice.c.next('lobby',m=>m.lobby.settings.match?.days===3);
+    expect(changed.lobby.settings.match).toEqual(match);
+    await sleep(CHANGE_COOLDOWN_MS+50);
+    alice.c.send({t:'seat',seat:1});
+    alice.c.send({t:'start'});
+    const start=await alice.c.next('matchStart',undefined,15000);
+    expect(start.seat).toBe(0);expect(start.options.match).toEqual(match);
+    expect(Object.values(start.snapshot.ents.avatars)).toHaveLength(1);
+  });
+
   it('lets only the leader change settings and start; matchStart carries the options and a snapshot', async () => {
     const h = await host();
     const alice = await join(h, 'alice');
@@ -132,7 +147,7 @@ describe('lobby', () => {
     bob.c.send({ t: 'ready', ready: true });
     const after = await alice.c.next('lobby', (m) => m.lobby.players.some((p) => p.id === bob.me.playerId && p.ready));
     expect(after.lobby.phase).toBe('lobby');
-    expect(after.lobby.settings).toEqual({ difficulty: 'normal', seed: null });
+    expect(after.lobby.settings).toMatchObject({ difficulty: 'normal', seed: null });
     expect(after.lobby.seats.map((s) => s.playerId)).toEqual([alice.me.playerId, null, null, bob.me.playerId]);
 
     bob.c.send({ t: 'seat', seat: 0 });
@@ -144,7 +159,7 @@ describe('lobby', () => {
     const [a, b] = await Promise.all([alice.c.next('matchStart', undefined, 15_000), bob.c.next('matchStart', undefined, 15_000)]);
     expect(a.seat).toBe(0);
     expect(b.seat).toBe(3);
-    expect(a.options).toEqual({ seed: 'test seed', difficulty: 'chill', humans: [0, 3], mode: 'standard' });
+    expect(a.options).toEqual({ seed: 'test seed', difficulty: 'chill', humans: [0, 3], mode: 'standard', match: normalizeMatch() });
     expect(a.snapshot.tick).toBe(0);
     expect(b.snapshot).toEqual(a.snapshot);
     await alice.c.next('lobby', (m) => m.lobby.phase === 'playing');

@@ -178,7 +178,10 @@ export class App implements AppApi {
     this.dropClient();
     const seed = opts.seed ?? `burn-${Date.now().toString(36)}`;
     const difficulty = opts.difficulty ?? this.session.settings.difficulty;
-    this.load({ seed, difficulty, humans: [LOCAL_SEAT], mode: 'standard' });
+    const match = opts.match ?? this.session.settings.match;
+    const seat = match.active[0] ?? LOCAL_SEAT;
+    this.load({ seed, difficulty, humans: [seat], mode: 'standard', match });
+    this.session.playerFaction = seat;
     this.enterPlay();
   }
 
@@ -293,6 +296,7 @@ export class App implements AppApi {
     this.tutorial = null;
     this.session.markers = [];
     const world = createMatch(options);
+    this.session.playerFaction = options.humans[0] ?? LOCAL_SEAT;
     this.world = world;
     this.sim = new Simulation(world);
     // The Training Burn's rivals are scripted by the tutorial director, not the AI.
@@ -320,7 +324,7 @@ export class App implements AppApi {
     this.tickCmds = [];
     this.tickFresh = false;
     const s = this.session;
-    s.playerFaction = LOCAL_SEAT;
+    s.playerFaction = this.world?.options.humans[0] ?? LOCAL_SEAT;
     s.spectator = false;
     s.followFaction = null;
     s.playerNames = {};
@@ -359,7 +363,7 @@ export class App implements AppApi {
     this.world = world;
     const s = this.session;
     s.markers = [];
-    s.playerFaction = seat ?? 0;
+    s.playerFaction = seat ?? options.match?.active[0] ?? 0;
     s.spectator = seat === null;
     s.playerNames = client.lobby ? seatNames(client.lobby) : {};
     this.acc = 0;

@@ -1,3 +1,6 @@
+import { normalizeMatch } from "../sim/matchSettings";
+import { normalizeControls } from "../game/bindings";
+import { controlSettings } from "./controlSettings";
 /**
  * Settings panel (session.panels.settings; from title or pause): master/music/sfx volume,
  * mouse sensitivity, invert Y, render quality, FPS overlay. Values write straight into
@@ -41,6 +44,8 @@ export function loadSettings(target: Settings): void {
   }
   if (typeof raw !== 'object' || raw === null) return;
   const src: Record<string, unknown> = { ...raw };
+  target.match = normalizeMatch(src.match as never);
+  target.controls = normalizeControls(src.controls);
   for (const r of RANGES) {
     const v = src[r.key];
     if (typeof v === 'number' && Number.isFinite(v)) target[r.key] = Math.min(r.max, Math.max(r.min, v));
@@ -149,6 +154,7 @@ export class SettingsPanel implements UiPart {
     );
     el('span', 'set-v', grid, '');
 
+    controlSettings(box,host.app.session.settings,()=>this.persist());
     const foot = el('div', 'modal-foot', box);
     el('span', 'panel-hint', foot, 'Quality applies to the next Survey you begin.');
     button('btn btn-primary', foot, 'Done', () => this.close(), 'back');

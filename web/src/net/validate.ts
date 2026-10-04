@@ -1,3 +1,4 @@
+import { MATCH_RANGES, normalizeMatch } from "../sim/matchSettings";
 /**
  * Host-side validation of untrusted client messages: JSON parse, exact shape and type checks for
  * every ClientMessage and every Command variant (numbers finite and in range, ids integers,
@@ -158,6 +159,13 @@ function settingsPatch(v: unknown): Partial<LobbySettings> | null {
       const d = v.difficulty;
       if (!isKeyOf(DIFFICULTIES, d)) return null;
       out.difficulty = d;
+    } else if(k === 'match') {
+      const m=v.match; if(!isRec(m))return null;
+      if(!Array.isArray(m.active)||m.active.length<1||m.active.length>4||m.active.some(f=>!Number.isInteger(f)||f<0||f>3)||new Set(m.active).size!==m.active.length)return null;
+      if(typeof m.days!=='number'||!Number.isInteger(m.days)||m.days<0||m.days>5)return null;
+      for(const key of Object.keys(MATCH_RANGES) as (keyof typeof MATCH_RANGES)[]){const n=m[key];const [min,max]=MATCH_RANGES[key];if(typeof n!=='number'||!Number.isFinite(n)||n<min||n>max)return null;}
+      if(Object.keys(m).some(key=>!['active','days',...Object.keys(MATCH_RANGES)].includes(key)))return null;
+      out.match=normalizeMatch(m);
     } else if (k === 'seed') {
       const s = v.seed;
       if (s !== null && !isText(s, RAW_SEED)) return null;

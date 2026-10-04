@@ -1,3 +1,4 @@
+import { burnTime, dayClock } from "../../sim/matchSettings";
 /**
  * Environment: sky, sun/moon, day–night cycle, fog, ground (grass/dirt/roads/mud/pond),
  * map props (tents, domes, art, porta rows, trees, sound camps with lights, the Flag effigy
@@ -106,12 +107,12 @@ export class EnvRenderer implements RenderModule {
   private syncDay(): void {
     const { ctx, env } = this;
     const world = ctx.world;
-    const day = computeDayState(ctx.session.screen === 'title' ? ATTRACT_CLOCK : world.time, env.day);
+    const day = computeDayState(ctx.session.screen === 'title' ? ATTRACT_CLOCK : dayClock(world.options, world.time), env.day);
 
     const burn = env.burn;
     if (world.suddenDeath && !burn.active) {
       burn.active = true;
-      burn.startedAt = burnStartFor(world.time);
+      burn.startedAt = world.options.mode === "tutorial" ? burnStartFor(world.time) : burnTime(world.options);
     }
     burn.elapsed = burn.active ? Math.max(0, world.time - burn.startedAt) : 0;
     burn.progress = Math.min(1, burn.elapsed / BURN_CHAR_SECONDS);

@@ -1,3 +1,4 @@
+import { endTime } from "../sim/matchSettings";
 /**
  * Event feed (bottom-left): renders session.feed (shared with controls and other modules)
  * and translates GameEvents into lore-voice lines, banners and minimap flashes. Noisy event
@@ -195,7 +196,7 @@ export class FeedPart implements UiPart {
           tone: 'burn',
           dur: 4,
         });
-        this.host.post(`The effigy burns. Sudden death until dawn at ${fmtClock(DAWN_TIME)}!`, 'epic');
+        this.host.post(`The effigy burns. Sudden death until dawn at ${fmtClock(endTime(this.host.app.world!.options))}!`, 'epic');
         break;
       case 'victory':
         // A conquest needs no banner (the end screen says it); a dawn crowning gets its moment over the live burn.

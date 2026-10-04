@@ -1,3 +1,4 @@
+import { burnTime, endTime, matchSettings } from "../matchSettings";
 /**
  * Elimination, match end (conquest: the last camp standing; Dawn: the dominant camp once
  * DAWN_TIME arrives), The Burn (sudden death) timing.
@@ -99,7 +100,7 @@ export function eliminate(world: World, faction: FactionId, by: FactionId | null
  */
 export function suddenDeathMult(world: World): number {
   if (!world.suddenDeath) return 1;
-  return SUDDEN_DEATH_PRESSURE_MULT + Math.max(0, Math.floor((world.time - BURN_TIME) / SUDDEN_DEATH_ESCALATE_EVERY));
+  return SUDDEN_DEATH_PRESSURE_MULT + Math.max(0, Math.floor((world.time - burnTime(world.options)) / SUDDEN_DEATH_ESCALATE_EVERY));
 }
 
 /**
@@ -131,7 +132,7 @@ export function updateVictory(world: World, dt: number): void {
   if (world.phase !== 'playing') return;
   // The Training Burn runs on its lessons' clock; the director stages its Burn and never crowns anyone.
   if (world.options.mode === 'tutorial') return;
-  if (!world.suddenDeath && world.time >= BURN_TIME) startBurn(world);
+  if (!world.suddenDeath && world.time >= burnTime(world.options)) startBurn(world);
   if (world.suddenDeath) announceEscalation(world);
 
   let survivor: FactionId | null = null;
@@ -141,7 +142,7 @@ export function updateVictory(world: World, dt: number): void {
     survivors++;
     survivor = fac.id;
   }
-  if (survivors === 1 && survivor !== null) {
+  if (survivors === 1 && survivor !== null && matchSettings(world.options).active.length > 1) {
     crown(
       world,
       survivor,
@@ -150,14 +151,14 @@ export function updateVictory(world: World, dt: number): void {
     );
     return;
   }
-  if (survivors < 2) return;
-  if (world.time >= DAWN_TIME) {
+  if (survivors === 0) return;
+  if (world.time >= endTime(world.options)) {
     const dominant = dominanceOrder(world)[0];
     const name = world.factions[dominant].name;
     crown(world, dominant, 'dawn', `Dawn breaks over the burn. The Survey is completed: ${name}'s Survey stands dominant.`);
     return;
   }
-  if (world.time >= DAWN_TIME - DAWN_WARNING && world.scratch.dawnWarned !== true) {
+  if (world.time >= endTime(world.options) - DAWN_WARNING && world.scratch.dawnWarned !== true) {
     world.scratch.dawnWarned = true;
     world.emit({
       t: 'notify',

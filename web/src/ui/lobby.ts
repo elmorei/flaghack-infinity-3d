@@ -1,3 +1,5 @@
+import { MatchSetup } from "./matchSetup";
+import { normalizeMatch } from "../sim/matchSettings";
 /**
  * Lobby (session.screen 'lobby', the attract burn plays behind): the host's name, four seat
  * cards (character medallion, name, title, colour, the Signifier or the rivals' AI holding it,
@@ -48,6 +50,7 @@ export class LobbyScreen implements UiPart {
   private ready: HTMLButtonElement;
   private readyHint: HTMLElement;
   private diff = new Map<Difficulty, HTMLButtonElement>();
+  private setup: MatchSetup;
   private seed: HTMLInputElement;
   private random: HTMLButtonElement;
   private start: HTMLButtonElement;
@@ -118,6 +121,7 @@ export class LobbyScreen implements UiPart {
 
     const rules = el('div', 'panel lobby-rules', left);
     el('div', 'panel-title', rules, 'The burn');
+    this.setup=new MatchSetup(rules,()=>normalizeMatch(this.net?.lobby?.settings.match),v=>this.leaderOnly(()=>this.net?.setSettings({match:v})));
     const diffRow = el('div', 'lobby-row', rules);
     el('span', 'lobby-label', diffRow, 'Rival AI');
     const seg = el('div', 'seg', diffRow);
@@ -289,7 +293,9 @@ export class LobbyScreen implements UiPart {
       const card = this.seats[f];
       const holder = seatPlayer(lobby, f);
       const mine = net.seat === f;
-      setText(card.occupant, holder ? holder.name : ai);
+      const active=normalizeMatch(lobby.settings.match).active.includes(f);
+      setText(card.occupant, active ? (holder ? holder.name : ai) : 'Disabled');
+      setDisabled(card.action,!active);
       // A Signifier who dropped keeps the seat; the AI plays it until they return (or someone takes it).
       setText(card.state, holder ? (holder.connected ? (holder.ready ? 'ready' : 'not ready') : 'away · the AI holds the camp') : '');
       setClass(card.root, 'mine', mine);
@@ -340,6 +346,7 @@ export class LobbyScreen implements UiPart {
 
   private renderRules(net: NetSession, lobby: LobbyState): void {
     const leader = net.isLeader;
+    this.setup.update(leader && lobby.phase==='lobby');
     for (const [d, b] of this.diff) {
       setClass(b, 'on', lobby.settings.difficulty === d);
       setDisabled(b, !leader);

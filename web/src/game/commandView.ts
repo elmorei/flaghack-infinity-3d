@@ -178,8 +178,8 @@ export class CommandView {
     const w = inp.width;
     const h = inp.height;
     const aspect = w / h;
-    let px = 0;
-    let pz = 0;
+    let px = inp.moveX;
+    let pz = inp.moveY;
     if (inp.isDown('KeyW') || inp.isDown('ArrowUp')) pz -= 1;
     if (inp.isDown('KeyS') || inp.isDown('ArrowDown')) pz += 1;
     if (inp.isDown('KeyA') || inp.isDown('ArrowLeft')) px -= 1;
@@ -191,7 +191,7 @@ export class CommandView {
       else if (inp.my > h - EDGE_BAND) pz += 1;
     }
     if (px !== 0 || pz !== 0) {
-      const l = Math.hypot(px, pz);
+      const l = Math.max(1, Math.hypot(px, pz));
       const speed = cam.cmdHeight * 0.9 * (inp.shift ? 2 : 1);
       cam.cmdX += (px / l) * speed * dt;
       cam.cmdZ += (pz / l) * speed * dt;

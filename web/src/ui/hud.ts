@@ -1,3 +1,4 @@
+import { burnTime, endTime, dayClock, matchSettings } from "../sim/matchSettings";
 /**
  * Core HUD: the ornate "N FLAGS" resource frame (top-left), the clock plaque with time of
  * day, Phason Tide, Burn and (after The Burn) Dawn countdowns (top-centre), the C.M.I. frame
@@ -235,9 +236,11 @@ export class HudPart implements UiPart {
 
     // Clock, time of day, tide, Burn.
     const t = world.time;
-    setText(this.clockT, fmtClock(t));
+    const cycle = dayClock(world.options,t);
+    const burnAt = burnTime(world.options), endAt = endTime(world.options);
+    setText(this.clockT, `Day ${Math.min(matchSettings(world.options).days || Infinity,Math.floor(t/matchSettings(world.options).dayLength)+1)} · ${fmtClock(t)}`);
     const phase: TimeOfDay =
-      t >= SUNRISE_AT ? 'dawn' : t >= FIRST_LIGHT_AT ? 'first' : t >= NIGHT_AT ? 'night' : t >= DUSK_AT ? 'dusk' : 'day';
+      cycle >= SUNRISE_AT ? 'dawn' : cycle >= FIRST_LIGHT_AT ? 'first' : cycle >= NIGHT_AT ? 'night' : cycle >= DUSK_AT ? 'dusk' : 'day';
     if (phase !== this.todPhase) {
       this.todPhase = phase;
       const tod = TIME_OF_DAY[phase];
@@ -254,7 +257,7 @@ export class HudPart implements UiPart {
       setClass(this.tide, 'pulse', toTide <= TIDE_WARNING);
     }
     // The Training Burn's director holds The Burn and Dawn back: no countdown to promise there.
-    const timed = world.options.mode !== 'tutorial';
+    const timed = world.options.mode !== 'tutorial' && Number.isFinite(endAt);
     show(this.burn, timed);
     show(this.dawn, timed && world.suddenDeath);
     show(this.clockSub, timed || tideDue);
@@ -262,18 +265,18 @@ export class HudPart implements UiPart {
       if (world.suddenDeath) {
         // The fire burns hotter every SUDDEN_DEATH_ESCALATE_EVERY s: show the multiplier and the next step.
         setText(this.burnL, `THE BURN ×${suddenDeathMult(world)}`);
-        const into = Math.max(0, t - BURN_TIME) % SUDDEN_DEATH_ESCALATE_EVERY;
+        const into = Math.max(0, t - burnAt) % SUDDEN_DEATH_ESCALATE_EVERY;
         setText(this.burnT, fmtClock(Math.ceil(SUDDEN_DEATH_ESCALATE_EVERY - into)));
-        const toDawn = DAWN_TIME - t;
+        const toDawn = endAt - t;
         setText(this.dawnT, fmtClock(Math.ceil(toDawn)));
         // Pulses through the same last minute the sim announces ("One minute to dawn").
         setClass(this.dawn, 'soon', toDawn <= DAWN_WARNING);
       } else {
         setText(this.burnL, 'Burn');
-        setText(this.burnT, fmtClock(Math.ceil(BURN_TIME - t)));
+        setText(this.burnT, fmtClock(Math.ceil(burnAt - t)));
       }
       setClass(this.burn, 'lit', world.suddenDeath);
-      setClass(this.burn, 'soon', !world.suddenDeath && BURN_TIME - t <= 60);
+      setClass(this.burn, 'soon', !world.suddenDeath && burnAt - t <= 60);
     }
 
     setText(this.cmiN, String(Math.round(fac.stats.cmi)));

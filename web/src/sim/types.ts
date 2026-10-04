@@ -381,6 +381,7 @@ export type MatchMode = 'standard' | 'tutorial';
 
 /** Plain data (serializable): the host sends it to every client to rebuild the static world. */
 export interface MatchOptions {
+  match?: import("./matchSettings").MatchSettings;
   seed: string;
   difficulty: Difficulty;
   /** Human-controlled factions. Every other faction is AI (empty: attract mode / headless tests). */

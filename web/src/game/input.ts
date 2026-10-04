@@ -1,3 +1,5 @@
+import { defaultControls, stick } from './bindings';
+import type { ControlSettings } from './bindings';
 /**
  * Raw browser input for the game canvas: held/pressed keys (KeyboardEvent.code), mouse buttons
  * with press positions, pointer-lock movement, wheel and cursor position. Edge flags (pressed /
@@ -29,7 +31,100 @@ export class Input {
   private pressed = new Set<string>();
   private released = new Set<string>();
   /** Mouse buttons held (only presses that began on the canvas). */
-  readonly buttons = [false, false, false];
+  private mouseButtons = [false, false, false];
+  get buttons(): boolean[] {
+    return [0, 1, 2].map((b) => this.isDown(`Mouse${b}`));
+  }
+  controls: ControlSettings = defaultControls();
+  private padHeld = new Set<string>();
+  private padPressed = new Set<string>();
+  private padReleased = new Set<string>();
+  moveX = 0;
+  moveY = 0;
+  gamepadActive = false;
+  private focused = true;
+  onMenuBack: (() => void) | null = null;
+  private menuButtons = new Set<number>();
+  private navigateMenu(pad: Gamepad | undefined): void {
+    const next = new Set<number>();
+    if (pad && this.focused)
+      pad.buttons.forEach((b, i) => {
+        if (b.pressed) next.add(i);
+      });
+    const pressed = (i: number) => next.has(i) && !this.menuButtons.has(i);
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('button,input,select,summary,a[href]')).filter(
+      (e) => e.getClientRects().length > 0 && !(e as HTMLButtonElement).disabled,
+    );
+    if (pressed(13) || pressed(12)) {
+      const direction = pressed(13) ? 1 : -1;
+      const current = elements.indexOf(document.activeElement as HTMLElement);
+      elements[(current + direction + elements.length) % elements.length]?.focus();
+    }
+    const selected = document.activeElement;
+    if (selected instanceof HTMLSelectElement && (pressed(14) || pressed(15))) {
+      selected.selectedIndex = Math.max(
+        0,
+        Math.min(selected.options.length - 1, selected.selectedIndex + (pressed(15) ? 1 : -1)),
+      );
+      selected.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (pressed(0)) {
+      if (selected instanceof HTMLElement && elements.includes(selected)) selected.click();
+      else elements[0]?.focus();
+    }
+    if (pressed(1) || pressed(9)) this.onMenuBack?.();
+    this.menuButtons = next;
+  }
+  private physical(code: string, edge: number): boolean {
+    if (code.startsWith('Mouse')) {
+      const b = Number(code.slice(5));
+      return edge === 0 ? this.mouseButtons[b] : edge === 1 ? this.btnPressed[b] : this.btnReleased[b];
+    }
+    return (
+      (edge === 0 ? this.held : edge === 1 ? this.pressed : this.released).has(code) ||
+      (edge === 0 ? this.padHeld : edge === 1 ? this.padPressed : this.padReleased).has(code)
+    );
+  }
+  private mapped(code: string, edge: number): boolean {
+    return (this.controls.bindings[code] ?? [code]).some((k) => this.physical(k, edge));
+  }
+  owns(code: string): boolean {
+    return code === 'Escape' || Object.values(this.controls.bindings).some((list) => list.includes(code));
+  }
+  pollGamepad(dt: number, enabled: boolean, cursor: boolean): void {
+    const pads = navigator.getGamepads?.() ?? [];
+    const pad = Array.from(pads).find((p) => p?.connected && p.mapping === 'standard');
+    const next = new Set<string>();
+    this.moveX = this.moveY = 0;
+    if (!enabled) this.navigateMenu(pad ?? undefined);
+    else this.menuButtons = new Set(pad?.buttons.flatMap((b, i) => (b.pressed ? [i] : [])) ?? []);
+    this.gamepadActive = !!pad && enabled && this.focused;
+    if (this.gamepadActive && pad) {
+      pad.buttons.forEach((b, i) => {
+        if (b.pressed || b.value > 0.55) next.add(`Pad${i}`);
+      });
+      const swap = this.controls.swapSticks ? 2 : 0,
+        look = this.controls.swapSticks ? 0 : 2;
+      [this.moveX, this.moveY] = stick(pad.axes[swap] ?? 0, pad.axes[swap + 1] ?? 0, this.controls.deadzone);
+      const [x, y] = stick(pad.axes[look] ?? 0, pad.axes[look + 1] ?? 0, this.controls.deadzone);
+      if (cursor) {
+        this.mx = Math.max(0, Math.min(this.width, this.mx + x * 700 * dt));
+        this.my = Math.max(0, Math.min(this.height, this.my + y * 700 * dt));
+        this.hasCursor = true;
+      } else {
+        this.dx += x * 700 * dt * this.controls.lookSpeed;
+        this.dy += y * 700 * dt * this.controls.lookSpeed * (this.controls.invertPadY ? -1 : 1);
+      }
+    }
+    for (const k of next) if (!this.padHeld.has(k)) this.padPressed.add(k);
+    for (const k of this.padHeld) if (!next.has(k)) this.padReleased.add(k);
+    this.padHeld = next;
+    for (let b = 0; b < 3; b++)
+      if (this.buttonPressed(b) && !this.btnPressed[b]) {
+        this.downX[b] = this.mx;
+        this.downY[b] = this.my;
+      }
+  }
   private btnPressed = [false, false, false];
   private btnReleased = [false, false, false];
   /** Cursor position (canvas CSS px) at the latest press of each button. */
@@ -80,6 +175,7 @@ export class Input {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+    window.addEventListener('focus', this.onFocus);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
     document.addEventListener('mouseleave', this.onMouseLeave);
@@ -91,28 +187,31 @@ export class Input {
   }
 
   isDown(code: string): boolean {
-    return this.held.has(code);
+    return this.mapped(code, 0);
   }
 
   wasPressed(code: string): boolean {
-    return this.pressed.has(code);
+    return this.mapped(code, 1);
   }
 
   wasReleased(code: string): boolean {
-    return this.released.has(code);
+    return !this.mapped(code, 0) && this.mapped(code, 2);
   }
 
   /** Mark a press as handled so later handlers this frame ignore it. */
   consume(code: string): void {
-    this.pressed.delete(code);
+    for (const k of this.controls.bindings[code] ?? [code]) {
+      this.pressed.delete(k);
+      this.padPressed.delete(k);
+    }
   }
 
   get shift(): boolean {
-    return this.held.has('ShiftLeft') || this.held.has('ShiftRight');
+    return this.isDown('ShiftLeft');
   }
 
   get ctrl(): boolean {
-    return this.held.has('ControlLeft') || this.held.has('ControlRight');
+    return this.isDown('ControlLeft');
   }
 
   /** A text field (chat, forms) has the keyboard: the game keeps its hands off. */
@@ -121,11 +220,11 @@ export class Input {
   }
 
   buttonPressed(b: number): boolean {
-    return this.btnPressed[b];
+    return this.mapped(`Mouse${b}`, 1);
   }
 
   buttonReleased(b: number): boolean {
-    return this.btnReleased[b];
+    return this.mapped(`Mouse${b}`, 2);
   }
 
   /** Squared cursor travel since the latest press of button b. */
@@ -159,9 +258,12 @@ export class Input {
   clear(): void {
     for (const code of this.held) this.released.add(code);
     this.held.clear();
+    this.padHeld.clear();
+    this.padPressed.clear();
+    this.moveX = this.moveY = 0;
     for (let b = 0; b < 3; b++) {
       if (this.buttons[b]) this.btnReleased[b] = true;
-      this.buttons[b] = false;
+      this.mouseButtons[b] = false;
     }
     this.dx = 0;
     this.dy = 0;
@@ -171,6 +273,8 @@ export class Input {
   /** Consume this frame's edges and deltas. */
   endFrame(): void {
     this.pressed.clear();
+    this.padPressed.clear();
+    this.padReleased.clear();
     this.released.clear();
     for (let b = 0; b < 3; b++) {
       this.btnPressed[b] = false;
@@ -187,6 +291,7 @@ export class Input {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('focus', this.onFocus);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     document.removeEventListener('mouseleave', this.onMouseLeave);
@@ -229,7 +334,9 @@ export class Input {
     if (e.repeat) return;
     this.held.add(e.code);
     this.pressed.add(e.code);
-    this.onKeyGesture?.(e.code);
+    const virtual =
+      Object.keys(this.controls.bindings).find((k) => this.controls.bindings[k].includes(e.code)) ?? e.code;
+    this.onKeyGesture?.(virtual);
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -239,7 +346,11 @@ export class Input {
   };
 
   private onBlur = (): void => {
+    this.focused = false;
     this.clear();
+  };
+  private onFocus = (): void => {
+    this.focused = true;
   };
 
   private updateCursor(e: MouseEvent): void {
@@ -267,15 +378,15 @@ export class Input {
     if (!this.locked) this.updateCursor(e);
     if (e.button === MMB) e.preventDefault(); // no autoscroll
     if (this.onCanvasDown?.(e.button)) return;
-    this.buttons[e.button] = true;
+    this.mouseButtons[e.button] = true;
     this.btnPressed[e.button] = true;
     this.downX[e.button] = this.mx;
     this.downY[e.button] = this.my;
   };
 
   private onMouseUp = (e: MouseEvent): void => {
-    if (e.button > 2 || !this.buttons[e.button]) return;
-    this.buttons[e.button] = false;
+    if (e.button > 2 || !this.mouseButtons[e.button]) return;
+    this.mouseButtons[e.button] = false;
     this.btnReleased[e.button] = true;
   };
 
