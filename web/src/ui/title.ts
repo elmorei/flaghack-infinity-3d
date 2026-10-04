@@ -104,7 +104,7 @@ export class TitleScreen implements UiPart {
     el('div', 'title-shade', this.root);
     const col = el('div', 'title-col', this.root);
     html('div', 'title-sigil', sigilSvg('sigil spin'), col);
-    el('h1', 'logo', col, 'Vexillamania 3D');
+    html('h1', 'logo', 'FLAGHACK <span class="inf">∞</span>', col);
     el('div', 'subtitle', col, 'SURVEY FLAGS');
 
     this.quote = el('blockquote', 'quote', col);
