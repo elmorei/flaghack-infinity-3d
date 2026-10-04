@@ -590,7 +590,7 @@ export class Controls {
     const k = LOOK_SPEED * s.settings.mouseSensitivity * (s.aim.active ? AIM_LOOK_SCALE : 1);
     const cam = s.camera;
     cam.yaw = wrapAngle(cam.yaw - inp.dx * k);
-    cam.pitch = clamp(cam.pitch + inp.dy * k * (s.settings.invertY ? -1 : 1), PITCH_MIN, PITCH_MAX);
+    cam.pitch = clamp(cam.pitch + inp.lookY(s.settings.invertMouseY) * k, PITCH_MIN, PITCH_MAX);
   }
 
   private animateBlend(s: Session, dt: number): void {

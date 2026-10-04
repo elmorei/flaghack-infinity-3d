@@ -54,6 +54,48 @@ function setup() {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('mapped input and gamepad lifecycle', () => {
+  it.each([false, true])('keeps mouse inversion independent with gamepad inversion %s', (invertPadY) => {
+    const { input, pad, listeners } = setup();
+    input.controls.invertPadY = invertPadY;
+    input.locked = true;
+    pad.axes[3] = 1;
+    input.pollGamepad(1 / 60, true, false);
+    const gamepadY = input.lookY(false);
+    expect(Math.sign(gamepadY)).toBe(invertPadY ? -1 : 1);
+    expect(input.lookY(true)).toBe(gamepadY);
+
+    // Both devices move in the same frame: only the mouse contribution changes sign.
+    listeners.get('mousemove')!({ movementX: 0, movementY: 10 });
+    expect(input.lookY(false)).toBeCloseTo(gamepadY + 10);
+    expect(input.lookY(true)).toBeCloseTo(gamepadY - 10);
+    input.endFrame();
+    expect(input.lookY(false)).toBe(0);
+
+    // A neutral stick never changes the mouse's direction.
+    pad.axes[3] = 0;
+    listeners.get('mousemove')!({ movementX: 0, movementY: 10 });
+    input.pollGamepad(1 / 60, true, false);
+    expect(input.lookY(false)).toBe(10);
+    expect(input.lookY(true)).toBe(-10);
+    input.clear();
+    expect(input.lookY(false)).toBe(0);
+  });
+
+  it('clears vertical gamepad look on focus loss and does not invert the command cursor', () => {
+    const { input, pad, listeners } = setup();
+    input.controls.invertPadY = true;
+    pad.axes[3] = 1;
+    input.pollGamepad(1 / 60, true, false);
+    expect(input.lookY(false)).toBeLessThan(0);
+    listeners.get('blur')!({});
+    expect(input.lookY(false)).toBe(0);
+    listeners.get('focus')!({});
+    input.my = 300;
+    input.pollGamepad(0.1, true, true);
+    expect(input.my).toBe(370);
+    expect(input.lookY(false)).toBe(0);
+  });
+
   it('polls analog movement and turns controller buttons into action edges', () => {
     const { input, pad } = setup();
     pad.axes = [0.6, -0.4, 0.5, 0];

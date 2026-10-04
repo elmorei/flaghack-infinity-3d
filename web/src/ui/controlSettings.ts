@@ -93,7 +93,6 @@ export function controlSettings(parent: HTMLElement, settings: Settings, save: (
     });
   }
   for (const [key, name] of [
-    ['invertPadY', 'Invert gamepad look Y'],
     ['swapSticks', 'Swap gamepad sticks'],
   ] as const) {
     const l = el('label', 'setup-field', details);

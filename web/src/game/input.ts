@@ -116,7 +116,7 @@ export class Input {
         this.hasCursor = true;
       } else {
         this.dx += x * 700 * dt * this.controls.lookSpeed;
-        this.dy += y * 700 * dt * this.controls.lookSpeed * (this.controls.invertPadY ? -1 : 1);
+        this.padDy += y * 700 * dt * this.controls.lookSpeed * (this.controls.invertPadY ? -1 : 1);
       }
     }
     for (const k of next) if (!this.padHeld.has(k)) this.padPressed.add(k);
@@ -133,9 +133,16 @@ export class Input {
   /** Cursor position (canvas CSS px) at the latest press of each button. */
   readonly downX = [0, 0, 0];
   readonly downY = [0, 0, 0];
-  /** Look movement accumulated since the last frame (CSS px). */
+  /** Horizontal look from both devices; raw vertical mouse movement (CSS px). */
   dx = 0;
   dy = 0;
+  /** Vertical gamepad look, with its own inversion already applied. */
+  private padDy = 0;
+
+  /** Invert each device before combining, including when both move in the same frame. */
+  lookY(invertMouseY: boolean): number {
+    return this.dy * (invertMouseY ? -1 : 1) + this.padDy;
+  }
   /** Wheel accumulated since the last frame (pixels; + = away from the screen top / zoom out). */
   wheel = 0;
   /** Cursor position in canvas CSS px. */
@@ -270,6 +277,7 @@ export class Input {
     }
     this.dx = 0;
     this.dy = 0;
+    this.padDy = 0;
     this.wheel = 0;
   }
 
@@ -285,6 +293,7 @@ export class Input {
     }
     this.dx = 0;
     this.dy = 0;
+    this.padDy = 0;
     this.wheel = 0;
   }
 

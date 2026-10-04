@@ -101,7 +101,7 @@ export interface Settings {
   musicVolume: number;
   sfxVolume: number;
   mouseSensitivity: number;
-  invertY: boolean;
+  invertMouseY: boolean;
   quality: 'low' | 'medium' | 'high';
   showFps: boolean;
   difficulty: Difficulty;
@@ -154,7 +154,7 @@ export class Session {
     musicVolume: 0.6,
     sfxVolume: 0.9,
     mouseSensitivity: 1,
-    invertY: false,
+    invertMouseY: false,
     quality: 'high',
     showFps: false,
     difficulty: 'normal',
