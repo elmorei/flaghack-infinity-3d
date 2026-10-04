@@ -9,3 +9,5 @@ web/node_modules/
 web/dist/
 web/dist-server/
 web/.vite/
+launcher/*.obj
+launcher/*.res
