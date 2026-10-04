@@ -1,5 +1,6 @@
-import { MatchSetup } from "./matchSetup";
-import { normalizeMatch } from "../sim/matchSettings";
+import { MatchSetup } from './matchSetup';
+import { normalizeMatch } from '../sim/matchSettings';
+import { saveSettings } from './settings';
 /**
  * Lobby (session.screen 'lobby', the attract burn plays behind): the host's name, four seat
  * cards (character medallion, name, title, colour, the Signifier or the rivals' AI holding it,
@@ -9,13 +10,12 @@ import { normalizeMatch } from "../sim/matchSettings";
  * player-provided string (handles, chat, server name) is written as text.
  */
 import type { NetSession } from '../net/session';
-import { MAX_SEED_LENGTH } from '../net/protocol';
-import type { LobbyState } from '../net/protocol';
+import type { LobbySettings, LobbyState } from '../net/protocol';
 import { FACTION_DEFS } from '../sim/constants';
 import { FACTION_IDS } from '../sim/types';
-import type { Difficulty, FactionId } from '../sim/types';
+import type { FactionId } from '../sim/types';
 import type { World } from '../sim/world';
-import { DIFFICULTIES, DIFFICULTY_INFO } from './catalog';
+import { DIFFICULTY_INFO } from './catalog';
 import { ChatLog, chatInput } from './chat';
 import type { UiHost, UiPart } from './core';
 import { button, el, html, setAttr, setClass, setDisabled, setText, show } from './dom';
@@ -31,6 +31,9 @@ const FLASH_MS = 2600;
 
 interface SeatCard {
   root: HTMLElement;
+  identity: HTMLElement;
+  off: HTMLElement;
+  toggle: HTMLButtonElement;
   occupant: HTMLElement;
   state: HTMLElement;
   action: HTMLButtonElement;
@@ -49,10 +52,11 @@ export class LobbyScreen implements UiPart {
   private playerCount: HTMLElement;
   private ready: HTMLButtonElement;
   private readyHint: HTMLElement;
-  private diff = new Map<Difficulty, HTMLButtonElement>();
   private setup: MatchSetup;
-  private seed: HTMLInputElement;
-  private random: HTMLButtonElement;
+  private people: HTMLElement;
+  private talk: HTMLElement;
+  private localSeed: string | null = null;
+  private localSeat: FactionId = 0;
   private start: HTMLButtonElement;
   private startHint: HTMLElement;
   /** What the line under Start says when nothing was refused (set from the lobby state). */
@@ -97,7 +101,7 @@ export class LobbyScreen implements UiPart {
       },
       'click',
     );
-    button('btn btn-small btn-danger', tools, 'Leave the burn', () => this.net?.leave(), 'back');
+    button('btn btn-small btn-danger', tools, 'Back to title', () => this.host.app.quitToTitle(), 'back');
     this.notice = el('div', 'lobby-notice is-off', box, '');
 
     // ── Seats ──
@@ -107,7 +111,7 @@ export class LobbyScreen implements UiPart {
     // ── Signifiers + settings | chat ──
     const lower = el('div', 'lobby-lower', box);
     const left = el('div', 'lobby-left', lower);
-    const people = el('div', 'panel lobby-people', left);
+    const people = this.people = el('div', 'panel lobby-people', left);
     const ptitle = el('div', 'panel-title', people, 'Signifiers at the burn');
     this.playerCount = el('span', 'panel-sub', ptitle, '');
     this.players = el('div', 'lobby-players', people);
@@ -121,50 +125,20 @@ export class LobbyScreen implements UiPart {
 
     const rules = el('div', 'panel lobby-rules', left);
     el('div', 'panel-title', rules, 'The burn');
-    this.setup=new MatchSetup(rules,()=>normalizeMatch(this.net?.lobby?.settings.match),v=>this.leaderOnly(()=>this.net?.setSettings({match:v})));
-    const diffRow = el('div', 'lobby-row', rules);
-    el('span', 'lobby-label', diffRow, 'Rival AI');
-    const seg = el('div', 'seg', diffRow);
-    for (const d of DIFFICULTIES) {
-      const b = button('seg-btn', seg, DIFFICULTY_INFO[d].name, () => this.leaderOnly(() => this.net?.setSettings({ difficulty: d })), 'pick');
-      b.title = DIFFICULTY_INFO[d].desc;
-      this.diff.set(d, b);
-    }
-    const seedRow = el('div', 'lobby-row', rules);
-    el('span', 'lobby-label', seedRow, 'Seed');
-    this.seed = el('input', 'lobby-seed', seedRow);
-    this.seed.type = 'text';
-    this.seed.maxLength = MAX_SEED_LENGTH;
-    this.seed.autocomplete = 'off';
-    this.seed.spellcheck = false;
-    this.seed.placeholder = 'a fresh burn every match';
-    this.seed.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        this.seed.blur();
-      }
-    });
-    // Commit on blur (Enter blurs too): one settings message per edit, not per keystroke.
-    this.seed.addEventListener('change', () => {
-      const seed = this.seed.value.trim();
-      this.leaderOnly(() => this.net?.setSettings({ seed: seed === '' ? null : seed }));
-    });
-    this.random = button('toggle lobby-random', seedRow, 'Random', () => {
-      this.leaderOnly(() => {
-        const random = this.net?.lobby?.settings.seed === null;
-        // Leaving random needs a seed: keep whatever is typed, else coin one the group can reuse.
-        const seed = random ? this.seed.value.trim() || `burn-${Date.now().toString(36)}` : null;
-        this.net?.setSettings({ seed });
-      });
-    }, 'toggle');
+    this.setup = new MatchSetup(rules, parent, () => this.readSettings(), (patch) => this.writeSettings(patch));
     const go = el('div', 'lobby-go', rules);
     this.start = button('btn btn-primary btn-begin lobby-start', go, 'Light the burn', () => {
-      if (this.net?.lobby?.phase === 'playing') this.flashHint('A burn is already under way. Wait for it to end.');
+      if (!this.net) {
+        const settings = this.readSettings();
+        this.host.veiledLoad(() => this.host.app.startMatch({
+          seed: settings.seed ?? undefined, difficulty: settings.difficulty, match: settings.match, humans: [this.localSeat],
+        }));
+      } else if (this.net.lobby?.phase === 'playing') this.flashHint('A burn is already under way. Wait for it to end.');
       else this.leaderOnly(() => this.net?.start());
     }, 'confirm');
     this.startHint = el('div', 'panel-hint lobby-start-hint', go, '');
 
-    const talk = el('div', 'panel lobby-chat', lower);
+    const talk = this.talk = el('div', 'panel lobby-chat', lower);
     el('div', 'panel-title', talk, 'Talk at the burn');
     this.chat = new ChatLog(talk, 'chat-log lobby-log', 200);
     const say = el('div', 'lobby-say', talk);
@@ -191,19 +165,109 @@ export class LobbyScreen implements UiPart {
     const def = FACTION_DEFS[f];
     const root = el('div', 'seat-card', parent);
     root.style.setProperty('--fc', def.css);
-    html('div', 'seat-face', portraitSvg(f), root);
-    el('div', 'seat-name', root, def.name);
-    el('div', 'seat-title', root, def.title);
+    const top = el('div', 'seat-top', root);
+    el('span', 'seat-number', top, `Player ${f + 1}`);
+    const toggle = button('toggle seat-toggle', top, 'On', () => this.toggleSeat(f), 'toggle');
+    toggle.setAttribute('aria-label', `Player ${f + 1} enabled`);
+    const identity = el('div', 'seat-identity', root);
+    html('div', 'seat-face', portraitSvg(f), identity);
+    el('div', 'seat-name', identity, def.name);
+    el('div', 'seat-title', identity, def.title);
+    const off = el('div', 'seat-off is-off', root);
+    el('strong', '', off, 'Off');
+    el('span', '', off, 'No camp in this match');
     const who = el('div', 'seat-who', root);
     const occupant = el('span', 'seat-occupant', who, '');
     const state = el('span', 'seat-state', who, '');
     const action = button('btn btn-small seat-action', root, 'Take seat', () => {
       const net = this.net;
-      if (!net) return;
+      if (!normalizeMatch(this.readSettings().match).active.includes(f)) return;
+      if (!net) {
+        this.localSeat = f;
+        this.host.app.session.playerFaction = f;
+        return;
+      }
       // Your own seat's button gives it up (spectate); an AI-held seat's button takes it.
       net.setSeat(net.seat === f ? null : f);
     });
-    return { root, occupant, state, action };
+    return { root, identity, off, toggle, occupant, state, action };
+  }
+
+  private readSettings(): LobbySettings {
+    const s = this.host.app.session.settings;
+    return this.net?.lobby?.settings ?? { match: s.match, difficulty: s.difficulty, seed: this.localSeed };
+  }
+
+  private canEdit(): boolean {
+    return !this.net || (this.net.isLeader && this.net.lobby?.phase === 'lobby' && !this.net.reconnecting);
+  }
+
+  private writeSettings(patch: Partial<LobbySettings>): void {
+    if (!this.canEdit()) return;
+    if (this.net) {
+      this.net.setSettings(patch);
+      return;
+    }
+    const s = this.host.app.session.settings;
+    if (patch.match) s.match = normalizeMatch(patch.match);
+    if (patch.difficulty) s.difficulty = patch.difficulty;
+    if (patch.seed !== undefined) this.localSeed = patch.seed;
+    if (!s.match.active.includes(this.localSeat)) this.localSeat = s.match.active[0];
+    this.host.app.session.playerFaction = this.localSeat;
+    saveSettings(s);
+  }
+
+  private toggleSeat(f: FactionId): void {
+    if (!this.canEdit()) return;
+    const match = normalizeMatch(this.readSettings().match);
+    const on = match.active.includes(f);
+    if (on && match.active.length === 1) return;
+    if (on && this.net && seatPlayer(this.net.lobby, f)) return;
+    this.writeSettings({ match: { ...match, active: on ? match.active.filter((id) => id !== f) : [...match.active, f].sort() } });
+  }
+
+  /** Keep a neutral, numbered placeholder so an off seat can still be switched back on. */
+  private renderSeatEnabled(f: FactionId, active: boolean, occupied: boolean): void {
+    const card = this.seats[f];
+    const last = active && normalizeMatch(this.readSettings().match).active.length === 1;
+    show(card.identity, active);
+    show(card.off, !active);
+    show(card.occupant.parentElement!, active);
+    setClass(card.root, 'disabled-seat', !active);
+    setClass(card.toggle, 'on', active);
+    setText(card.toggle, active ? 'On' : 'Off');
+    setAttr(card.toggle, 'aria-pressed', String(active));
+    card.toggle.disabled = !this.canEdit() || last || (active && occupied);
+    setAttr(card.toggle, 'title', last ? 'At least one player seat must stay on.' : occupied ? 'The player must spectate or move seats before this camp can be turned off.' : active ? 'Remove this camp, its Hearth, character and Signifiers.' : 'Enable this player seat.');
+    card.action.disabled = !active;
+  }
+
+  private renderLocal(): void {
+    const settings = this.readSettings();
+    const match = normalizeMatch(settings.match);
+    if (!match.active.includes(this.localSeat)) this.localSeat = match.active[0];
+    setText(this.server, 'Local game lobby');
+    setText(this.status, 'Choose your character, turn rival seats on or off, then light the burn.');
+    for (const f of FACTION_IDS) {
+      const card = this.seats[f];
+      const active = match.active.includes(f);
+      const mine = active && f === this.localSeat;
+      this.renderSeatEnabled(f, active, false);
+      setClass(card.root, 'mine', mine);
+      setClass(card.root, 'ai', active && !mine);
+      for (const cls of ['held', 'ready', 'lost']) setClass(card.root, cls, false);
+      setText(card.occupant, mine ? 'You' : `AI · ${DIFFICULTY_INFO[settings.difficulty].name}`);
+      setText(card.state, '');
+      show(card.action, active);
+      setText(card.action, mine ? 'Your seat' : 'Play this character');
+      card.action.disabled = mine || !active;
+      setAttr(card.action, 'aria-disabled', String(card.action.disabled));
+      setAttr(card.action, 'title', mine ? 'Your selected character' : `Play ${FACTION_DEFS[f].name}`);
+    }
+    show(this.start, true);
+    setDisabled(this.start, false);
+    this.hint = match.active.length === 1 ? 'Solo / creative mode. Your camp plays until time runs out, or indefinitely with Unlimited days.' : 'On seats without a player are controlled by AI. Off seats do not spawn.';
+    this.renderHint(performance.now());
   }
 
   /**
@@ -236,22 +300,38 @@ export class LobbyScreen implements UiPart {
 
   /** Enter outside any text field while the lobby is up: start typing in its chat. */
   focusChat(): boolean {
-    if (!this.net || this.host.app.session.screen !== 'lobby') return false;
+    if (!this.net || this.host.app.session.screen !== 'lobby' || this.setup.isOpen) return false;
     this.chatField.focus();
     return true;
   }
 
   update(_world: World | null, now: number): void {
     const s = this.host.app.session;
-    const net = this.host.app.net;
-    const visible = s.screen === 'lobby' && !!net;
+    const connection = this.host.app.net;
+    const net = connection?.status !== 'closed' ? connection : null;
+    const visible = s.screen === 'lobby';
     show(this.root, visible);
-    if (!visible || !net) return;
+    if (!visible) {
+      this.setup.close(false);
+      return;
+    }
     if (net !== this.net) {
       this.net = net;
       this.version = -1;
       this.noticesSeen = 0;
       this.chat.clear();
+    }
+    setClass(this.root, 'local-lobby', !net);
+    show(this.people, !!net);
+    show(this.talk, !!net);
+    this.setup.update(this.canEdit());
+    // The modal is a sibling of the lobby so the underlying controls can be made inert.
+    this.root.inert = this.setup.isOpen;
+    if (!net) {
+      show(this.reconnect, false);
+      show(this.notice, false);
+      this.renderLocal();
+      return;
     }
     show(this.reconnect, net.reconnecting);
     setClass(this.notice, 'is-off', now > this.noticeUntil);
@@ -294,16 +374,17 @@ export class LobbyScreen implements UiPart {
       const holder = seatPlayer(lobby, f);
       const mine = net.seat === f;
       const active=normalizeMatch(lobby.settings.match).active.includes(f);
-      setText(card.occupant, active ? (holder ? holder.name : ai) : 'Disabled');
+      this.renderSeatEnabled(f, active, !!holder);
+      setText(card.occupant, holder ? holder.name : ai);
       setDisabled(card.action,!active);
       // A Signifier who dropped keeps the seat; the AI plays it until they return (or someone takes it).
       setText(card.state, holder ? (holder.connected ? (holder.ready ? 'ready' : 'not ready') : 'away · the AI holds the camp') : '');
-      setClass(card.root, 'mine', mine);
+      setClass(card.root, 'mine', active && mine);
       setClass(card.root, 'held', !!holder && !mine);
-      setClass(card.root, 'ai', !holder);
+      setClass(card.root, 'ai', active && !holder);
       setClass(card.root, 'ready', !!holder?.ready);
       setClass(card.root, 'lost', !!holder && !holder.connected);
-      show(card.action, mine || !holder || !holder.connected);
+      show(card.action, active && (mine || !holder || !holder.connected));
       setText(card.action, mine ? 'Spectate' : 'Take seat');
       setAttr(card.action, 'title', mine ? 'Give up this seat and watch the burn' : `Play ${FACTION_DEFS[f].name}`);
       setAttr(card.action, 'data-sfx', mine ? 'back' : 'confirm');
@@ -346,18 +427,6 @@ export class LobbyScreen implements UiPart {
 
   private renderRules(net: NetSession, lobby: LobbyState): void {
     const leader = net.isLeader;
-    this.setup.update(leader && lobby.phase==='lobby');
-    for (const [d, b] of this.diff) {
-      setClass(b, 'on', lobby.settings.difficulty === d);
-      setDisabled(b, !leader);
-    }
-    const random = lobby.settings.seed === null;
-    // Never overwrite what the leader is typing; everyone else always sees the agreed seed.
-    if (document.activeElement !== this.seed) this.seed.value = lobby.settings.seed ?? '';
-    this.seed.readOnly = !leader;
-    setClass(this.random, 'on', random);
-    setText(this.random, random ? 'Random' : 'Fixed');
-    setDisabled(this.random, !leader);
     show(this.start, leader);
     setDisabled(this.start, lobby.phase === 'playing');
     const name = leaderName(lobby);
@@ -365,7 +434,7 @@ export class LobbyScreen implements UiPart {
       lobby.phase === 'playing'
         ? 'A burn is under way. The next one gathers here.'
         : leader
-          ? 'Empty seats are played by the rivals\u2019 AI. Light the burn whenever you like.'
+          ? 'On seats without players use AI. Off seats have no camp. Light the burn when ready.'
           : name
             ? `Waiting for ${name} to light the burn…`
             : 'Waiting for a leader…';
@@ -373,6 +442,7 @@ export class LobbyScreen implements UiPart {
   }
 
   dispose(): void {
+    this.setup.dispose();
     this.root.remove();
   }
 }

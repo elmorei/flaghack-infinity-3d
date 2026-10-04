@@ -9,7 +9,7 @@ import type { V2, V3 } from '../sim/math';
 import type { BuildingKind, Difficulty, EntityId, FactionId, HippieOrder, PieceKind } from '../sim/types';
 
 /**
- * 'lobby': connected to a host, waiting for the match (the attract burn plays behind it).
+ * 'lobby': configuring a local or hosted match (the attract burn plays behind it).
  * 'paused' online only opens the menu: the host's burn keeps running.
  */
 export type Screen = 'title' | 'lobby' | 'playing' | 'paused' | 'ended';

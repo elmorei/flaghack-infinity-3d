@@ -21,6 +21,7 @@ import { iconSvg } from './icons';
 import { DEFEAT_LINES, VICTORY_LINES } from './lore';
 import { leaderName } from './online';
 import { sigilSvg } from './title';
+import { matchSettings } from '../sim/matchSettings';
 
 type Mode = 'hidden' | 'eliminated' | 'victory' | 'defeat' | 'draw' | 'over';
 /** How the match was won; the victory event's reason, absent meaning conquest. */
@@ -168,7 +169,7 @@ export class EndScreen implements UiPart {
       });
     }
     if (!net) {
-      button('btn btn-primary', row, 'Play again', () => this.host.veiledLoad(() => app.startMatch()), 'confirm');
+      button('btn btn-primary', row, 'Back to lobby', () => this.host.veiledLoad(() => app.openLobby()), 'confirm');
       button('btn', row, 'Title', () => this.host.veiledLoad(() => app.quitToTitle()), 'back');
       return;
     }
@@ -192,8 +193,9 @@ export class EndScreen implements UiPart {
  * column heads are Signifiers' handles.
  */
 function statsTable(parent: HTMLElement, world: World, P: FactionId | null, names: Partial<Record<FactionId, string>>): void {
-  const order: FactionId[] = world.factions.map((f) => f.id).filter((id) => id !== P);
-  if (P !== null) order.unshift(P);
+  const active = matchSettings(world.options).active;
+  const order: FactionId[] = active.filter((id) => id !== P);
+  if (P !== null && active.includes(P)) order.unshift(P);
   const table = el('table', 'stats', parent);
   const head = el('tr', '', el('thead', '', table));
   el('th', '', head);

@@ -53,7 +53,7 @@ export class Input {
       });
     const pressed = (i: number) => next.has(i) && !this.menuButtons.has(i);
     const elements = Array.from(document.querySelectorAll<HTMLElement>('button,input,select,summary,a[href]')).filter(
-      (e) => e.getClientRects().length > 0 && !(e as HTMLButtonElement).disabled,
+      (e) => e.getClientRects().length > 0 && !(e as HTMLButtonElement).disabled && !e.closest('[inert]'),
     );
     if (pressed(13) || pressed(12)) {
       const direction = pressed(13) ? 1 : -1;
@@ -72,7 +72,10 @@ export class Input {
       if (selected instanceof HTMLElement && elements.includes(selected)) selected.click();
       else elements[0]?.focus();
     }
-    if (pressed(1) || pressed(9)) this.onMenuBack?.();
+    if (pressed(1) || pressed(9)) {
+      const unhandled = window.dispatchEvent(new Event('fh-menu-back', { cancelable: true }));
+      if (unhandled) this.onMenuBack?.();
+    }
     this.menuButtons = next;
   }
   private physical(code: string, edge: number): boolean {

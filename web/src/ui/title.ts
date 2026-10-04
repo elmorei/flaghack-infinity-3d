@@ -1,9 +1,7 @@
-import { saveSettings } from "./settings";
-import { MatchSetup } from "./matchSetup";
 /**
  * Title screen (session.screen 'title'): the attract match plays behind a left-hand column
  * with the five-Flag pinwheel sigil, the FLAGHACK ∞ logo, rotating scripture, the menu (Begin
- * the Survey, the Training Burn, difficulty, Liber HH, Settings) and the diegetic footer.
+ * the Survey, the Training Burn, Liber HH, Settings) and the diegetic footer.
  *
  * When a FLAGHACK host served the page (app.hostInfo) the column leads with "Join <server>":
  * a handle (remembered on this device), the password (prefilled from an invite link), and the
@@ -13,7 +11,6 @@ import { MAX_NAME_LENGTH, PROTOCOL_VERSION } from '../net/protocol';
 import type { HostInfo } from '../net/protocol';
 import type { World } from '../sim/world';
 import { readTrainingProgress, trainingStanding } from '../tutorial/progress';
-import { DIFFICULTIES, DIFFICULTY_INFO } from './catalog';
 import type { UiHost, UiPart } from './core';
 import { button, el, html, setClass, setDisabled, setText, show } from './dom';
 import { iconSvg } from './icons';
@@ -72,7 +69,6 @@ export function sigilSvg(cls: string): string {
 }
 
 export class TitleScreen implements UiPart {
-  private setup: MatchSetup;
   private host: UiHost;
   private root: HTMLElement;
   private quote: HTMLElement;
@@ -81,8 +77,6 @@ export class TitleScreen implements UiPart {
   private quoteIdx = 0;
   private nextQuoteAt = 0;
   private fadingSince = 0;
-  private diffButtons = new Map<string, HTMLButtonElement>();
-  private diffDesc: HTMLElement;
   private begin: HTMLButtonElement;
   private aloneLabel: HTMLElement;
   private trainSub: HTMLElement;
@@ -145,7 +139,7 @@ export class TitleScreen implements UiPart {
       soloRow,
       'Begin the Survey',
       () => {
-        this.host.veiledLoad(() => this.host.app.startMatch());
+        this.host.app.openLobby();
       },
       'confirm',
     );
@@ -155,23 +149,6 @@ export class TitleScreen implements UiPart {
     el('span', 'bt-name', trainMain, 'Training Burn');
     this.trainSub = el('span', 'bt-sub', train, '');
     this.trainBadge = el('span', 'bt-badge is-off', train, 'Recommended for new Signifiers');
-    const diff = el('div', 'diff', menu);
-    el('div', 'diff-label', diff, 'Rival difficulty');
-    const seg = el('div', 'seg', diff);
-    for (const d of DIFFICULTIES) {
-      const b = button(
-        'seg-btn',
-        seg,
-        DIFFICULTY_INFO[d].name,
-        () => {
-          s.settings.difficulty = d;
-        },
-        'pick',
-      );
-      this.diffButtons.set(d, b);
-    }
-    this.diffDesc = el('div', 'diff-desc', diff, '');
-    this.setup = new MatchSetup(menu,()=>s.settings.match,v=>{s.settings.match=v;saveSettings(s.settings);});
     const row = el('div', 'menu-row', menu);
     button('btn', row, 'Liber HH', () => {
       s.panels.codex = true;
@@ -326,11 +303,8 @@ export class TitleScreen implements UiPart {
     if (visible && !this.wasVisible) this.showTraining();
     this.wasVisible = visible;
     if (!visible) return;
-    this.setup.update();
     // Panels opened from the title (codex/settings) sit above it; keep the menu out of the way.
     setClass(this.root, 'dimmed', s.panels.codex || s.panels.settings);
-    for (const [d, b] of this.diffButtons) setClass(b, 'on', s.settings.difficulty === d);
-    setText(this.diffDesc, DIFFICULTY_INFO[s.settings.difficulty].desc);
 
     if (app.hostInfo !== this.hostShown) this.showHost(app.hostInfo);
     if (app.hostInfo) {

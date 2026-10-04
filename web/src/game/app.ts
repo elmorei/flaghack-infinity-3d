@@ -18,6 +18,7 @@ import type { NetSession } from '../net/session';
 import { GameRenderer } from '../render/renderer';
 import type { Command } from '../sim/commands';
 import { SIM_DT } from '../sim/constants';
+import { normalizeMatch } from '../sim/matchSettings';
 import type { GameEvent } from '../sim/events';
 import { TRAINING_PLAYER } from '../sim/scenarios/tutorial';
 import { createMatch } from '../sim/setup';
@@ -38,6 +39,7 @@ export interface AppApi {
   readonly sim: Simulation | null;
   readonly fps: number;
   startMatch(opts?: Partial<MatchOptions>): void;
+  openLobby(): void;
   readonly renderer: GameRenderer;
   /** Procedural audio; the UI calls its blips (uiClick, uiHover, uiConfirm, uiBack, uiToggle). */
   readonly audio: GameAudio;
@@ -174,12 +176,20 @@ export class App implements AppApi {
     return this.client !== null && this.client.status !== 'closed';
   }
 
+  /** Configure a local burn before creating its world. */
+  openLobby(): void {
+    this.dropClient();
+    if (this.session.screen !== 'title' && this.session.screen !== 'lobby') this.loadAttract();
+    this.session.screen = 'lobby';
+  }
+
   startMatch(opts: Partial<MatchOptions> = {}): void {
     this.dropClient();
     const seed = opts.seed ?? `burn-${Date.now().toString(36)}`;
     const difficulty = opts.difficulty ?? this.session.settings.difficulty;
-    const match = opts.match ?? this.session.settings.match;
-    const seat = match.active[0] ?? LOCAL_SEAT;
+    const match = normalizeMatch(opts.match ?? this.session.settings.match);
+    const requestedSeat = opts.humans?.[0] ?? this.session.playerFaction;
+    const seat = match.active.includes(requestedSeat) ? requestedSeat : match.active[0];
     this.load({ seed, difficulty, humans: [seat], mode: 'standard', match });
     this.session.playerFaction = seat;
     this.enterPlay();

@@ -187,7 +187,7 @@ export class SettingsPanel implements UiPart {
     setText(this.fps, st.showFps ? 'On' : 'Off');
     setClass(this.fps, 'on', st.showFps);
     for (const [q, b] of this.quality) setClass(b, 'on', st.quality === q);
-    // Difficulty is picked on the title screen but persisted with the rest.
+    // Match settings are picked in the lobby and persisted with the rest.
     this.persist();
   }
 

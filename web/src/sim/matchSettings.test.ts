@@ -14,6 +14,18 @@ const options = (patch = {}): MatchOptions => ({
   match: normalizeMatch(patch),
 });
 describe('configurable matches', () => {
+  it.each([[0], [2], [1, 3], [0, 2, 3], [0, 1, 2, 3]])('spawns only enabled seats: %j', (...active) => {
+    const w = createMatch(options({ active }));
+    expect(w.aliveFactions()).toEqual(active);
+    for (const f of FACTION_IDS) {
+      expect(!!w.avatarOf(f)).toBe(active.includes(f));
+      expect(!!w.hearthOf(f)).toBe(active.includes(f));
+      if (active.includes(f)) continue;
+      expect(w.buildingsOf(f)).toHaveLength(0);
+      expect(w.hippiesOf(f)).toHaveLength(0);
+      expect([...w.flags.values()].filter((flag) => flag.owner === f)).toHaveLength(0);
+    }
+  });
   it('clamps invalid settings and always leaves an active camp', () => {
     expect(normalizeMatch({ active: [], gridScale: 999, dayLength: NaN, days: 9 })).toEqual({
       ...DEFAULT_MATCH,

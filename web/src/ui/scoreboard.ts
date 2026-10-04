@@ -6,6 +6,7 @@
  */
 import type { AppApi } from '../game/app';
 import { FACTION_DEFS } from '../sim/constants';
+import { matchSettings } from '../sim/matchSettings';
 import { FACTION_IDS } from '../sim/types';
 import type { FactionId } from '../sim/types';
 import type { World } from '../sim/world';
@@ -84,9 +85,12 @@ export class StandingsTable {
     const owners = world.survey.nodeFlagOwner;
     for (let i = 0; i < owners.length; i++) if (owners[i] >= 0) flags[owners[i]]++;
     const aiLabel = `AI · ${DIFFICULTY_INFO[lobby?.settings.difficulty ?? world.options.difficulty].name}`;
+    const active = matchSettings(world.options).active;
     for (const f of FACTION_IDS) {
       const row = this.rows[f];
       const fac = world.factions[f];
+      show(row.root, active.includes(f));
+      if (!active.includes(f)) continue;
       if (!fac) continue;
       const human = seatPlayer(lobby, f);
       setClass(row.root, 'you', f === me);
