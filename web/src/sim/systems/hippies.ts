@@ -10,14 +10,13 @@
  */
 import { AVATAR, BUILDINGS, HIPPIE, HIPPIE_AI, MAP_HALF } from '../constants';
 import type { CommandOf } from '../commands';
-import { TAU } from '../math';
 import type { V2 } from '../math';
 import { FACTION_IDS, NEUTRAL } from '../types';
 import type { EntityId, FactionId, Hippie, HippieOrder } from '../types';
 import type { World } from '../world';
 import { damageEntity, knockback } from './combat';
 import { isDrugActive } from './drugs';
-import { isHoarding } from './economy';
+import { isHoarding, popCap } from './economy';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
 import { canPlantAt } from './flags';
 import { act, becomeDistracted, pickWanderSpot, wander } from './units/act';
@@ -36,9 +35,7 @@ const SWEEP_INTERVAL = 1;
 const PLANT_SNAP = 2.5;
 /** Vexillomancers standing higher than this (on decks) are out of shoving reach. */
 const SHOVE_Y = 1.2;
-/** Respawn ring around the Hearth's edge, and scatter around a neutral spawn. */
-const RESPAWN_GAP_MIN = 2;
-const RESPAWN_GAP_MAX = 5;
+/** Scatter around a shared neutral spawn. */
 const NEUTRAL_SCATTER = 3;
 
 const scratch: V2 = { x: 0, z: 0 };
@@ -205,11 +202,14 @@ function census(world: World, sys: UnitsState): void {
   sys.responders.clear();
   sys.raiders.fill(0);
   sys.clearers.fill(0);
+  sys.overCap.clear();
+  for (const members of sys.campMembers) members.length = 0;
   for (const h of world.hippies.values()) {
     if (h.status === 'ko') continue;
     active.push(h);
     const b = brainOf(h);
     if (h.faction !== NEUTRAL) {
+      sys.campMembers[h.faction].push(h);
       if (h.job === 'raid') sys.raiders[h.faction]++;
       if (b.clearing) sys.clearers[h.faction]++;
     }
@@ -218,6 +218,11 @@ function census(world: World, sys: UnitsState): void {
     else if (b.task === 'build' || b.task === 'repair') bump(sys.helpers, b.target);
     else if (b.task === 'chop') bump(sys.choppers, b.target);
     else if (b.task === 'respond') bump(sys.responders, b.target);
+  }
+  for (const f of FACTION_IDS) {
+    const members = sys.campMembers[f];
+    members.sort((a, b) => a.recruitedAt - b.recruitedAt || a.id - b.id);
+    for (let i = popCap(world, f); i < members.length; i++) sys.overCap.add(members[i].id);
   }
   sys.hash.rebuild(active);
 
@@ -264,6 +269,12 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number): voi
   if (h.status === 'ko') {
     if (world.time >= h.koUntil) respawn(world, h, b);
     return;
+  }
+  // Excess recruits lose attention even while idle, resting or stunned. At zero they take
+  // the normal distraction break; returning from it does not remove the excess penalty.
+  if (sys.overCap.has(h.id) && b.task !== 'distracted') {
+    h.attention = Math.max(0, h.attention - HIPPIE.overCapAttentionDrain * dt);
+    if (h.attention === 0) becomeDistracted(world, h, b);
   }
   pruneEffects(world, h);
   if (hasEffect(world, h, 'knockback')) {
@@ -317,7 +328,7 @@ function attend(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId
       return;
     case 'none':
     case 'idle':
-      if (h.attention < 100 && restingAtHome(world, sys, h, f)) {
+      if (!sys.overCap.has(h.id) && h.attention < 100 && restingAtHome(world, sys, h, f)) {
         h.attention = Math.min(100, h.attention + HIPPIE.attentionRecover * dt);
       }
       return;
@@ -402,7 +413,7 @@ function shove(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId)
   knockback(world, target, h.pos, HIPPIE.shoveKnockback);
 }
 
-/** Gift, Dialectics or capture changed the hippie's faction: it starts over with the new camp. */
+/** Recruitment, Dialectics or capture changed the hippie's faction: it starts over with the new camp. */
 function convert(world: World, h: Hippie, b: Brain): void {
   releaseTask(world, h, b);
   b.faction = h.faction;
@@ -416,23 +427,15 @@ function convert(world: World, h: Hippie, b: Brain): void {
   if (h.status !== 'ko') setStatus(h, 'idle');
 }
 
-/** Wake at the own Hearth, or as a neutral at a neutral spawn once the camp is gone. */
+/** Every knockout returns the same individual to the shared neutral population. */
 function respawn(world: World, h: Hippie, b: Brain): void {
-  let home = h.faction === NEUTRAL ? undefined : world.hearthOf(h.faction);
-  if (h.faction !== NEUTRAL && (!home || !world.factions[h.faction].alive)) {
-    h.faction = NEUTRAL;
-    h.job = null;
-    h.order = null;
-    home = undefined;
-  }
+  h.faction = NEUTRAL;
+  h.recruitedAt = 0;
+  h.job = null;
+  h.order = null;
   let x = h.pos.x;
   let z = h.pos.z;
-  if (home) {
-    const a = world.rng.range(0, TAU);
-    const r = BUILDINGS.hearth.radius + world.rng.range(RESPAWN_GAP_MIN, RESPAWN_GAP_MAX);
-    x = home.pos.x + Math.sin(a) * r;
-    z = home.pos.z + Math.cos(a) * r;
-  } else if (world.map.neutralSpawns.length > 0) {
+  if (world.map.neutralSpawns.length > 0) {
     const s = world.rng.pick(world.map.neutralSpawns);
     x = s.x + world.rng.range(-NEUTRAL_SCATTER, NEUTRAL_SCATTER);
     z = s.z + world.rng.range(-NEUTRAL_SCATTER, NEUTRAL_SCATTER);

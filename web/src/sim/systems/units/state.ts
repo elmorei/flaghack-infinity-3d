@@ -19,6 +19,9 @@ const QUERY_CAPACITY = 512;
 
 export class UnitsState {
   readonly hash = new SpatialHash(MAP_HALF, 4);
+  /** Newest recruits beyond each camp's soft capacity. */
+  readonly overCap = new Set<EntityId>();
+  readonly campMembers: Hippie[][] = [[], [], [], []];
   /** Non-KO hippies this tick (the hash's items). */
   readonly active: Hippie[] = [];
   /** Shared spatial query result buffer (valid until the next query). */

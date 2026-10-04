@@ -33,7 +33,7 @@ export const JOBS: readonly JobKind[] = ['survey', 'gather', 'defend', 'raid', '
 
 export type BuildingKind = 'hearth' | 'workshop' | 'drumcircle' | 'ward' | 'druglab' | 'gcc';
 export type PieceKind = 'wall' | 'floor' | 'ramp';
-export type GccAction = 'gift' | 'dialectics' | 'simulacra';
+export type GccAction = 'dialectics' | 'simulacra';
 export type PingKind = 'rally' | 'attack' | 'flag' | 'sos' | 'shot';
 
 // ── Status effects ───────────────────────────────────────────────────────────
@@ -213,6 +213,8 @@ export interface Hippie {
   type: 'hippie';
   faction: Owner;
   name: string;
+  /** Time of joining the current camp; newest recruits occupy excess soft-cap places. */
+  recruitedAt: number;
   /** Appearance seed (presentation only). */
   look: number;
   pos: V2;

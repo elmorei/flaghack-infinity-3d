@@ -9,7 +9,7 @@ export interface MatchSettings {
   startingFlags: number;
   startingSignifiers: number;
   jumpHeight: number; // multiplier of the original jump apex; 1 = original height
-  maxSignifiers: number; // hard limit per camp (including conversions)
+  maxSignifiers: number; // fixed shared world population (alive and knocked out)
   structuresBlockFlagPlacement: boolean;
 }
 export const DEFAULT_MATCH: MatchSettings = {
@@ -49,7 +49,7 @@ export function normalizeMatch(value: Partial<MatchSettings> = {}): MatchSetting
     if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.max(min, Math.min(max, v));
   }
   out.maxSignifiers = Math.floor(out.maxSignifiers);
-  out.startingSignifiers = Math.min(Math.floor(out.startingSignifiers), out.maxSignifiers);
+  out.startingSignifiers = Math.min(Math.floor(out.startingSignifiers), Math.floor(out.maxSignifiers / out.active.length));
   return out;
 }
 export function matchSettings(options: MatchOptions): MatchSettings {

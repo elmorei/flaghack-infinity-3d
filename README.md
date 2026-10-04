@@ -35,8 +35,8 @@ At the title, pick a rival difficulty (Chill / Normal / Hard / Vexillosaint) and
 New here? Start with the **Training Burn** on the title screen. The Vexillosaint, speaking
 from your Geomantic Command Center, walks you through twelve short lessons: moving, planting
 and throwing Flags, Ley Lines, the Survey, implied Flags, the turning Crystal, the Command
-table, building, Crystals and chakras, defending a Hearth, the Overwrite, and the cart's Flag
-Gifts. Each lesson awards a fragment of the **Seal of Flagistan**. Progress is saved in the
+table, building, Crystals and chakras, defending a Hearth, the Overwrite, and recruiting
+Signifiers. Each lesson awards a fragment of the **Seal of Flagistan**. Progress is saved in the
 browser. The lesson panel restarts, skips or revisits any lesson; in the field, Tab frees the
 cursor so you can click it. In a real burn, **Liber HH** (J) explains every rule in lore voice.
 
@@ -155,9 +155,11 @@ join a local `npm run host`. `npx vitest run server` tests the host over real so
   any one Flag in it; the HUD marks the critical ones.
 - **Signifiers** (hippies) do most of the work. They fetch, plant, chop, defend, raid and
   drum according to your Camp Priorities, and report what they're up to over their
-  **D.E.G.E.N. Beacon** mesh.
+  **D.E.G.E.N. Beacon** mesh. They form one fixed world population: knockouts respawn
+  neutral. Drum Circles and the GCC recruit nearby neutrals, and handing or throwing a Flag
+  recruits them directly. Recruitment may exceed camp capacity; excess recruits lose attention.
 - **The Geomantic Command Center** is a pentagonal push-cart. Its live map tabletop is
-  your Command View. It also does Flag Repair, Flag Gifts (recruit neutrals),
+  your Command View. It also does Flag Repair, automatic neutral recruitment,
   Flagellian Dialectics (convert rivals) and Flag Simulacra.
 - **The Burn** comes at 14:00. The effigy burns and capture pressure escalates every two
   minutes. If more than one camp still stands at **Dawn** (30:00), the camp holding the most

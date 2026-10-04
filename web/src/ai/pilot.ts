@@ -12,7 +12,7 @@ import type { V2, V3 } from '../sim/math';
 import { GROUND_SHAPE } from '../sim/physics/collision';
 import { alignBlocker, isFlagProtected } from '../sim/systems/abilities';
 import { throwOrigin, throwVelocity } from '../sim/systems/avatars';
-import { nearestHearth, popCap, population, stockAt } from '../sim/systems/economy';
+import { nearestHearth, stockAt } from '../sim/systems/economy';
 import { canPlantAt } from '../sim/systems/flags';
 import { gccBlocker } from '../sim/systems/gcc';
 import { NEUTRAL } from '../sim/types';
@@ -321,12 +321,6 @@ function gccStillWorth(b: Brain, action: GccAction, target: EntityId | -1, nodes
   const g = world.gccOf(b.f);
   if (!g) return false;
   if (action === 'simulacra') return nodes.length === 2 && canPlantAt(world, nodes[0], b.f) && canPlantAt(world, nodes[1], b.f);
-  if (action === 'gift') {
-    const h = world.hippies.get(target);
-    if (!h || h.faction !== NEUTRAL || h.koUntil > world.time) return false;
-    if ((h.pos.x - g.pos.x) ** 2 + (h.pos.z - g.pos.z) ** 2 > GCC.giftRadius * GCC.giftRadius) return false;
-    return population(world, b.f) < popCap(world, b.f) && (world.stockCount(b.f) > 0 || world.avatarOf(b.f).carried.length > 0);
-  }
   return true;
 }
 

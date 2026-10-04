@@ -329,7 +329,6 @@ const COOLDOWN_KEYS = keysOf<CooldownKey>({
   stabilize: true,
   phason: true,
   omega: true,
-  gift: true,
   dialectics: true,
   simulacra: true,
   retransmit: true,
@@ -847,6 +846,7 @@ const HIPPIE_FIELDS: readonly Field<Hippie>[] = [
     h.beacon = v;
   }),
   effectsField<Hippie>(),
+  num('recruitedAt', MS, (h) => h.recruitedAt, (h, v) => { h.recruitedAt = v; }),
 ];
 
 const BUILDING_FIELDS: readonly Field<Building>[] = [
@@ -1080,6 +1080,7 @@ function blankHippie(id: EntityId): Hippie {
     id,
     type: 'hippie',
     faction: NEUTRAL,
+    recruitedAt: 0,
     name: '',
     look: 0,
     pos: { x: 0, z: 0 },

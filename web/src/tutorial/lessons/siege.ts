@@ -5,12 +5,10 @@
  * until the trainee has Held the Hearth, and never lets the overwrite finish.
  */
 import type { ObjectiveMarker } from '../../game/session';
-import { AVATAR, BUILDINGS, CAPTURE, HIPPIE, IMPLIED_MAX_ORDER } from '../../sim/constants';
-import { spawnBuilding, spawnHippie } from '../../sim/factory';
+import { AVATAR, CAPTURE, IMPLIED_MAX_ORDER } from '../../sim/constants';
 import { criticalNodes } from '../../sim/lattice/geometry';
 import { DRILL_PLANS, planDrillLoop, SPARRING_CAMP, TRAINING_CAMP } from '../../sim/scenarios/tutorial';
-import { canPlaceBuilding, registerBuildingShape } from '../../sim/systems/buildings';
-import { popCap, population } from '../../sim/systems/economy';
+import { neutralizeHippie } from '../../sim/systems/victory';
 import { geometryOwners } from '../../sim/systems/survey';
 import { brainOf } from '../../sim/systems/units/brain';
 import type { Building, FactionId, Hippie } from '../../sim/types';
@@ -320,7 +318,7 @@ export const graduation: LessonScript = {
       'Your D.E.G.E.N. beacon talks to every Signifier on your mesh: rally, attack, Flag-here, and an SOS they raise themselves when hurt. "Use the SOS responsibly."',
     ),
     saint(
-      'Your Command Center gives **Flag Gifts** to unaffiliated Signifiers, converts rival ones with **Flagellian Dialectics**, and plants **Flag Simulacra**: one Flag on two nodes at once, until an enemy looks.',
+      'Your Command Center automatically recruits nearby neutral Signifiers, like a Drum Circle. Hand or throw a Flag to recruit a neutral yourself. The cart also converts rivals with **Flagellian Dialectics**, and plants **Flag Simulacra**: one Flag on two nodes at once, until an enemy looks.',
     ),
   ],
   briefingHighlights: ['clock', 'minimap'],
@@ -333,9 +331,9 @@ export const graduation: LessonScript = {
     },
     {
       id: 'gift',
-      text: 'Go to your Command Center and give the lost Signifier a **Flag Gift**',
-      hint: 'Stand at the cart and use Flag Gifts at its table; the gift reaches 15 m from the cart and costs one Flag.',
-      highlights: ['gcc-panel', 'gcc-gift'],
+      text: 'Go to your Command Center and recruit the lost Signifier',
+      hint: 'Hand a Flag to the nearby neutral with E, throw one at them, or let the cart recruit them automatically.',
+      highlights: ['gcc-panel', 'hand-flag'],
     },
     {
       id: 'saffron',
@@ -356,51 +354,24 @@ export const graduation: LessonScript = {
     let pinged = false;
     let gifted = false;
     let drank = false;
-    /** The camp is as large as a camp can grow: no gift can ever land, so the step stands done. */
-    let fullForGood = false;
     let nextArrival = 0;
-    /** What the Vexillosaint did to make room this tick ('' = nothing); spoken with the arrival. */
-    let roomNote = '';
-    /** The lost Signifier waiting at the cart for its gift, once one has arrived. */
     let lost: Hippie | null = null;
-    /** A full camp cannot take a gift: the Vexillosaint raises a Drum Circle (six more places) for it. */
-    const makeRoom = (): void => {
-      if (population(world, f) < popCap(world, f)) return;
-      if (popCap(world, f) >= HIPPIE.popCapMax) {
-        fullForGood = true;
-        ctx.say(`Your camp holds ${HIPPIE.popCapMax} Signifiers, as many as any camp can. No gift can land, and knowing that is the lesson.`);
-        return;
-      }
-      const facet = drumCircleFacet(world, f);
-      if (facet < 0) {
-        fac.lumber = Math.max(fac.lumber, BUILDINGS.drumcircle.cost);
-        roomNote = 'Your camp is full, and a gift needs room. Raise another Drum Circle inside your Survey ({key:B}); I have left you the lumber.';
-        return;
-      }
-      const circle = spawnBuilding(world, 'drumcircle', f, facet, 1);
-      registerBuildingShape(world, circle);
-      world.emit({ t: 'buildingPlaced', buildingId: circle.id, kind: circle.kind, faction: f, pos: { ...circle.pos } });
-      world.emit({ t: 'buildingDone', buildingId: circle.id, kind: circle.kind, faction: f, pos: { ...circle.pos } });
-      roomNote = 'Your camp was full, so I have raised a Drum Circle to make room: each circle houses six more.';
-    };
     return {
       activate(i) {
         current = i;
         const gcc = world.gccOf(f);
         if (i === 1) {
           topUpStock(world, f, 2);
-          if (gcc) ctx.mark([{ id: 'gcc', kind: 'entity', entity: gcc.id, label: 'Flag Gifts here' }]);
+          if (gcc) ctx.mark([{ id: 'gcc', kind: 'entity', entity: gcc.id, label: 'Recruitment here' }]);
         } else if (i === 2) {
           ctx.mark([]);
           fac.drugs.saffron = Math.max(1, fac.drugs.saffron);
         }
       },
       tick() {
-        if (current !== 1 || gifted || fullForGood) return;
+        if (current !== 1 || gifted) return;
         const gcc = world.gccOf(f);
         if (!gcc || avatarDistance(world, f, gcc.pos.x, gcc.pos.z) > GIFT_ARRIVE_RADIUS) return;
-        makeRoom();
-        if (fullForGood) return;
         // The lost Signifier waits idle beside the cart (lingering on the units' own wander clock),
         // put back on its spot if anything shoves it off; a new one comes if it is gone or taken.
         const toCentre = Math.atan2(-gcc.pos.z, -gcc.pos.x);
@@ -411,54 +382,37 @@ export const graduation: LessonScript = {
             lost.pos.x = spot.x;
             lost.pos.z = spot.z;
           }
-          if (roomNote) ctx.say(roomNote);
-          roomNote = '';
           return;
         }
         if (world.time < nextArrival) return;
-        lost = spawnHippie(world, -1, spot);
+        // Reuse a member of the shared population instead of creating a tutorial-only recruit.
+        lost = [...world.hippies.values()].find((h) => h.faction === -1 && h.status !== 'ko')
+          ?? [...world.hippies.values()].find((h) => h.status !== 'ko') ?? null;
+        if (!lost) return;
+        neutralizeHippie(world, lost);
+        lost.pos.x = spot.x;
+        lost.pos.z = spot.z;
+        lost.vel.x = 0;
+        lost.vel.z = 0;
+        topUpQuiver(world, f, 1);
         brainOf(lost).waitUntil = Infinity;
         nextArrival = world.time + GIFT_ARRIVAL_GAP;
         ctx.mark([
-          { id: 'gcc', kind: 'entity', entity: gcc.id, label: 'Flag Gifts here' },
+          { id: 'gcc', kind: 'entity', entity: gcc.id, label: 'Recruitment here' },
           { id: 'lost', kind: 'entity', entity: lost.id, label: 'Lost Signifier' },
         ]);
-        // A make-room line from this tick joins the arrival rather than being replaced by it.
-        ctx.say(`${roomNote ? `${roomNote} ` : ''}A lost Signifier waits beside your cart: open the table ({key:Tab}), click it to select it, then Flag Gifts.`);
-        roomNote = '';
+        ctx.say('A lost Signifier waits beside your cart. Aim at them and hand over a Flag ({key:E}), throw a Flag, or wait for the cart to recruit them. Extra recruits beyond capacity lose attention.');
       },
       event(e) {
         if (e.t === 'ping' && e.faction === f && current === 0) pinged = true;
-        else if (e.t === 'recruited' && e.faction === f && e.via === 'gift' && current === 1) gifted = true;
+        else if (e.t === 'recruited' && e.faction === f && (e.via === 'hand' || e.via === 'throw' || e.via === 'gcc' || e.via === 'drumcircle') && current === 1) gifted = true;
         else if (e.t === 'drugUsed' && e.faction === f && e.drug === 'saffron' && current === 2) drank = true;
       },
       progress(i) {
         if (i === 0) return pinged ? 1 : 0;
-        if (i === 1) return gifted || fullForGood ? 1 : 0;
+        if (i === 1) return gifted ? 1 : 0;
         return drank ? 1 : 0;
       },
     };
   },
 };
-
-/**
- * Where the Vexillosaint may raise a Drum Circle for the trainee: the placement rules of a
- * hand-raised one (Sun facet inside the trainee's Survey, clear ground), nearest the Hearth
- * first. The lumber rule is lifted for the search: the Vexillosaint pays. -1 if none fits.
- */
-function drumCircleFacet(world: World, f: FactionId): number {
-  const fac = world.factions[f];
-  const hearth = world.hearthOf(f);
-  const lumber = fac.lumber;
-  fac.lumber = Math.max(lumber, BUILDINGS.drumcircle.cost);
-  let best = -1;
-  let bestD = Infinity;
-  for (const fc of world.lattice.facets) {
-    const d = hearth ? (fc.cx - hearth.pos.x) ** 2 + (fc.cz - hearth.pos.z) ** 2 : 0;
-    if (d >= bestD || !canPlaceBuilding(world, f, 'drumcircle', fc.id).ok) continue;
-    best = fc.id;
-    bestD = d;
-  }
-  fac.lumber = lumber;
-  return best;
-}

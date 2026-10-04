@@ -46,7 +46,7 @@ const MAX_INDEX = 0x7fffffff;
 /** Above the pile of every node on the map, so a whole-Survey 'set' always fits. */
 const MAX_PLAN_NODES = 4096;
 const MAX_ORDER_HIPPIES = 512;
-/** A simulacrum names two nodes; gifts and dialectics name none. */
+/** A simulacrum names two nodes; dialectics names none. */
 const MAX_GCC_NODES = 2;
 const MAX_BUILD_LEVEL_INDEX = 64;
 
@@ -108,7 +108,7 @@ const BUILDING_KINDS: Record<BuildingKind, true> = {
 const ABILITIES: Record<AbilityId, true> = { beacon: true, march: true, stabilize: true, phason: true, omega: true };
 const CHAKRA_IDS: Record<ChakraId, true> = { hoist: true, fly: true, canton: true, field: true, finial: true };
 const DRUG_IDS: Record<DrugId, true> = { saffron: true, dust: true, acidcop: true };
-const GCC_ACTIONS: Record<GccAction, true> = { gift: true, dialectics: true, simulacra: true };
+const GCC_ACTIONS: Record<GccAction, true> = { dialectics: true, simulacra: true };
 const PING_KINDS: Record<PingKind, true> = { rally: true, attack: true, flag: true, sos: true, shot: true };
 const JOB_KINDS: Record<JobKind, true> = { survey: true, gather: true, defend: true, raid: true, ritual: true };
 const PLAN_OPS: Record<CommandOf<'plan'>['op'], true> = { add: true, remove: true, set: true, clear: true };
@@ -268,6 +268,10 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
     // -1 releases the channel.
     keys: ['t', 'faction', 'flagId'],
     parse: ({ flagId }, faction) => (isInt(flagId, -1) ? { t: 'pull', faction, flagId } : null),
+  },
+  handFlag: {
+    keys: ['t', 'faction', 'hippieId'],
+    parse: ({ hippieId }, faction) => isInt(hippieId, 0) ? { t: 'handFlag', faction, hippieId } : null,
   },
   swing: {
     keys: ['t', 'faction'],

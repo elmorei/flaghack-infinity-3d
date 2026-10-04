@@ -10,6 +10,7 @@ import { cmdPlaceBuilding } from './buildings';
 import { cmdBrew, cmdDrug } from './drugs';
 import { cmdJobWeights } from './economy';
 import { cmdGcc } from './gcc';
+import { cmdHandFlag } from './recruitment';
 import { cmdOrder, cmdRally, cmdSendFollowers } from './hippies';
 import { cmdBuild, cmdDemolish } from './pieces';
 import { cmdPing, cmdRetransmit, cmdTapBeacon } from './pings';
@@ -39,6 +40,8 @@ function dispatch(world: World, c: Command): void {
       return cmdThrow(world, c);
     case 'pull':
       return cmdPull(world, c);
+    case 'handFlag':
+      return cmdHandFlag(world, c);
     case 'swing':
       return cmdSwing(world, c);
     case 'pushGcc':

@@ -56,7 +56,7 @@ export type GameEvent =
   | { t: 'hit'; target: EntityId; by: EntityId | -1; amount: number; pos: V3 }
   | { t: 'ko'; id: EntityId; kind: 'avatar' | 'hippie'; faction: Owner; by: EntityId | -1; pos: V3 }
   | { t: 'respawn'; id: EntityId; kind: 'avatar' | 'hippie'; faction: Owner; pos: V3 }
-  | { t: 'recruited'; hippieId: EntityId; faction: FactionId; via: 'drumcircle' | 'gift' | 'dialectics' }
+  | { t: 'recruited'; hippieId: EntityId; faction: FactionId; via: 'drumcircle' | 'gcc' | 'hand' | 'throw' | 'dialectics' }
   | { t: 'distracted'; hippieId: EntityId; faction: Owner }
   | { t: 'harvest'; pileId: EntityId; by: EntityId; amount: number; pos: V2 }
   | { t: 'lumberDelivered'; faction: FactionId; amount: number; pos: V2 }

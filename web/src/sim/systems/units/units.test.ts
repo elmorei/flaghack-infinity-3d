@@ -504,7 +504,7 @@ describe('hippies', () => {
     expect(world.factions[0].stats.flagsStolen).toBeGreaterThan(0);
   });
 
-  it('a KO drops the carried Flag loose and the hippie respawns at its Hearth', () => {
+  it('a KO drops the carried Flag loose and the same hippie respawns neutral', () => {
     const m = match();
     const world = m.world;
     const hearth = world.hearthOf(0);
@@ -527,7 +527,10 @@ describe('hippies', () => {
     run(m, 1);
     expect(h.status).not.toBe('ko');
     expect(h.hp).toBe(HIPPIE.maxHp);
-    expect(Math.hypot(h.pos.x - hearth.pos.x, h.pos.z - hearth.pos.z)).toBeLessThan(12);
+    expect(h.faction).toBe(-1);
+    expect(h.order).toBeNull();
+    expect(h.beacon).toBe(false);
+    expect(m.world.map.neutralSpawns.some((p) => Math.hypot(h.pos.x - p.x, h.pos.z - p.z) < 12)).toBe(true);
   });
 
   it('attention runs out → distracted at a sound camp → recovers to work', () => {

@@ -1,6 +1,6 @@
 /**
- * Geomantic Command Center: passives (Geomantic Advice reveal/observe radius, Flag Repair),
- * actives (Flag Gifts, Flagellian Dialectics, Flag Simulacra), being pushed, destruction and
+ * Geomantic Command Center: passives (automatic recruitment, Geomantic Advice reveal/observe radius, Flag Repair),
+ * actives (Flagellian Dialectics, Flag Simulacra), being pushed, destruction and
  * rebuild at the Hearth.
  * Owner: Economy agent.
  *
@@ -11,24 +11,22 @@
 import type { CommandOf } from '../commands';
 import { BUILDING_HEIGHT, BUILDINGS, GCC, GCC_REACH, GCC_REPAIR_SNAP, GCC_SIMULACRA_RANGE } from '../constants';
 import { facetYaw } from '../factory';
-import { matchSettings } from '../matchSettings';
 import { FACTION_IDS } from '../types';
 import type { AvatarAction, Building, FactionId, GccAction, Hippie } from '../types';
 import type { World } from '../world';
 import { isCollapsed, moveBuilding, repairBuilding } from './buildings';
 import { econ } from './econ/state';
-import { nearestHearth, popCap, population } from './economy';
-import { canPlantAt, dropLoose, giveFlag, nearestPlantableNode, plantFlag, plantSimulacrum, takeFromStock } from './flags';
+import { nearestHearth } from './economy';
+import { enlist } from './recruitment';
+import { canPlantAt, dropLoose, nearestPlantableNode, plantFlag, plantSimulacrum, takeFromStock } from './flags';
 import { pieceAt, piecePosition, repairPiece } from './pieces';
 
 export const GCC_ACTION_NAMES: Record<GccAction, string> = {
-  gift: 'Flag Gifts',
   dialectics: 'Flagellian Dialectics',
   simulacra: 'Flag Simulacra',
 };
 
 const GCC_COOLDOWN: Record<GccAction, number> = {
-  gift: GCC.giftCooldown,
   dialectics: GCC.dialecticsCooldown,
   simulacra: GCC.simulacraCooldown,
 };
@@ -60,7 +58,7 @@ export function gccBlocker(world: World, f: FactionId, action: GccAction): strin
   // channelUntil is set for exactly as long as the Dialectics run (tendDialectics clears it),
   // and unlike economy scratch it replicates, so mirrors give the same answer.
   if (g.gcc.channelUntil > world.time) return 'The Dialectics are in session.';
-  // Gifts and simulacra are instant; the Dialectics channel cannot start over another channel.
+  // Simulacra are instant; the Dialectics channel cannot start over another channel.
   if (action === 'dialectics' && (av.action.kind === 'align' || av.action.kind === 'channel')) return 'Already channelling: finish it first.';
   const ready = fac.cooldowns[action];
   if (ready > world.time) return `${GCC_ACTION_NAMES[action]} recharging (${Math.ceil(ready - world.time)} s).`;
@@ -72,8 +70,7 @@ export function cmdGcc(world: World, c: CommandOf<'gcc'>): void {
   const g = world.gccOf(f);
   let why = gccBlocker(world, f, c.action);
   if (!why && g) {
-    if (c.action === 'gift') why = giftFlag(world, f, g, c.target);
-    else if (c.action === 'dialectics') why = beginDialectics(world, f, g);
+    if (c.action === 'dialectics') why = beginDialectics(world, f, g);
     else why = castSimulacrum(world, f, g, c.nodes);
   }
   if (why) world.emit({ t: 'rejected', faction: f, reason: why });
@@ -83,47 +80,6 @@ export function cmdGcc(world: World, c: CommandOf<'gcc'>): void {
 function completeAction(world: World, f: FactionId, g: Building, action: GccAction): void {
   world.factions[f].cooldowns[action] = world.time + GCC_COOLDOWN[action];
   world.emit({ t: 'gccAction', faction: f, action, gccId: g.id, pos: { x: g.pos.x, z: g.pos.z } });
-}
-
-/** A hippie joins the camp: fresh orders, a D.E.G.E.N. beacon on the faction's mesh. */
-function enlist(h: Hippie, f: FactionId): void {
-  h.faction = f;
-  h.order = null;
-  h.job = null;
-  h.status = 'idle';
-  h.statusTarget = null;
-  h.beacon = true;
-}
-
-function announceRecruit(world: World, h: Hippie, f: FactionId, via: 'gift' | 'dialectics'): void {
-  world.factions[f].stats.hippiesRecruited++;
-  world.emit({ t: 'recruited', hippieId: h.id, faction: f, via });
-}
-
-/** Flag Gifts: one Flag (Hearth stock first, else the quiver) into a neutral hippie's hands recruits it. */
-function giftFlag(world: World, f: FactionId, g: Building, target: number): string {
-  const h = world.hippies.get(target);
-  if (!h || h.faction !== -1) return 'Flag Gifts go to unaffiliated Signifiers (neutral hippies).';
-  if (h.koUntil > world.time) return 'That Signifier is out cold.';
-  if (h.carryingFlag !== -1 || h.carryingLumber > 0) return 'That Signifier has its hands full.';
-  if ((h.pos.x - g.pos.x) ** 2 + (h.pos.z - g.pos.z) ** 2 > GCC.giftRadius * GCC.giftRadius) {
-    return `Too far: gifts reach ${GCC.giftRadius} m from the Command Center.`;
-  }
-  if (population(world, f) >= popCap(world, f)) return 'Your camp is full: raise a Drum Circle to make room.';
-  const av = world.avatarOf(f);
-  const hearth = nearestHearth(world, f, g.pos, true);
-  if (!hearth && av.carried.length === 0) return 'No Flag to give: your quiver and stock are empty.';
-  // A neutral hippie cannot hold a Flag: it joins first, then receives the gift.
-  enlist(h, f);
-  const given = hearth ? takeFromStock(world, hearth.id, h.id) !== null : giveFlag(world, av.carried[av.carried.length - 1], h.id);
-  if (!given) {
-    h.faction = -1;
-    h.beacon = false;
-    return 'The gift slipped: no Flag changed hands.';
-  }
-  announceRecruit(world, h, f, 'gift');
-  completeAction(world, f, g, 'gift');
-  return '';
 }
 
 /** Flagellian Dialectics: a rooted GCC.dialecticsChannel channel at the cart; converts on completion. */
@@ -152,14 +108,12 @@ function concludeDialectics(world: World, f: FactionId, g: Building): void {
   };
   ids.sort((a, b) => d2(a) - d2(b) || a - b);
   let converted = 0;
-  const capacity = Math.max(0, matchSettings(world.options).maxSignifiers - population(world, f));
   for (const id of ids) {
-    if (converted >= Math.min(GCC.dialecticsMax, capacity)) break;
+    if (converted >= GCC.dialecticsMax) break;
     const h = world.hippies.get(id);
     if (!h) continue;
     if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: 0, z: h.pos.z });
-    enlist(h, f);
-    announceRecruit(world, h, f, 'dialectics');
+    enlist(world, h, f, 'dialectics');
     converted++;
   }
   ids.length = 0;

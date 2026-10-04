@@ -4,7 +4,7 @@
 
 Begin the Survey opens the lobby for local games; joining a host opens the multiplayer lobby. Each of the four player seats has an On/Off toggle, and the number of days is selected in the lobby. At least one seat remains on. Offline, choose any enabled character with Play this character; other enabled seats use AI. Turning off the selected local seat moves you to another enabled seat. Disabled seats show a neutral numbered placeholder and have no avatar, Hearth, GCC, starting stock or Signifiers in the match. They also stay out of the Hearth rail, standings and end-of-match statistics. Their camp scenery remains part of the map.
 
-In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 3; all players must use the same build.
+In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 4; all players must use the same build.
 
 Choose 1–5 days or Unlimited. A day means one complete daylight/night cycle. Default: 1 day at 1,800 seconds, preserving the original 14:00 Burn and 30:00 Dawn deadline. With multiple days, the Burn occurs at the same point in the **last** cycle. The sky repeats each cycle. Conquest can finish a competitive match earlier; a single-camp creative/solo match finishes only at its time limit. Unlimited has no time limit or scheduled Burn; competitive conquest still works.
 
@@ -16,14 +16,24 @@ Advanced Game Settings opens a separate window with a scrolling body, a fixed he
 | Lattice edge spacing | 6–12 metres | 8 |
 | Starting lumber | 0–1,000 | 150 |
 | Stock Flags per Hearth | 0–100 | 14 |
-| Starting Signifiers per camp | 0–12, capped by maximum | 6 |
+| Starting Signifiers per camp | 0–12, limited to an equal share of the world population | 6 |
 | Jump height multiplier | 0.1–5.0 | 1.0 (original height) |
-| Maximum Signifiers per camp | 0–200 | 40 |
+| Maximum Signifiers (whole world) | 0–200 | 40 |
 | Structures block flag placement | Off / On | Off |
 
 Home-loop Flags and the avatar's six carried Flags are unchanged by stock tuning. Lore/help text that describes the original rules retains the original default values; the live clock uses the chosen match settings.
 
-Jump height scales the jump apex (2.0 is twice the original height) for both authoritative movement and client prediction. The Signifier maximum applies per camp to starting workers, Drum Circle recruitment, gifts and Dialectics conversions; Drum Circle capacity still applies to recruitment. Structure blocking reserves the corner nodes of standing camp buildings when enabled. Terrain, occupied nodes and crystals always prevent placement.
+Jump height scales the jump apex (2.0 is twice the original height) for both authoritative movement and client prediction. Structure blocking reserves the corner nodes of standing camp buildings when enabled. Terrain, occupied nodes and crystals always prevent placement.
+
+## Shared population and recruitment
+
+Maximum Signifiers is the fixed population for the whole map, including all camps, neutrals and knocked-out hippies. Starting workers come from this pool; the remainder starts neutral. A knockout drops carried items, clears orders and returns the same hippie to a neutral spawn after 14 seconds. Recruitment changes allegiance without creating new hippies.
+
+Working Drum Circles and Geomantic Command Centers each recruit one nearby neutral within 15 metres every 14 seconds, without a Flag or lumber cost. Neutrals within 60 metres drift toward the nearest working recruiter. A recruiter with nobody nearby waits until a neutral arrives. The GCC's former Gift action is removed; its other powers remain available.
+
+Aim at an awake, empty-handed neutral within 3 metres and press Interact (E by default) to hand them a carried Flag. Command View also offers **Hand Flag** for a selected neutral within reach. Throwing a Flag directly into a neutral recruits them immediately without damage. Both transfers give them the actual Flag. Rival hippies still take damage from thrown Flags; a knockout makes them neutral when they respawn.
+
+Camp capacity is a soft attention limit: 12 plus 6 per working Drum Circle, up to 40. Flags, buildings and Dialectics can recruit beyond it. The newest recruits above capacity lose an additional 2 attention per second, including while idle, and cannot recover by resting at home. At zero they take the normal distraction break. Increasing capacity or losing members removes the excess penalty from hippies who now fit within capacity. The HUD shows recruited population / attention capacity, with excess count in its tooltip.
 
 ## Controls
 

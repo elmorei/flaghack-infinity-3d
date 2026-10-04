@@ -100,10 +100,11 @@ export class Trainee {
       case 'arrival/gcc':
       case 'graduation/gift':
         if (gcc) this.walkTo(gcc.pos.x, gcc.pos.z, 4);
-        if (task === 'graduation/gift' && gcc && this.near(gcc.pos.x, gcc.pos.z, 5)) {
+        if (task === 'graduation/gift' && gcc) {
           for (const h of world.hippies.values()) {
-            if (h.faction !== -1 || Math.hypot(h.pos.x - gcc.pos.x, h.pos.z - gcc.pos.z) > GCC.giftRadius - 1) continue;
-            this.act({ t: 'gcc', faction: this.f, action: 'gift', target: h.id, nodes: [] });
+            if (h.faction !== -1 || h.status === 'ko' || Math.hypot(h.pos.x - gcc.pos.x, h.pos.z - gcc.pos.z) > 15) continue;
+            this.walkTo(h.pos.x, h.pos.z, 2);
+            if (this.near(h.pos.x, h.pos.z, 2.5)) this.act({ t: 'handFlag', faction: this.f, hippieId: h.id });
             break;
           }
         }

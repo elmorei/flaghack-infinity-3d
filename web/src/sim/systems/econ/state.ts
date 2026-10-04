@@ -47,8 +47,6 @@ export class EconState {
   stockTick = -Infinity;
   readonly hoarding: boolean[] = [false, false, false, false];
   readonly stock: number[] = [0, 0, 0, 0];
-  readonly population: number[] = [0, 0, 0, 0];
-  readonly popCap: number[] = [0, 0, 0, 0];
   /** Per-tick scratch for drummer counting (reused, never reallocated). */
   readonly circles: Building[] = [];
   readonly circleDrummers: number[] = [];

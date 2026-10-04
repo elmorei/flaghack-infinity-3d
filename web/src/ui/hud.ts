@@ -221,14 +221,15 @@ export class HudPart implements UiPart {
     let attnN = 0;
     for (const h of world.hippies.values()) {
       if (h.faction !== P) continue;
-      n++;
       if (h.status === 'ko') continue;
+      n++;
       attnSum += h.attention;
       attnN++;
     }
     const cap = popCap(world, P);
     setText(this.hippies.val, `${n}/${cap}`);
-    setClass(this.hippies.row, 'full', n >= cap);
+    setClass(this.hippies.row, 'full', n > cap);
+    this.hippies.row.title = `${n} recruited / ${cap} attention capacity · ${world.hippies.size} hippies in the shared world population. ${Math.max(0, n - cap)} excess recruits lose attention over time.`;
     const attn = attnN > 0 ? attnSum / attnN : 0;
     setVar(this.attnBar, '--p', (attn / 100).toFixed(3));
     setText(this.attnVal, String(Math.round(attn)));

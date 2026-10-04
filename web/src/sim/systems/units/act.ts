@@ -3,15 +3,16 @@
  * public `status` / `statusTarget` truthful (the D.E.G.E.N. mesh shows them) and clears the
  * task (or the order) when it ends so the next tick decides afresh.
  */
-import { BUILDINGS, DRUMMERS_PER_CIRCLE, GCC, HIPPIE, HIPPIE_AI } from '../../constants';
+import { BUILDINGS, DRUMMERS_PER_CIRCLE, GCC, HIPPIE, HIPPIE_AI, RECRUIT_RADIUS, RECRUIT_ATTRACT_RADIUS } from '../../constants';
 import { TAU } from '../../math';
 import type { V2 } from '../../math';
 import { NEUTRAL } from '../../types';
-import type { FactionId, Hippie } from '../../types';
+import type { Building, FactionId, Hippie } from '../../types';
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { damageEntity } from '../combat';
 import { nearestHearth } from '../economy';
+import { isRecruiter } from '../recruitment';
 import { speedMultiplier } from '../effects';
 import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock } from '../flags';
 import { beginTask, releaseTask, setStatus, setStatusAt } from './brain';
@@ -607,6 +608,30 @@ export function pickWanderSpot(world: World, h: Hippie, b: Brain): void {
 /** Drift between spots, lingering at each (neutral life; overstimulated hippies). */
 export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void {
   b.pace = HIPPIE_AI.neutralPace;
+  // The music draws unaligned hippies toward working recruiters. They wait in recruitment
+  // range instead of endlessly wandering past the camp; the GCC can be pushed to meet them.
+  if (h.faction === NEUTRAL && b.waitUntil !== Infinity) {
+    let nearest: Building | undefined;
+    let distance = RECRUIT_ATTRACT_RADIUS * RECRUIT_ATTRACT_RADIUS;
+    for (const recruiter of world.buildings.values()) {
+      if (!isRecruiter(world, recruiter)) continue;
+      const d = (recruiter.pos.x - h.pos.x) ** 2 + (recruiter.pos.z - h.pos.z) ** 2;
+      if (d < distance || (d === distance && nearest && recruiter.id < nearest.id)) {
+        nearest = recruiter;
+        distance = d;
+      }
+    }
+    if (nearest) {
+      if (distance <= (RECRUIT_RADIUS * 0.8) ** 2) {
+        b.moving = false;
+        setStatus(h, 'idle');
+      } else {
+        moveTo(world, sys, h, b, nearest.pos.x, nearest.pos.z, RECRUIT_RADIUS * 0.8);
+        setStatusAt(h, b, 'walking', nearest.pos.x, nearest.pos.z);
+      }
+      return;
+    }
+  }
   if (world.time < b.waitUntil) {
     b.moving = false;
     setStatus(h, 'idle');

@@ -1,6 +1,6 @@
 /**
  * Thrown Flags: ballistic flight (gravity), collision via CollisionWorld.raycast against
- * walls/buildings/obstacles, stun on hippie hits, landing → plant on nearest plantable node
+ * walls/buildings/obstacles, recruitment on neutral hits, stun on rival hits, landing → plant on nearest plantable node
  * within AVATAR.throwSnapRadius (or loose). Emits flagLanded.
  * Owner: Units agent.
  */
@@ -9,6 +9,7 @@ import { clamp } from '../math';
 import type { FactionId, Hippie, Projectile } from '../types';
 import type { World } from '../world';
 import { damageEntity } from './combat';
+import { recruitWithFlag } from './recruitment';
 import { isDrugActive } from './drugs';
 import { applyEffect } from './effects';
 import { dropLoose, nearestPlantableNode, plantFlag } from './flags';
@@ -126,8 +127,12 @@ function hippieOnSegment(
   return best;
 }
 
-/** A Flag to the head: stun + damage, and the Flag drops at the hippie's feet. */
+/** A neutral catches the Flag and joins; a rival takes damage and drops the Flag. */
 function bonk(world: World, p: Projectile, h: Hippie): void {
+  if (recruitWithFlag(world, h, p.faction, p.flagId, 'throw')) {
+    finish(world, p, -1);
+    return;
+  }
   damageEntity(world, h.id, PROJECTILE.hippieDamage, p.thrower);
   if (h.status !== 'ko') applyEffect(world, h, 'stun', PROJECTILE.hippieStun, 1, p.thrower);
   dropLoose(world, p.flagId, { x: h.pos.x, y: 0, z: h.pos.z });

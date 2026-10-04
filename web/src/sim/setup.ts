@@ -15,14 +15,10 @@ import {
   CAMP_CENTERS,
   HIPPIE,
   IMPLIED_MAX_ORDER,
-  NEUTRAL_HIPPIES,
   PILE_MAX,
   PILE_MIN,
   START_CARRIED_FLAGS,
-  START_HIPPIES,
   START_HOME_RING_RADIUS,
-  START_LUMBER,
-  START_STOCK_FLAGS,
   TIDE_INTERVAL,
 } from './constants';
 import { createFaction, spawnAvatar, spawnBuilding, spawnFlag, spawnHippie, spawnPile } from './factory';
@@ -86,9 +82,11 @@ export function createMatch(options: MatchOptions): World {
   for (const spot of map.pileSpots) {
     spawnPile(world, world.rng.chance(0.55) ? 'pallets' : 'moop', spot, world.rng.int(PILE_MIN, PILE_MAX));
   }
-  for (let i = 0; i < NEUTRAL_HIPPIES && map.neutralSpawns.length > 0; i++) {
-    const at = map.neutralSpawns[i % map.neutralSpawns.length];
-    spawnHippie(world, -1, { x: at.x + world.rng.range(-3, 3), z: at.z + world.rng.range(-3, 3) });
+  const remaining = matchSettings(options).maxSignifiers - world.hippies.size;
+  for (let i = 0; i < remaining; i++) {
+    const at = map.neutralSpawns[i % map.neutralSpawns.length] ?? { x: 0, z: 0 };
+    const spot = world.nav.nearestWalkable(at.x + world.rng.range(-3, 3), at.z + world.rng.range(-3, 3));
+    spawnHippie(world, -1, spot);
   }
   if (options.mode === 'tutorial') setupTrainingBurn(world);
   updateSurvey(world, 0);

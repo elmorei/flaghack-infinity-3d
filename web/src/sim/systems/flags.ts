@@ -184,7 +184,7 @@ export function takeFromStock(world: World, hearthId: EntityId, carrier: EntityI
 
 /**
  * Hand a Flag that is not planted or in flight (quiver, hands, stock, loose) to a carrier,
- * e.g. Flag Gifts. The carrier's faction becomes the owner. Returns false if it can't hold it.
+ * e.g. Flag recruitment. The carrier's faction becomes the owner. Returns false if it can't hold it.
  */
 export function giveFlag(world: World, flagId: EntityId, carrier: EntityId): boolean {
   const fl = world.flags.get(flagId);

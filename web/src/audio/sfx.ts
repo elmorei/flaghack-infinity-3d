@@ -807,11 +807,7 @@ export class Sfx {
     const v = this.e.voice({ key: `gcc-${action}`, at, range: 2, dur: 1.8, gain: mine ? 0.85 : 0.6, wet: 0.4, priority: mine ? 2 : 1 });
     if (!v) return;
     const c = this.e.ctx;
-    if (action === 'gift') {
-      const degs = [20, 22, 24, 25];
-      for (let i = 0; i < 4; i++) bell(c, v.input, v.t + i * 0.06, degreeHz(degs[i]), 0.9, 0.14, 3);
-      noise(c, v.input, v.t, { buf: this.e.white, filter: 'bandpass', f: 3000, q: 1.5, env: { a: 0.02, d: 0.3, peak: 0.1 } });
-    } else if (action === 'dialectics') {
+    if (action === 'dialectics') {
       // Flagellian dialectics: two formant voices arguing, thesis and antithesis.
       const bp = c.createBiquadFilter();
       bp.type = 'bandpass';

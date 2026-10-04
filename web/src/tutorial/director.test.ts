@@ -202,8 +202,8 @@ describe('Training Burn', () => {
     while (burn.driver.state.phase !== 'graduated' && burn.world.time < 120) frame(burn, () => trainee.tick());
     expect(burn.driver.state.phase).toBe('graduated');
     expect(burn.driver.state.sealsEarned).toContain('graduation');
-    // The gift landed: the Vexillosaint made room rather than waiving the step.
-    expect(popCap(burn.world, TRAINING_PLAYER)).toBeGreaterThan(cap);
+    // The recruit joined even though the camp already occupied all of its soft capacity.
+    expect(popCap(burn.world, TRAINING_PLAYER)).toBe(cap);
     expect(population(burn.world, TRAINING_PLAYER)).toBeGreaterThan(cap);
   });
 });

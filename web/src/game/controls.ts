@@ -15,6 +15,7 @@ import type { V3 } from '../sim/math';
 import { isFlagProtected } from '../sim/systems/abilities';
 import { throwOrigin } from '../sim/systems/avatars';
 import { isCollapsed } from '../sim/systems/buildings';
+import { canRecruit, handFlagBlocker } from '../sim/systems/recruitment';
 import { canPlantAt, nearestPlantableNode } from '../sim/systems/flags';
 import { CHAKRA_ABILITY, CHAKRAS, DRUGS, FACTION_IDS } from '../sim/types';
 import type { Avatar, Building, BuildingKind, EntityId, FactionId, Flag, PieceKind } from '../sim/types';
@@ -146,8 +147,9 @@ const RAISE_PROMPT: Record<BuildingKind, string> = {
 };
 
 /** What E does right now. */
-type ContextKind = 'none' | 'plant' | 'pull' | 'beacon' | 'gcc' | 'release';
+type ContextKind = 'none' | 'plant' | 'pull' | 'beacon' | 'gcc' | 'release' | 'handFlag';
 const CONTEXT_PROMPT: Record<Exclude<ContextKind, 'pull'>, string> = {
+  handFlag: 'E  Hand Flag to recruit Signifier',
   none: '',
   plant: 'E  Plant Flag',
   beacon: 'E  Tap the D.E.G.E.N. Beacon',
@@ -907,6 +909,11 @@ export class Controls {
     const az = av.pos.z;
     const he = s.hover.entity;
     if (he >= 0) {
+      if (world.hippies.has(he) && !handFlagBlocker(world, f, he)) {
+        this.ctxKind = 'handFlag';
+        this.ctxTarget = he;
+        return;
+      }
       const fl = world.flags.get(he);
       if (fl && this.pullable(world, fl) && Math.hypot(fl.pos.x - ax, fl.pos.z - az) <= AVATAR.pullReach) {
         this.ctxKind = 'pull';
@@ -973,6 +980,9 @@ export class Controls {
     const f = s.playerFaction;
     if (inp.wasPressed('KeyE')) {
       switch (this.ctxKind) {
+        case 'handFlag':
+          this.queue.push({ t: 'handFlag', faction: f, hippieId: this.ctxTarget });
+          break;
         case 'plant':
           this.queue.push({ t: 'plant', faction: f, node: this.ctxNode });
           break;
@@ -1058,6 +1068,8 @@ export class Controls {
     }
     if (aiming) {
       if (av.carried.length === 0) return 'Quiver empty: move near loose Flags to collect them';
+      const target = world.hippies.get(s.hover.entity);
+      if (target && canRecruit(target)) return 'LMB  Throw Flag to recruit Signifier';
       return s.aim.node >= 0 ? 'LMB  Throw: the Flag plants on the Ley Node' : 'LMB  Throw: the Flag lands loose';
     }
     let tool: string | null = null;

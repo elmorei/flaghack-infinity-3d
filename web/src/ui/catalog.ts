@@ -23,7 +23,7 @@ import {
   HIPPIE_AI,
   PIECE,
   RECRUIT_INTERVAL,
-  RECRUIT_LUMBER,
+  RECRUIT_RADIUS,
   RETRANSMIT_ATTENTION,
   RETRANSMIT_COOLDOWN,
   WARD_OBSERVE_RADIUS,
@@ -206,7 +206,7 @@ export const BUILD_INFO: Record<CampBuildingKind, BuildInfo> = {
   drumcircle: {
     name: BUILDING_NAMES.drumcircle,
     cost: BUILDINGS.drumcircle.cost,
-    effect: `Recruits a Signifier every ${RECRUIT_INTERVAL} s (1 Flag + ${RECRUIT_LUMBER} lumber) and raises the pop cap by ${HIPPIE.popCapPerDrumCircle}. Up to ${DRUMMERS_PER_CIRCLE} drummers make +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
+    effect: `Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m and raises attention capacity by ${HIPPIE.popCapPerDrumCircle}. Recruitment can exceed capacity; excess recruits lose attention. Up to ${DRUMMERS_PER_CIRCLE} drummers make +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
     icon: 'drumcircle',
   },
   ward: {
@@ -253,13 +253,6 @@ export interface GccInfo {
 }
 
 export const GCC_INFO: Record<GccAction, GccInfo> = {
-  gift: {
-    name: GCC_ACTION_NAMES.gift,
-    cooldown: GCC.giftCooldown,
-    effect: `At your cart: spend 1 Flag to recruit the selected neutral Signifier within ${GCC.giftRadius} m.`,
-    icon: 'gift',
-    target: 'gcc-gift',
-  },
   dialectics: {
     name: GCC_ACTION_NAMES.dialectics,
     cooldown: GCC.dialecticsCooldown,

@@ -12,6 +12,7 @@ import { planEnclosure } from '../sim/lattice/planner';
 import type { NodeCost } from '../sim/lattice/planner';
 import { isFlagProtected } from '../sim/systems/abilities';
 import { popCap, population } from '../sim/systems/economy';
+import { RECRUIT_RADIUS } from '../sim/constants';
 import { canPlantAt, isBuildingCorner } from '../sim/systems/flags';
 import { geometryOwners } from '../sim/systems/survey';
 import { FACTION_IDS, NEUTRAL } from '../sim/types';
@@ -175,7 +176,7 @@ function senseUnits(b: Brain, world: World, hearth: Building): void {
   for (const h of world.hippies.values()) {
     if (h.faction === f || h.koUntil > world.time) continue;
     if (h.faction === NEUTRAL) {
-      if (gcc && (h.pos.x - gcc.pos.x) ** 2 + (h.pos.z - gcc.pos.z) ** 2 <= GCC.giftRadius * GCC.giftRadius) v.neutralsNearGcc.push(h.id);
+      if (gcc && (h.pos.x - gcc.pos.x) ** 2 + (h.pos.z - gcc.pos.z) ** 2 <= RECRUIT_RADIUS * RECRUIT_RADIUS) v.neutralsNearGcc.push(h.id);
       continue;
     }
     if (!visible(world, f, h, observers)) continue;

@@ -176,7 +176,7 @@ function takeDrugs(b: Brain): void {
   }
 }
 
-/** Command Center errands: recruit neutral hippies with Flag Gifts, convert crowds with Dialectics. */
+/** Command Center errands: convert rival crowds with Dialectics; neutral recruitment is passive. */
 function planGcc(b: Brain): void {
   const world = b.world;
   const v = b.view;
@@ -188,10 +188,6 @@ function planGcc(b: Brain): void {
   const fac = world.factions[b.f];
   if (v.rivalsNearGcc >= 2 && fac.cooldowns.dialectics <= world.time) {
     b.gccWanted = { action: 'dialectics', target: -1, nodes: [] };
-    return;
-  }
-  if (v.neutralsNearGcc.length > 0 && v.population < v.popCap && b.flagsInHand() >= 8 && fac.cooldowns.gift <= world.time) {
-    b.gccWanted = { action: 'gift', target: v.neutralsNearGcc[0], nodes: [] };
     return;
   }
   // Flag Simulacra: superpose one Flag over two unfilled plan nodes in the cart's reach.

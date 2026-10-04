@@ -39,7 +39,7 @@ export type TaskKind =
 export type RouteState = 'none' | 'direct' | 'queued' | 'path' | 'blocked';
 
 export class Brain {
-  /** Faction last seen; a change means conversion (Gift, Dialectics, capture). */
+  /** Faction last seen; a change means recruitment, Dialectics or capture. */
   faction: Owner;
   jobSince = -Infinity;
   task: TaskKind = 'none';

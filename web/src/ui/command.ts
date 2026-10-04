@@ -5,9 +5,10 @@
  * session fields or app.submit(Command); nothing here mutates the World.
  */
 import type { PlanTool } from '../game/session';
-import { BREW_COST, BREW_TIME, BUILDINGS, GCC } from '../sim/constants';
+import { BREW_COST, BREW_TIME, BUILDINGS, GCC, RECRUIT_RADIUS, RECRUIT_INTERVAL } from '../sim/constants';
 import { BUILDING_NAMES, canPlaceBuilding, isCollapsed } from '../sim/systems/buildings';
 import { gccBlocker } from '../sim/systems/gcc';
+import { handFlagBlocker } from '../sim/systems/recruitment';
 import { brewBlocker } from '../sim/systems/drugs';
 import { DRUGS, JOBS } from '../sim/types';
 import type { Building, DrugId, EntityId, FactionState, GccAction, Hippie, JobKind } from '../sim/types';
@@ -28,7 +29,7 @@ import { button, el, escapeHtml, fmtCountdown, html, kbd, setAttr, setClass, set
 import { iconSvg } from './icons';
 
 const MAX_CHIPS = 16;
-const GCC_ACTIONS: readonly GccAction[] = ['gift', 'dialectics', 'simulacra'];
+const GCC_ACTIONS: readonly GccAction[] = ['dialectics', 'simulacra'];
 
 interface JobRow {
   job: JobKind;
@@ -64,7 +65,7 @@ export class CommandPanels implements UiPart {
   private selChips: HTMLElement;
   private selSig = '';
   private selOrders: HTMLElement;
-  private selGift: HTMLButtonElement;
+  private selHandFlag: HTMLButtonElement;
   private selInfo: HTMLElement;
   private selInfoKey = '';
   // Build
@@ -166,7 +167,7 @@ export class CommandPanels implements UiPart {
     html(
       'div',
       'gcc-banner',
-      '<span class="gb-main">GEOMANTIC COMMAND CENTER</span><span class="gb-sub">FLAG REPAIR · FLAG GIFTS · GEOMANTIC ADVICE · FLAGELLIAN DIALECTICS</span>',
+      '<span class="gb-main">GEOMANTIC COMMAND CENTER</span><span class="gb-sub">FLAG REPAIR · RECRUITMENT · GEOMANTIC ADVICE · FLAGELLIAN DIALECTICS</span>',
       gcc,
     );
     this.gccStatus = el('div', 'panel-meta gcc-status', gcc, '');
@@ -184,23 +185,13 @@ export class CommandPanels implements UiPart {
       tutorialTarget(b, info.target);
       return b;
     };
-    /** Sim rules first (cart reach, cooldown, collapse), then the gift's own need for a target. */
+    /** Table actions share the simulation's reach, cooldown and collapse rules. */
     const blockerFor = (action: GccAction): string => {
       const w = this.host.app.world;
       if (!w) return 'No burn in progress.';
-      const b = gccBlocker(w, this.host.app.session.playerFaction, action);
-      if (b) return b;
-      return action === 'gift' && !this.giftTarget(w) ? 'Select a neutral Signifier near your cart.' : '';
+      return gccBlocker(w, this.host.app.session.playerFaction, action);
     };
     this.gccButtons = {
-      gift: mkGcc('gift', () => {
-        const w = this.host.app.world;
-        const ss = this.host.app.session;
-        const blocker = blockerFor('gift');
-        const target = w ? this.giftTarget(w) : null;
-        if (blocker || !target) this.host.blocked(blocker || 'Select a neutral Signifier near your cart.');
-        else this.host.app.submit({ t: 'gcc', faction: ss.playerFaction, action: 'gift', target: target.id, nodes: [] });
-      }),
       dialectics: mkGcc('dialectics', () => {
         const ss = this.host.app.session;
         const blocker = blockerFor('dialectics');
@@ -219,7 +210,6 @@ export class CommandPanels implements UiPart {
       }),
     };
     this.gccCd = {
-      gift: el('span', 'gcc-cd num', this.gccButtons.gift),
       dialectics: el('span', 'gcc-cd num', this.gccButtons.dialectics),
       simulacra: el('span', 'gcc-cd num', this.gccButtons.simulacra),
     };
@@ -235,16 +225,16 @@ export class CommandPanels implements UiPart {
     button('btn btn-small', this.selOrders, `${iconSvg('follow')}Follow me`, () => this.order('follow'));
     button('btn btn-small', this.selOrders, `${iconSvg('defend')}Defend here`, () => this.order('defend'));
     button('btn btn-small', this.selOrders, `${iconSvg('close')}Clear orders`, () => this.order('clear'));
-    // Relays to the GCC's Flag Gifts button; that relayed click is synthetic and stays silent.
-    this.selGift = button(
-      'btn btn-small btn-gold',
-      this.selOrders,
-      `${iconSvg('gift')}Flag Gift`,
-      () => {
-        this.gccButtons.gift.click();
-      },
-      'confirm',
-    );
+    this.selHandFlag = button('btn btn-small btn-gold', this.selOrders, 'Hand Flag', () => {
+      const w = this.host.app.world;
+      if (!w) return;
+      const target = this.handTarget(w);
+      const f = this.host.app.session.playerFaction;
+      const why = target ? handFlagBlocker(w, f, target.id) : 'Select a neutral Signifier.';
+      if (why || !target) this.host.blocked(why);
+      else this.host.app.submit({ t: 'handFlag', faction: f, hippieId: target.id });
+    }, 'confirm');
+    tutorialTarget(this.selHandFlag, 'hand-flag');
 
     // ── Deck: build menu ──
     const build = this.panel(this.deck, 'Camp buildings', 'build');
@@ -292,7 +282,7 @@ export class CommandPanels implements UiPart {
     return out;
   }
 
-  private giftTarget(world: World): Hippie | null {
+  private handTarget(world: World): Hippie | null {
     for (const id of this.host.app.session.selection) {
       const h = world.hippies.get(id);
       if (h && h.faction === -1) return h;
@@ -383,6 +373,7 @@ export class CommandPanels implements UiPart {
       const advice = `Geomantic Advice ${GCC.adviceRadius} m`;
       status = gcc.gcc.pushedBy !== -1 ? `Rolling · ${advice}` : `Parked · ${advice} · Flag Repair ${GCC.repairRadius} m`;
     }
+    if (gcc && !isCollapsed(gcc) && !gcc.disabled) status += ` · Recruits nearby neutrals (${RECRUIT_RADIUS} m / ${RECRUIT_INTERVAL} s)`;
     setText(this.gccStatus, status);
     let hint = '';
     for (const action of GCC_ACTIONS) {
@@ -395,7 +386,6 @@ export class CommandPanels implements UiPart {
       setClass(b, 'blocked', blocker !== '');
       // Recharging or blocked: a click shows the reason (and sounds the error) instead of acting.
       setDisabled(b, left > 0 || blocker !== '');
-      if (action === 'gift') setDisabled(this.selGift, left > 0 || blocker !== '');
       if (!hint) hint = blocker;
       setClass(b, 'on', action === 'simulacra' && this.host.app.session.planTool === 'simulacra');
     }
@@ -425,7 +415,7 @@ export class CommandPanels implements UiPart {
       own.length > 0
         ? `${own.length} Signifier${own.length === 1 ? '' : 's'} selected${neutral ? ` · ${neutral} neutral` : ''}`
         : neutral > 0
-          ? `${neutral} neutral Signifier${neutral === 1 ? '' : 's'}: recruit with a Flag Gift`
+          ? `${neutral} neutral Signifier${neutral === 1 ? '' : 's'}: hand or throw a Flag to recruit`
           : '',
     );
     let sig = '';
@@ -444,7 +434,11 @@ export class CommandPanels implements UiPart {
     }
     show(this.selChips, own.length > 0);
     show(this.selOrders, own.length > 0 || neutral > 0);
-    show(this.selGift, neutral > 0);
+    show(this.selHandFlag, neutral > 0);
+    const target = this.handTarget(world);
+    const why = target ? handFlagBlocker(world, this.host.app.session.playerFaction, target.id) : 'Select a neutral Signifier.';
+    setDisabled(this.selHandFlag, !!why);
+    this.selHandFlag.title = why || 'Hand one carried Flag to this nearby Signifier.';
 
     let info = '';
     if (other) {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { HEARTH_FLAG_COST, HEARTH_FLAG_INTERVAL, PILE_COUNT, PILE_RESPAWN_INTERVAL, RECRUIT_INTERVAL, RECRUIT_LUMBER } from '../../constants';
+import { HEARTH_FLAG_COST, HEARTH_FLAG_INTERVAL, PILE_COUNT, PILE_RESPAWN_INTERVAL, RECRUIT_INTERVAL } from '../../constants';
 import { spawnBuilding, spawnHippie } from '../../factory';
-import { normalizeMatch } from '../../matchSettings';
 import { FACTION_IDS } from '../../types';
 import { registerBuildingShape } from '../buildings';
 import { popCap, population } from '../economy';
@@ -29,42 +28,34 @@ describe('economy', () => {
     expect(eventsOf(h, 'flagCrafted').filter((e) => e.faction === 0)).toHaveLength(3);
   });
 
-  it.each([40, 2])('a Drum Circle recruit takes a stock Flag and respects a configured cap of %i', (maxSignifiers) => {
+  it.each(['drumcircle', 'gcc'] as const)('%s recruits existing neutrals repeatedly without spawning or resource costs', (kind) => {
     const h = newMatch();
     const { world } = h;
-    world.options.match = normalizeMatch({ maxSignifiers });
+    world.hippies.clear();
+    for (const f of world.factions) f.lumber = 0;
     const hearth = world.hearthOf(0)!;
-    dismissHippies(world, 0);
-    parkAvatarAway(world, 0);
-    const circle = spawnBuilding(world, 'drumcircle', 0, freeThickFacet(world, hearth.pos.x, hearth.pos.z, 12, 'drumcircle'), 1);
-    registerBuildingShape(world, circle);
-    world.factions[0].lumber = 100;
-    const stockIds = new Set(world.stockOf(hearth.id).map((f) => f.id));
-    const flags0 = world.flags.size;
-
-    run(h, RECRUIT_INTERVAL + 0.1);
-    const recruits = eventsOf(h, 'recruited').filter((e) => e.faction === 0);
-    expect(recruits).toHaveLength(1);
-    expect(recruits[0].via).toBe('drumcircle');
-    const recruit = world.hippies.get(recruits[0].hippieId)!;
-    expect(recruit.faction).toBe(0);
-    const carried = world.flags.get(recruit.carryingFlag)!;
-    expect(carried.state).toBe('carried');
-    expect(carried.holder).toBe(recruit.id);
-    expect(stockIds.has(carried.id)).toBe(true);
-    const crafted = eventsOf(h, 'flagCrafted').length;
-    expect(world.flags.size).toBe(flags0 + crafted);
-    // 100 lumber - recruit - one Hearth craft.
-    expect(world.factions[0].lumber).toBe(100 - RECRUIT_LUMBER - HEARTH_FLAG_COST);
-
-    // Fill the camp to its cap: no more recruits.
-    const cap = popCap(world, 0);
-    expect(cap).toBeLessThanOrEqual(maxSignifiers);
-    while (population(world, 0) < cap) spawnHippie(world, 0, { x: hearth.pos.x + 8, z: hearth.pos.z + 8 });
-    const before = eventsOf(h, 'recruited').length;
+    const recruiter = kind === 'gcc' ? world.gccOf(0)!
+      : spawnBuilding(world, 'drumcircle', 0, freeThickFacet(world, hearth.pos.x, hearth.pos.z, 12, 'drumcircle'), 1);
+    for (const b of world.buildings.values()) if (b.kind === 'gcc' && b !== recruiter) b.disabled = true;
+    if (kind === 'drumcircle') registerBuildingShape(world, recruiter);
+    const a = spawnHippie(world, -1, { x: recruiter.pos.x + 8, z: recruiter.pos.z });
+    const b = spawnHippie(world, -1, { x: recruiter.pos.x - 8, z: recruiter.pos.z });
+    // Freeze their wandering; recruitment itself is not a movement operation.
+    a.effects.push({ kind: 'stun', until: 1000, mag: 1, source: -1 });
+    b.effects.push({ kind: 'stun', until: 1000, mag: 1, source: -1 });
+    const flags = world.flags.size;
+    run(h, RECRUIT_INTERVAL - 0.1);
+    expect(population(world, 0)).toBe(0);
+    run(h, 0.2);
+    expect(population(world, 0)).toBe(1);
+    run(h, RECRUIT_INTERVAL);
+    expect(population(world, 0)).toBe(2);
+    expect(world.hippies.size).toBe(2);
+    expect(world.flags.size).toBe(flags);
+    expect(world.factions[0].lumber).toBe(0);
+    expect(eventsOf(h, 'recruited').map((e) => e.via)).toEqual([kind, kind]);
     run(h, RECRUIT_INTERVAL * 2);
-    expect(eventsOf(h, 'recruited').length).toBe(before);
-    expect(population(world, 0)).toBe(cap);
+    expect(world.hippies.size).toBe(2);
   });
 
   it('a working Drum Circle raises the pop cap', () => {

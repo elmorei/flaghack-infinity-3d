@@ -76,7 +76,7 @@ export class Roster implements UiPart {
     this.shot.title = RETRANSMIT_INFO.effect;
     this.shotCd = this.shot.querySelector<HTMLElement>('.shot-cd') ?? el('span', '', this.shot);
     this.groupsBox = el('div', 'roster-groups', this.root);
-    this.empty = el('div', 'panel-hint is-off', this.root, 'No beacons on the mesh. Recruit Signifiers at a Drum Circle or with Flag Gifts.');
+    this.empty = el('div', 'panel-hint is-off', this.root, 'No beacons on the mesh. Recruit neutrals at a Drum Circle or Command Center, or hand or throw them a Flag.');
   }
 
   private group(key: GroupKey): Group {

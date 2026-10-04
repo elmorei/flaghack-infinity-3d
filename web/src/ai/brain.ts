@@ -85,7 +85,7 @@ export interface View {
   popCap: number;
   /** Visible rival hippies inside our Survey or near our Hearth. */
   intruders: EntityId[];
-  /** Visible rival hippies around our Command Center, and neutral ones in gift reach. */
+  /** Visible rival hippies around our Command Center, and neutral ones in recruitment range. */
   rivalsNearGcc: number;
   neutralsNearGcc: EntityId[];
   /** Visible rival hippies within the Omega Pulse reach of our vexillomancer. */

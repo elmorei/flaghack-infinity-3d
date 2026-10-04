@@ -50,7 +50,7 @@ import {
   PIECE,
   PROJECTILE,
   RECRUIT_INTERVAL,
-  RECRUIT_LUMBER,
+  RECRUIT_RADIUS,
   RETRANSMIT_ATTENTION,
   RETRANSMIT_COOLDOWN,
   SUDDEN_DEATH_ESCALATE_EVERY,
@@ -209,8 +209,9 @@ export const CODEX_SURVEY: readonly CodexBlock[] = [
     kind: 'list',
     items: [
       `**Quiver**: you carry ${AVATAR.quiver} Flags. Stand within ${AVATAR.restockRadius} m of your Hearth and the quiver refills from camp stock.`,
+      `**Hand Flag** (E while aiming at a nearby neutral): give one carried Flag to recruit that Signifier.`,
       `**Plant** (E): a ${AVATAR.plantTime} s tap on a free node within ${AVATAR.plantReach} m.`,
-      `**Throw** (Q, or hold RMB to aim and click LMB): a flick at ${AVATAR.throwSpeed} m/s, ${AVATAR.throwCooldown} s cooldown. The Flag auto-plants on the nearest free node within ${AVATAR.throwSnapRadius} m of impact; otherwise it lies loose. A direct hit stuns a hippie for ${PROJECTILE.hippieStun} s.`,
+      `**Throw** (Q, or hold RMB to aim and click LMB): a flick at ${AVATAR.throwSpeed} m/s, ${AVATAR.throwCooldown} s cooldown. The Flag auto-plants on the nearest free node within ${AVATAR.throwSnapRadius} m of impact; otherwise it lies loose. A direct hit recruits a neutral hippie, who keeps the Flag; enemy hippies take damage and a ${PROJECTILE.hippieStun} s stun.`,
       `**Pull** (hold E): your own Flag in ${AVATAR.pullOwnTime} s, an enemy or neutral Flag in a ${AVATAR.pullEnemyTime} s channel. Pulled Flags go to your quiver if there is room, else they drop loose.`,
       `**Staff** (LMB with the Flag tool): a swing for ${AVATAR.swingDamage} damage to units and ${AVATAR.swingPieceDamage} to pieces; at a pile it chops ${AVATAR.swingLumber} lumber. The staff never plants.`,
       `**Flagless**: at 0 HP you drop every carried Flag loose and return to your Hearth after ${AVATAR.respawnTime} s.`,
@@ -451,7 +452,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
   },
   {
     kind: 'p',
-    text: `Attention drains ${HIPPIE.attentionDrain} per second while working, ${HIPPIE.attentionDrain * HIPPIE_AI.psychosisDrainMult} per second in Flag Psychosis. At 0 a hippie is distracted and wanders to the nearest sound camp for ${HIPPIE.distractedTime} s, returning at ${HIPPIE.distractedRecoverTo}. Idle hippies recover ${HIPPIE.attentionRecover} per second near your Hearth or a Drum Circle. A hippie knocked to 0 vibes drops what it carries and returns to your Hearth after ${HIPPIE.respawnTime} s.`,
+    text: `Attention drains ${HIPPIE.attentionDrain} per second while working, ${HIPPIE.attentionDrain * HIPPIE_AI.psychosisDrainMult} per second in Flag Psychosis. At 0 a hippie is distracted and wanders to the nearest sound camp for ${HIPPIE.distractedTime} s, returning at ${HIPPIE.distractedRecoverTo}. Idle hippies recover ${HIPPIE.attentionRecover} per second near your Hearth or a Drum Circle. Hippies share a fixed world population. At 0 vibes they drop what they carry and respawn neutral after ${HIPPIE.respawnTime} s. Camps can recruit beyond their attention capacity; the newest excess recruits lose an additional ${HIPPIE.overCapAttentionDrain} attention/s, even when idle, and cannot recover by resting at home. They take normal distraction breaks at 0 attention.`,
   },
   { kind: 'h', text: 'Jobs and Orders' },
   {
@@ -487,7 +488,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
       [
         '**Drum Circle**',
         `${BUILDINGS.drumcircle.cost}`,
-        `Recruits 1 hippie every ${RECRUIT_INTERVAL} s for 1 Flag + ${RECRUIT_LUMBER} lumber. +${HIPPIE.popCapPerDrumCircle} pop cap. Up to ${DRUMMERS_PER_CIRCLE} drummers, +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
+        `Automatically recruits one existing neutral within ${RECRUIT_RADIUS} m every ${RECRUIT_INTERVAL} s, with no Flag or lumber cost. +${HIPPIE.popCapPerDrumCircle} attention capacity. Up to ${DRUMMERS_PER_CIRCLE} drummers, +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
       ],
       [
         '**Hearth Ward**',
@@ -512,7 +513,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
     items: [
       `**Geomantic Advice**: reveals the lattice and focus points within ${GCC.adviceRadius} m and observes those nodes.`,
       `**Flag Repair**: every ${GCC.repairInterval} s re-plants one loose Flag of yours within ${GCC.repairRadius} m and mends your pieces and buildings there.`,
-      `**Flag Gifts** (${GCC.giftCooldown} s cooldown): spend 1 Flag to recruit a neutral hippie within ${GCC.giftRadius} m.`,
+      `**Recruitment**: like a Drum Circle, automatically recruits one existing neutral within ${RECRUIT_RADIUS} m every ${RECRUIT_INTERVAL} s, without a Flag or lumber cost.`,
       `**Flagellian Dialectics** (${GCC.dialecticsCooldown} s cooldown, ${GCC.dialecticsChannel} s channel at the cart): converts up to ${GCC.dialecticsMax} enemy hippies within ${GCC.dialecticsRadius} m.`,
       `**Flag Simulacra** (${GCC.simulacraCooldown} s cooldown): one Flag on two nodes at once.`,
     ],

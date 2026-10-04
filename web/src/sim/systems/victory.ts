@@ -26,14 +26,15 @@ const QUIVER_SCATTER = 0.9;
 /**
  * A hippie whose camp has fallen wanders off neutral: it drops any carried Flag where it
  * stands, forgets its job and orders, and loses its D.E.G.E.N. beacon (no longer on a mesh).
- * Neutral hippies can be recruited again with Flag Gifts.
+ * Neutral hippies can be recruited again by music or Flags.
  */
 export function neutralizeHippie(world: World, h: Hippie): void {
   if (h.carryingFlag >= 0) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: 0, z: h.pos.z });
   h.faction = NEUTRAL;
+  h.recruitedAt = 0;
   h.job = null;
   h.order = null;
-  h.status = 'idle';
+  if (h.status !== 'ko') h.status = 'idle';
   h.statusTarget = null;
   h.carryingLumber = 0;
   h.beacon = false;

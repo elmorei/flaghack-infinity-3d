@@ -51,7 +51,7 @@ export const TUTORIAL_TARGETS = [
   'priority-ritual',
   'buildings-panel',
   'gcc-panel',
-  'gcc-gift',
+  'hand-flag',
   'gcc-dialectics',
   'gcc-simulacra',
   'degen-roster',

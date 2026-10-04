@@ -83,7 +83,6 @@ export const START_STOCK_FLAGS = 14;
 export const START_CARRIED_FLAGS = 6;
 export const START_HIPPIES = 6;
 export const START_HOME_RING_RADIUS = 13; // home loop planted around the Hearth at t=0
-export const NEUTRAL_HIPPIES = 18;
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 export const AVATAR = {
@@ -159,6 +158,7 @@ export const HIPPIE = {
   gatherAmount: 10,
   respawnTime: 14,
   attentionDrain: 1,
+  overCapAttentionDrain: 2,
   attentionRecover: 4,
   distractedTime: 10,
   distractedRecoverTo: 60,
@@ -242,7 +242,8 @@ export const HEARTH_FLAG_COST = 4;
 export const WORKSHOP_FLAG_INTERVAL = 5;
 export const WORKSHOP_FLAG_COST = 3;
 export const RECRUIT_INTERVAL = 14;
-export const RECRUIT_LUMBER = 10;
+export const RECRUIT_RADIUS = 15;
+export const RECRUIT_ATTRACT_RADIUS = 60;
 export const HOARD_THRESHOLD = 24;
 export const WARD_RADIUS = 30;
 export const WARD_OBSERVE_RADIUS = 26;
@@ -269,8 +270,6 @@ export const GCC = {
   repairRadius: 20,
   repairInterval: 3,
   repairHps: 15,
-  giftRadius: 15,
-  giftCooldown: 3,
   dialecticsRadius: 14,
   dialecticsCooldown: 40,
   dialecticsChannel: 3,

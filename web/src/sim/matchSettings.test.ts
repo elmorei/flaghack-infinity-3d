@@ -37,13 +37,14 @@ describe('configurable matches', () => {
   it('defaults to original jump height, 40 Signifiers, and no structure blocking', () => {
     expect(normalizeMatch()).toMatchObject({ jumpHeight: 1, maxSignifiers: 40, structuresBlockFlagPlacement: false });
     expect(normalizeMatch({ jumpHeight: -1, maxSignifiers: 2.9, startingSignifiers: 12 })).toMatchObject({
-      jumpHeight: 0.1, maxSignifiers: 2, startingSignifiers: 2,
+      jumpHeight: 0.1, maxSignifiers: 2, startingSignifiers: 0,
     });
     expect(normalizeMatch({ jumpHeight: 99, maxSignifiers: 999 })).toMatchObject({ jumpHeight: 5, maxSignifiers: 200 });
   });
-  it.each([0, 2])('limits starting Signifiers to the configured maximum of %i', (maxSignifiers) => {
+  it.each([0, 2, 40])('keeps all camps and neutrals within one shared population of %i', (maxSignifiers) => {
     const w = createMatch(options({ maxSignifiers, startingSignifiers: 12 }));
-    for (const f of FACTION_IDS) expect(w.hippiesOf(f)).toHaveLength(maxSignifiers);
+    expect(w.hippies.size).toBe(maxSignifiers);
+    for (const f of FACTION_IDS) expect(w.hippiesOf(f)).toHaveLength(Math.min(12, Math.floor(maxSignifiers / 4)));
   });
   it('allows building corners by default and reserves them when structure blocking is on', () => {
     const w = createMatch(options());

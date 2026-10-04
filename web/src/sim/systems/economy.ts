@@ -1,5 +1,5 @@
 /**
- * Camp economy: Hearth/Workshop Flag crafting, Drum Circle recruitment (pop cap), ritual
+ * Camp economy: Hearth/Workshop Flag crafting, passive recruitment from the shared population, ritual
  * income from drummers and Saffron, lumber pile depletion and respawn, hoarding flag.
  * Owner: Economy agent.
  */
@@ -19,24 +19,21 @@ import {
   PILE_MIN,
   PILE_RESPAWN_INTERVAL,
   RECRUIT_INTERVAL,
-  RECRUIT_LUMBER,
   WORKSHOP_FLAG_COST,
   WORKSHOP_FLAG_INTERVAL,
 } from '../constants';
-import { spawnHippie, spawnPile } from '../factory';
-import { matchSettings } from '../matchSettings';
+import { spawnPile } from '../factory';
 import type { V2 } from '../math';
 import { FACTION_IDS, JOBS } from '../types';
 import type { Building, EntityId, FactionId } from '../types';
 import type { World } from '../world';
 import { econ } from './econ/state';
 import type { EconState } from './econ/state';
-import { craftFlag, takeFromStock } from './flags';
+import { craftFlag } from './flags';
+import { isRecruiter, recruitNear } from './recruitment';
 
 /** A respawned pile keeps this much clear ground from other piles and buildings. */
 const PILE_SPACING = 4;
-/** Recruits step out this far beyond the Drum Circle's rim. */
-const RECRUIT_SPAWN_GAP = 1.6;
 
 export function cmdJobWeights(world: World, c: CommandOf<'jobWeights'>): void {
   const w = world.factions[c.faction].jobWeights;
@@ -46,19 +43,19 @@ export function cmdJobWeights(world: World, c: CommandOf<'jobWeights'>): void {
   }
 }
 
-/** Current hippie population cap of a faction: base + per working Drum Circle, capped. */
+/** Soft attention capacity. Recruitment can exceed it; newest excess recruits lose attention. */
 export function popCap(world: World, f: FactionId): number {
   let circles = 0;
   for (const b of world.buildings.values()) {
     if (b.faction === f && b.kind === 'drumcircle' && b.built >= 1 && !b.disabled) circles++;
   }
-  return Math.min(matchSettings(world.options).maxSignifiers, HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle);
+  return Math.min(HIPPIE.popCapMax, HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle);
 }
 
-/** Hippies of a faction, including KO'd ones awaiting respawn. */
+/** Active affiliated hippies; knocked-out workers will return neutral. */
 export function population(world: World, f: FactionId): number {
   let n = 0;
-  for (const h of world.hippies.values()) if (h.faction === f) n++;
+  for (const h of world.hippies.values()) if (h.faction === f && h.status !== 'ko') n++;
   return n;
 }
 
@@ -130,31 +127,11 @@ function craftAtWorkshop(world: World, b: Building, f: FactionId, dt: number): v
   b.progress -= WORKSHOP_FLAG_INTERVAL;
 }
 
-/**
- * Drum Circle recruitment: one Signifier per RECRUIT_INTERVAL while under the pop cap, paid
- * with RECRUIT_LUMBER and a stock Flag that the recruit walks out holding.
- */
-function recruitAtCircle(world: World, st: EconState, b: Building, f: FactionId, dt: number): void {
+/** Every recruiter periodically enlists an existing nearby neutral, without creating units. */
+function recruitAtBuilding(world: World, b: Building, dt: number): void {
+  if (!isRecruiter(world, b)) return;
   b.progress = Math.min(RECRUIT_INTERVAL, b.progress + dt);
-  if (b.progress < RECRUIT_INTERVAL) return;
-  const fac = world.factions[f];
-  if (fac.lumber < RECRUIT_LUMBER || st.population[f] >= st.popCap[f]) return;
-  const hearth = nearestHearth(world, f, b.pos, true);
-  if (!hearth) return;
-  const a = world.rng.range(0, Math.PI * 2);
-  const r = BUILDINGS.drumcircle.radius + RECRUIT_SPAWN_GAP;
-  const at = world.nav.nearestWalkable(b.pos.x + Math.cos(a) * r, b.pos.z + Math.sin(a) * r);
-  const h = spawnHippie(world, f, at);
-  const flag = takeFromStock(world, hearth.id, h.id);
-  if (!flag) {
-    world.hippies.delete(h.id);
-    return;
-  }
-  fac.lumber -= RECRUIT_LUMBER;
-  b.progress -= RECRUIT_INTERVAL;
-  st.population[f]++;
-  fac.stats.hippiesRecruited++;
-  world.emit({ t: 'recruited', hippieId: h.id, faction: f, via: 'drumcircle' });
+  if (b.progress >= RECRUIT_INTERVAL && recruitNear(world, b)) b.progress -= RECRUIT_INTERVAL;
 }
 
 /** Ritual: DRUM_RITUAL_PER_SEC per drumming hippie at a working own circle (≤ DRUMMERS_PER_CIRCLE each), plus Saffron. */
@@ -236,10 +213,7 @@ function tendPiles(world: World, st: EconState, dt: number): void {
 
 export function updateEconomy(world: World, dt: number): void {
   const st = econ(world);
-  st.population.fill(0);
-  for (const h of world.hippies.values()) if (h.faction !== -1) st.population[h.faction]++;
   tallyStock(world, st);
-  for (const f of FACTION_IDS) st.popCap[f] = popCap(world, f);
 
   for (const b of world.buildings.values()) {
     const f = b.faction;
@@ -247,7 +221,7 @@ export function updateEconomy(world: World, dt: number): void {
     if (b.kind === 'hearth') craftAtHearth(world, b, f, dt);
     else if (b.built >= 1 && !b.disabled) {
       if (b.kind === 'workshop') craftAtWorkshop(world, b, f, dt);
-      else if (b.kind === 'drumcircle') recruitAtCircle(world, st, b, f, dt);
+      else if (b.kind === 'drumcircle' || b.kind === 'gcc') recruitAtBuilding(world, b, dt);
     }
   }
   gainRitual(world, st, dt);

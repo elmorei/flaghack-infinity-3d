@@ -107,8 +107,9 @@ function koHippie(world: World, h: Hippie, by: EntityId | -1): void {
   releaseTask(world, h, brainOf(h));
   if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: 0, z: h.pos.z });
   h.carryingLumber = 0;
-  // Standing orders (follow, defend here) survive the nap; one-shot jobs do not.
-  if (h.order && h.order.kind !== 'follow' && h.order.kind !== 'defend') h.order = null;
+  // Knockouts break allegiance: no old camp orders survive the neutral respawn.
+  h.order = null;
+  h.job = null;
   if (h.faction !== NEUTRAL && h.beacon && world.rng.chance(BEACON_DROP_CHANCE)) {
     spawnBeacon(world, h.faction, h.pos, world.time + BEACON_LIFETIME);
     h.beacon = false;
