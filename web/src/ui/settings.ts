@@ -110,7 +110,7 @@ export class SettingsPanel implements UiPart {
       this.ranges.push({ def, input, val });
     }
 
-    el('label', 'set-l', grid, 'Invert mouse look Y');
+    el('label', 'set-l', grid, 'Invert mouse');
     this.invertMouse = button(
       'toggle',
       grid,
@@ -122,10 +122,10 @@ export class SettingsPanel implements UiPart {
       },
       'toggle',
     );
-    this.invertMouse.setAttribute('aria-label', 'Invert mouse look Y');
+    this.invertMouse.setAttribute('aria-label', 'Invert mouse');
     el('span', 'set-v', grid, '');
 
-    el('label', 'set-l', grid, 'Invert gamepad look Y');
+    el('label', 'set-l', grid, 'Invert gamepad');
     this.invertPad = button(
       'toggle',
       grid,
@@ -137,7 +137,7 @@ export class SettingsPanel implements UiPart {
       },
       'toggle',
     );
-    this.invertPad.setAttribute('aria-label', 'Invert gamepad look Y');
+    this.invertPad.setAttribute('aria-label', 'Invert gamepad');
     el('span', 'set-v', grid, '');
 
     el('label', 'set-l', grid, 'Quality');

@@ -8,6 +8,7 @@
 import { AVATAR, BUILDINGS, GCC, HIPPIE, MAP_HALF } from '../constants';
 import type { CommandOf } from '../commands';
 import { spawnProjectile } from '../factory';
+import { matchSettings } from '../matchSettings';
 import { angleDiff, clamp, TAU } from '../math';
 import type { V3 } from '../math';
 import { NEUTRAL } from '../types';
@@ -99,7 +100,8 @@ export function cmdAvatarInput(world: World, c: CommandOf<'avatarInput'>): void 
   dst.moveX = Number.isFinite(src.moveX) ? src.moveX : 0;
   dst.moveZ = Number.isFinite(src.moveZ) ? src.moveZ : 0;
   dst.jump = src.jump === true;
-  dst.sprint = src.sprint === true;
+  dst.throwMode = src.throwMode === true;
+  dst.sprint = src.sprint === true && !dst.throwMode;
   if (Number.isFinite(src.yaw)) dst.yaw = src.yaw;
   if (Number.isFinite(src.pitch)) dst.pitch = src.pitch;
 }
@@ -147,6 +149,10 @@ export function cmdPlant(world: World, c: CommandOf<'plant'>): void {
 export function cmdThrow(world: World, c: CommandOf<'throw'>): void {
   const av = world.avatarOf(c.faction);
   if (av.koUntil > 0 || hasEffect(world, av, 'stun') || world.time < av.throwReadyAt) return;
+  if (av.input.sprint && !av.input.throwMode) {
+    reject(world, c.faction, 'Stop sprinting or enter throw mode to throw a Flag.');
+    return;
+  }
   if (av.carried.length === 0) {
     reject(world, c.faction, 'Your quiver is empty.');
     return;
@@ -282,6 +288,7 @@ function updateAvatar(world: World, av: Avatar, mind: AvatarMind, dt: number): v
   updatePush(world, av, dt, stunned);
   stepAvatarMotion(world, av, av.input, dt);
   progressAction(world, av, stunned);
+  if (av.input.throwMode && !stunned && canAct(world, av)) collectLooseFlags(world, av);
   restock(world, av, mind);
   if (av.hp < AVATAR.maxHp && world.time - av.lastHurtAt >= AVATAR.regenDelay) {
     av.hp = Math.min(AVATAR.maxHp, av.hp + AVATAR.regenPerSec * dt);
@@ -306,9 +313,8 @@ export type AvatarMotionState = Pick<
  * input and aim are ignored, the body still falls); action (align / channel root it); effects
  * (stun roots it, knockback slides it, speed effects scale it, expiry judged at world.time);
  * pushing (speed capped to the cart's pace, the pushed cart's own shape is passed through).
- * From `world`: only `time` and `collision`.
- * Writes only av.pos, av.vel, av.onGround, av.yaw and av.pitch: no events, no RNG, no scratch,
- * no allocation.
+ * From `world`: `time`, `collision`, and the match's jump-height setting.
+ * Writes only av.pos, av.vel, av.onGround, av.yaw and av.pitch: no events or RNG.
  */
 export function stepAvatarMotion(world: World, av: AvatarMotionState, input: AvatarInput, dt: number): void {
   const down = av.koUntil > 0;
@@ -329,7 +335,7 @@ export function stepAvatarMotion(world: World, av: AvatarMotionState, input: Ava
     }
   }
   if (!hasEffect(world, av, 'knockback')) {
-    let speed = (input.sprint ? AVATAR.sprintSpeed : AVATAR.runSpeed) * speedMultiplier(world, av);
+    let speed = (input.sprint && !input.throwMode ? AVATAR.sprintSpeed : AVATAR.runSpeed) * speedMultiplier(world, av);
     if (av.pushing >= 0) speed = Math.min(speed, GCC.pushSpeed);
     const a = AVATAR.accel * (av.onGround ? 1 : AVATAR.airControl) * dt;
     let dvx = wx * speed - av.vel.x;
@@ -347,7 +353,8 @@ export function stepAvatarMotion(world: World, av: AvatarMotionState, input: Ava
     av.vel.z *= k;
   }
   if (input.jump && av.onGround && !held) {
-    av.vel.y = AVATAR.jumpSpeed;
+    // Apex height is proportional to launch velocity squared; 2.0 means twice the height.
+    av.vel.y = AVATAR.jumpSpeed * Math.sqrt(matchSettings(world.options).jumpHeight);
     av.onGround = false;
   }
   av.vel.y -= AVATAR.gravity * dt;
@@ -497,6 +504,14 @@ function resolveSwing(world: World, av: Avatar): void {
   pile.lumber -= amount;
   world.factions[av.faction].lumber += amount;
   world.emit({ t: 'harvest', pileId: pile.id, by: av.id, amount, pos: { x: pile.pos.x, z: pile.pos.z } });
+}
+
+/** Throw mode gathers loose Flags in normal pickup reach, never pulling planted Flags. */
+function collectLooseFlags(world: World, av: Avatar): void {
+  for (const flag of world.flags.values()) {
+    if (av.carried.length >= AVATAR.quiver) break;
+    if (flag.state === 'loose' && inPullReach(world, av, flag, AVATAR.pullReach)) pullFlag(world, flag.id, av.id);
+  }
 }
 
 /** One Flag per restockInterval from any own Hearth's stock within restockRadius of its edge. */

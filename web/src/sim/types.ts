@@ -137,6 +137,8 @@ export interface AvatarInput {
   moveZ: number;
   jump: boolean;
   sprint: boolean;
+  /** Held throw/aim mode. Scripted inputs may omit it (false). Takes priority over sprint. */
+  throwMode?: boolean;
   /** Facing / aim yaw (0 = +z) and pitch (radians, + up). */
   yaw: number;
   pitch: number;

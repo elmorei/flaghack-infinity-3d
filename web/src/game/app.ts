@@ -264,6 +264,7 @@ export class App implements AppApi {
       dst.moveZ = src.moveZ;
       dst.jump = src.jump;
       dst.sprint = src.sprint;
+      dst.throwMode = src.throwMode === true;
       dst.yaw = src.yaw;
       dst.pitch = src.pitch;
       this.tickFresh = true;
@@ -428,6 +429,7 @@ export class App implements AppApi {
       input.moveZ = 0;
       input.jump = false;
       input.sprint = false;
+      input.throwMode = false;
     }
     this.seq++;
     // The host drops a frame carrying more than MAX_FRAME_COMMANDS whole: surplus rides the next tick.
@@ -448,6 +450,7 @@ export class App implements AppApi {
     input.moveZ = 0;
     input.jump = false;
     input.sprint = false;
+    input.throwMode = false;
     this.seq++;
     client.sendInput(this.seq, input, []);
     this.predictor?.tick(this.seq, input);

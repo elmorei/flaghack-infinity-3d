@@ -5,6 +5,7 @@ import type { AiController } from '../ai';
 import { SIM_HZ, TIDE_WARNING } from '../sim/constants';
 import { spawnFlag, spawnHippie } from '../sim/factory';
 import { planEnclosure } from '../sim/lattice/planner';
+import { normalizeMatch } from '../sim/matchSettings';
 import { createMatch } from '../sim/setup';
 import { Simulation } from '../sim/simulation';
 import { canPlaceBuilding } from '../sim/systems/buildings';
@@ -251,9 +252,32 @@ function stageSiege(world: World, attacker: FactionId, victim: FactionId): void 
 }
 
 describe('replication', () => {
+  it('replicates sprint-to-throw pose intent with customized match settings', () => {
+    const options = { ...optionsFor('throw-mode-wire'), match: normalizeMatch({ jumpHeight: 2, maxSignifiers: 3 }) };
+    const world = createMatch(options);
+    const sim = new Simulation(world);
+    const input = { moveX: 0, moveZ: 1, jump: false, sprint: true, throwMode: false, yaw: 0, pitch: 0 };
+    world.submit({ t: 'avatarInput', faction: 0, input });
+    sim.step();
+    const encoder = new SnapshotEncoder(world);
+    const client = new LockstepClient(options, encoder.full());
+    expect(client.mirror.world.options.match).toEqual(options.match);
+    expect(client.mirror.world.avatarOf(0).input.sprint).toBe(true);
+    expect(differences(world, client.mirror.world, { doomedPieces: false })).toEqual([]);
+    world.drainEvents();
+
+    world.submit({ t: 'avatarInput', faction: 0, input: { ...input, throwMode: true } });
+    sim.step();
+    const events = world.drainEvents();
+    client.take(overTheWire({ tick: world.tick, time: world.time, acks: {}, delta: encoder.delta(events), events }));
+    expect(client.mirror.world.avatarOf(0).input).toMatchObject({ sprint: false, throwMode: true });
+    expect(differences(world, client.mirror.world, { doomedPieces: false })).toEqual([]);
+  });
+
   for (const seed of ['net-a', 'net-b']) {
     it(`keeps mirrors equal to the host through a scripted burn (${seed})`, () => {
-      const host = new Host(optionsFor(seed));
+      // This long scripted scenario relies on the original AI routes with building corners reserved.
+      const host = new Host({ ...optionsFor(seed), match: normalizeMatch({ structuresBlockFlagPlacement: true }) });
       const w = host.world;
       const client = new LockstepClient(host.options, host.encoder.full());
       expect(differences(w, client.mirror.world, { doomedPieces: true })).toEqual([]);

@@ -6,6 +6,7 @@ import { Simulation } from './simulation';
 import { createAi } from '../ai';
 import { FACTION_IDS } from './types';
 import type { MatchOptions } from './types';
+import { canPlantAt, isBuildingCorner } from './systems/flags';
 const options = (patch = {}): MatchOptions => ({
   seed: 'fork-settings',
   difficulty: 'normal',
@@ -32,6 +33,28 @@ describe('configurable matches', () => {
       gridScale: 12,
     });
     expect(normalizeMatch(null as never)).toEqual(DEFAULT_MATCH);
+  });
+  it('defaults to original jump height, 40 Signifiers, and no structure blocking', () => {
+    expect(normalizeMatch()).toMatchObject({ jumpHeight: 1, maxSignifiers: 40, structuresBlockFlagPlacement: false });
+    expect(normalizeMatch({ jumpHeight: -1, maxSignifiers: 2.9, startingSignifiers: 12 })).toMatchObject({
+      jumpHeight: 0.1, maxSignifiers: 2, startingSignifiers: 2,
+    });
+    expect(normalizeMatch({ jumpHeight: 99, maxSignifiers: 999 })).toMatchObject({ jumpHeight: 5, maxSignifiers: 200 });
+  });
+  it.each([0, 2])('limits starting Signifiers to the configured maximum of %i', (maxSignifiers) => {
+    const w = createMatch(options({ maxSignifiers, startingSignifiers: 12 }));
+    for (const f of FACTION_IDS) expect(w.hippiesOf(f)).toHaveLength(maxSignifiers);
+  });
+  it('allows building corners by default and reserves them when structure blocking is on', () => {
+    const w = createMatch(options());
+    const node = w.lattice.nodes.find((n) => isBuildingCorner(w, n.id) && canPlantAt(w, n.id, 0));
+    expect(node).toBeDefined();
+    w.options.match = normalizeMatch({ structuresBlockFlagPlacement: true });
+    expect(canPlantAt(w, node!.id, 0)).toBe(false);
+    w.options.match.structuresBlockFlagPlacement = false;
+    expect(canPlantAt(w, node!.id, 0)).toBe(true);
+    node!.blocked = true;
+    expect(canPlantAt(w, node!.id, 0)).toBe(false);
   });
   it('creates only active camps and runs a solo game until its deadline', () => {
     const w = createMatch(options({ active: [0], days: 2, dayLength: 300 }));

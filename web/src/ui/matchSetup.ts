@@ -10,6 +10,8 @@ type NumericKey = keyof typeof MATCH_RANGES;
 const FIELDS: { key: NumericKey; label: string; hint: string; group: string }[] = [
   { key: 'dayLength', label: 'Day length (seconds)', hint: 'Length of one complete day and night.', group: 'Time' },
   { key: 'gridScale', label: 'Grid scale (metres)', hint: 'Spacing between Ley Lattice nodes.', group: 'World' },
+  { key: 'jumpHeight', label: 'Jump height multiplier', hint: '1.0 is the original height; 2.0 jumps twice as high.', group: 'Characters' },
+  { key: 'maxSignifiers', label: 'Maximum Signifiers per camp', hint: 'Hard limit for starting workers, recruits and conversions. Drum Circle capacity still applies.', group: 'Characters' },
   { key: 'startingLumber', label: 'Starting lumber', hint: 'Lumber available to each active camp.', group: 'Starting camps' },
   { key: 'startingFlags', label: 'Hearth Flags', hint: 'Stock Flags in each Hearth at the start.', group: 'Starting camps' },
   { key: 'startingSignifiers', label: 'Starting Signifiers', hint: 'Workers accompanying each active character.', group: 'Starting camps' },
@@ -25,6 +27,7 @@ export class MatchSetup {
   private difficulty: HTMLSelectElement;
   private seed: HTMLInputElement;
   private random: HTMLButtonElement;
+  private structures: HTMLInputElement;
   private summary: HTMLElement;
   private note: HTMLElement;
   private enabled = false;
@@ -84,6 +87,15 @@ export class MatchSetup {
         this.seed.value = '';
         this.write({ seed: null });
       }
+    });
+
+    const structureRow = el('label', 'setup-field', rules);
+    const structureLabel = el('span', '', structureRow, 'Structures block flag placement');
+    el('small', 'setup-hint', structureLabel, 'Reserve the corner nodes of camp buildings. Off by default; terrain and crystals still block placement.');
+    this.structures = el('input', '', structureRow);
+    this.structures.type = 'checkbox';
+    this.structures.addEventListener('change', () => {
+      if (this.enabled) this.changeMatch({ structuresBlockFlagPlacement: this.structures.checked });
     });
 
     let group = '';
@@ -189,8 +201,11 @@ export class MatchSetup {
     this.enabled = enabled;
     const settings = this.read();
     const s = normalizeMatch(settings.match);
+    this.structures.checked = s.structuresBlockFlagPlacement;
+    this.structures.disabled = !enabled;
     for (const { key, input } of this.fields) {
-      if (document.activeElement !== input || !enabled) input.value = String(s[key]);
+      if (document.activeElement !== input || !enabled) input.value = key === 'jumpHeight' ? s[key].toFixed(1) : String(s[key]);
+      if (key === 'startingSignifiers') (input as HTMLInputElement).max = String(Math.min(MATCH_RANGES.startingSignifiers[1], s.maxSignifiers));
       input.disabled = !enabled;
     }
     if (document.activeElement !== this.difficulty || !enabled) this.difficulty.value = settings.difficulty;

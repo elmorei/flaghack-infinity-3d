@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GCC, GCC_SIMULACRA_RANGE } from '../../constants';
 import { spawnHippie } from '../../factory';
+import { normalizeMatch } from '../../matchSettings';
 import { applyEffect } from '../effects';
 import { canPlantAt, dropLoose, nearestPlantableNode } from '../flags';
 import { eventsOf, newMatch, placeAvatar, run } from './testkit';
@@ -66,6 +67,26 @@ describe('gcc', () => {
     expect(eventsOf(h, 'recruited').map((e) => e.via)).toEqual(['dialectics', 'dialectics']);
     expect(world.avatarOf(0).action.kind).toBe('idle');
     expect(world.factions[0].cooldowns.dialectics).toBeGreaterThan(world.time);
+  });
+
+  it('caps Dialectics conversions and rejects gifts when the Signifier maximum is reached', () => {
+    const h = newMatch();
+    const { world } = h;
+    const g = world.gccOf(0)!;
+    const before = world.hippiesOf(0).length;
+    world.options.match = normalizeMatch({ maxSignifiers: before + 1 });
+    atTheCart(h);
+    const enemies = [spawnHippie(world, 1, { x: g.pos.x - 6, z: g.pos.z }), spawnHippie(world, 2, { x: g.pos.x, z: g.pos.z + 6 })];
+    for (const e of enemies) applyEffect(world, e, 'stun', 10);
+    world.submit({ t: 'gcc', faction: 0, action: 'dialectics', target: -1, nodes: [] });
+    run(h, GCC.dialecticsChannel + 0.1);
+    expect(enemies.filter((e) => e.faction === 0)).toHaveLength(1);
+    expect(world.hippiesOf(0)).toHaveLength(before + 1);
+    const neutral = spawnHippie(world, -1, { x: g.pos.x - 5, z: g.pos.z + 3 });
+    world.submit({ t: 'gcc', faction: 0, action: 'gift', target: neutral.id, nodes: [] });
+    run(h, 1 / 60);
+    expect(neutral.faction).toBe(-1);
+    expect(world.hippiesOf(0)).toHaveLength(before + 1);
   });
 
   it('Flag Simulacra plants one Flag on two nodes at once', () => {

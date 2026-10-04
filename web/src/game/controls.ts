@@ -329,6 +329,7 @@ export class Controls {
     out.moveZ = 0;
     out.jump = false;
     out.sprint = false;
+    out.throwMode = false;
     if (s.view === 'action' && av.koUntil <= world.time) {
       // WASD relative to the camera yaw; yaw 0 faces +z, screen-right is (-cos, sin).
       const fwd = (inp.isDown('KeyW') ? 1 : 0) - (inp.isDown('KeyS') ? 1 : 0) - inp.moveY;
@@ -344,7 +345,8 @@ export class Controls {
       out.moveX = mx;
       out.moveZ = mz;
       out.jump = this.jumpLatch || inp.isDown('Space');
-      out.sprint = inp.shift;
+      out.throwMode = inp.buttons[RMB];
+      out.sprint = inp.shift && !out.throwMode;
     }
     this.jumpLatch = false;
     // Face where the camera looks; a throw tick turns to the crosshair point with the solved arc.
@@ -736,7 +738,8 @@ export class Controls {
     }
 
     this.solveAim(s, av);
-    const aiming = !down && inp.buttons[RMB] && av.carried.length > 0;
+    // Throw mode remains active with an empty quiver so nearby loose Flags can be collected.
+    const aiming = !down && inp.buttons[RMB];
     if (aiming) {
       this.thrower.predict(world, av, f, this.aimYaw, this.throwPitch, s.aim);
       s.aim.active = true;
@@ -805,6 +808,7 @@ export class Controls {
   }
 
   private tryThrow(world: World, av: Avatar): void {
+    if (this.input.shift && !this.input.buttons[RMB]) return;
     if (av.carried.length === 0 || this.throwQueued) return;
     this.queue.push({ t: 'throw', faction: av.faction });
     this.throwQueued = true;
@@ -1052,8 +1056,10 @@ export class Controls {
       }
       return this.respawnText;
     }
-    if (aiming) return s.aim.node >= 0 ? 'LMB  Throw: the Flag plants on the Ley Node' : 'LMB  Throw: the Flag lands loose';
-    if (this.input.buttons[RMB]) return 'Quiver empty: restock at your Hearth';
+    if (aiming) {
+      if (av.carried.length === 0) return 'Quiver empty: move near loose Flags to collect them';
+      return s.aim.node >= 0 ? 'LMB  Throw: the Flag plants on the Ley Node' : 'LMB  Throw: the Flag lands loose';
+    }
     let tool: string | null = null;
     const piece = PIECE_TOOL[s.tool];
     if (piece) {

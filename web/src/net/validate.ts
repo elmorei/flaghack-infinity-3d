@@ -131,12 +131,17 @@ function intList(v: unknown, min: number, maxLength: number): number[] | null {
 }
 
 const INPUT_KEYS = ['moveX', 'moveZ', 'jump', 'sprint', 'yaw', 'pitch'];
+const THROW_INPUT_KEYS = [...INPUT_KEYS, 'throwMode'];
 
 function avatarInput(v: unknown): AvatarInput | null {
-  if (!exact(v, INPUT_KEYS)) return null;
+  if (!exact(v, INPUT_KEYS) && !exact(v, THROW_INPUT_KEYS)) return null;
   const { moveX, moveZ, jump, sprint, yaw, pitch } = v;
   if (!isNum(moveX) || !isNum(moveZ) || !isNum(yaw) || !isNum(pitch)) return null;
   if (typeof jump !== 'boolean' || typeof sprint !== 'boolean') return null;
+  if (Object.hasOwn(v, 'throwMode')) {
+    if (typeof v.throwMode !== 'boolean') return null;
+    return { moveX, moveZ, jump, sprint, yaw, pitch, throwMode: v.throwMode };
+  }
   return { moveX, moveZ, jump, sprint, yaw, pitch };
 }
 
@@ -164,7 +169,9 @@ function settingsPatch(v: unknown): Partial<LobbySettings> | null {
       if(!Array.isArray(m.active)||m.active.length<1||m.active.length>4||m.active.some(f=>!Number.isInteger(f)||f<0||f>3)||new Set(m.active).size!==m.active.length)return null;
       if(typeof m.days!=='number'||!Number.isInteger(m.days)||m.days<0||m.days>5)return null;
       for(const key of Object.keys(MATCH_RANGES) as (keyof typeof MATCH_RANGES)[]){const n=m[key];const [min,max]=MATCH_RANGES[key];if(typeof n!=='number'||!Number.isFinite(n)||n<min||n>max)return null;}
-      if(Object.keys(m).some(key=>!['active','days',...Object.keys(MATCH_RANGES)].includes(key)))return null;
+      if(typeof m.structuresBlockFlagPlacement !== 'boolean')return null;
+      if(!Number.isInteger(m.maxSignifiers)||!Number.isInteger(m.startingSignifiers))return null;
+      if(Object.keys(m).some(key=>!['active','days','structuresBlockFlagPlacement',...Object.keys(MATCH_RANGES)].includes(key)))return null;
       out.match=normalizeMatch(m);
     } else if (k === 'seed') {
       const s = v.seed;

@@ -28,20 +28,20 @@ const nearScratch: number[] = [];
 
 type Carrier = Avatar | Hippie;
 
-/** Can `faction` plant on this node right now? (unblocked, free, not under a building/crystal). */
+/** Can `faction` plant here? Terrain, occupied nodes and crystals always block placement. */
 export function canPlantAt(world: World, node: number, faction: FactionId): boolean {
   const lat = world.lattice;
   if (!Number.isInteger(node) || node < 0 || node >= lat.nodes.length) return false;
   if (!world.factions[faction].alive) return false;
   if (lat.nodes[node].blocked || world.survey.nodeFlag[node] >= 0) return false;
   for (const c of world.crystals.values()) if (c.node === node) return false;
-  return !isBuildingCorner(world, node);
+  return world.options.match?.structuresBlockFlagPlacement !== true || !isBuildingCorner(world, node);
 }
 
 /**
  * Is `node` a corner of a facet hosting a standing building? Buildings pin their facet:
- * nothing can be planted on its corners and the Crystal never flips them. A collapsed GCC
- * no longer pins anything.
+ * the Crystal never flips them, and optional structure blocking reserves them for planting.
+ * A collapsed GCC no longer pins anything.
  */
 export function isBuildingCorner(world: World, node: number): boolean {
   const facets = world.lattice.facets;

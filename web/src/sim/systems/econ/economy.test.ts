@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HEARTH_FLAG_COST, HEARTH_FLAG_INTERVAL, PILE_COUNT, PILE_RESPAWN_INTERVAL, RECRUIT_INTERVAL, RECRUIT_LUMBER } from '../../constants';
 import { spawnBuilding, spawnHippie } from '../../factory';
+import { normalizeMatch } from '../../matchSettings';
 import { FACTION_IDS } from '../../types';
 import { registerBuildingShape } from '../buildings';
 import { popCap, population } from '../economy';
@@ -28,9 +29,10 @@ describe('economy', () => {
     expect(eventsOf(h, 'flagCrafted').filter((e) => e.faction === 0)).toHaveLength(3);
   });
 
-  it('a Drum Circle recruit walks out holding a Flag taken from stock (Flags conserved) and respects the pop cap', () => {
+  it.each([40, 2])('a Drum Circle recruit takes a stock Flag and respects a configured cap of %i', (maxSignifiers) => {
     const h = newMatch();
     const { world } = h;
+    world.options.match = normalizeMatch({ maxSignifiers });
     const hearth = world.hearthOf(0)!;
     dismissHippies(world, 0);
     parkAvatarAway(world, 0);
@@ -57,6 +59,7 @@ describe('economy', () => {
 
     // Fill the camp to its cap: no more recruits.
     const cap = popCap(world, 0);
+    expect(cap).toBeLessThanOrEqual(maxSignifiers);
     while (population(world, 0) < cap) spawnHippie(world, 0, { x: hearth.pos.x + 8, z: hearth.pos.z + 8 });
     const before = eventsOf(h, 'recruited').length;
     run(h, RECRUIT_INTERVAL * 2);

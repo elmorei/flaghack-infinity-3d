@@ -86,6 +86,7 @@ export class AvatarPredictor {
     kept.moveZ = input.moveZ;
     kept.jump = input.jump;
     kept.sprint = input.sprint;
+    kept.throwMode = input.throwMode === true;
     kept.yaw = input.yaw;
     kept.pitch = input.pitch;
     this.seqs[slot] = seq;

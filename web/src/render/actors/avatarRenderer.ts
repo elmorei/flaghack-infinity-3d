@@ -406,7 +406,6 @@ export class AvatarRenderer {
     if (gait > 0.01) {
       const s = Math.sin(v.phase);
       const c = Math.cos(v.phase);
-      const sprint = clamp01((v.speed - AVATAR.runSpeed) / (AVATAR.sprintSpeed - AVATAR.runSpeed));
       const g = gait;
       mixPut(tg, THIGH_L, -0.85 * s, 0, 0.03, g);
       mixPut(tg, THIGH_R, 0.85 * s, 0, -0.03, g);
@@ -417,7 +416,7 @@ export class AvatarRenderer {
       mixPut(tg, ARM_R, -0.45 * s - 0.2, 0, -0.12, g);
       mixPut(tg, FORE_R, -0.7, 0, 0, g);
       mixPut(tg, STAFF, 0.9, 0, 0, g);
-      mixPut(tg, SPINE, 0.12 + 0.1 * sprint, 0, 0, g);
+      mixPut(tg, SPINE, 0.12, 0, 0, g);
       mixPut(tg, CHEST, 0.05 + style.hunch, -0.12 * s, 0, g);
       mixPut(tg, HEAD, -0.08, 0.06 * s, 0, g);
       const swingAmt = Math.abs(s);
@@ -447,6 +446,20 @@ export class AvatarRenderer {
       add(tg, THIGH_L, -0.4 * k, 0, 0);
       add(tg, THIGH_R, -0.4 * k, 0, 0);
       bob -= 0.1 * k;
+    }
+
+    // Naruto sprint: forward lean, level gaze, and straight arms trailing behind the body.
+    // Use the replicated sprint intent, so buffs/knockback do not trigger the pose.
+    if (av.input.sprint && !av.input.throwMode && av.pushing < 0 && gait > 0.01) {
+      const g = gait;
+      mixPut(tg, SPINE, 0.58, 0, 0, g);
+      mixPut(tg, CHEST, 0.12 + style.hunch * 0.3, 0, 0, g);
+      mixPut(tg, HEAD, -0.55, 0, 0, g);
+      mixPut(tg, ARM_L, 1.05, 0, 0.13, g);
+      mixPut(tg, ARM_R, 1.05, 0, -0.13, g);
+      mixPut(tg, FORE_L, -0.06, 0, 0, g);
+      mixPut(tg, FORE_R, -0.06, 0, 0, g);
+      mixPut(tg, STAFF, 0.1, 0, 0, g);
     }
 
     // Aim: the head and chest follow the aim pitch.

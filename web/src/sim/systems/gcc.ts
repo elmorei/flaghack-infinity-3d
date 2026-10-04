@@ -11,6 +11,7 @@
 import type { CommandOf } from '../commands';
 import { BUILDING_HEIGHT, BUILDINGS, GCC, GCC_REACH, GCC_REPAIR_SNAP, GCC_SIMULACRA_RANGE } from '../constants';
 import { facetYaw } from '../factory';
+import { matchSettings } from '../matchSettings';
 import { FACTION_IDS } from '../types';
 import type { AvatarAction, Building, FactionId, GccAction, Hippie } from '../types';
 import type { World } from '../world';
@@ -151,8 +152,9 @@ function concludeDialectics(world: World, f: FactionId, g: Building): void {
   };
   ids.sort((a, b) => d2(a) - d2(b) || a - b);
   let converted = 0;
+  const capacity = Math.max(0, matchSettings(world.options).maxSignifiers - population(world, f));
   for (const id of ids) {
-    if (converted >= GCC.dialecticsMax) break;
+    if (converted >= Math.min(GCC.dialecticsMax, capacity)) break;
     const h = world.hippies.get(id);
     if (!h) continue;
     if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: 0, z: h.pos.z });

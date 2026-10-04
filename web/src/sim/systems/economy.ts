@@ -24,6 +24,7 @@ import {
   WORKSHOP_FLAG_INTERVAL,
 } from '../constants';
 import { spawnHippie, spawnPile } from '../factory';
+import { matchSettings } from '../matchSettings';
 import type { V2 } from '../math';
 import { FACTION_IDS, JOBS } from '../types';
 import type { Building, EntityId, FactionId } from '../types';
@@ -51,7 +52,7 @@ export function popCap(world: World, f: FactionId): number {
   for (const b of world.buildings.values()) {
     if (b.faction === f && b.kind === 'drumcircle' && b.built >= 1 && !b.disabled) circles++;
   }
-  return Math.min(HIPPIE.popCapMax, HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle);
+  return Math.min(matchSettings(world.options).maxSignifiers, HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle);
 }
 
 /** Hippies of a faction, including KO'd ones awaiting respawn. */

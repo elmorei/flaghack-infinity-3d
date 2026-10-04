@@ -4,6 +4,7 @@ import type { GameEvent } from '../../events';
 import { spawnFlag, spawnHippie, spawnZone } from '../../factory';
 import { planEnclosure } from '../../lattice/planner';
 import type { V3 } from '../../math';
+import { normalizeMatch } from '../../matchSettings';
 import { createMatch } from '../../setup';
 import { Simulation } from '../../simulation';
 import type { Avatar, AvatarInput, FactionId, Hippie, JobKind } from '../../types';
@@ -127,6 +128,79 @@ function squattedPlan(world: World, free: number, squatted: number, dist: number
 }
 
 describe('vexillomancer avatar', () => {
+  it('blocks sprint throws and lets throw mode end sprinting before a same-tick throw', () => {
+    const m = match();
+    const av = m.world.avatarOf(0);
+    const n = m.world.lattice.nodes[openNode(m.world, 14, { x: 0, z: 60 })];
+    placeAvatar(av, n.x, n.z);
+    const carried = av.carried.length;
+    input(m, 0, { sprint: true, moveZ: 1 });
+    run(m, 0.3);
+    expect(av.vel.z).toBeCloseTo(AVATAR.sprintSpeed);
+    m.world.submit({ t: 'throw', faction: 0 });
+    run(m, SIM_DT);
+    expect(av.carried).toHaveLength(carried);
+    expect(m.world.projectiles.size).toBe(0);
+
+    input(m, 0, { sprint: true, throwMode: true, moveZ: 1 });
+    m.world.submit({ t: 'throw', faction: 0 });
+    run(m, SIM_DT);
+    expect(av.input.sprint).toBe(false);
+    expect(av.carried).toHaveLength(carried - 1);
+    expect(m.world.projectiles.size).toBe(1);
+    run(m, 0.3);
+    expect(av.vel.z).toBeCloseTo(AVATAR.runSpeed);
+  });
+
+  it('picks up nearby loose Flags in throw mode, including with an empty quiver, up to capacity', () => {
+    const m = match();
+    const av = m.world.avatarOf(0);
+    for (const id of [...av.carried]) depositToStock(m.world, id, m.world.hearthOf(0)!.id);
+    m.world.hippies.clear();
+    const node = openNode(m.world, 8, { x: 0, z: 60 });
+    const n = m.world.lattice.nodes[node];
+    placeAvatar(av, n.x, n.z);
+    const planted = spawnFlag(m.world, { state: 'loose', owner: 0, pos: { ...av.pos } });
+    expect(plantFlag(m.world, planted.id, node, 0, av.id)).toBe(true);
+    const loose = Array.from({ length: AVATAR.quiver + 1 }, () =>
+      spawnFlag(m.world, { state: 'loose', owner: 1, pos: { x: n.x + 1, y: 0, z: n.z } }),
+    );
+    const far = spawnFlag(m.world, { state: 'loose', owner: 1, pos: { x: n.x + AVATAR.pullReach + 1, y: 0, z: n.z } });
+    run(m, SIM_DT);
+    expect(av.carried).toHaveLength(0);
+    input(m, 0, { throwMode: true });
+    run(m, SIM_DT);
+    expect(av.carried).toHaveLength(AVATAR.quiver);
+    expect(loose.filter((f) => f.state === 'carried' && f.holder === av.id && f.owner === 0)).toHaveLength(AVATAR.quiver);
+    expect(loose.at(-1)!.state).toBe('loose');
+    expect(far.state).toBe('loose');
+    expect(planted.state).toBe('planted');
+  });
+
+  it('scales jump apex while preserving the original launch at 1.0', () => {
+    const m = match();
+    const av = m.world.avatarOf(0);
+    const n = m.world.lattice.nodes[openNode(m.world, 4, { x: 0, z: 60 })];
+    const peaks: number[] = [];
+    for (const jumpHeight of [1, 2]) {
+      m.world.options.match = normalizeMatch({ jumpHeight });
+      placeAvatar(av, n.x, n.z);
+      av.onGround = true;
+      const cmd: AvatarInput = { moveX: 0, moveZ: 0, sprint: false, jump: true, yaw: 0, pitch: 0 };
+      stepAvatarMotion(m.world, av, cmd, SIM_DT);
+      expect(av.vel.y).toBeCloseTo(AVATAR.jumpSpeed * Math.sqrt(jumpHeight) - AVATAR.gravity * SIM_DT);
+      cmd.jump = false;
+      let peak = av.pos.y;
+      for (let i = 0; i < 120; i++) {
+        stepAvatarMotion(m.world, av, cmd, SIM_DT);
+        peak = Math.max(peak, av.pos.y);
+      }
+      expect(av.onGround).toBe(true);
+      peaks.push(peak);
+    }
+    expect(peaks[1] / peaks[0]).toBeCloseTo(2, 1);
+  });
+
   it('runs, jumps and lands back on the ground', () => {
     const m = match();
     const av = m.world.avatarOf(0);

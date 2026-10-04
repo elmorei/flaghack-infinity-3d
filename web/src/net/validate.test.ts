@@ -3,6 +3,7 @@ import type { Command, CommandType } from '../sim/commands';
 import { MAX_CHAT_LENGTH, MAX_CLIENT_MESSAGE_BYTES, MAX_FRAME_COMMANDS, MAX_NAME_LENGTH, PROTOCOL_VERSION } from './protocol';
 import type { ClientMessage } from './protocol';
 import { fitsLattice, parseClientMessage, parseCommand } from './validate';
+import { normalizeMatch } from '../sim/matchSettings';
 
 const INPUT = { moveX: 0.5, moveZ: -1, jump: false, sprint: true, yaw: 1.25, pitch: -0.3 };
 const AT = { x: 10.5, z: -20 };
@@ -10,6 +11,7 @@ const AT = { x: 10.5, z: -20 };
 /** At least one valid sample per Command variant (every HippieOrder kind, sentinel ids). */
 const VALID: Command[] = [
   { t: 'avatarInput', faction: 0, input: INPUT },
+  { t: 'avatarInput', faction: 0, input: { ...INPUT, throwMode: true } },
   { t: 'plant', faction: 1, node: 12 },
   { t: 'throw', faction: 2 },
   { t: 'pull', faction: 3, flagId: 44 },
@@ -93,6 +95,7 @@ const INVALID: [string, unknown][] = [
   ['infinite move', { t: 'avatarInput', faction: 0, input: { ...INPUT, moveX: Infinity } }],
   ['NaN yaw', { t: 'avatarInput', faction: 0, input: { ...INPUT, yaw: NaN } }],
   ['jump as string', { t: 'avatarInput', faction: 0, input: { ...INPUT, jump: 'yes' } }],
+  ['throw mode as string', { t: 'avatarInput', faction: 0, input: { ...INPUT, throwMode: 'yes' } }],
   ['input missing pitch', { t: 'avatarInput', faction: 0, input: { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: 0 } }],
   ['input extra key', { t: 'avatarInput', faction: 0, input: { ...INPUT, fly: true } }],
   ['unknown piece', { t: 'build', faction: 0, kind: 'tower', edge: 1, facet: -1, level: 0, rampEdge: 0 }],
@@ -153,6 +156,14 @@ describe('parseCommand', () => {
 });
 
 describe('parseClientMessage', () => {
+  it('accepts new match options and rejects malformed or out-of-range values', () => {
+    const match = normalizeMatch({ jumpHeight: 1.5, maxSignifiers: 9, structuresBlockFlagPlacement: true });
+    const message = { t: 'settings', settings: { match } };
+    expect(parseClientMessage(JSON.stringify(message))).toEqual(message);
+    for (const patch of [{ jumpHeight: 0 }, { maxSignifiers: 0.5 }, { maxSignifiers: 201 }, { structuresBlockFlagPlacement: 'off' }]) {
+      expect(parseClientMessage(JSON.stringify({ t: 'settings', settings: { match: { ...match, ...patch } } }))).toBeNull();
+    }
+  });
   const VALID_MESSAGES: ClientMessage[] = [
     { t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: 'saffron-pentacle-42', token: null },
     { t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: '', token: 'ab12' },

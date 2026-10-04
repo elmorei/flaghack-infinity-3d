@@ -3,7 +3,7 @@
  * the host to clients, in which order, and how they are quantized. Only what clients read
  * replicates (render/, ui/, game/, audio/ and the sim helpers they call); host-only data never
  * leaves the host: hippie brains and last-SOS times, Flag histories and planting times, avatar
- * inputs, hearth craft progress, collision shape ids (mirrors register their own), system
+ * movement inputs (sprint/throw-mode intent does replicate), hearth craft progress, collision shape ids (mirrors register their own), system
  * scratch and the RNG. Hippie velocities are not sent either: mirrors derive them from the
  * interpolated motion.
  *
@@ -773,6 +773,12 @@ const AVATAR_FIELDS: readonly Field<Avatar>[] = [
   effectsField<Avatar>(),
   idField('pushing', (a) => a.pushing, (a, v) => {
     a.pushing = v;
+  }),
+  bool('sprint', (a) => a.input.sprint, (a, v) => {
+    a.input.sprint = v;
+  }),
+  bool('throwMode', (a) => a.input.throwMode === true, (a, v) => {
+    a.input.throwMode = v;
   }),
 ];
 
