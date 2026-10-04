@@ -1,4 +1,4 @@
-# Vexillamania native Windows launcher (version 2)
+# Vexillamania native Windows launcher (version 2.1)
 
 Download **Vexillamania-Launcher.exe** from the repository root and run it on Windows 10/11 x64 (or ARM64 with x64 compatibility).
 
@@ -9,7 +9,7 @@ Download **Vexillamania-Launcher.exe** from the repository root and run it on Wi
 
 This replacement is native C/Win32. It has no .NET dependency, embedded PowerShell, encoded command, execution-policy override, installer or administrator requirement. The previous .NET/PowerShell EXE and scripts have been removed from the current branch. No antivirus exclusions or security-setting changes are used.
 
-The first run downloads portable Node.js 24.14.0 from nodejs.org, checks its SHA-256 against the official checksum list, downloads the selected repository at a resolved commit, installs locked npm dependencies, and builds the client and server. Downloads use Windows WinHTTP with normal HTTPS certificate verification. ZIP files are extracted with Windows' built-in `tar.exe`. Builds run using Node's npm CLI; they execute the selected repository's build scripts as expected for development.
+The first run downloads portable Node.js 24.14.0 from nodejs.org, checks its SHA-256 against the official checksum list, downloads the selected repository at a resolved commit, installs locked npm dependencies, and builds the client and server. Downloads use Windows WinINet with the desktop user’s configured Internet/proxy settings and normal HTTPS certificate verification. Network failures show the server name and the actual Windows error code/message; HTTP response errors are reported separately. ZIP files are extracted with Windows' built-in `tar.exe`. Builds run using Node's npm CLI; they execute the selected repository's build scripts as expected for development.
 
 Later runs check the branch for updates and reuse completed builds. Downloads and remembered settings are in `%LOCALAPPDATA%\VexillamaniaLauncher`. Old revision caches remain on disk. An interrupted download/build never creates a ready cache. Private repositories and offline update checks are unsupported. GitHub rate limits or failed downloads/builds appear in the output.
 

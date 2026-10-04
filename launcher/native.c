@@ -1,4 +1,5 @@
-/* Vexillamania native Windows launcher. Ordinary C/Win32, with no embedded scripts. */
+/* Vexillamania native Windows launcher. Ordinary C/Win32, with no embedded
+ * scripts. */
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -9,7 +10,7 @@
 // clang-format off
 #include <winsock2.h>
 #include <windows.h>
-#include <winhttp.h>
+#include <wininet.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <bcrypt.h>
@@ -191,72 +192,111 @@ static BOOL jsonString(const char *json, const char *key, char *out,
   }
   return FALSE;
 }
-/* HTTPS downloads use WinHTTP's normal certificate verification; no TLS
- * exceptions. */
+/* HTTPS downloads use the desktop Windows Internet stack and the user's
+ * configured proxy. Certificate validation stays enabled. */
+static BOOL downloadError(const wchar_t *operation, DWORD code) {
+  wchar_t detail[256] = {0}, message[512];
+  HMODULE module = GetModuleHandleW(L"wininet.dll");
+  DWORD count = module ? FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE |
+                                            FORMAT_MESSAGE_IGNORE_INSERTS,
+                                        module, code, 0, detail, 256, NULL)
+                       : 0;
+  if (!count)
+    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   NULL, code, 0, detail, 256, NULL);
+  for (wchar_t *p = detail; *p; p++)
+    if (*p == L'\r' || *p == L'\n')
+      *p = L' ';
+  swprintf(message, 512, L"%ls failed (Windows error %lu). %ls", operation,
+           code,
+           detail[0] ? detail : L"Windows did not provide additional details.");
+  message[511] = 0;
+  return error(message);
+}
 static BOOL download(const wchar_t *url, const wchar_t *destination,
                      char **memory) {
-  URL_COMPONENTS parts = {0};
-  wchar_t hostname[512], resource[CAP];
+  URL_COMPONENTSW parts = {0};
+  wchar_t hostname[512];
   parts.dwStructSize = sizeof(parts);
   parts.lpszHostName = hostname;
   parts.dwHostNameLength = 512;
-  parts.lpszUrlPath = resource;
-  parts.dwUrlPathLength = CAP;
-  if (!WinHttpCrackUrl(url, 0, 0, &parts) ||
+  if (!InternetCrackUrlW(url, 0, 0, &parts) ||
       parts.nScheme != INTERNET_SCHEME_HTTPS)
     return error(L"Invalid HTTPS download address.");
-  HINTERNET connection = WinHttpConnect(internet, hostname, parts.nPort, 0);
-  if (!connection)
-    return error(L"Unable to connect to the download server.");
-  HINTERNET request =
-      WinHttpOpenRequest(connection, L"GET", resource, NULL, WINHTTP_NO_REFERER,
-                         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+  wchar_t notice[600];
+  swprintf(notice, 600, L"Connecting to %ls using Windows Internet settings...",
+           hostname);
+  logLine(notice);
+  HINTERNET session =
+      InternetOpenW(L"Vexillamania-Launcher/2.1", INTERNET_OPEN_TYPE_PRECONFIG,
+                    NULL, NULL, 0);
+  if (!session)
+    return downloadError(L"Network initialization", GetLastError());
+  DWORD timeout = 30000;
+  InternetSetOptionW(session, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout,
+                     sizeof(timeout));
+  InternetSetOptionW(session, INTERNET_OPTION_SEND_TIMEOUT, &timeout,
+                     sizeof(timeout));
+  InternetSetOptionW(session, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout,
+                     sizeof(timeout));
+  HINTERNET request = InternetOpenUrlW(
+      session, url, L"Accept: */*\r\n", (DWORD)-1L,
+      INTERNET_FLAG_SECURE | INTERNET_FLAG_RELOAD |
+          INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_COOKIES,
+      0);
   if (!request) {
-    WinHttpCloseHandle(connection);
-    return error(L"Unable to open the download request.");
+    DWORD code = GetLastError();
+    InternetCloseHandle(session);
+    return downloadError(L"HTTPS connection", code);
   }
-  WinHttpSetTimeouts(request, 15000, 15000, 30000, 30000);
   DWORD status = 0, length = sizeof(status);
-  BOOL ok =
-      WinHttpSendRequest(request, L"Accept: application/vnd.github+json\r\n",
-                         (DWORD)-1L, NULL, 0, 0, 0) &&
-      WinHttpReceiveResponse(request, NULL) &&
-      WinHttpQueryHeaders(request,
-                          WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                          WINHTTP_HEADER_NAME_BY_INDEX, &status, &length,
-                          WINHTTP_NO_HEADER_INDEX);
-  if (!ok || status != 200) {
-    wchar_t msg[512];
-    swprintf(
-        msg, 512,
-        L"Download failed (HTTP %lu). Check the repository, branch and "
-        L"Internet connection. GitHub API rate limits may require waiting.",
-        status);
-    WinHttpCloseHandle(request);
-    WinHttpCloseHandle(connection);
-    return error(msg);
+  if (!HttpQueryInfoW(request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                      &status, &length, NULL)) {
+    DWORD code = GetLastError();
+    InternetCloseHandle(request);
+    InternetCloseHandle(session);
+    return downloadError(L"Reading the HTTP response", code);
+  }
+  if (status != 200) {
+    wchar_t message[512];
+    swprintf(message, 512, L"%ls returned HTTP %lu. %ls", hostname, status,
+             status == 404
+                 ? L"The requested repository, branch or file was not found."
+             : status == 403 || status == 429
+                 ? L"The server refused or rate-limited the request."
+                 : L"The server could not supply the download.");
+    InternetCloseHandle(request);
+    InternetCloseHandle(session);
+    return error(message);
   }
   HANDLE file = INVALID_HANDLE_VALUE;
   char *data = NULL;
   size_t used = 0;
+  BOOL ok = TRUE;
+  DWORD code = ERROR_SUCCESS;
   if (destination) {
     file = CreateFileW(destination, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
                        FILE_ATTRIBUTE_NORMAL, NULL);
-    if (file == INVALID_HANDLE_VALUE)
+    if (file == INVALID_HANDLE_VALUE) {
       ok = FALSE;
+      code = GetLastError();
+    }
   }
   if (memory) {
     data = (char *)malloc(1);
     if (data)
       data[0] = 0;
-    else
+    else {
       ok = FALSE;
+      code = ERROR_NOT_ENOUGH_MEMORY;
+    }
   }
   char buffer[32768];
   DWORD got = 0;
   while (ok && !isStopped()) {
-    if (!WinHttpReadData(request, buffer, sizeof(buffer), &got)) {
+    if (!InternetReadFile(request, buffer, sizeof(buffer), &got)) {
       ok = FALSE;
+      code = GetLastError();
       break;
     }
     if (!got)
@@ -265,17 +305,22 @@ static BOOL download(const wchar_t *url, const wchar_t *destination,
       DWORD wrote = 0;
       if (!WriteFile(file, buffer, got, &wrote, NULL) || wrote != got) {
         ok = FALSE;
+        code = GetLastError();
+        if (!code)
+          code = ERROR_WRITE_FAULT;
         break;
       }
     }
     if (memory) {
       if (used + got > 2 * 1024 * 1024) {
         ok = FALSE;
+        code = ERROR_INSUFFICIENT_BUFFER;
         break;
       }
       char *next = (char *)realloc(data, used + got + 1);
       if (!next) {
         ok = FALSE;
+        code = ERROR_NOT_ENOUGH_MEMORY;
         break;
       }
       data = next;
@@ -284,17 +329,24 @@ static BOOL download(const wchar_t *url, const wchar_t *destination,
       data[used] = 0;
     }
   }
-  if (isStopped())
+  if (isStopped()) {
     ok = FALSE;
+    code = ERROR_CANCELLED;
+  }
   if (file != INVALID_HANDLE_VALUE)
     CloseHandle(file);
-  WinHttpCloseHandle(request);
-  WinHttpCloseHandle(connection);
+  InternetCloseHandle(request);
+  InternetCloseHandle(session);
   if (memory && ok)
     *memory = data;
   else
     free(data);
-  return ok ? TRUE : error(L"Download was interrupted or could not be saved.");
+  if (!ok) {
+    if (destination)
+      DeleteFileW(destination);
+    return downloadError(L"Downloading or saving the file", code);
+  }
+  return TRUE;
 }
 static BOOL fileHash(const wchar_t *filename, char *hex) {
   BCRYPT_ALG_HANDLE alg = NULL;
@@ -465,24 +517,17 @@ static BOOL startServer(const wchar_t *node, const wchar_t *web) {
     output(reader);
     if (WaitForSingleObject(proc.hProcess, 0) != WAIT_TIMEOUT)
       break;
-    HINTERNET connection =
-        WinHttpConnect(internet, L"127.0.0.1", (INTERNET_PORT)port, 0);
-    HINTERNET req = connection ? WinHttpOpenRequest(connection, L"GET", L"/",
-                                                    NULL, NULL, NULL, 0)
-                               : NULL;
+    HINTERNET req = InternetOpenUrlW(
+        internet, url, NULL, 0,
+        INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
     if (req) {
-      WinHttpSetTimeouts(req, 500, 500, 500, 500);
       DWORD status = 0, size = sizeof(status);
-      ready = WinHttpSendRequest(req, NULL, 0, NULL, 0, 0, 0) &&
-              WinHttpReceiveResponse(req, NULL) &&
-              WinHttpQueryHeaders(
-                  req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                  NULL, &status, &size, NULL) &&
-              status == 200;
-      WinHttpCloseHandle(req);
+      ready =
+          HttpQueryInfoW(req, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                         &status, &size, NULL) &&
+          status == 200;
+      InternetCloseHandle(req);
     }
-    if (connection)
-      WinHttpCloseHandle(connection);
     if (ready)
       break;
     Sleep(200);
@@ -516,11 +561,14 @@ static BOOL launch(void) {
   BOOL ok = FALSE;
   if (!directory(root))
     return error(L"Cannot create the launcher cache directory.");
-  internet = WinHttpOpen(L"Vexillamania-Launcher/2.0",
-                         WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+  internet = InternetOpenW(L"Vexillamania-Launcher/2.1",
+                           INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
   if (!internet)
-    return error(L"Windows HTTPS networking could not initialize.");
+    return downloadError(L"Windows networking initialization", GetLastError());
+  DWORD localTimeout = 1000;
+  InternetSetOptionW(internet, INTERNET_OPTION_CONNECT_TIMEOUT, &localTimeout, sizeof(localTimeout));
+  InternetSetOptionW(internet, INTERNET_OPTION_SEND_TIMEOUT, &localTimeout, sizeof(localTimeout));
+  InternetSetOptionW(internet, INTERNET_OPTION_RECEIVE_TIMEOUT, &localTimeout, sizeof(localTimeout));
   stage[0] = 0;
   if (!branch[0]) {
     swprintf(url, CAP, L"https://api.github.com/repos/%ls", repository);
@@ -681,7 +729,7 @@ done:
   free(response);
   if (stage[0])
     removeTemporary(stage);
-  WinHttpCloseHandle(internet);
+  InternetCloseHandle(internet);
   internet = NULL;
   return ok;
 }
