@@ -13,8 +13,6 @@ friends join from their browsers with a password.
 
 ## This fork
 
-Windows: download **[Vexillamania-Launcher.exe](./Vexillamania-Launcher.exe)** and choose `elmorei/flaghack-infinity-3d`, branch `iteration`. See [launcher instructions](launcher/README.md).
-
 This iteration adds camp toggles, 1–5 days or Unlimited, advanced match settings, gamepad input and customizable controls. See [the fork guide](docs/fork-iteration.md).
 
 ## Play

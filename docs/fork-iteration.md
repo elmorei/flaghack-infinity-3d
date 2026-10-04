@@ -28,4 +28,4 @@ Standard-mapped controllers use left stick movement, right stick camera look, A/
 
 In Command View, the movement stick pans the camera and the look stick moves the cursor; the attack and aim bindings select/order. In menus, D-pad up/down moves focus, left/right changes a focused dropdown, A/Cross activates a control, and B/Circle or Menu/Start closes a panel or resumes. A keyboard remains necessary for text fields such as multiplayer passwords and names.
 
-Controller movement/buttons are cleared on blur, disconnect and screen changes. A physical-controller and Windows launcher smoke test remain necessary on the user's hardware.
+Controller movement/buttons are cleared on blur, disconnect and screen changes. A physical-controller smoke test remains necessary on the user's hardware.
