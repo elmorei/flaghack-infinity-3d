@@ -88,12 +88,15 @@ export interface View {
   /** Visible rival hippies around our Command Center, and neutral ones in recruitment range. */
   rivalsNearGcc: number;
   neutralsNearGcc: EntityId[];
+  visibleNeutrals: EntityId[];
   /** Visible rival hippies within the Omega Pulse reach of our vexillomancer. */
   rivalsNearAvatar: number;
   rivals: RivalIntel[];
 }
 
 export type PilotTask =
+  | { kind: 'pickup'; flagId: EntityId }
+  | { kind: 'recruit'; hippieId: EntityId }
   | { kind: 'home' }
   | { kind: 'hold' }
   | { kind: 'plant'; node: number }
@@ -132,6 +135,7 @@ export interface PilotState {
   sentPitch: number;
   sentSprint: boolean;
   sentJump: boolean;
+  sentThrowMode: boolean;
 }
 
 export class Brain {
@@ -188,6 +192,7 @@ export class Brain {
 
   /** Flags we ordered hippies to pull, flag id → hippie ids. */
   pullOrders = new Map<EntityId, EntityId[]>();
+  wardOrders = new Map<EntityId, EntityId[]>();
   /** Last job weights sent (serialized) to skip identical resubmits. */
   sentWeights = '';
   /** Builder found no room for its next building: the director favours expanding. */
@@ -232,6 +237,7 @@ export class Brain {
       sentPitch: NaN,
       sentSprint: false,
       sentJump: false,
+      sentThrowMode: false,
     };
   }
 
@@ -274,6 +280,7 @@ function emptyView(): View {
     intruders: [],
     rivalsNearGcc: 0,
     neutralsNearGcc: [],
+    visibleNeutrals: [],
     rivalsNearAvatar: 0,
     rivals: [],
   };

@@ -4,7 +4,7 @@
  * been contained) around the home-ring Flags facing the rival who did it.
  * Owner: AI agent.
  */
-import { BREW_COST, BUILDINGS, PIECE } from '../sim/constants';
+import { BREW_COST, BUILDINGS, HIPPIE, PIECE } from '../sim/constants';
 import { canPlaceBuilding } from '../sim/systems/buildings';
 import { brewBlocker } from '../sim/systems/drugs';
 import { canBuildPiece } from '../sim/systems/pieces';
@@ -18,8 +18,7 @@ import { onSurveyEdge } from './plans';
 const CAMP_RADIUS = 34;
 /** Lumber kept back for walls while fighting. */
 const WAR_RESERVE = 30;
-/** Extra Drum Circles / Workshops beyond the build order, and the lumber that triggers them. */
-const MAX_DRUMCIRCLES = 3;
+/** Extra Workshops beyond the build order, and the lumber that triggers them. */
 const MAX_WORKSHOPS = 2;
 const RICH = 320;
 /** Walls per fortified node per decision, and the lumber floor for building them. */
@@ -39,6 +38,10 @@ function count(world: World, b: Brain, kind: BuildingKind): number {
 /** Next building the temperament wants, or null. */
 function nextKind(b: Brain): BuildingKind | null {
   const world = b.world;
+  // Capacity is now an attention budget: expand it before buying optional upgrades.
+  const circles = world.buildingsOf(b.f, 'drumcircle');
+  const plannedCapacity = HIPPIE.popCapBase + circles.filter(c => !c.disabled).length * HIPPIE.popCapPerDrumCircle;
+  if (b.view.population >= plannedCapacity - 1) return 'drumcircle';
   const seen: Partial<Record<BuildingKind, number>> = {};
   for (const kind of b.persona.buildOrder) {
     const need = (seen[kind] ?? 0) + 1;
@@ -46,7 +49,6 @@ function nextKind(b: Brain): BuildingKind | null {
     if (count(world, b, kind) < need) return kind;
   }
   const v = b.view;
-  if (v.population >= v.popCap - 1 && count(world, b, 'drumcircle') < MAX_DRUMCIRCLES) return 'drumcircle';
   if (v.lumber >= RICH && count(world, b, 'workshop') < MAX_WORKSHOPS) return 'workshop';
   return null;
 }
@@ -78,7 +80,7 @@ function placeNext(b: Brain): void {
     // one, or a pulled Flag there could never be planted back.
     let pinsLoop = false;
     for (const n of fc.nodes) if (plan.has(n) || onSurveyEdge(world, b.f, n)) pinsLoop = true;
-    if (pinsLoop || !canPlaceBuilding(world, b.f, kind, facet).ok) continue;
+    if ((pinsLoop && world.options.match?.structuresBlockFlagPlacement === true) || !canPlaceBuilding(world, b.f, kind, facet).ok) continue;
     world.submit({ t: 'placeBuilding', faction: b.f, kind, facet });
     return;
   }

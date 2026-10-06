@@ -4,7 +4,8 @@
  * on our own assault loop, and attack pings on the Flags that hold a target's home ring.
  * Owner: AI agent.
  */
-import { CAPTURE, HOARD_THRESHOLD } from '../sim/constants';
+import { CAPTURE, HOARD_THRESHOLD, LIGHTNING_PULL_MULT, WARD_PULSE_RADIUS } from '../sim/constants';
+import { flagPullDefender } from '../sim/systems/flags';
 import { isFlagProtected } from '../sim/systems/abilities';
 import type { EntityId, Hippie, JobKind } from '../sim/types';
 import type { World } from '../sim/world';
@@ -39,9 +40,58 @@ export function manageLabour(b: Brain): void {
   const assault = b.posture === 'attack' || b.posture === 'opportunist';
   // Defence first; otherwise clear the rival Flags standing on our assault loop. With no
   // targets the reconcile only calls off orders that lost their point.
-  if (b.view.critical.length > 0) pullSquads(b, b.view.critical, b.skill.squads, b.skill.pullers);
-  else pullSquads(b, assault ? breachFlags(b) : [], BREACH_SQUADS, BREACH_PULLERS);
+  const defending = b.view.critical.length > 0;
+  const rival = b.target === null ? undefined : b.intel(b.target);
+  const targets = defending ? b.view.critical.slice() : assault ? breachFlags(b) : [];
+  if (!defending && assault && rival?.attacker === b.f) {
+    for (const id of rival.homeCritical) if (!targets.includes(id)) targets.push(id);
+  }
+  targets.sort((a, c) => pullCost(b, a) - pullCost(b, c) || a - c);
+  suppressWards(b, targets);
+  pullSquads(b, targets, defending ? b.skill.squads : BREACH_SQUADS, defending ? b.skill.pullers : BREACH_PULLERS);
   if (assault) assaultSupport(b);
+}
+
+/** Travel plus live pull difficulty: lightning changes the cheapest breach. */
+function pullCost(b: Brain, id: EntityId): number {
+  const fl = b.world.flags.get(id);
+  if (!fl) return Infinity;
+  const av = b.world.avatarOf(b.f);
+  return Math.hypot(fl.pos.x - av.pos.x, fl.pos.z - av.pos.z) +
+    (flagPullDefender(b.world, fl, b.f) ? LIGHTNING_PULL_MULT : 1) * 12;
+}
+
+/** A Ward pulse resets hippie work faster than a defended pull can finish: disable it first. */
+function suppressWards(b: Brain, targets: readonly EntityId[]): void {
+  const world = b.world;
+  const wanted: EntityId[] = [];
+  for (const w of world.buildings.values()) {
+    if (w.kind !== 'ward' || w.faction === b.f || w.faction === -1 || w.built < 1 || w.disabled) continue;
+    if (targets.some(id => {
+      const fl = world.flags.get(id);
+      return fl?.state === 'planted' &&
+        (fl.pos.x - w.pos.x) ** 2 + (fl.pos.z - w.pos.z) ** 2 <= WARD_PULSE_RADIUS ** 2;
+    })) wanted.push(w.id);
+  }
+  for (const [id, squad] of b.wardOrders) {
+    const keep = squad.filter(workerId => {
+      const h = world.hippies.get(workerId);
+      return h && available(world, h, b.f) && h.order?.kind === 'attack' && h.order.target === id;
+    });
+    if (!wanted.includes(id)) {
+      if (keep.length) world.submit({ t: 'order', faction: b.f, hippies: keep, order: null });
+      b.wardOrders.delete(id);
+    } else b.wardOrders.set(id, keep);
+  }
+  for (const id of wanted.slice(0, 2)) {
+    const w = world.buildings.get(id)!;
+    const squad = b.wardOrders.get(id) ?? [];
+    const recruits: EntityId[] = [];
+    nearestFree(b, w.pos.x, w.pos.z, 2 - squad.length, new Set(), recruits);
+    if (!recruits.length) continue;
+    b.wardOrders.set(id, [...squad, ...recruits]);
+    world.submit({ t: 'order', faction: b.f, hippies: recruits, order: { kind: 'attack', target: id } });
+  }
 }
 
 /** Rival (or orphaned) Flags planted on nodes of our siege walls, in wall order. */
@@ -126,9 +176,11 @@ function pullSquads(b: Brain, targets: readonly EntityId[], squads: number, pull
 /** Up to `n` free own hippies nearest (x, z), skipping `busy`. */
 function nearestFree(b: Brain, x: number, z: number, n: number, busy: Set<EntityId>, out: EntityId[]): void {
   const pick: { id: EntityId; d: number }[] = [];
+  const suppressors = new Set([...b.wardOrders.values()].flat());
   for (const h of b.world.hippies.values()) {
     if (busy.has(h.id) || !available(b.world, h, b.f)) continue;
     if (h.order && h.order.kind === 'pull') continue;
+    if (suppressors.has(h.id)) continue;
     pick.push({ id: h.id, d: (h.pos.x - x) ** 2 + (h.pos.z - z) ** 2 });
   }
   pick.sort((p, q) => p.d - q.d || p.id - q.id);

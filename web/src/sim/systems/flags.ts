@@ -13,7 +13,7 @@ import { AVATAR, BUILDING_HEIGHT, CRYSTAL_HEIGHT, LIGHTNING_PULL_MULT, PULL_LIGH
 import { spawnFlag } from '../factory';
 import type { V2, V3 } from '../math';
 import { NEUTRAL } from '../types';
-import type { Avatar, EntityId, FactionId, Flag, FlagState, Hippie, Owner } from '../types';
+import type { Avatar, Building, Crystal, EntityId, FactionId, Flag, FlagState, Hippie, Owner } from '../types';
 import type { World } from '../world';
 import { isFlagProtected } from './abilities';
 import { isCollapsed } from './buildings';
@@ -28,33 +28,37 @@ const nearScratch: number[] = [];
 
 type Carrier = Avatar | Hippie;
 
+/** Pure query shared by pulling and AI planning; reading protection never emits lightning. */
+export function flagPullDefender(world: World, fl: Flag, puller: FactionId): Building | Crystal | null {
+  if (fl.state !== 'planted' || fl.owner === NEUTRAL || fl.owner === puller) return null;
+  for (const c of world.crystals.values()) {
+    if (c.faction === fl.owner && c.growth >= 1 &&
+      (c.pentacle.includes(fl.node) || (fl.altNode >= 0 && c.pentacle.includes(fl.altNode)))) return c;
+  }
+  for (const w of world.buildings.values()) {
+    if (w.kind === 'ward' && w.faction === fl.owner && w.built >= 1 && !w.disabled &&
+      (w.pos.x - fl.pos.x) ** 2 + (w.pos.z - fl.pos.z) ** 2 <= WARD_FLAG_RADIUS ** 2) return w;
+  }
+  return null;
+}
+
 /** Live enemy pull rate: Wards and fully manifested Crystals defend their Flags without stacking. */
 export function defendedPullRate(world: World, fl: Flag, puller: FactionId, starting = false): number {
-  if (fl.state !== 'planted' || fl.owner === NEUTRAL || fl.owner === puller) return 1;
-  const lightning = starting || world.tick % Math.round(PULL_LIGHTNING_INTERVAL * SIM_HZ) === 0;
-  // A Crystal protects only its five sustaining nodes, including either node of a simulacrum.
-  for (const crystal of world.crystals.values()) {
-    if (crystal.faction !== fl.owner || crystal.growth < 1) continue;
-    if (!crystal.pentacle.includes(fl.node) && !(fl.altNode >= 0 && crystal.pentacle.includes(fl.altNode))) continue;
-    const node = world.lattice.nodes[crystal.pentacle.includes(fl.node) ? fl.node : fl.altNode];
-    if (lightning) {
-      world.emit({ t: 'crystalLightning', crystalId: crystal.id, flagId: fl.id, faction: crystal.faction,
-        from: { x: crystal.pos.x, y: CRYSTAL_HEIGHT, z: crystal.pos.z },
+  const defender = flagPullDefender(world, fl, puller);
+  if (!defender) return 1;
+  if (starting || world.tick % Math.round(PULL_LIGHTNING_INTERVAL * SIM_HZ) === 0) {
+    if (defender.type === 'crystal') {
+      const node = world.lattice.nodes[defender.pentacle.includes(fl.node) ? fl.node : fl.altNode];
+      world.emit({ t: 'crystalLightning', crystalId: defender.id, flagId: fl.id, faction: defender.faction,
+        from: { x: defender.pos.x, y: CRYSTAL_HEIGHT, z: defender.pos.z },
         to: { x: node.x, y: fl.pos.y + 2, z: node.z } });
-    }
-    return 1 / LIGHTNING_PULL_MULT;
-  }
-  for (const ward of world.buildings.values()) {
-    if (ward.kind !== 'ward' || ward.faction !== fl.owner || ward.built < 1 || ward.disabled) continue;
-    if ((ward.pos.x - fl.pos.x) ** 2 + (ward.pos.z - fl.pos.z) ** 2 > WARD_FLAG_RADIUS ** 2) continue;
-    if (lightning) {
-      world.emit({ t: 'wardLightning', buildingId: ward.id, flagId: fl.id, faction: ward.faction,
-        from: { x: ward.pos.x, y: BUILDING_HEIGHT.ward, z: ward.pos.z },
+    } else {
+      world.emit({ t: 'wardLightning', buildingId: defender.id, flagId: fl.id, faction: defender.faction,
+        from: { x: defender.pos.x, y: BUILDING_HEIGHT.ward, z: defender.pos.z },
         to: { x: fl.pos.x, y: fl.pos.y + 2, z: fl.pos.z } });
     }
-    return 1 / LIGHTNING_PULL_MULT;
   }
-  return 1;
+  return 1 / LIGHTNING_PULL_MULT;
 }
 
 /** Can `faction` plant here? Terrain, occupied nodes and crystals always block placement. */

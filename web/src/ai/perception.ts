@@ -6,14 +6,14 @@
  * (see Scheduler), and cached between Survey changes.
  * Owner: AI agent.
  */
-import { ABILITY, CAPTURE, GCC, IMPLIED_MAX_ORDER, WARD_PULSE_RADIUS } from '../sim/constants';
+import { ABILITY, CAPTURE, GCC, IMPLIED_MAX_ORDER, LIGHTNING_PULL_MULT, WARD_PULSE_RADIUS } from '../sim/constants';
 import { criticalNodes } from '../sim/lattice/geometry';
 import { planEnclosure } from '../sim/lattice/planner';
 import type { NodeCost } from '../sim/lattice/planner';
 import { isFlagProtected } from '../sim/systems/abilities';
 import { popCap, population } from '../sim/systems/economy';
 import { RECRUIT_RADIUS } from '../sim/constants';
-import { canPlantAt, isBuildingCorner } from '../sim/systems/flags';
+import { canPlantAt, flagPullDefender, isBuildingCorner } from '../sim/systems/flags';
 import { geometryOwners } from '../sim/systems/survey';
 import { FACTION_IDS, NEUTRAL } from '../sim/types';
 import type { Building, EntityId, FactionId, Hippie } from '../sim/types';
@@ -171,11 +171,13 @@ function senseUnits(b: Brain, world: World, hearth: Building): void {
   const omegaR = ABILITY.omega.radius[Math.max(0, fac.chakras.finial - 1)];
   v.intruders.length = 0;
   v.neutralsNearGcc.length = 0;
+  v.visibleNeutrals.length = 0;
   v.rivalsNearGcc = 0;
   v.rivalsNearAvatar = 0;
   for (const h of world.hippies.values()) {
     if (h.faction === f || h.koUntil > world.time) continue;
     if (h.faction === NEUTRAL) {
+      if (visible(world, f, h, observers)) v.visibleNeutrals.push(h.id);
       if (gcc && (h.pos.x - gcc.pos.x) ** 2 + (h.pos.z - gcc.pos.z) ** 2 <= RECRUIT_RADIUS * RECRUIT_RADIUS) v.neutralsNearGcc.push(h.id);
       continue;
     }
@@ -347,13 +349,14 @@ function loopValid(world: World, f: FactionId, loop: readonly number[]): boolean
 
 /**
  * Could `f` get a Flag onto this node: plant it now, or pull the rival (or orphaned) Flag
- * standing there first? Stabilize-held Flags, building corners and Crystal nodes are out.
+ * standing there first? Stabilize-held Flags and Crystal nodes are out; building corners
+ * follow the match placement setting.
  */
 export function claimable(world: World, f: FactionId, n: number): boolean {
   if (canPlantAt(world, n, f)) return true;
   const s = world.survey;
   const id = s.nodeFlag[n];
-  if (id < 0 || s.nodeFlagOwner[n] === f || world.lattice.nodes[n].blocked || isBuildingCorner(world, n)) return false;
+  if (id < 0 || s.nodeFlagOwner[n] === f || world.lattice.nodes[n].blocked || (world.options.match?.structuresBlockFlagPlacement === true && isBuildingCorner(world, n))) return false;
   const fl = world.flags.get(id);
   if (!fl || fl.altNode >= 0 || isFlagProtected(world, fl)) return false;
   for (const c of world.crystals.values()) if (c.node === n) return false;
@@ -409,13 +412,13 @@ export function newFlags(world: World, f: FactionId, loop: readonly number[]): n
  * risk premium (nodes a Phason Shift could flip, rival Ward pulses, their Survey where home
  * guards pull intruding Flags). A rival Flag in the way costs a pull and a Flag (rival rings
  * often run from the target's home out to the burn's fence, so blocking on them would leave
- * no loop at all); protected Flags, blocked nodes and building corners are impassable.
+ * no loop at all); protected Flags and blocked nodes are impassable.
  */
 export function assaultCost(world: World, f: FactionId, r: RivalIntel): NodeCost {
   const s = world.survey;
   const lat = world.lattice;
   const wards: Building[] = [];
-  for (const bd of world.buildings.values()) if (bd.kind === 'ward' && bd.faction !== f && bd.faction !== NEUTRAL) wards.push(bd);
+  for (const bd of world.buildings.values()) if (bd.kind === 'ward' && bd.faction !== f && bd.faction !== NEUTRAL && bd.built >= 1 && !bd.disabled) wards.push(bd);
   const wardR2 = (WARD_PULSE_RADIUS + 3) ** 2;
   const bit = 1 << r.id;
   const near2 = CAPTURE.threatRadius * CAPTURE.threatRadius;
@@ -426,6 +429,8 @@ export function assaultCost(world: World, f: FactionId, r: RivalIntel): NodeCost
     const node = lat.nodes[n];
     const owner = s.nodeFlagOwner[n];
     let c = s.nodeFlag[n] < 0 ? 1 : owner === r.id || owner < 0 ? BREACH_COST : THIRD_PARTY_COST;
+    const flag = world.flags.get(s.nodeFlag[n]);
+    if (flag && flagPullDefender(world, flag, f)) c += (BREACH_COST - 1) * (LIGHTNING_PULL_MULT - 1);
     // Three-edge nodes can be Phason Shifted out from under the loop.
     if (lat.flippable(n)) c += FLIPPABLE_COST;
     for (const w of wards) if ((w.pos.x - node.x) ** 2 + (w.pos.z - node.z) ** 2 <= wardR2) c += 0.6;
