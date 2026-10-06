@@ -27,6 +27,8 @@ import {
   RETRANSMIT_ATTENTION,
   RETRANSMIT_COOLDOWN,
   WARD_OBSERVE_RADIUS,
+  WARD_FLAG_RADIUS,
+  WARD_PULL_MULT,
   WARD_PULSE_INTERVAL,
   WARD_PULSE_RADIUS,
   WARD_RADIUS,
@@ -212,7 +214,7 @@ export const BUILD_INFO: Record<CampBuildingKind, BuildInfo> = {
   ward: {
     name: BUILDING_NAMES.ward,
     cost: BUILDINGS.ward.cost,
-    effect: `Enemy pressure on Hearths within ${WARD_RADIUS} m drops by ${Math.round((1 - CAPTURE.wardMult) * 100)}%. Observes ${WARD_OBSERVE_RADIUS} m. Every ${WARD_PULSE_INTERVAL} s a vibe check stuns enemy Signifiers within ${WARD_PULSE_RADIUS} m.`,
+    effect: `Enemy pressure on Hearths within ${WARD_RADIUS} m drops by ${Math.round((1 - CAPTURE.wardMult) * 100)}%. Observes ${WARD_OBSERVE_RADIUS} m. Lightning makes enemy pulls of your planted Flags within ${WARD_FLAG_RADIUS} m take ${WARD_PULL_MULT}× as long. Every ${WARD_PULSE_INTERVAL} s a vibe check stuns enemy Signifiers within ${WARD_PULSE_RADIUS} m.`,
     icon: 'ward',
   },
   druglab: {

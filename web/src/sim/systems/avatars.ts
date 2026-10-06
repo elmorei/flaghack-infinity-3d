@@ -17,7 +17,7 @@ import type { World } from '../world';
 import { isFlagProtected } from './abilities';
 import { damageEntity, knockback } from './combat';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
-import { canPlantAt, plantFlag, pullFlag, takeFromStock } from './flags';
+import { canPlantAt, plantFlag, pullFlag, takeFromStock, wardPullRate } from './flags';
 import { gccActive } from './gcc';
 import { moveCart } from './units/cart';
 import { breakChannel, IDLE, isRooted } from './units/channel';
@@ -287,7 +287,7 @@ function updateAvatar(world: World, av: Avatar, mind: AvatarMind, dt: number): v
   // The cart moves first so the pusher walks into the space it just left.
   updatePush(world, av, dt, stunned);
   stepAvatarMotion(world, av, av.input, dt);
-  progressAction(world, av, stunned);
+  progressAction(world, av, stunned, dt);
   if (av.input.throwMode && !stunned && canAct(world, av)) collectLooseFlags(world, av);
   restock(world, av, mind);
   if (av.hp < AVATAR.maxHp && world.time - av.lastHurtAt >= AVATAR.regenDelay) {
@@ -373,7 +373,7 @@ export function stepAvatarMotion(world: World, av: AvatarMotionState, input: Ava
   }
 }
 
-function progressAction(world: World, av: Avatar, stunned: boolean): void {
+function progressAction(world: World, av: Avatar, stunned: boolean, dt: number): void {
   const a = av.action;
   switch (a.kind) {
     case 'swing': {
@@ -389,14 +389,14 @@ function progressAction(world: World, av: Avatar, stunned: boolean): void {
       if (world.time - a.t >= AVATAR.plantTime) av.action = IDLE;
       return;
     case 'pull':
-      progressPull(world, av, a, stunned);
+      progressPull(world, av, a, stunned, dt);
       return;
     default:
       return;
   }
 }
 
-function progressPull(world: World, av: Avatar, a: Extract<AvatarAction, { kind: 'pull' }>, stunned: boolean): void {
+function progressPull(world: World, av: Avatar, a: Extract<AvatarAction, { kind: 'pull' }>, stunned: boolean, dt: number): void {
   const fl = world.flags.get(a.flagId);
   if (
     stunned ||
@@ -408,6 +408,9 @@ function progressPull(world: World, av: Avatar, a: Extract<AvatarAction, { kind:
     av.action = IDLE;
     return;
   }
+  const rate = wardPullRate(world, fl, av.faction, world.time - a.t <= dt + 1e-9);
+  // Move the start time forward to keep channel progress (including its visual) at half speed.
+  a.t += Math.min(dt, Math.max(0, world.time - a.t)) * (1 - rate);
   if (world.time - a.t < a.dur) return;
   av.action = IDLE;
   // Into the quiver when there is room; a planted Flag otherwise falls loose (flags.ts).

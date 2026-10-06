@@ -14,7 +14,7 @@ import { damageEntity } from '../combat';
 import { nearestHearth } from '../economy';
 import { isRecruiter } from '../recruitment';
 import { speedMultiplier } from '../effects';
-import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock } from '../flags';
+import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock, wardPullRate } from '../flags';
 import { beginTask, releaseTask, setStatus, setStatusAt } from './brain';
 import type { Brain } from './brain';
 import { moveCart } from './cart';
@@ -267,7 +267,7 @@ function actPull(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
     return;
   }
   setStatusAt(h, b, 'pulling', fl.pos.x, fl.pos.z);
-  b.work += dt * speedMultiplier(world, h);
+  b.work += dt * speedMultiplier(world, h) * wardPullRate(world, fl, f, b.work === 0);
   const dur = fl.state === 'loose' ? HIPPIE.pickupTime : fl.owner === f ? HIPPIE.pullOwnTime : HIPPIE.pullEnemyTime;
   if (b.work < dur) return;
   const prev = fl.owner;

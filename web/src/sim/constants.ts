@@ -248,6 +248,10 @@ export const WARD_RADIUS = 30;
 export const WARD_OBSERVE_RADIUS = 26;
 export const WARD_PULSE_INTERVAL = 4;
 export const WARD_PULSE_RADIUS = 14;
+/** Friendly planted Flags within this radius resist enemy pulls. */
+export const WARD_FLAG_RADIUS = 14;
+export const WARD_PULL_MULT = 2;
+export const WARD_LIGHTNING_INTERVAL = 0.2;
 export const HEARTH_OBSERVE_RADIUS = 22;
 export const DRUM_RITUAL_PER_SEC = 0.1; // per drummer: a full circle (4) earns a level-1 alignment in ~75 s
 export const DRUMMERS_PER_CIRCLE = 4;

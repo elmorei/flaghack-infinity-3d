@@ -9,7 +9,7 @@
  * (the throw, which hands a Flag to a projectile, is the one exception and lives in Units).
  * Owner: SurveyRules agent.
  */
-import { AVATAR } from '../constants';
+import { AVATAR, BUILDING_HEIGHT, SIM_HZ, WARD_FLAG_RADIUS, WARD_LIGHTNING_INTERVAL, WARD_PULL_MULT } from '../constants';
 import { spawnFlag } from '../factory';
 import type { V2, V3 } from '../math';
 import { NEUTRAL } from '../types';
@@ -27,6 +27,22 @@ const HISTORY_CAP = 16;
 const nearScratch: number[] = [];
 
 type Carrier = Avatar | Hippie;
+
+/** Live pull rate: one working friendly Ward protects a planted Flag; Wards do not stack. */
+export function wardPullRate(world: World, fl: Flag, puller: FactionId, starting = false): number {
+  if (fl.state !== 'planted' || fl.owner === NEUTRAL || fl.owner === puller) return 1;
+  for (const ward of world.buildings.values()) {
+    if (ward.kind !== 'ward' || ward.faction !== fl.owner || ward.built < 1 || ward.disabled) continue;
+    if ((ward.pos.x - fl.pos.x) ** 2 + (ward.pos.z - fl.pos.z) ** 2 > WARD_FLAG_RADIUS ** 2) continue;
+    if (starting || world.tick % Math.round(WARD_LIGHTNING_INTERVAL * SIM_HZ) === 0) {
+      world.emit({ t: 'wardLightning', buildingId: ward.id, flagId: fl.id, faction: ward.faction,
+        from: { x: ward.pos.x, y: BUILDING_HEIGHT.ward, z: ward.pos.z },
+        to: { x: fl.pos.x, y: fl.pos.y + 2, z: fl.pos.z } });
+    }
+    return 1 / WARD_PULL_MULT;
+  }
+  return 1;
+}
 
 /** Can `faction` plant here? Terrain, occupied nodes and crystals always block placement. */
 export function canPlantAt(world: World, node: number, faction: FactionId): boolean {

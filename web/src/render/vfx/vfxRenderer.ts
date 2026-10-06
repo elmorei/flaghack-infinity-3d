@@ -269,6 +269,12 @@ export class VfxRenderer implements RenderModule {
         this.shake(e.pos.x, e.pos.z, 0.45, 12, 60);
         break;
       }
+      case 'wardLightning': {
+        const fy = e.from.y + this.groundY(e.from.x, e.from.z);
+        const ty = e.to.y + this.groundY(e.to.x, e.to.z);
+        this.bolts.strike(this.ctx.time, e.from.x, fy, e.from.z, e.to.x, ty, e.to.z);
+        break;
+      }
       case 'discharge': {
         const fy = e.from.y + this.groundY(e.from.x, e.from.z);
         const ty = e.to.y + this.groundY(e.to.x, e.to.z);
