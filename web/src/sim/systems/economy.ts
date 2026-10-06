@@ -25,7 +25,7 @@ import {
 import { spawnPile } from '../factory';
 import type { V2 } from '../math';
 import { FACTION_IDS, JOBS } from '../types';
-import type { Building, EntityId, FactionId } from '../types';
+import type { Building, EntityId, FactionId, Hippie } from '../types';
 import type { World } from '../world';
 import { econ } from './econ/state';
 import type { EconState } from './econ/state';
@@ -57,6 +57,19 @@ export function population(world: World, f: FactionId): number {
   let n = 0;
   for (const h of world.hippies.values()) if (h.faction === f && h.status !== 'ko') n++;
   return n;
+}
+
+/** Live attention-cap rank: older recruits keep their places; KO workers do not count. */
+export function aboveAttentionCap(world: World, h: Hippie): boolean {
+  if (h.faction === -1 || h.status === 'ko') return false;
+  const cap = popCap(world, h.faction);
+  let older = 0;
+  for (const member of world.hippies.values()) {
+    if (member.faction !== h.faction || member.status === 'ko' || member === h) continue;
+    if (member.recruitedAt < h.recruitedAt || (member.recruitedAt === h.recruitedAt && member.id < h.id)) older++;
+    if (older >= cap) return true;
+  }
+  return false;
 }
 
 /**

@@ -271,7 +271,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number): voi
     return;
   }
   // Excess recruits lose attention even while idle, resting or stunned. At zero they take
-  // the normal distraction break; returning from it does not remove the excess penalty.
+  // a distraction break; those still above capacity can leave at the dance camp.
   if (sys.overCap.has(h.id) && b.task !== 'distracted') {
     h.attention = Math.max(0, h.attention - HIPPIE.overCapAttentionDrain * dt);
     if (h.attention === 0) becomeDistracted(world, h, b);
@@ -313,7 +313,7 @@ function live(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId, 
   b.hurt = false;
   if (!overstim && needsDecision(world, b)) decide(world, sys, h, b, f);
   act(world, sys, h, b, f, dt);
-  if (!overstim && b.task !== 'distracted') shove(world, sys, h, b, f);
+  if (h.faction === f && !overstim && b.task !== 'distracted') shove(world, sys, h, b, f);
 }
 
 /**

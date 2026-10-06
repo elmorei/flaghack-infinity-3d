@@ -11,10 +11,11 @@ import type { Building, FactionId, Hippie } from '../../types';
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { damageEntity } from '../combat';
-import { nearestHearth } from '../economy';
+import { aboveAttentionCap, nearestHearth } from '../economy';
 import { isRecruiter } from '../recruitment';
 import { speedMultiplier } from '../effects';
 import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock, defendedPullRate } from '../flags';
+import { neutralizeHippie } from '../victory';
 import { beginTask, releaseTask, setStatus, setStatusAt } from './brain';
 import type { Brain } from './brain';
 import { moveCart } from './cart';
@@ -646,7 +647,7 @@ export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void
   setStatusAt(h, b, 'walking', b.px, b.pz);
 }
 
-/** Attention ran out: off to the nearest sound camp to dance it back. */
+/** Attention ran out: dance at a sound camp, recovering or leaving an over-cap camp. */
 export function becomeDistracted(world: World, h: Hippie, b: Brain): void {
   beginTask(world, h, b, 'distracted');
   b.danceUntil = 0;
@@ -685,7 +686,10 @@ function actDistracted(world: World, sys: UnitsState, h: Hippie, b: Brain): void
   if (world.time < b.danceUntil) return;
   h.attention = Math.max(h.attention, HIPPIE.distractedRecoverTo);
   b.danceUntil = 0;
+  const atDanceCamp = world.map.soundCamps.some(c => (h.pos.x - c.x) ** 2 + (h.pos.z - c.z) ** 2 <= c.radius ** 2);
+  const leave = atDanceCamp && aboveAttentionCap(world, h);
   releaseTask(world, h, b);
+  if (leave) neutralizeHippie(world, h);
 }
 
 function actFlee(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {

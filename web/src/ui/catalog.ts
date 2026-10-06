@@ -208,7 +208,7 @@ export const BUILD_INFO: Record<CampBuildingKind, BuildInfo> = {
   drumcircle: {
     name: BUILDING_NAMES.drumcircle,
     cost: BUILDINGS.drumcircle.cost,
-    effect: `Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m and raises attention capacity by ${HIPPIE.popCapPerDrumCircle}. Recruitment can exceed capacity; excess recruits lose attention. Up to ${DRUMMERS_PER_CIRCLE} drummers make +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
+    effect: `Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m and raises attention capacity by ${HIPPIE.popCapPerDrumCircle}. Recruitment can exceed capacity; excess recruits lose attention and can become neutral after a dance-camp break. Up to ${DRUMMERS_PER_CIRCLE} drummers make +${DRUM_RITUAL_PER_SEC} Ritual/s each.`,
     icon: 'drumcircle',
   },
   ward: {

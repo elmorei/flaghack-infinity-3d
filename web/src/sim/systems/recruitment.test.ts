@@ -7,9 +7,10 @@ import type { Hippie } from '../types';
 import { damageEntity } from './combat';
 import { eventsOf, freeThickFacet, newMatch, run } from './econ/testkit';
 import { popCap, population } from './economy';
-import { canPlantAt } from './flags';
+import { canPlantAt, giveFlag } from './flags';
 import { updateHippies } from './hippies';
-import { cmdHandFlag, handFlagBlocker, recruitNear } from './recruitment';
+import { canRecruit, cmdHandFlag, handFlagBlocker, recruitNear } from './recruitment';
+import { act, becomeDistracted } from './units/act';
 import { brainOf } from './units/brain';
 import { unitsState } from './units/state';
 import { neutralizeHippie } from './victory';
@@ -137,6 +138,73 @@ describe('shared population recruitment', () => {
     holdIdle(extra);
     updateHippies(world, 1);
     expect(extra.attention).toBe(50 - HIPPIE.overCapAttentionDrain);
+  });
+
+  function danceBreak() {
+    const m = arena();
+    const { world } = m;
+    const camp = world.map.soundCamps[0];
+    const members = Array.from({ length: popCap(world, 0) }, () => spawnHippie(world, 0, camp));
+    const extra = spawnHippie(world, 0, camp);
+    for (const h of [...members, extra]) holdIdle(h);
+    const b = brainOf(extra);
+    becomeDistracted(world, extra, b);
+    b.danceUntil = world.time + HIPPIE.distractedTime;
+    const finish = () => {
+      world.time = b.danceUntil + SIM_DT;
+      act(world, unitsState(world), extra, b, 0, SIM_DT);
+    };
+    return { world, members, extra, b, camp, finish };
+  }
+
+  it('an excess recruit finishes a dance break neutral, drops its Flag, and can be recruited again', () => {
+    const { world, extra, b, finish } = danceBreak();
+    const av = world.avatarOf(0);
+    const flag = av.carried.at(-1)!;
+    expect(giveFlag(world, flag, extra.id)).toBe(true);
+    extra.order = { kind: 'defend', at: { ...extra.pos } };
+    const populationBefore = world.hippies.size;
+    world.time = b.danceUntil - SIM_DT;
+    act(world, unitsState(world), extra, b, 0, SIM_DT);
+    expect(extra.faction).toBe(0);
+    finish();
+    expect(extra.faction).toBe(-1);
+    expect(extra.order).toBeNull();
+    expect(extra.job).toBeNull();
+    expect(extra.beacon).toBe(false);
+    expect(extra.carryingFlag).toBe(-1);
+    expect(world.flags.get(flag)).toMatchObject({ state: 'loose', owner: 0 });
+    expect(world.hippies.size).toBe(populationBefore);
+    expect(canRecruit(extra)).toBe(true);
+    Object.assign(av.pos, { ...extra.pos, y: 0 });
+    cmdHandFlag(world, { t: 'handFlag', faction: 0, hippieId: extra.id });
+    expect(extra.faction).toBe(0);
+    expect(world.hippies.size).toBe(populationBefore);
+  });
+
+  it('keeps a dancing recruit loyal if a new Drum Circle raises capacity before the break ends', () => {
+    const { world, extra, finish } = danceBreak();
+    spawnBuilding(world, 'drumcircle', 0, world.hearthOf(0)!.facet, 1);
+    finish();
+    expect(extra.faction).toBe(0);
+    expect(extra.attention).toBeGreaterThanOrEqual(HIPPIE.distractedRecoverTo);
+    expect(brainOf(extra).task).toBe('none');
+  });
+
+  it('rechecks live worker rank when an older worker is knocked out during the dance break', () => {
+    const { world, members, extra, finish } = danceBreak();
+    damageEntity(world, members[0].id, HIPPIE.maxHp + 1, -1);
+    finish();
+    expect(extra.faction).toBe(0);
+    expect(population(world, 0)).toBe(popCap(world, 0));
+  });
+
+  it('does not neutralize over-cap hippies resting away from an actual dance camp', () => {
+    const { extra, finish } = danceBreak();
+    extra.pos = { x: 10000, z: 10000 };
+    finish();
+    expect(extra.faction).toBe(0);
+    expect(extra.attention).toBeGreaterThanOrEqual(HIPPIE.distractedRecoverTo);
   });
 
   it('one camp can recruit more than 40 from a larger configured world population', () => {
