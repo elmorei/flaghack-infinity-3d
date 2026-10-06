@@ -17,7 +17,7 @@ import type { World } from '../world';
 import { isFlagProtected } from './abilities';
 import { damageEntity, knockback } from './combat';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
-import { canPlantAt, plantFlag, pullFlag, takeFromStock, wardPullRate } from './flags';
+import { canPlantAt, plantFlag, pullFlag, takeFromStock, defendedPullRate } from './flags';
 import { gccActive } from './gcc';
 import { moveCart } from './units/cart';
 import { breakChannel, IDLE, isRooted } from './units/channel';
@@ -408,7 +408,7 @@ function progressPull(world: World, av: Avatar, a: Extract<AvatarAction, { kind:
     av.action = IDLE;
     return;
   }
-  const rate = wardPullRate(world, fl, av.faction, world.time - a.t <= dt + 1e-9);
+  const rate = defendedPullRate(world, fl, av.faction, world.time - a.t <= dt + 1e-9);
   // Move the start time forward to keep channel progress (including its visual) at half speed.
   a.t += Math.min(dt, Math.max(0, world.time - a.t)) * (1 - rate);
   if (world.time - a.t < a.dur) return;

@@ -9,7 +9,7 @@
  * (the throw, which hands a Flag to a projectile, is the one exception and lives in Units).
  * Owner: SurveyRules agent.
  */
-import { AVATAR, BUILDING_HEIGHT, SIM_HZ, WARD_FLAG_RADIUS, WARD_LIGHTNING_INTERVAL, WARD_PULL_MULT } from '../constants';
+import { AVATAR, BUILDING_HEIGHT, CRYSTAL_HEIGHT, LIGHTNING_PULL_MULT, PULL_LIGHTNING_INTERVAL, SIM_HZ, WARD_FLAG_RADIUS } from '../constants';
 import { spawnFlag } from '../factory';
 import type { V2, V3 } from '../math';
 import { NEUTRAL } from '../types';
@@ -28,18 +28,31 @@ const nearScratch: number[] = [];
 
 type Carrier = Avatar | Hippie;
 
-/** Live pull rate: one working friendly Ward protects a planted Flag; Wards do not stack. */
-export function wardPullRate(world: World, fl: Flag, puller: FactionId, starting = false): number {
+/** Live enemy pull rate: Wards and fully manifested Crystals defend their Flags without stacking. */
+export function defendedPullRate(world: World, fl: Flag, puller: FactionId, starting = false): number {
   if (fl.state !== 'planted' || fl.owner === NEUTRAL || fl.owner === puller) return 1;
+  const lightning = starting || world.tick % Math.round(PULL_LIGHTNING_INTERVAL * SIM_HZ) === 0;
+  // A Crystal protects only its five sustaining nodes, including either node of a simulacrum.
+  for (const crystal of world.crystals.values()) {
+    if (crystal.faction !== fl.owner || crystal.growth < 1) continue;
+    if (!crystal.pentacle.includes(fl.node) && !(fl.altNode >= 0 && crystal.pentacle.includes(fl.altNode))) continue;
+    const node = world.lattice.nodes[crystal.pentacle.includes(fl.node) ? fl.node : fl.altNode];
+    if (lightning) {
+      world.emit({ t: 'crystalLightning', crystalId: crystal.id, flagId: fl.id, faction: crystal.faction,
+        from: { x: crystal.pos.x, y: CRYSTAL_HEIGHT, z: crystal.pos.z },
+        to: { x: node.x, y: fl.pos.y + 2, z: node.z } });
+    }
+    return 1 / LIGHTNING_PULL_MULT;
+  }
   for (const ward of world.buildings.values()) {
     if (ward.kind !== 'ward' || ward.faction !== fl.owner || ward.built < 1 || ward.disabled) continue;
     if ((ward.pos.x - fl.pos.x) ** 2 + (ward.pos.z - fl.pos.z) ** 2 > WARD_FLAG_RADIUS ** 2) continue;
-    if (starting || world.tick % Math.round(WARD_LIGHTNING_INTERVAL * SIM_HZ) === 0) {
+    if (lightning) {
       world.emit({ t: 'wardLightning', buildingId: ward.id, flagId: fl.id, faction: ward.faction,
         from: { x: ward.pos.x, y: BUILDING_HEIGHT.ward, z: ward.pos.z },
         to: { x: fl.pos.x, y: fl.pos.y + 2, z: fl.pos.z } });
     }
-    return 1 / WARD_PULL_MULT;
+    return 1 / LIGHTNING_PULL_MULT;
   }
   return 1;
 }

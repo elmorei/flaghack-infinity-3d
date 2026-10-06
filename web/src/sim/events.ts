@@ -67,6 +67,7 @@ export type GameEvent =
   | { t: 'buildingDone'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
   | { t: 'buildingDisabled'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
   | { t: 'buildingRepaired'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
+  | { t: 'crystalLightning'; crystalId: EntityId; flagId: EntityId; faction: Owner; from: V3; to: V3 }
   | { t: 'wardLightning'; buildingId: EntityId; flagId: EntityId; faction: Owner; from: V3; to: V3 }
   | { t: 'wardPulse'; buildingId: EntityId; faction: Owner; pos: V2 }
   // Economy / progression

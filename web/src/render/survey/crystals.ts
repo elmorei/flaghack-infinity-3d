@@ -6,6 +6,7 @@
  * white, swells and fades while the shards fly out and fall.
  */
 import * as THREE from 'three';
+import { CRYSTAL_HEIGHT } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import type { Crystal } from '../../sim/types';
 import type { World } from '../../sim/world';
@@ -20,7 +21,7 @@ import { InstanceSet } from './instances';
 const CAPACITY = 32;
 const SHARDS = 5;
 const SHATTER_TIME = 1.2;
-const PRISM_H = 7.5;
+const PRISM_H = CRYSTAL_HEIGHT;
 const PRISM_R = 1.05;
 const PINK = new THREE.Color(1.0, 0.38, 0.86);
 const BLUE = new THREE.Color(0.3, 0.62, 1.0);

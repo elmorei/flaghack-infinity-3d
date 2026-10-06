@@ -9,7 +9,7 @@ import {
 } from '../../constants';
 import { spawnZone } from '../../factory';
 import type { World } from '../../world';
-import { canPlantAt, isBuildingCorner, plantSimulacrum, pullFlag } from '../flags';
+import { canPlantAt, defendedPullRate, isBuildingCorner, plantSimulacrum, pullFlag } from '../flags';
 import { isObserved } from '../survey';
 import { applyFlip } from '../tides';
 import { campDistance, eventsOf, flagProblems, freeFocus, loopAround, must, newMatch, plantFresh, runRules } from './testWorld';
@@ -167,6 +167,7 @@ describe('Crystals', () => {
     expect(manifest[0].faction).toBe(3);
     const crystal = must(world.crystals.get(manifest[0].crystalId), 'crystal');
     expect(crystal.growth).toBeLessThan(1);
+    expect(defendedPullRate(world, world.flags.get(ids[0])!, 0)).toBe(1);
     expect(canPlantAt(world, star, 0)).toBe(false);
 
     // Income follows growth: while it grows (linearly over CRYSTAL_GROW_TIME) it pays about
@@ -174,6 +175,15 @@ describe('Crystals', () => {
     const ritual = world.factions[3].ritual;
     runRules(world, CRYSTAL_GROW_TIME + 0.1);
     expect(crystal.growth).toBe(1);
+    for (const id of ids) {
+      expect(defendedPullRate(world, world.flags.get(id)!, 0, true)).toBe(0.5);
+      expect(defendedPullRate(world, world.flags.get(id)!, 3)).toBe(1);
+    }
+    const lightning = eventsOf(world.drainEvents(), 'crystalLightning');
+    expect(lightning.map(e => e.flagId)).toEqual(ids);
+    expect(lightning.every(e => e.crystalId === crystal.id)).toBe(true);
+    const unrelated = [...world.flags.values()].find(f => f.owner === 3 && f.state === 'planted' && !crystal.pentacle.includes(f.node))!;
+    expect(defendedPullRate(world, unrelated, 0)).toBe(1);
     const ramp = world.factions[3].ritual - ritual;
     expect(ramp).toBeGreaterThan(CRYSTAL_RITUAL_PER_SEC * (CRYSTAL_GROW_TIME / 2));
     expect(ramp).toBeLessThan(CRYSTAL_RITUAL_PER_SEC * (CRYSTAL_GROW_TIME / 2 + 0.2));
@@ -188,6 +198,7 @@ describe('Crystals', () => {
     events = runRules(world, 0.05);
     expect(eventsOf(events, 'crystalShatter').map((e) => e.crystalId)).toEqual([crystal.id]);
     expect(world.crystals.size).toBe(0);
+    expect(defendedPullRate(world, world.flags.get(ids[0])!, 0)).toBe(1);
   });
 });
 

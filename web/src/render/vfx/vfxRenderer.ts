@@ -269,6 +269,7 @@ export class VfxRenderer implements RenderModule {
         this.shake(e.pos.x, e.pos.z, 0.45, 12, 60);
         break;
       }
+      case 'crystalLightning':
       case 'wardLightning': {
         const fy = e.from.y + this.groundY(e.from.x, e.from.z);
         const ty = e.to.y + this.groundY(e.to.x, e.to.z);
