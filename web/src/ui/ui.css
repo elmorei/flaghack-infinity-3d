@@ -1990,6 +1990,20 @@
 .title.dimmed {
   opacity: 0.25;
 }
+.title-edition {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  max-width: 40%;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1.4;
+  text-align: right;
+  text-shadow: 0 2px 4px #000;
+}
+#ui .fh-root .title-edition {
+  pointer-events: none;
+}
 .title-shade {
   position: absolute;
   inset: 0;

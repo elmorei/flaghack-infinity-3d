@@ -102,6 +102,7 @@ export class TitleScreen implements UiPart {
     this.host = host;
     this.root = el('div', 'title ix', parent);
     el('div', 'title-shade', this.root);
+    el('div', 'title-edition', this.root, 'game of the millennium edition');
     const col = el('div', 'title-col', this.root);
     html('div', 'title-sigil', sigilSvg('sigil spin'), col);
     html('h1', 'logo', 'FLAGHACK <span class="inf">∞</span>', col);
