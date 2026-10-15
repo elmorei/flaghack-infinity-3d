@@ -6,6 +6,7 @@ import { Session } from './session';
 import { newMatch } from '../sim/systems/econ/testkit';
 import { normalizeMatch } from '../sim/matchSettings';
 import { bossRevealTime } from '../sim/effigyBurn';
+import { bossAwakeningAge, bossAwakeningLevel } from '../sim/bossPresentation';
 
 function fixture() {
   const { world } = newMatch('effigy-camera');
@@ -24,33 +25,57 @@ function fixture() {
 }
 
 describe('local effigy emergence camera', () => {
-  it('locks only for the five-second rise and five-second awakening', () => {
+  it('locks only for the five-second rise and one-second whiteout', () => {
     const { world, reveal } = fixture();
-    for (const offset of [-6, -5.001, 5, 6, 100]) {
+    for (const offset of [-6, -5.001, 1, 1.001, 5, 100]) {
       world.time = reveal + offset;
       expect(effigyCameraTarget(world)).toBeNull();
     }
-    for (const offset of [-5, -2.5, 0, 4.999]) {
+    for (const offset of [-5, -2.5, 0, 0.4, 0.999]) {
       world.time = reveal + offset;
       expect(effigyCameraTarget(world)).not.toBeNull();
     }
     world.effigyRevealedAt = reveal + 0.25;
-    world.time = reveal + 5.1;
+    world.time = reveal + 1.1;
     expect(effigyCameraTarget(world)).not.toBeNull();
-    world.time = reveal + 5.25;
+    world.time = reveal + 1.25;
     expect(effigyCameraTarget(world)).toBeNull();
+  });
+
+  it.each([90, 90.25, 370])('releases at the actual whiteout endpoint %s, while keeping the announcement', revealAt => {
+    const { world } = fixture();
+    world.effigyRevealedAt = revealAt;
+    world.time = revealAt + 0.999;
+    expect(bossAwakeningLevel(world)).toBeGreaterThan(0);
+    expect(effigyCameraTarget(world)).not.toBeNull();
+    world.time = revealAt + 1;
+    expect(bossAwakeningLevel(world)).toBe(0);
+    expect(effigyCameraTarget(world)).toBeNull();
+    expect(bossAwakeningAge(world)).toBe(1);
   });
 
   it('uses authoritative late-join timing without replaying a completed reveal', () => {
     const { world, reveal, frame, camera } = fixture();
     world.effigyRevealedAt = reveal;
-    world.time = reveal + 3;
+    world.time = reveal + 0.3;
     for (let i = 0; i < 75; i++) frame();
     const target = effigyCameraTarget(world)!;
     expect(camera.getWorldDirection(new Vector3()).dot(new Vector3(target.x, target.y, target.z).sub(camera.position).normalize())).toBeCloseTo(1, 8);
-    world.time = reveal + 5;
+    world.time = reveal + 1;
     expect(effigyCameraTarget(world)).toBeNull();
     frame();
+  });
+
+  it.each([1, 1.001, 3, 5])('does not relock on a late join or reconnect at reveal + %s', age => {
+    const { world, reveal, rig, frame, session } = fixture();
+    world.effigyRevealedAt = reveal;
+    world.time = reveal + age;
+    rig.resetFollow();
+    session.camera.yaw = 1.4;
+    frame();
+    expect(effigyCameraTarget(world)).toBeNull();
+    expect(session.camera.yaw).toBe(1.4);
+    expect(rig.pose.yaw).toBeCloseTo(1.4);
   });
 
   it('turns smoothly, tracks the rising target, then retains the new action heading', () => {
@@ -60,7 +85,7 @@ describe('local effigy emergence camera', () => {
     world.time = reveal - 5;
     frame();
     expect(Math.abs(rig.pose.yaw - initial)).toBeLessThan(0.01);
-    for (let i = 1; i <= 590; i++) {
+    for (let i = 1; i <= 350; i++) {
       world.time = reveal - 5 + i / 60;
       frame();
       if (i > 70) {
@@ -70,7 +95,7 @@ describe('local effigy emergence camera', () => {
     }
     const heading = session.camera.yaw;
     expect(Math.abs(heading - initial)).toBeGreaterThan(0.1);
-    world.time = reveal + 5;
+    world.time = reveal + 1;
     for (let i = 0; i < 90; i++) frame();
     expect(session.camera.yaw).toBe(heading);
     expect(rig.pose.yaw).toBeCloseTo(heading);
@@ -89,7 +114,7 @@ describe('local effigy emergence camera', () => {
     world.time = reveal;
     for (let i = 0; i < 75; i++) frame(1 / 60, blend);
     expect(rig.pose.pitch).not.toBeCloseTo(originalPitch);
-    world.time = reveal + 5;
+    world.time = reveal + 1;
     for (let i = 0; i < 90; i++) frame(1 / 60, blend);
     expect(rig.pose.pitch).toBeCloseTo(originalPitch);
     if (mode === 'command') expect(rig.pose.yaw).toBe(Math.PI);
@@ -97,7 +122,7 @@ describe('local effigy emergence camera', () => {
 
   it('focuses every local seat independently without changing avatar or simulation state', () => {
     const { world, reveal } = fixture();
-    world.time = reveal + 1;
+    world.time = reveal + 0.5;
     world.effigyRevealedAt = reveal;
     const before = [...world.avatars.values()].map(a => ({ pos: { ...a.pos }, yaw: a.yaw, pitch: a.pitch }));
     const headings: number[] = [];
@@ -111,7 +136,7 @@ describe('local effigy emergence camera', () => {
     }
     expect(new Set(headings.map(yaw => yaw.toFixed(2))).size).toBe(4);
     expect([...world.avatars.values()].map(a => ({ pos: { ...a.pos }, yaw: a.yaw, pitch: a.pitch }))).toEqual(before);
-    expect(world.time).toBe(reveal + 1);
+    expect(world.time).toBe(reveal + 0.5);
   });
 
   it('cancels on reset, end, tutorial, disabled encounter and invalid clocks', () => {

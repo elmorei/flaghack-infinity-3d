@@ -2,7 +2,7 @@
 import { bossRevealEnabled } from './effigyBurn';
 import type { World } from './world';
 
-// Camera focus and announcement retain the full emergence choreography.
+// The announcement retains its full duration; visuals and camera release share the whiteout endpoint.
 export const BOSS_AWAKENING_SECONDS = 5;
 export const BOSS_WHITEOUT_SECONDS = 1;
 export const BOSS_AWAKENING_FADE = 0.6;

@@ -291,7 +291,8 @@ describe('emergence look lock', () => {
     world.options.humans = [0];
     world.options.match = normalizeMatch({ bossMode: true, days: 0 });
     world.suddenDeath = true;
-    world.time = bossRevealTime(world.options);
+    const reveal = bossRevealTime(world.options);
+    world.time = reveal;
     const submitted: any[] = [];
     session.screen = 'playing';
     const handlers = new Controls({ session, world, submit: (command: any) => submitted.push(structuredClone(command)) } as unknown as AppApi, fixture.input.canvas) as any;
@@ -307,14 +308,21 @@ describe('emergence look lock', () => {
       expect(session.camera.yaw).toBe(yaw); expect(session.camera.pitch).toBe(pitch);
       input.endFrame();
     }
+    world.time = reveal + 0.999;
+    if (device === 'mouse') fixture.listeners.get('mousemove')!({ movementX: 70, movementY: 60 });
+    else input.pollGamepad(1 / 60, true, false);
+    handlers.look(session);
+    expect(session.camera.yaw).toBe(yaw); expect(session.camera.pitch).toBe(pitch);
+    input.endFrame();
     handlers.tick();
     expect(Math.hypot(submitted[0].input.moveX, submitted[0].input.moveZ)).toBeGreaterThan(0);
     fixture.pad.axes[2] = fixture.pad.axes[3] = 0;
-    world.time += 5;
+    world.time = reveal + 1;
     input.pollGamepad(1 / 60, true, false);
     handlers.look(session);
     expect(session.camera.yaw).toBe(yaw); expect(session.camera.pitch).toBe(pitch);
-    fixture.listeners.get('mousemove')!({ movementX: 10, movementY: 0 });
+    if (device === 'mouse') fixture.listeners.get('mousemove')!({ movementX: 10, movementY: 0 });
+    else { fixture.pad.axes[2] = 1; input.pollGamepad(1 / 60, true, false); }
     handlers.look(session);
     expect(session.camera.yaw).not.toBe(yaw);
   });
