@@ -113,8 +113,10 @@ Controller movement/buttons are cleared on blur, disconnect and screen changes. 
   head back, reaching the full gesture at 90 s. The same authoritative frame
   ends the white model charge instantly; the original material parameters and geometry
   remain unchanged. At that moment, **HE IS AWAKENED** appears on an opaque dark HUD
-  plaque and the eruption produces five seconds of intense white illumination. It holds
-  steady for 4.4 seconds, then smoothly recovers normal lighting by the five-second mark.
+  plaque for five seconds. The eruption's white illumination holds steady for 0.4 seconds,
+  then fades out smoothly over the next 0.6 seconds, ending the whiteout at one second.
+  Camera focus and the look-input lock release at that same one-second endpoint;
+  the preceding five-second rise and the five-second HUD announcement are unchanged.
   The real, depth-writing rig excludes this point light and marks its HDR alpha coverage,
   so the existing final grade preserves a dark silhouette against the white halo and
   illuminated scenery, including through bloom. No new light or post-processing pass is
