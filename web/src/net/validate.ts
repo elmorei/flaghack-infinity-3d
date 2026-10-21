@@ -40,6 +40,7 @@ const RAW_CHAT = MAX_CHAT_LENGTH * 4;
 const RAW_SEED = MAX_SEED_LENGTH * 4;
 const MAX_PASSWORD = 256;
 const MAX_TOKEN = 64;
+const MAX_BUILD_ID = 128;
 /** Entity ids and lattice indices (nodes, edges, facets) are non-negative int32. */
 const MAX_INDEX = 0x7fffffff;
 /** Above the pile of every node on the map, so a whole-Survey 'set' always fits. */
@@ -395,13 +396,14 @@ type MessageType = ClientMessage['t'];
 
 const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } = {
   hello: {
-    keys: ['t', 'protocol', 'name', 'password', 'token'],
-    parse: ({ protocol, name, password, token }) =>
+    keys: ['t', 'protocol', 'build', 'name', 'password', 'token'],
+    parse: ({ protocol, build, name, password, token }) =>
       isInt(protocol, 0) &&
+      isText(build, MAX_BUILD_ID) &&
       isText(name, RAW_NAME) &&
       isText(password, MAX_PASSWORD) &&
       (token === null || isText(token, MAX_TOKEN))
-        ? { t: 'hello', protocol, name, password, token }
+        ? { t: 'hello', protocol, build, name, password, token }
         : null,
   },
   seat: {
@@ -476,7 +478,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   const { t, protocol } = v;
   if (!isKeyOf(MESSAGES, t)) return null;
   if (t === 'hello' && isInt(protocol, 0) && protocol !== PROTOCOL_VERSION) {
-    return { t: 'hello', protocol, name: '', password: '', token: null };
+    return { t: 'hello', protocol, build: '', name: '', password: '', token: null };
+  }
+  // Explain a missing build rather than silently timing out a stale client. This sentinel can
+  // never match a real BUILD_ID; every other field still passes the normal strict validation.
+  if (t === 'hello' && exact(v, ['t', 'protocol', 'name', 'password', 'token'])) {
+    return MESSAGES.hello.parse({ ...v, build: '' });
   }
   const entry = MESSAGES[t];
   return exact(v, entry.keys) ? entry.parse(v) : null;

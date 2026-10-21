@@ -12,8 +12,10 @@ import type { Duplex } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import type { ServerOptions } from 'ws';
-import { DEFAULT_PORT, INFO_PATH, MAX_CLIENT_MESSAGE_BYTES, WS_PATH } from '../src/net/protocol';
+import { BUILD_ID } from '../src/net/build';
+import { DEFAULT_PORT, INFO_PATH, MAX_CLIENT_MESSAGE_BYTES, PROTOCOL_VERSION, WS_PATH } from '../src/net/protocol';
 import { originOf } from './auth';
+import { browserOriginPolicy } from './browserOrigin';
 import { Room } from './room';
 import { createStaticHandler, send } from './static';
 import { cleanText } from './text';
@@ -29,6 +31,8 @@ export interface HostOptions {
   serverName?: string;
   /** The built client; default web/dist. null serves no files (INFO_PATH and WS_PATH only). */
   staticDir?: string | null;
+  /** Additional trusted browser origins (e.g. https://elmorei.github.io). Exact origins, no paths or wildcards. */
+  allowedOrigins?: readonly string[];
   /** One line per event; default timestamped stdout. */
   log?: (line: string) => void;
 }
@@ -37,6 +41,7 @@ export interface RunningHost {
   /** The bound port (the real one when 0 was asked for). */
   readonly port: number;
   readonly serverName: string;
+  readonly instanceId: string;
   /** Notify every client, close every socket, stop the burn and stop listening. */
   close(): Promise<void>;
 }
@@ -48,6 +53,7 @@ const CLOSE_TIMEOUT_MS = 2000;
 const DEFAULT_STATIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 export async function startHost(opts: HostOptions): Promise<RunningHost> {
+  const originAllowed = browserOriginPolicy(opts.allowedOrigins);
   const log = opts.log ?? ((line: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${line}`));
   const serverName = cleanText(opts.serverName ?? `${hostname()}'s burn`, MAX_SERVER_NAME) || 'A FLAGHACK burn';
   const room = new Room({ serverName, password: opts.password, log });
@@ -67,9 +73,44 @@ export async function startHost(opts: HostOptions): Promise<RunningHost> {
     },
   } satisfies ServerOptions & { closeTimeout: number };
   const wss = new WebSocketServer(wsOptions);
+  // A relay may route /api/info and /ws differently. Native readiness probes verify both
+  // transports reach this running room without joining or exposing the match password.
+  wss.on('headers', (headers) => {
+    headers.push(
+      `X-Flaghack-Instance: ${room.instanceId}`,
+      `X-Flaghack-Build: ${BUILD_ID}`,
+      `X-Flaghack-Protocol: ${PROTOCOL_VERSION}`,
+    );
+  });
 
   const server = createServer((req, res) => {
     const path = pathOf(req.url);
+    if (path === INFO_PATH || path?.startsWith('/api/')) {
+      res.setHeader('Vary', 'Origin');
+      if (!originAllowed(req)) {
+        send(res, 403, 'text/plain; charset=utf-8', 'Browser origin is not allowed.\n');
+        return;
+      }
+      if (req.headers.origin) res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    }
+    if (path === INFO_PATH && req.method === 'OPTIONS') {
+      const requestedMethod = req.headers['access-control-request-method'];
+      if (requestedMethod !== undefined && requestedMethod !== 'GET' && requestedMethod !== 'HEAD') {
+        res.writeHead(405, { Allow: 'GET, HEAD, OPTIONS', 'Cache-Control': 'no-store' }).end();
+        return;
+      }
+      // Discovery is read-only and needs no custom headers or cross-origin credentials.
+      if (req.headers['access-control-request-headers']?.toString().trim()) {
+        send(res, 403, 'text/plain; charset=utf-8', 'Request headers are not allowed.\n');
+        return;
+      }
+      res.writeHead(204, {
+        Allow: 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Cache-Control': 'no-store',
+      }).end();
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' }).end();
       return;
@@ -93,6 +134,7 @@ export async function startHost(opts: HostOptions): Promise<RunningHost> {
     // Until ws owns the socket its errors are ours; unhandled they would end the process.
     socket.on('error', () => socket.destroy());
     if (pathOf(req.url) !== WS_PATH) return refuse(socket, '404 Not Found');
+    if (!originAllowed(req)) return refuse(socket, '403 Forbidden');
     const origin = originOf(req.socket.remoteAddress, req.headers['cf-connecting-ip']);
     const refusal = room.upgradeRefusal(origin);
     if (refusal === 'address') return refuse(socket, '429 Too Many Requests');
@@ -113,6 +155,7 @@ export async function startHost(opts: HostOptions): Promise<RunningHost> {
   return {
     port,
     serverName,
+    instanceId: room.instanceId,
     async close() {
       await room.shutdown('The host is shutting down. The burn is over.');
       wss.close();

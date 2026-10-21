@@ -7,8 +7,9 @@
  */
 import { createAi, type AiController } from '../ai';
 import { GameAudio } from '../audio/audio';
-import { NetClient, hostSocketUrl } from '../net/client';
-import type { NetClientHooks, TokenStore } from '../net/client';
+import { NetClient, tabTokens } from '../net/client';
+import { browserAllowsRemoteHosts, parseHostAddress, probeHost } from '../net/endpoint';
+import type { NetClientHooks } from '../net/client';
 import type { FullSnapshot } from '../net/codec';
 import { NetMirror } from '../net/mirror';
 import { AvatarPredictor } from '../net/predict';
@@ -49,17 +50,23 @@ export interface AppApi {
   /** Online: opens/closes the menu only (the host's burn keeps running). */
   setPaused(paused: boolean): void;
   submit(cmd: Command): void;
-  /** This page was served by a FLAGHACK host (multiplayer available), probed at boot; else null. */
+  /** Same-origin discovery or the last explicitly probed remote host. */
   readonly hostInfo: HostInfo | null;
-  /** A `#pw=<password>` invite link opened this page: prefill the join form with it. */
+  /** Fragment invite fields only prefill the form; they never initiate remote requests. */
   readonly invitePassword: string | null;
+  readonly inviteHost: string | null;
+  readonly joiningHost: boolean;
+  /** False in the locked offline Electron launcher, whose network policy stays unchanged. */
+  readonly remoteHostsAvailable: boolean;
+  readonly joinError: string | null;
   /**
    * Online session with the host, or null when playing locally. A session that failed (bad
    * password, host gone) stays here with status 'closed' and its error until the next joinHost.
    */
   readonly net: NetSession | null;
-  /** Open a session with the host that served this page and join with a handle + password. */
-  joinHost(name: string, password: string): void;
+  /** Explicit Join: probe, verify compatibility, then connect to this target only. */
+  joinHost(name: string, password: string, address?: string): Promise<void>;
+  cancelJoin(): void;
   /** The Training Burn while it runs, else null. */
   readonly tutorial: TutorialRun | null;
   /** Start the Training Burn (tutorial mission). */
@@ -72,6 +79,8 @@ export interface AppApi {
 export interface AppBoot {
   hostInfo: HostInfo | null;
   invitePassword: string | null;
+  inviteHost?: string | null;
+  inviteError?: string | null;
 }
 
 const MAX_STEPS_PER_FRAME = 6;
@@ -90,30 +99,6 @@ function seatNames(lobby: LobbyState): Partial<Record<FactionId, string>> {
   return out;
 }
 
-/**
- * The reclaim token lives per tab (sessionStorage): a reload keeps the seat, while a second tab
- * on the same machine joins as its own player instead of stealing the first one's seat.
- */
-function tabTokens(origin: string): TokenStore {
-  const key = `flaghack:token:${origin}`;
-  return {
-    load() {
-      try {
-        return sessionStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    },
-    save(token) {
-      try {
-        sessionStorage.setItem(key, token);
-      } catch {
-        // Storage disabled: the token still holds for this page's lifetime (reconnects work).
-      }
-    },
-  };
-}
-
 export class App implements AppApi {
   readonly session = new Session();
   world: World | null = null;
@@ -123,8 +108,12 @@ export class App implements AppApi {
   readonly controls: Controls;
   readonly ui: GameUI;
   readonly audio: GameAudio;
-  readonly hostInfo: HostInfo | null;
+  hostInfo: HostInfo | null;
   readonly invitePassword: string | null;
+  readonly inviteHost: string | null;
+  joiningHost = false;
+  joinError: string | null = null;
+  private joinAbort: AbortController | null = null;
   tutorial: TutorialDriver | null = null;
   /** Online match replica (null offline and in the lobby). */
   mirror: NetMirror | null = null;
@@ -150,6 +139,8 @@ export class App implements AppApi {
     const uiRoot = root.querySelector('#ui') as HTMLElement;
     this.hostInfo = boot.hostInfo;
     this.invitePassword = boot.invitePassword;
+    this.inviteHost = boot.inviteHost ?? null;
+    this.joinError = boot.inviteError ?? null;
     this.predictionOn = new URLSearchParams(location.search).get('predict') !== '0';
     this.renderer = new GameRenderer(canvas);
     this.controls = new Controls(this, canvas);
@@ -168,6 +159,10 @@ export class App implements AppApi {
       else this.mirror?.catchUp();
     });
     requestAnimationFrame(this.frame);
+  }
+
+  get remoteHostsAvailable(): boolean {
+    return browserAllowsRemoteHosts();
   }
 
   get net(): NetSession | null {
@@ -207,8 +202,45 @@ export class App implements AppApi {
     this.enterPlay();
   }
 
-  joinHost(name: string, password: string): void {
+  async joinHost(name: string, password: string, address = location.origin): Promise<void> {
+    if (!this.remoteHostsAvailable) {
+      this.joinError = 'This launcher runs solo games offline. Open FLAGHACK in a web browser to join a host.';
+      return;
+    }
+    // Repeated Enter/clicks must not create multiple sockets or replace a live session.
+    if (this.joiningHost || this.online || this.session.screen !== 'title') return;
     this.dropClient();
+    const abort = new AbortController();
+    this.joinAbort = abort;
+    this.joiningHost = true;
+    this.joinError = null;
+    try {
+      const parsed = parseHostAddress(address, location);
+      const info = await probeHost(parsed.endpoint, { signal: abort.signal });
+      if (this.joinAbort !== abort || abort.signal.aborted || this.session.screen !== 'title') return;
+      this.hostInfo = info;
+      this.connectHost(name, parsed.password ?? password, parsed.endpoint.socketUrl, parsed.endpoint.origin);
+    } catch (error) {
+      if (this.joinAbort === abort && !abort.signal.aborted) this.joinError = error instanceof Error ? error.message : 'Could not connect to the host.';
+    } finally {
+      if (this.joinAbort === abort) { this.joinAbort = null; this.joiningHost = false; }
+    }
+  }
+
+  /** Editing the form or leaving the title cancels both discovery and an unfinished hello. */
+  cancelJoin(): void {
+    this.joinAbort?.abort();
+    this.joinAbort = null;
+    this.joiningHost = false;
+    this.joinError = null;
+    if (this.client && (this.client.status === 'connecting' || this.client.status === 'joining' || this.client.status === 'closed')) {
+      const client = this.client;
+      this.client = null;
+      client.leave();
+    }
+  }
+
+  private connectHost(name: string, password: string, socketUrl: string, origin: string): void {
     let client: NetClient | null = null;
     // Callbacks only count for the session that is current (a replaced one may still close late).
     const mine = (): NetClient | null => (client !== null && client === this.client ? client : null);
@@ -228,17 +260,18 @@ export class App implements AppApi {
       },
     };
     client = new NetClient({
-      url: hostSocketUrl(location),
+      url: socketUrl,
       name,
       password,
       serverName: this.hostInfo?.serverName ?? 'the host',
       hooks,
-      tokens: tabTokens(location.origin),
+      tokens: tabTokens(origin),
     });
     this.client = client;
   }
 
   quitToTitle(): void {
+    this.cancelJoin();
     const client = this.client;
     if (client && client.status !== 'closed') {
       // The closed hook brings the title back.
@@ -347,6 +380,7 @@ export class App implements AppApi {
 
   /** Forget the current session without its hooks firing (a new local burn or join replaces it). */
   private dropClient(): void {
+    this.cancelJoin();
     const client = this.client;
     this.client = null;
     if (client && client.status !== 'closed') client.leave();

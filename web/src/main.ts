@@ -9,8 +9,7 @@ import '@fontsource/bungee/400.css';
 import './styles/main.css';
 import { App } from './game/app';
 import { installDebug } from './game/debug';
-import { parseHostInfo } from './net/client';
-import { INFO_PATH, PROTOCOL_VERSION } from './net/protocol';
+import { browserAllowsRemoteHosts, normalizeHostEndpoint, probeHost, takeLocationInvite } from './net/endpoint';
 import type { HostInfo } from './net/protocol';
 
 declare global {
@@ -23,47 +22,25 @@ declare global {
 /** A host answers at once; anything slower is not a FLAGHACK host worth waiting for. */
 const PROBE_TIMEOUT_MS = 1500;
 
-/** Was this page served by a FLAGHACK host speaking our protocol? (static/dev hosting: no) */
-async function probeHost(): Promise<HostInfo | null> {
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), PROBE_TIMEOUT_MS);
+/** Same-origin discovery preserves host-served pages; invite targets are never contacted here. */
+async function discoverHost(): Promise<HostInfo | null> {
+  if (!browserAllowsRemoteHosts()) return null;
   try {
-    const res = await fetch(INFO_PATH, { signal: abort.signal, cache: 'no-store' });
-    if (!res.ok) return null;
-    const info = parseHostInfo(await res.json());
-    return info && info.protocol === PROTOCOL_VERSION ? info : null;
-  } catch {
-    // Not JSON / unreachable / timed out: single-player only.
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** `#pw=<password>` from an invite link, removed from the address bar so it is not shared on. */
-function takeInvitePassword(): string | null {
-  const hash = location.hash;
-  if (!hash.startsWith('#pw=')) return null;
-  history.replaceState(history.state, '', location.pathname + location.search);
-  const raw = hash.slice('#pw='.length);
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return raw;
-  }
+    return await probeHost(normalizeHostEndpoint(location.origin, location), { timeoutMs: PROBE_TIMEOUT_MS, checkCompatibility: false });
+  } catch { return null; }
 }
 
 async function boot(): Promise<void> {
-  const invitePassword = takeInvitePassword();
+  const invite = takeLocationInvite(location, history);
   // Canvas-lettered textures (GCC banner, signage) need the fonts before first draw.
   const fonts = Promise.all(
     ['700 32px "Stardos Stencil"', '700 32px "Cinzel"', '400 32px "Bungee"', '500 16px "Rubik"'].map((f) =>
       document.fonts.load(f),
     ),
   );
-  const [hostInfo] = await Promise.all([probeHost(), fonts]);
+  const [hostInfo] = await Promise.all([discoverHost(), fonts]);
   const root = document.getElementById('app')!;
-  const app = new App(root, { hostInfo, invitePassword });
+  const app = new App(root, { hostInfo, invitePassword: invite.password, inviteHost: invite.host, inviteError: invite.error });
   window.flaghack = app;
   installDebug(app);
 }

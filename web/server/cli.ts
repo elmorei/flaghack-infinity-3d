@@ -5,6 +5,7 @@
 import { randomInt } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import { DEFAULT_PORT } from '../src/net/protocol';
+import { browserOriginPolicy } from './browserOrigin';
 
 export interface HostArgs {
   help: boolean;
@@ -12,6 +13,7 @@ export interface HostArgs {
   port: number;
   name: string | null;
   bind: string | null;
+  allowedOrigins: string[];
 }
 
 export const USAGE = `Host a FLAGHACK ∞ multiplayer burn: friends join from their browsers.
@@ -25,13 +27,17 @@ Options:
   --port <n>        HTTP + WebSocket port (default ${DEFAULT_PORT}).
   --name "<name>"   Server name shown in the lobby (default: "<hostname>'s burn").
   --bind <address>  Listen on one address only, e.g. 127.0.0.1 (default: every interface).
+  --allow-origin <origin>
+                    Allow a remote browser client, e.g. https://elmorei.github.io.
+                    Repeat for multiple origins, or set FLAGHACK_ALLOWED_ORIGINS (comma-separated).
+                    Same-origin clients always work. Paths and wildcards are not allowed.
   -h, --help        Show this help.
 `;
 
-const FLAGS = ['--password', '--port', '--name', '--bind'];
+const FLAGS = ['--password', '--port', '--name', '--bind', '--allow-origin'];
 
 export function parseArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): HostArgs {
-  const args: HostArgs = { help: false, password: null, port: DEFAULT_PORT, name: null, bind: null };
+  const args: HostArgs = { help: false, password: null, port: DEFAULT_PORT, name: null, bind: null, allowedOrigins: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '-h' || arg === '--help') {
@@ -52,12 +58,19 @@ export function parseArgs(argv: readonly string[], env: Readonly<Record<string, 
       args.port = port;
     } else if (flag === '--name') {
       args.name = value;
+    } else if (flag === '--allow-origin') {
+      args.allowedOrigins.push(value);
     } else {
       args.bind = value;
     }
   }
   const fromEnv = env.FLAGHACK_PASSWORD;
   if (args.password === null && fromEnv && fromEnv.trim()) args.password = fromEnv;
+  if (args.allowedOrigins.length === 0 && env.FLAGHACK_ALLOWED_ORIGINS) {
+    args.allowedOrigins = env.FLAGHACK_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean);
+  }
+  args.allowedOrigins = [...new Set(args.allowedOrigins)];
+  browserOriginPolicy(args.allowedOrigins);
   return args;
 }
 

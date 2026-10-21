@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   const password = args.password ?? memorablePassword();
   let host: RunningHost;
   try {
-    host = await startHost({ password, port: args.port, bind: args.bind ?? undefined, serverName: args.name ?? undefined });
+    host = await startHost({ password, port: args.port, bind: args.bind ?? undefined, serverName: args.name ?? undefined, allowedOrigins: args.allowedOrigins });
   } catch (err) {
     const code = err instanceof Error && 'code' in err ? err.code : null;
     if (code === 'EADDRINUSE') console.error(`Port ${args.port} is already in use (another host running?). Pick another with --port.`);

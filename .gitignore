@@ -15,3 +15,6 @@ web/desktop-release/
 
 web/desktop/bundled-game.json
 web/game-release/
+web/dist-host/
+web/host-release/
+web/host-desktop/vendor/

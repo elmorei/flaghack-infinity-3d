@@ -22,8 +22,8 @@ import type { GameEvent } from '../sim/events';
 import type { DeltaSnapshot, FullSnapshot } from './codec';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
-// v13: authoritative boss camp takeover and input epochs across seat/snapshot handoffs.
-export const PROTOCOL_VERSION = 13;
+// v14: Pages clients and standalone hosts must share an exact release build.
+export const PROTOCOL_VERSION = 14;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -43,7 +43,11 @@ export const SEAT_COUNT = 4;
 
 export interface HostInfo {
   serverName: string;
+  /** Random identifier of this running host, used to verify public tunnel routing. */
+  instanceId: string;
   protocol: number;
+  /** Exact browser/host release identity; prevents mismatched simulation content. */
+  build: string;
   phase: LobbyPhase;
   /** Connected players (seated + spectators). */
   players: number;
@@ -85,7 +89,7 @@ export interface LobbyState {
   match: { time: number; winner: FactionId | null } | null;
 }
 
-export type DenyReason = 'password' | 'protocol' | 'full' | 'name' | 'throttled' | 'banned';
+export type DenyReason = 'password' | 'protocol' | 'build' | 'full' | 'name' | 'throttled' | 'banned';
 
 export interface ChatLine {
   /** Sender handle, or null for a host/system line ("alice joined the burn"). */
@@ -115,7 +119,7 @@ export interface StateFrame {
 // ── Client → host ────────────────────────────────────────────────────────────
 export type ClientMessage =
   /** First message. `token` (from a previous welcome) reclaims the same player/seat. */
-  | { t: 'hello'; protocol: number; name: string; password: string; token: string | null }
+  | { t: 'hello'; protocol: number; build: string; name: string; password: string; token: string | null }
   /** Lobby/pre-boss seat selection (null = spectate). During the boss use bossTakeover instead. */
   | { t: 'seat'; seat: FactionId | null }
   /** An eliminated human claims an unreserved surviving AI camp during the actual boss encounter. */
@@ -139,7 +143,7 @@ export type ClientMessage =
 
 // ── Host → client ────────────────────────────────────────────────────────────
 export type ServerMessage =
-  | { t: 'welcome'; protocol: number; playerId: string; token: string; lobby: LobbyState }
+  | { t: 'welcome'; protocol: number; build: string; playerId: string; token: string; lobby: LobbyState }
   | { t: 'denied'; reason: DenyReason; message: string }
   | { t: 'lobby'; lobby: LobbyState }
   | { t: 'chat'; line: ChatLine }

@@ -1,0 +1,148 @@
+name: Build and publish Pages plus Windows host
+
+# Static client and trusted host runtime are always built from the SAME commit.
+# A Pages deployment cannot advertise a host download until the Windows release exists.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-host-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --maxWorkers=2
+      - run: npm run desktop:test
+      - run: npm run host-app:test
+      - run: npm run build:pages
+      - run: npm run host-app:build
+      - run: node scripts/verify-host-runtime.cjs
+      - name: Verify static assets under a project subpath
+        run: node scripts/verify-pages-build.cjs
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: web/dist
+
+  windows-host:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: web
+        shell: pwsh
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run host-app:test
+      - name: Package standalone host and pinned tunnel binary (never publishes)
+        run: npm run host-app:package
+      - name: Smoke-test packaged host runtime
+        run: node scripts/verify-host-package.cjs
+      - name: Check experimental live tunnel (bounded, no availability guarantee)
+        id: live-tunnel
+        continue-on-error: true
+        timeout-minutes: 3
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: node scripts/verify-live-tunnel.cjs
+      - name: Upload live connectivity evidence, including a provider/network failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: live-tunnel-smoke
+          path: web/host-release/live-tunnel-smoke.json
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: standalone-windows-host
+          path: |
+            web/host-release/Flaghack-Host-Windows-x64.exe
+            web/host-release/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish-host:
+    needs: [client, windows-host]
+    if: github.repository == 'elmorei/flaghack-infinity-3d' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: elmorei/flaghack-infinity-3d
+      BUILD_ID: ${{ github.sha }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: standalone-windows-host
+          path: host
+      - name: Publish immutable matching host
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_ID" =~ ^[a-f0-9]{40}$ ]]
+          (cd host && sha256sum --check SHA256SUMS.txt)
+          TAG="host-$BUILD_ID"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # A rerun may rebuild nondeterministic installer bytes. Reuse, never overwrite,
+            # the already-published checksummed artifact for this exact source commit.
+            TARGET=$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq .object.sha)
+            [[ "$TARGET" == "$BUILD_ID" ]]
+            mkdir existing
+            gh release download "$TAG" --dir existing --pattern Flaghack-Host-Windows-x64.exe --pattern SHA256SUMS.txt
+            (cd existing && sha256sum --check SHA256SUMS.txt)
+          else
+            gh release create "$TAG" host/Flaghack-Host-Windows-x64.exe host/SHA256SUMS.txt \
+              --target "$BUILD_ID" --title "Standalone Windows host (${BUILD_ID:0:8})" --prerelease \
+              --notes 'Portable Windows x64 multiplayer host for the matching GitHub Pages client. No Node.js or separate tunnel install required. Cloudflare Quick Tunnel is experimental and has no uptime guarantee. Unsigned preview: Windows may show a security warning. Source and bundled game runtime are pinned to this release commit; no automatic executable updates. Download only from this repository. Keep the host open while playing.'
+          fi
+
+  deploy-pages:
+    needs: [client, publish-host]
+    if: github.repository == 'elmorei/flaghack-infinity-3d' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        id: deployment

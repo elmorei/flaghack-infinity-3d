@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 import type { RawData } from 'ws';
+import { BUILD_ID } from '../src/net/build';
 import { MAX_CHAT_LENGTH, MAX_NAME_LENGTH, MAX_SEED_LENGTH, PROTOCOL_VERSION, SEAT_COUNT } from '../src/net/protocol';
 import type {
   ChatLine,
@@ -87,7 +88,8 @@ const DIFFICULTY_NAMES: Record<Difficulty, string> = {
 };
 
 const DENIALS: Record<Exclude<DenyReason, 'banned'>, string> = {
-  protocol: 'This page speaks another dialect of the D.E.G.E.N. mesh than the host. Reload the page to update it.',
+  protocol: 'This page speaks another dialect of the D.E.G.E.N. mesh than the host. Update the standalone host and reload the page.',
+  build: 'This page and the host are different game builds. Update the standalone host and reload the page before joining.',
   throttled: 'Too many wrong passwords from your camp. The Gaskeeper makes you wait a minute.',
   password: 'The Flags do not recognise that password.',
   name: 'Choose a handle the Flags can read (not only spaces).',
@@ -147,6 +149,8 @@ interface Player {
 
 export class Room {
   readonly serverName: string;
+  /** Public, ephemeral identity used to verify a relay reaches this exact running room. */
+  readonly instanceId = randomBytes(16).toString('hex');
   private readonly gate: PasswordGate;
   private readonly throttle = new FailureThrottle(FAILURE_LIMIT, FAILURE_WINDOW_MS);
   private readonly peerThrottle = new FailureThrottle(PEER_FAILURE_LIMIT, FAILURE_WINDOW_MS);
@@ -200,7 +204,7 @@ export class Room {
     for (const p of this.players.values()) if (p.conn) players++;
     let seated = 0;
     for (const f of FACTION_IDS) if (this.ownerOf(f)) seated++;
-    return { serverName: this.serverName, protocol: PROTOCOL_VERSION, phase: this.phase, players, seated };
+    return { serverName: this.serverName, protocol: PROTOCOL_VERSION, build: BUILD_ID, instanceId: this.instanceId, phase: this.phase, players, seated };
   }
 
   /**
@@ -302,6 +306,7 @@ export class Room {
     }
     clearTimeout(conn.helloTimer);
     if (msg.protocol !== PROTOCOL_VERSION) return this.deny(conn, 'protocol');
+    if (msg.build !== BUILD_ID) return this.deny(conn, 'build');
     const now = Date.now();
     if (this.throttle.blocked(conn.key, now) || this.peerThrottle.blocked(conn.peerKey, now)) return this.deny(conn, 'throttled');
     if (!this.gate.admits(msg.password)) {
@@ -363,7 +368,7 @@ export class Room {
     player.pendingBossSeat = null;
     if (this.leaderId === null) this.leaderId = player.id;
     this.abandonAt = 0;
-    this.send(conn, { t: 'welcome', protocol: PROTOCOL_VERSION, playerId: player.id, token: player.token, lobby: this.lobbyState() });
+    this.send(conn, { t: 'welcome', protocol: PROTOCOL_VERSION, build: BUILD_ID, playerId: player.id, token: player.token, lobby: this.lobbyState() });
     if (!returning) this.system(`${player.name} arrived at the burn.`);
     else if (!previous) this.announce(player, `${player.name} found their way back.`);
     this.log(`${player.name} ${returning ? 'rejoined' : 'joined'} from ${conn.address} (${this.connectedCount()} connected)`);

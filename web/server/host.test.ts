@@ -13,6 +13,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { gunzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { NetMirror } from '../src/net/mirror';
+import { BUILD_ID } from '../src/net/build';
 import { MAX_CLIENT_MESSAGE_BYTES, PROTOCOL_VERSION } from '../src/net/protocol';
 import { AVATAR, FACTION_DEFS } from '../src/sim/constants';
 import { canPlantAt } from '../src/sim/systems/flags';
@@ -107,7 +108,7 @@ describe('handshake', () => {
     const seen = await alice.c.next('lobby', (m) => m.lobby.players.length === 3);
     expect(seen.lobby.leaderId).toBe(alice.me.playerId);
     expect((await get(h.port, '/api/info')).body.toString()).toBe(
-      JSON.stringify({ serverName: 'Test burn', protocol: PROTOCOL_VERSION, phase: 'lobby', players: 3, seated: 3 }),
+      JSON.stringify({ serverName: 'Test burn', protocol: PROTOCOL_VERSION, build: BUILD_ID, instanceId: h.instanceId, phase: 'lobby', players: 3, seated: 3 }),
     );
   });
 
@@ -451,7 +452,7 @@ describe('http', () => {
 
       const info = await get(h.port, '/api/info');
       expect(info.headers['content-type']).toBe('application/json; charset=utf-8');
-      expect(JSON.parse(info.body.toString())).toEqual({ serverName: 'Test burn', protocol: PROTOCOL_VERSION, phase: 'lobby', players: 0, seated: 0 });
+      expect(JSON.parse(info.body.toString())).toEqual({ serverName: 'Test burn', protocol: PROTOCOL_VERSION, build: BUILD_ID, instanceId: h.instanceId, phase: 'lobby', players: 0, seated: 0 });
 
       for (const path of ['/../secret.txt', '/%2e%2e/secret.txt', '/assets/..%2f..%2f..%2fsecret.txt', '/..%5csecret.txt', '/.env', '/%00', '/assets/']) {
         const res = await get(h.port, path);

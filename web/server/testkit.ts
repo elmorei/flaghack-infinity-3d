@@ -10,6 +10,7 @@ import type { Socket } from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 import { NetMirror } from '../src/net/mirror';
+import { BUILD_ID } from '../src/net/build';
 import { PROTOCOL_VERSION } from '../src/net/protocol';
 import type { ServerMessage, StateFrame } from '../src/net/protocol';
 import { startHost } from './host';
@@ -141,8 +142,8 @@ export async function connect(h: RunningHost, opts: ClientOptions = {}): Promise
   return c;
 }
 
-export function hello(c: Client, name: string, token: string | null = null, password = PASSWORD, protocol = PROTOCOL_VERSION): void {
-  c.send({ t: 'hello', protocol, name, password, token });
+export function hello(c: Client, name: string, token: string | null = null, password = PASSWORD, protocol = PROTOCOL_VERSION, build = BUILD_ID): void {
+  c.send({ t: 'hello', protocol, build, name, password, token });
 }
 
 export async function join(h: RunningHost, name: string, token: string | null = null): Promise<{ c: Client; me: Msg<'welcome'> }> {
