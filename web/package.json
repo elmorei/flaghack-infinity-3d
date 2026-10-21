@@ -17,7 +17,12 @@
     "desktop:build": "npm run build && node desktop/build-metadata.cjs",
     "desktop:test": "node --test desktop/*.test.cjs",
     "desktop:dev": "npm run desktop:build && electron .",
-    "desktop:package": "npm run desktop:build && electron-builder --config electron-builder.cjs --win --x64 --publish never"
+    "desktop:package": "npm run desktop:build && electron-builder --config electron-builder.cjs --win --x64 --publish never",
+    "build:pages": "npm run build && node scripts/write-pages-metadata.cjs",
+    "host-app:build": "tsc --noEmit && vite build --config vite.host.config.ts",
+    "host-app:test": "node --test host-desktop/*.test.cjs scripts/*.test.cjs",
+    "host-app:dev": "npm run host-app:build && electron host-desktop/main.cjs",
+    "host-app:package": "npm run host-app:build && node scripts/fetch-cloudflared.cjs && electron-builder --config electron-host-builder.cjs --win --x64 --publish never"
   },
   "dependencies": {
     "@fontsource/bungee": "^5.3.0",

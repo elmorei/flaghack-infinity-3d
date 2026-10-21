@@ -98,7 +98,7 @@ function socket(i: number): FakeSocket {
 function inMatch() {
   const t = setup();
   socket(0).open();
-  socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
+  socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
   socket(0).receive({ t: 'matchStart', inputEpoch: 1, options: OPTIONS, seat: 2, snapshot: {} });
   return t;
 }
@@ -115,15 +115,33 @@ describe('NetClient', () => {
     const { client, calls, savedToken } = setup('old-token');
     expect(client.status).toBe('connecting');
     socket(0).open();
-    expect(socket(0).sent[0]).toEqual({ t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: 'pw', token: 'old-token' });
+    expect(socket(0).sent[0]).toEqual({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: 'pw', token: 'old-token' });
     expect(client.status).toBe('joining');
-    socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
+    socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
     expect(client.status).toBe('lobby');
     expect(client.serverName).toBe('Alchemy');
     expect(client.isLeader).toBe(true);
     expect(client.seat).toBe(2);
     expect(savedToken()).toBe('tok-1');
     expect(calls).toEqual(['lobby:lobby']);
+  });
+
+  it('rejects mismatched welcome protocol/build before saving a token or entering a lobby', () => {
+    for (const mismatch of [{ protocol: PROTOCOL_VERSION - 1, build: 'development' }, { protocol: PROTOCOL_VERSION, build: 'other-release' }, { protocol: PROTOCOL_VERSION }]) {
+      const { client, calls, savedToken } = setup('old-token');
+      socket(0).open();
+      socket(0).receive({ t: 'welcome', ...mismatch, playerId: 'p1', token: 'new-token', lobby: lobby('lobby') });
+      expect(client.status).toBe('closed'); expect(client.error).toMatch(/different/);
+      expect(savedToken()).toBe('old-token'); expect(calls).toHaveLength(1); expect(calls[0]).toMatch(/^closed:/);
+    }
+  });
+
+  it('times out a silent WebSocket handshake, and cancellation prevents a late welcome', () => {
+    const { client } = setup();
+    socket(0).open(); vi.advanceTimersByTime(10_000);
+    expect(client.status).toBe('closed'); expect(client.error).toMatch(/WebSocket/);
+    socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'late', lobby: lobby('lobby') });
+    expect(client.status).toBe('closed'); expect(client.playerId).toBeNull();
   });
 
   it('rides out a drop mid-match: backoff, hello with the token, no lobby flash', () => {
@@ -144,7 +162,7 @@ describe('NetClient', () => {
     vi.advanceTimersByTime(1);
     socket(2).open();
     expect(socket(2).sent[0]).toMatchObject({ t: 'hello', token: 'tok-1' });
-    socket(2).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, playerId: 'p1', token: 'tok-1', lobby: lobby('playing') });
+    socket(2).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('playing') });
     expect(client.reconnecting).toBe(false);
     expect(client.status).toBe('match');
     socket(2).receive({ t: 'matchStart', inputEpoch: 1, options: OPTIONS, seat: 2, snapshot: {} });
@@ -248,7 +266,7 @@ describe('NetClient', () => {
     expect(client.pendingBossTakeover).toBeNull();
     vi.advanceTimersByTime(500);
     socket(1).open();
-    socket(1).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, playerId: 'p1', token: 'tok-1', lobby: lobby('playing', 3) });
+    socket(1).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('playing', 3) });
     const input = { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: 0, pitch: 0 };
     client.sendInput(42, input, []);
     expect(socket(1).sent).toHaveLength(1);

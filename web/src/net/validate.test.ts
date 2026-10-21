@@ -185,8 +185,8 @@ describe('parseClientMessage', () => {
     }
   });
   const VALID_MESSAGES: ClientMessage[] = [
-    { t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: 'saffron-pentacle-42', token: null },
-    { t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: '', token: 'ab12' },
+    { t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: 'saffron-pentacle-42', token: null },
+    { t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: '', token: 'ab12' },
     { t: 'seat', seat: 2 },
     { t: 'seat', seat: null },
     { t: 'bossTakeover', seat: 3 },
@@ -214,9 +214,9 @@ describe('parseClientMessage', () => {
     ['unknown type', '{"t":"teleport"}'],
     ['inherited name as type', '{"t":"hasOwnProperty"}'],
     ['extra key', '{"t":"start","now":true}'],
-    ['hello without token', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, name: 'a', password: 'b' })],
-    ['hello token as number', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, name: 'a', password: 'b', token: 5 })],
-    ['hello name too long', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, name: 'n'.repeat(MAX_NAME_LENGTH * 4 + 1), password: 'b', token: null })],
+    ['hello without token', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'a', password: 'b' })],
+    ['hello token as number', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'a', password: 'b', token: 5 })],
+    ['hello name too long', JSON.stringify({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'n'.repeat(MAX_NAME_LENGTH * 4 + 1), password: 'b', token: null })],
     ['hello fractional protocol', JSON.stringify({ t: 'hello', protocol: 1.5, name: 'a', password: 'b', token: null })],
     ['seat out of range', '{"t":"seat","seat":4}'],
     ['seat as string', '{"t":"seat","seat":"1"}'],
@@ -251,10 +251,19 @@ describe('parseClientMessage', () => {
     expect(parseClientMessage(input(cmds))).not.toBeNull();
   });
 
+  it('bounds the build identifier and preserves a missing-build sentinel for explanatory denial', () => {
+    const hello = { t: 'hello', protocol: PROTOCOL_VERSION, name: 'alice', password: 'pw', token: null };
+    expect(parseClientMessage(JSON.stringify(hello))).toEqual({ ...hello, build: '' });
+    expect(parseClientMessage(JSON.stringify({ ...hello, build: 123 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ ...hello, build: 'x'.repeat(129) }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ ...hello, build: 'x'.repeat(128) }))).not.toBeNull();
+  });
+
   it('answers a hello from another protocol version whatever its shape, so the host can explain', () => {
     expect(parseClientMessage('{"t":"hello","protocol":0,"nick":"old client"}')).toEqual({
       t: 'hello',
       protocol: 0,
+      build: '',
       name: '',
       password: '',
       token: null,

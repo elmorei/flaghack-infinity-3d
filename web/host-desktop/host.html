@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+  <title>FLAGHACK Match Host</title>
+  <link rel="stylesheet" href="host.css">
+  <script src="host.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">FLAGHACK ∞ / MATCH HOST</p><h1>Your match. Their browsers.</h1></div><span id="badge" class="badge">OFFLINE</span></header>
+    <p class="intro">Keep this app running. Friends play on the Pages site using your private invite. No game window or router setup required.</p>
+    <section class="card" aria-labelledby="setup-heading">
+      <h2 id="setup-heading">Host a match</h2>
+      <form id="setup">
+        <fieldset id="settings">
+          <label>Host name<input id="name" maxlength="48" required autocomplete="off" value="My FLAGHACK match"></label>
+          <label>Connection<select id="mode"><option value="quick">Cloudflare Quick Tunnel (experimental)</option><option value="existing">Use my existing HTTPS endpoint</option></select></label>
+          <p id="quick-note" class="notice">Free, temporary tunnel with no uptime guarantee. Its address changes each session. Traffic passes through Cloudflare; only share invites with people you trust.</p>
+          <div id="existing-fields" hidden><label>Public HTTPS origin<input id="endpoint" type="url" placeholder="https://match.example.com" autocomplete="off"></label><p class="hint">First forward this endpoint to the loopback address below. It must support HTTPS and secure WebSockets. We verify it reaches this exact match.</p></div>
+          <details><summary>Advanced settings</summary><div class="advanced"><label>Local port<input id="port" type="number" min="1024" max="65535" value="8787" required></label><label>Pages game URL<input id="pages" type="url" required value="https://elmorei.github.io/flaghack-infinity-3d/" autocomplete="off"></label></div></details>
+        </fieldset>
+        <p id="local-target" class="hint">Local forwarding target: http://127.0.0.1:8787</p>
+        <div class="actions"><button id="start" type="submit" class="primary">Start hosting</button><button id="stop" type="button" disabled>Stop match</button><span id="status" role="status" aria-live="polite">Ready to host</span></div>
+      </form>
+      <p id="error" class="error" role="alert" hidden></p>
+    </section>
+    <section id="online" class="card" aria-labelledby="invite-heading" hidden>
+      <div class="section-title"><h2 id="invite-heading">Invite friends</h2><span id="phase" class="badge">LOBBY</span></div>
+      <p><strong id="players">0</strong> connected · <strong id="seated">0</strong> seated</p>
+      <label>Public host<input id="public-origin" readonly></label>
+      <div class="actions"><button id="copy" type="button" class="primary">Copy invite</button><button id="open" type="button">Open game in browser</button><span id="feedback" role="status"></span></div>
+      <details><summary>Room password</summary><p class="hint">The invite already includes this strong, automatically generated password. A new match creates a new password.</p><div class="password"><input id="password" type="password" readonly aria-label="Room password"><button id="reveal" type="button">Show</button><button id="copy-password" type="button">Copy password</button></div></details>
+      <p class="hint">The first player to join leads the lobby and starts the game. Closing this app disconnects everyone.</p>
+    </section>
+    <section class="card compact"><details><summary>Diagnostics</summary><p id="build" class="hint">Matching host and Pages builds are required. If the game reports a mismatch, download the latest host app and reload the page.</p><pre id="logs" aria-label="Sanitized host logs">No events yet.</pre></details></section>
+    <footer>Standalone match server · <span id="version"></span> · No automatic host updates</footer>
+  </main>
+</body>
+</html>

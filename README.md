@@ -17,6 +17,13 @@ This iteration adds camp toggles, 0–5 days or Unlimited, advanced match settin
 
 ## Play
 
+Play the [browser version](https://elmorei.github.io/flaghack-infinity-3d/) without installing anything.
+For multiplayer, one player downloads the separate Windows host from the game page and shares an invite.
+See the [Pages and standalone host guide](docs/pages-and-host.md), including experimental tunnel limitations.
+The existing offline launcher remains a separate option.
+
+### Develop locally
+
 ```sh
 cd web
 npm install
@@ -61,7 +68,14 @@ Up to four vexillomancers share one burn, more can watch, and NPCs take the empt
 machine hosts: it runs the only simulation and serves the game. Everyone else plays in a
 browser; nobody else installs anything.
 
-### Quick start
+### Standalone Windows host
+
+The browser game’s **Download Windows host** link provides a matching portable host app.
+Start a match, wait for the experimental public tunnel to be verified, then copy its invite.
+Friends play in their browsers; the host computer keeps the authoritative match running.
+See [full setup, privacy, compatibility and troubleshooting](docs/pages-and-host.md).
+
+### Developer CLI quick start
 
 From the repo root:
 

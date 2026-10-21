@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { execFileSync } from 'node:child_process';
 
 /**
  * `npm run dev` pages reach a local `npm run host` through the dev server's own origin. Same values
@@ -7,7 +8,12 @@ import { defineConfig } from 'vitest/config';
  */
 const LOCAL_HOST = 'http://127.0.0.1:8787';
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(({ isSsrBuild, mode }) => ({
+  // Relative asset URLs work both at a Pages project path and inside the offline launcher.
+  base: './',
+  define: {
+    __FLAGHACK_BUILD_ID__: JSON.stringify(mode === 'test' ? 'development' : buildId()),
+  },
   server: {
     port: 5173,
     host: '127.0.0.1',
@@ -27,3 +33,9 @@ export default defineConfig(({ isSsrBuild }) => ({
     testTimeout: 120_000,
   },
 }));
+
+function buildId(): string {
+  const value = process.env.FLAGHACK_BUILD_ID ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  if (!/^[a-f0-9]{40}$/.test(value)) throw new Error('FLAGHACK_BUILD_ID must be the full source commit SHA');
+  return value;
+}

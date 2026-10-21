@@ -5,10 +5,11 @@
  * backoff when the transmission drops mid-burn.
  * Owner: Controls (NetClient role).
  */
+import { BUILD_ID } from './build';
 import type { Command } from '../sim/commands';
 import type { AvatarInput, FactionId, MatchOptions } from '../sim/types';
 import type { FullSnapshot } from './codec';
-import { MAX_CHAT_LENGTH, MAX_NAME_LENGTH, PROTOCOL_VERSION, WS_PATH } from './protocol';
+import { MAX_CHAT_LENGTH, MAX_NAME_LENGTH, PROTOCOL_VERSION, SEAT_COUNT, WS_PATH } from './protocol';
 import type { ChatLine, ClientMessage, DenyReason, HostInfo, LobbySettings, LobbyState, ServerMessage, StateFrame } from './protocol';
 import type { NetSession, NetStatus } from './session';
 
@@ -60,7 +61,8 @@ const CLOSE_POLICY = 1008;
 
 const DENY_TEXT: Record<DenyReason, string> = {
   password: 'The password was wrong. The Gate of Flagistan stays shut.',
-  protocol: 'This page speaks an older dialect of the Survey. Reload it to join.',
+  protocol: 'The page and host use different multiplayer versions. Reload this page and update the hosting app to the same release.',
+  build: 'The page and host use different game builds. Reload this page and update the hosting app to the same release.',
   full: 'This burn is full.',
   name: 'That handle cannot be borne here. Choose another.',
   throttled: 'Too many wrong passwords. Wait a little before trying again.',
@@ -70,6 +72,7 @@ const DENY_TEXT: Record<DenyReason, string> = {
 const TRANSIENT_DENY: Record<DenyReason, boolean> = {
   password: false,
   protocol: false,
+  build: false,
   full: true,
   name: false,
   throttled: true,
@@ -105,18 +108,36 @@ function parseServerMessage(raw: string): ServerMessage | null {
 
 /** INFO_PATH answer, or null when the reply is not a FLAGHACK host's. */
 export function parseHostInfo(v: unknown): HostInfo | null {
-  if (typeof v !== 'object' || v === null) return null;
-  if (!('serverName' in v) || typeof v.serverName !== 'string') return null;
-  if (!('protocol' in v) || typeof v.protocol !== 'number') return null;
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return null;
+  if (!('serverName' in v) || typeof v.serverName !== 'string' || v.serverName.length > 256) return null;
+  if ('instanceId' in v && (typeof v.instanceId !== 'string' || v.instanceId.length > 128)) return null;
+  if (!('protocol' in v) || !Number.isInteger(v.protocol)) return null;
+  if ('build' in v && (typeof v.build !== 'string' || v.build.length > 128)) return null;
   if (!('phase' in v) || (v.phase !== 'lobby' && v.phase !== 'playing' && v.phase !== 'ended')) return null;
-  if (!('players' in v) || typeof v.players !== 'number') return null;
-  if (!('seated' in v) || typeof v.seated !== 'number') return null;
-  return { serverName: v.serverName, protocol: v.protocol, phase: v.phase, players: v.players, seated: v.seated };
+  if (!('players' in v) || typeof v.players !== 'number' || !Number.isInteger(v.players) || v.players < 0) return null;
+  if (!('seated' in v) || typeof v.seated !== 'number' || !Number.isInteger(v.seated) || v.seated < 0 || v.seated > SEAT_COUNT) return null;
+  return { serverName: v.serverName, instanceId: 'instanceId' in v ? v.instanceId as string : '', protocol: v.protocol as number, build: 'build' in v ? v.build as string : '', phase: v.phase, players: v.players, seated: v.seated };
 }
 
 /** The host's WebSocket on the origin that served this page (wss behind an https tunnel). */
 export function hostSocketUrl(loc: { protocol: string; host: string }): string {
   return `${loc.protocol === 'https:' ? 'wss' : 'ws'}://${loc.host}${WS_PATH}`;
+}
+
+/** Exact release matching protects deterministic world reconstruction and prediction. */
+export function hostCompatibilityError(info: { protocol: number; build?: string }, build = BUILD_ID): string | null {
+  if (info.protocol !== PROTOCOL_VERSION) return DENY_TEXT.protocol;
+  if (info.build !== build) return DENY_TEXT.build;
+  return null;
+}
+
+/** A token can only be reclaimed at its original host, not every host visited from Pages. */
+export function tabTokens(origin: string, storage?: Pick<Storage, 'getItem' | 'setItem'>): TokenStore {
+  const key = `flaghack:token:${origin}`;
+  return {
+    load() { try { return (storage ?? sessionStorage).getItem(key); } catch { return null; } },
+    save(token) { try { (storage ?? sessionStorage).setItem(key, token); } catch { /* Reconnect still works in memory. */ } },
+  };
 }
 
 export class NetClient implements NetSession {
@@ -154,6 +175,7 @@ export class NetClient implements NetSession {
   /** Bumped per scheduled reconnect; a stale timer finds a newer number and does nothing. */
   private attempt = 0;
   private pingId = 0;
+  private handshakeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: NetClientOptions) {
     this.url = opts.url;
@@ -245,9 +267,15 @@ export class NetClient implements NetSession {
       return;
     }
     this.ws = ws;
+    this.handshakeTimer = setTimeout(() => {
+      if (this.ws !== ws || this.finished) return;
+      this.ws = null;
+      if (ws.readyState <= OPEN) ws.close(1000);
+      this.socketClosed(0);
+    }, 10_000);
     ws.onopen = () => {
       if (this.ws !== ws) return;
-      this.send({ t: 'hello', protocol: PROTOCOL_VERSION, name: this.name, password: this.password, token: this.token });
+      this.send({ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, name: this.name, password: this.password, token: this.token });
       if (!this.reconnecting) {
         this.status = 'joining';
         this.changed();
@@ -267,7 +295,10 @@ export class NetClient implements NetSession {
 
   private receive(msg: ServerMessage): void {
     switch (msg.t) {
-      case 'welcome':
+      case 'welcome': {
+        const mismatch = hostCompatibilityError(msg);
+        if (mismatch) return this.finish(mismatch);
+        this.clearHandshakeTimer();
         this.playerId = msg.playerId;
         this.token = msg.token;
         this.tokens.save(msg.token);
@@ -288,6 +319,7 @@ export class NetClient implements NetSession {
         this.changed();
         this.hooks.lobby(msg.lobby);
         return;
+      }
       case 'denied':
         if (this.reconnecting && TRANSIENT_DENY[msg.reason]) {
           this.retryAfterDeny = true;
@@ -351,6 +383,7 @@ export class NetClient implements NetSession {
   }
 
   private socketClosed(code: number): void {
+    this.clearHandshakeTimer();
     if (this.finished) return;
     this.inputEpoch = null;
     this.pendingBossTakeover = null;
@@ -360,7 +393,7 @@ export class NetClient implements NetSession {
     if (code === CLOSE_POLICY) return this.finish('The host closed the connection.');
     if (code === CLOSE_DENIED && !this.retryAfterDeny) return this.finish('The host refused the connection.');
     // Never got in: a wrong address or a host that is down. Nothing to reclaim, so no retry.
-    if (!this.welcomed) return this.finish('Could not reach the host.');
+    if (!this.welcomed) return this.finish('Could not connect to the host’s WebSocket. Check its HTTPS tunnel, allowed browser origin and that the host is running.');
     const now = performance.now();
     if (!this.reconnecting) {
       this.reconnecting = true;
@@ -386,9 +419,15 @@ export class NetClient implements NetSession {
     }, PING_INTERVAL_MS);
   }
 
+  private clearHandshakeTimer(): void {
+    if (this.handshakeTimer !== null) clearTimeout(this.handshakeTimer);
+    this.handshakeTimer = null;
+  }
+
   private finish(error: string | null): void {
     if (this.finished) return;
     this.finished = true;
+    this.clearHandshakeTimer();
     this.attempt++;
     const ws = this.ws;
     this.ws = null;
