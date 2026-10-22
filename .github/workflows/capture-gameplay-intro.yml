@@ -1,0 +1,43 @@
+name: Capture temporary gameplay intro
+on:
+  push:
+    branches: [capture/gameplay-intro-20261022]
+    paths:
+      - '.github/workflows/capture-gameplay-intro.yml'
+      - 'web/bench/capture-gameplay-intro.mjs'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg xvfb libgl1-mesa-dri mesa-utils
+      - name: Record staged actual gameplay with sandbox enabled
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          CAPTURE_BASE_SHA: '2938df043f50bb798362e3e6b04e63009cb9767b'
+        run: xvfb-run -a -s '-screen 0 1280x720x24' node bench/capture-gameplay-intro.mjs
+      - name: Upload video and capture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flaghack-gameplay-intro
+          path: web/montage-output/
+          if-no-files-found: error
+          retention-days: 7
