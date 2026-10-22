@@ -24,7 +24,7 @@ await new Promise(r=>server.listen(4175,'127.0.0.1',r));
 let browser;
 const errors=[];
 try {
-  browser=await chromium.launch({headless:false,chromiumSandbox:true,args:['--use-gl=angle','--use-angle=gl']});
+  browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:['--use-gl=angle','--use-angle=gl']});
   const context=await browser.newContext({viewport:{width:1280,height:720},deviceScaleFactor:1});
   const page=await context.newPage();
   page.on('pageerror',e=>{errors.push(String(e));console.error('PAGE ERROR:',e);});

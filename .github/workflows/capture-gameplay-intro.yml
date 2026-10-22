@@ -7,6 +7,9 @@ on:
       - 'web/bench/capture-gameplay-intro.mjs'
 permissions:
   contents: read
+concurrency:
+  group: capture-gameplay-intro-20261022
+  cancel-in-progress: true
 jobs:
   capture:
     runs-on: ubuntu-24.04
@@ -26,8 +29,12 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm install --no-save --package-lock=false playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
-      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg xvfb libgl1-mesa-dri mesa-utils
+      - name: Use preinstalled browser and install encoder only
+        timeout-minutes: 4
+        run: |
+          google-chrome --version
+          command -v xvfb-run
+          command -v ffmpeg || sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
       - name: Record staged actual gameplay with sandbox enabled
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
