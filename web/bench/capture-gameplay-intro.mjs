@@ -10,12 +10,14 @@ import { execFileSync } from 'node:child_process';
 const out=resolve('montage-output'), frames=resolve('montage-frames');
 await mkdir(out,{recursive:true}); await mkdir(frames,{recursive:true});
 const root=resolve('dist');
+let initScript='';
 const server=createServer(async(req,res)=>{
   try {
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
     const file=resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
     if(!file.startsWith(root+'/'))throw Error('Not found');
-    const data=await readFile(file);
+    let data=await readFile(file);
+    if(process.env.CAPTURE_BROWSER==='firefox'&&extname(file)==='.html')data=Buffer.from(data.toString().replace('<head>',`<head><script>${initScript}</script>`));
     const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.woff':'font/woff','.woff2':'font/woff2'};
     res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data);
   } catch {res.writeHead(404);res.end('Not found');}
@@ -24,9 +26,31 @@ await new Promise(r=>server.listen(4175,'127.0.0.1',r));
 let browser;
 const errors=[];
 try {
-  browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
-  const context=await browser.newContext({viewport:{width:1280,height:720},deviceScaleFactor:1});
-  const page=await context.newPage();
+  let page;
+  if(process.env.CAPTURE_BROWSER==='firefox'){
+    const {Builder}=await import('selenium-webdriver');
+    const firefox=(await import('selenium-webdriver/firefox.js')).default;
+    const driver=await new Builder().forBrowser('firefox').setFirefoxOptions(new firefox.Options().setAcceptInsecureCerts(false)).build();
+    browser={close:()=>driver.quit()};
+    await driver.manage().setTimeouts({script:120000,pageLoad:120000});
+    await driver.manage().window().setRect({width:1280,height:850});
+    const dims=await driver.executeScript('return {dw:outerWidth-innerWidth,dh:outerHeight-innerHeight}');
+    await driver.manage().window().setRect({width:1280+dims.dw,height:720+dims.dh});
+    page={
+      async evaluate(fn,arg){
+        const r=await driver.executeAsyncScript(`const done=arguments[arguments.length-1];Promise.resolve((${fn.toString()})(arguments[0])).then(result=>done({ok:true,result:result??null}),e=>done({ok:false,error:String(e)+'\\n'+e.stack}));`,arg??null);
+        if(!r.ok)throw Error(r.error);return r.result;
+      },
+      async addInitScript(fn){initScript=`(${fn.toString()})();window.capturePageErrors=[];window.addEventListener('error',e=>window.capturePageErrors.push(e.message));`;},
+      async goto(url){await driver.get(url);},
+      async waitForFunction(fn,_arg,{timeout}){await driver.wait(()=>page.evaluate(fn),timeout,undefined,100);},
+      on(){}
+    };
+  } else {
+    browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
+    const context=await browser.newContext({viewport:{width:1280,height:720},deviceScaleFactor:1});
+    page=await context.newPage();
+  }
   const preflight=await page.evaluate(()=>{const c=document.createElement('canvas');const gl=c.getContext('webgl2');if(!gl)return null;const e=gl.getExtension('WEBGL_debug_renderer_info');return e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);});
   console.log('WEBGL PREFLIGHT',preflight);
   if(!preflight)throw Error('Default browser WebGL2 is unavailable; no override of graphics security applied');
@@ -116,6 +140,7 @@ try {
   execFileSync('ffmpeg',['-hide_banner','-loglevel','warning','-y','-framerate','30','-start_number','0','-i',resolve(frames,'%04d.jpg'),'-vf','fade=t=in:st=0:d=0.35,fade=t=out:st=29.55:d=0.45,format=yuv420p','-frames:v','900','-c:v','libx264','-preset','medium','-crf','23','-movflags','+faststart','-an',video],{stdio:'inherit'});
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-show_streams','-of','json',video],{encoding:'utf8'}));
   execFileSync('ffmpeg',['-v','error','-i',video,'-f','null','-'],{stdio:'inherit'});
+  errors.push(...await page.evaluate(()=>window.capturePageErrors||[]));
   const info={baseSource:process.env.CAPTURE_BASE_SHA,captureCommit:process.env.GITHUB_SHA,provenance:'Staged actual gameplay captured from the unmodified production game simulation and WebGL renderer; offline test controls and cinematic camera framing. 900 fixed-timestep frames at30fps.',audio:'Muted; no invented music or external audio.',gpu,scenes,errors,probe};
   await writeFile(resolve(out,'capture-provenance.json'),JSON.stringify(info,null,2));
   console.log('COMPLETE',JSON.stringify({size:(await stat(video)).size,duration:probe.format.duration,width:probe.streams[0].width,height:probe.streams[0].height}));
