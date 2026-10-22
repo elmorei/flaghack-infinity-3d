@@ -24,9 +24,12 @@ await new Promise(r=>server.listen(4175,'127.0.0.1',r));
 let browser;
 const errors=[];
 try {
-  browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:['--use-gl=angle','--use-angle=gl']});
+  browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
   const context=await browser.newContext({viewport:{width:1280,height:720},deviceScaleFactor:1});
   const page=await context.newPage();
+  const preflight=await page.evaluate(()=>{const c=document.createElement('canvas');const gl=c.getContext('webgl2');if(!gl)return null;const e=gl.getExtension('WEBGL_debug_renderer_info');return e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);});
+  console.log('WEBGL PREFLIGHT',preflight);
+  if(!preflight)throw Error('Default browser WebGL2 is unavailable; no override of graphics security applied');
   page.on('pageerror',e=>{errors.push(String(e));console.error('PAGE ERROR:',e);});
   page.on('console',m=>{if(m.type()==='error')console.error('BROWSER:',m.text());});
   // Prevent only the app's automatic frame scheduling so each recorded frame advances

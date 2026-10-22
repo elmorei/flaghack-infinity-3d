@@ -12,7 +12,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   capture:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     defaults:
       run:
@@ -32,19 +36,28 @@ jobs:
       - name: Use preinstalled browser and install encoder only
         timeout-minutes: 4
         run: |
-          google-chrome --version
-          command -v xvfb-run
-          command -v ffmpeg || sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --version
+            command -v ffmpeg || HOMEBREW_NO_AUTO_UPDATE=1 brew install ffmpeg
+          else
+            google-chrome --version
+            command -v xvfb-run
+            command -v ffmpeg || sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
+          fi
       - name: Record staged actual gameplay with sandbox enabled
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
           CAPTURE_BASE_SHA: '2938df043f50bb798362e3e6b04e63009cb9767b'
-        run: xvfb-run -a -s '-screen 0 1280x720x24' node bench/capture-gameplay-intro.mjs
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            node bench/capture-gameplay-intro.mjs
+          else
+            xvfb-run -a -s '-screen 0 1280x720x24' node bench/capture-gameplay-intro.mjs
+          fi
       - name: Upload video and capture evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: flaghack-gameplay-intro
+          name: flaghack-gameplay-intro-${{ matrix.os }}
           path: web/montage-output/
           if-no-files-found: error
           retention-days: 7
