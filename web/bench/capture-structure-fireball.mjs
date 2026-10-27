@@ -22,8 +22,11 @@ try {
     const { groundHeight } = await import('/src/sim/terrain.ts');
     const app = window.flaghack;
     app.session.settings.masterVolume = 0;
+    // Offline capture has no audio clock: keep stage-light beat continuous and positive.
+    window.captureBeat = 0;
+    app.renderer.beatSource = () => window.captureBeat;
     app.startMatch({ seed: 'fireball-proof', difficulty: 'normal', match: { days: 0, bossMode: true, maxSignifiers: 0 } });
-    window.fh.advance(90.15);
+    window.fh.advance(100);
     const w = app.world;
     if (!w.boss) throw Error('Expected actual boss simulation');
     const prop = w.map.obstacles.find(p => p.kind === 'dome' && !w.destroyedScenery.has(p.id));
@@ -34,9 +37,14 @@ try {
     camera.position.set(prop.x + 20, y + 11, prop.z + 25);
     camera.lookAt(prop.x, y + 3.5, prop.z); camera.updateMatrixWorld();
     app.renderer.render(0);
+    // Wait for asynchronous shader compilation before taking the first proof frame.
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    app.renderer.render(0);
+    await new Promise(resolve => setTimeout(resolve, 500));
     window.fireballFrame = i => {
       // Keep a steady camera and deterministic presentation clock for comparing frames.
       w.time += 1 / 30;
+      window.captureBeat += 1 / 15;
       if (i === 30) {
         blastBossEye(w, w.boss, { x: prop.x, y: y + .5, z: prop.z });
         if (!w.destroyedScenery.has(prop.id)) throw Error('Boss blast failed to remove target');
