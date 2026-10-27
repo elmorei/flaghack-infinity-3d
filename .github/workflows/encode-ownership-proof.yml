@@ -1,0 +1,33 @@
+name: Encode captured ownership proof
+on:
+  push:
+    branches: [capture/structure-ownership-20261027]
+    paths: ['.github/workflows/encode-ownership-proof.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  encode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: flaghack-structure-ownership
+          run-id: 40570631344
+          github-token: ${{ github.token }}
+          path: frames
+      - run: command -v ffmpeg || sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Encode existing actual gameplay frames without rerendering
+        run: |
+          mkdir encoded
+          ffmpeg -v error -framerate 30 -i frames/%04d.png -frames:v 360 -c:v libx264 -pix_fmt yuv420p -crf 21 -movflags +faststart encoded/structure-capture.mp4
+          ffmpeg -v error -i encoded/structure-capture.mp4 -f null -
+          ffprobe -v error -show_streams -show_format -of json encoded/structure-capture.mp4 > encoded/probe.json
+          cp frames/0000.png frames/0100.png frames/0179.png frames/0180.png frames/0280.png frames/0359.png encoded/
+          printf '%s\n' 'Actual production renderer frames from run40570631344. Both ownership completion assertions passed. Original job stopped before encoding due one HTTP502resource console message; URL unrecorded. This encoding job does not assert a clean browser run.' > encoded/provenance.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: structure-ownership-encoded
+          path: encoded/
+          retention-days: 7
