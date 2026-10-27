@@ -64,9 +64,12 @@ async function main() {
     args: [], // Stock macOS Chrome uses its supported native Metal backend.
   });
   const results = { checks: [], requests, completed: false };
+  const pageErrors = [];
+  const trackErrors = page => page.on('pageerror', error => pageErrors.push(error.message));
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const makePlaybackPage = async (context) => {
     const page = await context.newPage();
+    trackErrors(page);
     await page.addInitScript(() => {
       window.__introMedia = { plays: 0, srcChanges: 0 };
       new MutationObserver((records) => {
@@ -83,8 +86,6 @@ async function main() {
     return page;
   };
   const page = await makePlaybackPage(context);
-  const pageErrors = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
   const check = (label) => { results.checks.push(label); console.log(`PASS ${label}`); };
   const mediaRequests = () => requests.filter((path) => path.endsWith('.mp4')).length;
   const ready = () => page.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
@@ -136,7 +137,12 @@ async function main() {
     const cdp = await context.newCDPSession(page);
     await cdp.send('Network.clearBrowserCache');
     await page.reload({ waitUntil: 'domcontentloaded' }); await ready();
-    assert.equal((await readState()).cache, 'miss'); assert.ok(mediaRequests() > beforeWarm);
+    assert.equal((await readState()).cache, 'miss');
+    // Chrome may retain decoded/media-cache bytes after clearing its HTTP asset cache.
+    // Cold-path behavior means replaying the video, not necessarily another network transfer.
+    await page.waitForFunction(() => window.__introMedia.plays > 0 &&
+      !!document.querySelector('video')?.getAttribute('src') && document.querySelector('video').currentTime > 0.1);
+    assert.ok((await page.evaluate(() => window.__introMedia.srcChanges)) > 0);
     await leave(); check('clearing HTTP cache replays intro even with visit metadata retained');
 
     await page.evaluate((prefix) => {
@@ -145,6 +151,7 @@ async function main() {
     }, CACHE_PREFIX);
     await page.reload({ waitUntil: 'domcontentloaded' }); await ready();
     assert.equal((await readState()).cache, 'miss'); check('different source build cannot use the previous warm marker');
+    await page.waitForFunction(() => { const video = document.querySelector('video'); return video && Number.isFinite(video.duration) && video.duration > 0 && video.currentTime > 0.1; });
     await page.evaluate(() => {
       const video = document.querySelector('video'); video.loop = false; video.currentTime = Math.max(0, video.duration - 0.25);
     });
@@ -164,7 +171,7 @@ async function main() {
     check('one uncached required title asset prevents false warm bypass while other assets are cached');
 
     holdGame = true;
-    const slowContext = await browser.newContext(); const slow = await slowContext.newPage();
+    const slowContext = await browser.newContext(); const slow = await slowContext.newPage(); trackErrors(slow);
     await slow.goto(url, { waitUntil: 'domcontentloaded' });
     await slow.waitForFunction(() => document.querySelector('video')?.readyState >= 2);
     await slow.evaluate(() => {
@@ -181,7 +188,7 @@ async function main() {
     await slowContext.close(); check('video ending before readiness retains its last frame and Loading until game readiness');
 
     const autoplayContext = await browser.newContext();
-    const autoplay = await autoplayContext.newPage();
+    const autoplay = await autoplayContext.newPage(); trackErrors(autoplay);
     await autoplay.addInitScript(() => { HTMLMediaElement.prototype.play = function () { return Promise.reject(new Error('Test: autoplay blocked')); }; });
     await autoplay.goto(url, { waitUntil: 'domcontentloaded' });
     await autoplay.locator('#startup').waitFor({ state: 'detached', timeout: 180_000 });
@@ -189,7 +196,7 @@ async function main() {
     await autoplayContext.close(); check('blocked autoplay cannot block game startup');
 
     failMedia = true;
-    const missingContext = await browser.newContext(); const missing = await missingContext.newPage();
+    const missingContext = await browser.newContext(); const missing = await missingContext.newPage(); trackErrors(missing);
     await missing.goto(url, { waitUntil: 'domcontentloaded' });
     await missing.locator('#startup').waitFor({ state: 'detached', timeout: 180_000 });
     assert.equal(await missing.evaluate(() => window.flaghack.startupPending), false);
