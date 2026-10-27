@@ -13,8 +13,9 @@ import {
 } from '../constants';
 import type { Severity } from '../events';
 import { dist2 } from '../math';
+import { updateStructureCapture, resetStructureCapture } from './structureCapture';
 import { FACTION_IDS, NEUTRAL } from '../types';
-import type { Building, CaptureStage, FactionId, HearthState } from '../types';
+import type { Building, CaptureStage, FactionId, HearthState, Owner } from '../types';
 import type { World } from '../world';
 import { isAvatarDown } from './avatars';
 import { collapseGcc, disableBuilding, isCollapsed } from './buildings';
@@ -28,7 +29,7 @@ const NOTICE_QUIET = 8;
 const THREAT_NOTICE_QUIET = 30;
 
 /** Cross-tick private state of the capture system (lives in world.scratch.capture). */
-class CaptureScratch {
+export class CaptureScratch {
   /** Reused output buffer for lattice radius queries. */
   readonly near: number[] = [];
   /** `${hearthId}:${stage}` → world.time of the last notice. */
@@ -58,6 +59,7 @@ export function updateCapture(world: World, dt: number): void {
       if (prev !== 'safe') world.emit({ t: 'hearthStage', hearthId: b.id, faction: b.faction,
         stage: 'safe', prev, attacker: null });
     }
+    resetStructureCapture(world);
     return;
   }
   const sc = scratchOf(world);
@@ -71,6 +73,7 @@ export function updateCapture(world: World, dt: number): void {
     }
     stepHearth(world, sc, b, hs, owner, dt);
   }
+  updateStructureCapture(world, dt);
 }
 
 /**
@@ -131,6 +134,7 @@ export function captureHearth(world: World, hearth: Building, to: FactionId): vo
   for (const b of world.buildings.values()) {
     if (b.faction !== from || b.kind === 'hearth' || b.kind === 'gcc' || !inCamp(b.pos.x, b.pos.z)) continue;
     b.faction = to;
+    b.capture = null;
     for (const fl of world.flags.values()) if (fl.state === 'stock' && fl.holder === b.id) fl.owner = to;
     disableBuilding(world, b);
   }
@@ -217,7 +221,7 @@ function completeOverwrite(world: World, b: Building, hs: HearthState, owner: Fa
  * contest: every home ring encloses its Hearth from the start, so that would slow every attack
  * for as long as the ring stood (the overlap still breeds instability instead).
  */
-function holdsHearth(world: World, b: Building, owner: FactionId): boolean {
+export function holdsHearth(world: World, b: Pick<Building, 'pos'>, owner: FactionId): boolean {
   const av = world.avatars.get(world.factions[owner].avatarId);
   if (!av || isAvatarDown(world, av)) return false;
   return dist2(av.pos.x, av.pos.z, b.pos.x, b.pos.z) <= CAPTURE.holdRadius * CAPTURE.holdRadius;
@@ -230,7 +234,7 @@ function holdsHearth(world: World, b: Building, owner: FactionId): boolean {
  * anyone but its founder) ×OUTPOST_PRESSURE_MULT, and the Burn's escalating sudden death.
  * Outposts are softer so two survivors cannot trade the same Hearth back and forth for ever.
  */
-function sharedMult(world: World, b: Building, hs: HearthState, owner: FactionId, contested: boolean): number {
+export function sharedMult(world: World, b: Pick<Building, 'pos'>, hs: HearthState | null, owner: FactionId, contested: boolean): number {
   let m = contested ? CAPTURE.contestedMult : 1;
   const r2 = CAPTURE.defenderRadius * CAPTURE.defenderRadius;
   let defenders = 1;
@@ -248,7 +252,7 @@ function sharedMult(world: World, b: Building, hs: HearthState, owner: FactionId
       break;
     }
   }
-  if (hs.founder !== owner) m *= OUTPOST_PRESSURE_MULT;
+  if (hs && hs.founder !== owner) m *= OUTPOST_PRESSURE_MULT;
   return m * suddenDeathMult(world);
 }
 
@@ -256,7 +260,7 @@ function sharedMult(world: World, b: Building, hs: HearthState, owner: FactionId
  * Attacker Crystals within 45 m add +15% each. After The Burn the Omega Node Crystal's bonus
  * doubles (+30%) and, burning at the effigy, it reaches every Hearth on the burn.
  */
-function crystalMult(world: World, attacker: FactionId, b: Building): number {
+export function crystalMult(world: World, attacker: FactionId, b: Pick<Building, 'pos'>): number {
   const r2 = CRYSTAL_PRESSURE_RADIUS * CRYSTAL_PRESSURE_RADIUS;
   let m = 1;
   for (const c of world.crystals.values()) {
@@ -272,7 +276,7 @@ function crystalMult(world: World, attacker: FactionId, b: Building): number {
  * (touches a node inside it). Scanned fresh each time into a reused buffer, so phason flips
  * never invalidate anything.
  */
-function threatened(world: World, sc: CaptureScratch, b: Building, owner: FactionId): boolean {
+export function threatened(world: World, sc: CaptureScratch, b: Pick<Building, 'pos'>, owner: Owner): boolean {
   const lat = world.lattice;
   const s = world.survey;
   let rivals = 0;

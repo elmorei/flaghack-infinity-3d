@@ -277,6 +277,9 @@ export class Input {
     this.endFrame();
     const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected && p.mapping === 'standard');
     this.blockedPadButtons = new Set(pad?.buttons.flatMap((b, i) => b.pressed || b.value > .55 ? [i] : []) ?? []);
+    // The same boundary may release an intro into the title menu rather than into gameplay.
+    // Baseline held buttons there too, so they need a fresh press before clicking/navigating.
+    this.menuButtons = new Set(this.blockedPadButtons);
     this.waitForNeutralSticks = !!pad && pad.axes.some((axis) => Math.abs(axis) > this.controls.deadzone);
   }
 

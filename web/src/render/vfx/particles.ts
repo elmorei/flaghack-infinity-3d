@@ -32,6 +32,8 @@ export const Shape = {
   Shard: 6,
   /** Digital glitch block with scanlines. */
   Glitch: 7,
+  /** Emissive, turbulent fire lobe with a hot core and cooling rim. */
+  Fireball: 8,
 } as const;
 export type ShapeId = (typeof Shape)[keyof typeof Shape];
 
@@ -76,6 +78,8 @@ export class ParticleSpec {
   flicker = 0;
   flutter = 0;
   fadeIn = 0.03;
+  verticalScale = 1;
+  groundY = 0;
 
   /** Reset to a 1 s white dot at the origin; every recipe starts here. */
   reset(): this {
@@ -94,6 +98,8 @@ export class ParticleSpec {
     this.theta = this.shrink = 0;
     this.flicker = this.flutter = 0;
     this.fadeIn = 0.03;
+    this.verticalScale = 1;
+    this.groundY = 0;
     return this;
   }
 
@@ -163,6 +169,13 @@ export class ParticleSpec {
     return this;
   }
 
+  /** Fireball only: stretch in WORLD vertical about the ground, never horizontal width. */
+  stretchVertical(scale: number, groundY: number): this {
+    this.verticalScale = scale;
+    this.groundY = groundY;
+    return this;
+  }
+
   /** Shape, spin (rad/s), start rotation, and streak time (s of motion blur, 0 = none). */
   look(shape: ShapeId, spin = 0, rot = 0, streak = 0): this {
     this.shape = shape;
@@ -225,7 +238,9 @@ void main() {
     vel = vec3(-s, 0.0, c) * (r * a1.z * spinUp) - vec3(c, 0.0, s) * (a6.z * r);
     vel.y = a1.y - a2.z * age;
   }
-  float size = mix(a2.x, a2.y, t);
+  // Flame poofs inflate sharply, then billow rather than growing linearly.
+  float growth = a5.x > 7.5 ? 1.0 - exp(-7.0 * t) : t;
+  float size = mix(a2.x, a2.y, growth);
   vec4 mv = viewMatrix * vec4(p, 1.0);
   float depth = max(-mv.z, 0.05);
   // Keep far particles >= ~1.6 px, trading area for brightness so they do not shimmer away.
@@ -240,7 +255,7 @@ void main() {
   vec2 ax;
   vec2 center = mv.xy;
   float sx = size;
-  float sy = size;
+  float sy = size * (a5.x > 7.5 ? 1.18 : 1.0);
   if (a5.w > 0.0) {
     // Motion blur: stretch along the on-screen velocity, head at the particle.
     vec2 sv = (viewMatrix * vec4(vel, 0.0)).xy;
@@ -261,6 +276,14 @@ void main() {
   }
   vec2 ay = vec2(-ax.y, ax.x);
   mv.xy = center + ax * (position.x * sx) + ay * (position.y * sy);
+  if (a5.x > 7.5) {
+    // Stretch the entire lobe, including its rise, about ground in world Y. Scaling
+    // screen Y would skew the shape sideways when the billboard spins or camera tilts.
+    vec3 worldUpInView = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+    vec2 offset = ax * (position.x * sx) + ay * (position.y * sy);
+    float offsetWorldY = dot(offset, worldUpInView.xy);
+    mv.xyz += worldUpInView * ((p.y - a6.z + offsetWorldY) * (a7.w - 1.0));
+  }
   gl_Position = projectionMatrix * mv;
   vec4 col = mix(a3, a4, t);
   float fade = a7.z > 0.0 ? clamp(age / a7.z, 0.0, 1.0) : 1.0;
@@ -272,7 +295,7 @@ void main() {
   vSeed = a6.w;
   vT = t;
   #ifdef USE_FOG
-  vFogDepth = depth;
+  vFogDepth = max(-mv.z, 0.05);
   #endif
 }
 `;
@@ -329,10 +352,25 @@ void main() {
     float w = 0.42 * (1.0 - abs(vUv.x)) * (1.0 + 0.45 * vUv.x);
     m = 1.0 - smoothstep(w * 0.7, w, abs(vUv.y));
     m *= 0.75 + 0.6 * smoothstep(0.75, 1.0, sin(vUv.x * 3.0 - vUv.y * 2.0 + vT * 16.0 + vSeed * 20.0));
-  } else {
+  } else if (vShape < 7.5) {
     vec2 a = abs(vUv);
     float box = 1.0 - step(0.92, max(a.x, a.y));
     m = box * (0.55 + 0.45 * step(0.5, fract(vUv.y * 3.0 + vSeed * 5.0 + vT * 7.0)));
+  }
+  // Fire is a billowing, opaque/emissive volume, not stacked additive white disks.
+  vec3 fireColor = vec3(0.0);
+  if (vShape > 7.5) {
+    vec2 flow = vUv * 3.0 + vec2(vSeed * 41.0, -vT * 2.8);
+    float n = fxNoise(flow) * .65 + fxNoise(flow * 2.3 + vT) * .35;
+    float contour = r + (n - .5) * .42;
+    m = 1.0 - smoothstep(.62, 1.0, contour);
+    float folds = fxNoise(flow * 1.7 - vec2(vT * 1.2, vT * 2.1));
+    float heat = clamp(1.02 - contour * .65 - vT * .65 + (n - .5) * .65, 0.0, 1.0);
+    fireColor = mix(vec3(.42, .025, .002), vec3(2.5, .32, .012), smoothstep(.08, .55, heat));
+    fireColor = mix(fireColor, vec3(4.0, 3.0, .9), smoothstep(.48, .88, heat));
+    // A soft rounded shaded rim makes overlapping lobes read as a volume.
+    fireColor *= (.65 + .35 * max(0.0, 1.0 - r * r)) * mix(.22, 1.0, smoothstep(.22, .53, folds));
+    m *= 1.0 - smoothstep(.5, 1.0, vT);
   }
   float alpha = vColor.a * m;
   if (alpha < 0.003) discard;
@@ -340,7 +378,7 @@ void main() {
 #ifdef ADDITIVE
   gl_FragColor = vec4(rgb * alpha, 0.0);
 #else
-  gl_FragColor = vec4(rgb * uLight * alpha, alpha);
+  gl_FragColor = vec4((vShape > 7.5 ? fireColor : rgb * uLight) * alpha, alpha);
 #endif
   ${FOG_FRAG_GLSL}
   ${OUTPUT_GLSL}
@@ -409,12 +447,12 @@ export class ParticlePool {
     d[o++] = s.streak;
     d[o++] = s.motion;
     d[o++] = s.theta;
-    d[o++] = s.shrink;
+    d[o++] = s.shape === Shape.Fireball ? s.groundY : s.shrink;
     d[o++] = this.seedSeq;
     d[o++] = s.flicker;
     d[o++] = s.flutter;
     d[o++] = s.fadeIn;
-    d[o] = 0;
+    d[o] = s.shape === Shape.Fireball ? s.verticalScale : 0;
     this.buf.mark(i, i + 1);
     this.cursor = i + 1 === this.buf.capacity ? 0 : i + 1;
     if (i + 1 > this.used) this.used = i + 1;

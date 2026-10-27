@@ -1,0 +1,61 @@
+{
+  "baseSource": "2938df043f50bb798362e3e6b04e63009cb9767b",
+  "sources": [
+    {
+      "captureCommit": "1944bf4fde66e322cf1c4eaf20c1ad0198472149",
+      "sourceFrames": "0-719 only; no boss frames",
+      "captureRun": "https://github.com/elmorei/flaghack-infinity-3d/actions/runs/39835833749"
+    },
+    {
+      "captureCommit": "50fd220b5d2cb5217471b7552ef815990b1bf48c",
+      "sourceFrames": "0-179 nighttime contested altar, boss mode disabled",
+      "captureRun": "https://github.com/elmorei/flaghack-infinity-3d/actions/runs/40567156463"
+    }
+  ],
+  "provenance": "Staged actual gameplay from production simulation/WebGL renderer. Whole montage sped to 1.2x; original boss shot entirely removed. No generated imagery or compositing.",
+  "delivery": {
+    "file": "flaghack-gameplay-intro-25s.mp4",
+    "sha256": "5530dbc4d407d51005d1becb8b45da80cd647a8052d1b2dd0746d0af64e515e2",
+    "bytes": 5699880,
+    "durationSeconds": 25,
+    "frames": 750,
+    "fps": 30,
+    "width": 1280,
+    "height": 720,
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "audioStreams": 0,
+    "fastStart": true,
+    "mp4Boxes": [
+      [
+        "ftyp",
+        0,
+        32
+      ],
+      [
+        "moov",
+        32,
+        10276
+      ],
+      [
+        "free",
+        10308,
+        8
+      ],
+      [
+        "mdat",
+        10316,
+        5689564
+      ]
+    ],
+    "validation": [
+      "Night scene contested and boss-free every frame",
+      "25.000000s and750frames confirmed by ffprobe",
+      "Full decode with no errors",
+      "Contact sheet and final frame visually inspected",
+      "Last frame is spoiler-free altar, retained by existing loading UX"
+    ]
+  },
+  "temporary": true,
+  "originalIntroDeferred": true
+}

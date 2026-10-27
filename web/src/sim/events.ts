@@ -72,10 +72,10 @@ export type GameEvent =
   | { t: 'lumberDelivered'; faction: FactionId; amount: number; pos: V2 }
   // Structures
   | { t: 'pieceBuilt'; pieceId: EntityId; kind: PieceKind; faction: Owner; pos: V3 }
-  | { t: 'pieceDestroyed'; pieceId: EntityId; kind: PieceKind; faction: Owner; pos: V3 }
+  | { t: 'pieceDestroyed'; pieceId: EntityId; kind: PieceKind; faction: Owner; pos: V3; bossDestroyed?: true }
   | { t: 'buildingPlaced'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
   | { t: 'buildingDone'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
-  | { t: 'buildingDisabled'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
+  | { t: 'buildingDisabled'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2; bossDestroyed?: true }
   | { t: 'buildingRepaired'; buildingId: EntityId; kind: BuildingKind; faction: Owner; pos: V2 }
   | { t: 'crystalLightning'; crystalId: EntityId; flagId: EntityId; faction: Owner; from: V3; to: V3 }
   | { t: 'wardLightning'; buildingId: EntityId; flagId: EntityId; faction: Owner; from: V3; to: V3 }

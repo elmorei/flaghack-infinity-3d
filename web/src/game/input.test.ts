@@ -248,6 +248,27 @@ describe('Command View access and GCC interaction', () => {
 });
 
 describe('confirmed camp control handoff', () => {
+  it.each([0, 1, 9, 12, 13])('requires a fresh menu press for button %s after startup/seat reset', (buttonIndex) => {
+    const { input, pad } = setup();
+    const selected = Object.assign(new HTMLElement(), {
+      getClientRects: () => [{}], closest: () => null, disabled: false,
+      click: vi.fn(), focus: vi.fn(),
+    });
+    Object.assign(document, { activeElement: selected, querySelectorAll: () => [selected] });
+    const dispatch = vi.fn(() => true); Object.assign(window, { dispatchEvent: dispatch });
+    input.onMenuBack = vi.fn();
+    // No menu poll happened during the intro; the held button must not become a new edge.
+    pad.buttons[buttonIndex].pressed = true;
+    input.resetForSeat(); input.pollGamepad(.016, false, false);
+    expect(selected.click).not.toHaveBeenCalled(); expect(selected.focus).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled(); expect(input.onMenuBack).not.toHaveBeenCalled();
+    pad.buttons[buttonIndex].pressed = false; input.pollGamepad(.016, false, false);
+    pad.buttons[buttonIndex].pressed = true; input.pollGamepad(.016, false, false);
+    if (buttonIndex === 0) expect(selected.click).toHaveBeenCalledOnce();
+    else if (buttonIndex === 12 || buttonIndex === 13) expect(selected.focus).toHaveBeenCalledOnce();
+    else { expect(dispatch).toHaveBeenCalledOnce(); expect(input.onMenuBack).toHaveBeenCalledOnce(); }
+  });
+
   it('clears held controller actions and waits for neutral sticks before driving a new avatar', () => {
     const { input, pad } = setup();
     pad.buttons[0].pressed = true; pad.buttons[7].pressed = true; pad.axes[0] = 1;

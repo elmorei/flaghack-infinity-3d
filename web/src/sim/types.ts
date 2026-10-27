@@ -243,6 +243,15 @@ export interface Hippie {
 
 // ── Structures ───────────────────────────────────────────────────────────────
 export type CaptureStage = 'safe' | 'threatened' | 'contained' | 'contested' | 'overwritten' | 'captured';
+export interface StructureCaptureState {
+  stage: CaptureStage;
+  attacker: FactionId | null;
+  pressure: Record<FactionId, number>;
+  overwriteAt: number;
+}
+export interface SceneryCaptureState extends StructureCaptureState {
+  faction: Owner;
+}
 export interface HearthState {
   stage: CaptureStage;
   /** Leading attacker (highest pressure) or null. */
@@ -275,6 +284,8 @@ export interface Building {
   /** Generic production accumulator (flags, recruits, pulses). */
   progress: number;
   hearth: HearthState | null;
+  /** Independent Survey capture; never carries Hearth elimination semantics. */
+  capture?: StructureCaptureState | null;
   lab: { brewing: DrugId | null; progress: number; queue: DrugId[] } | null;
   gcc: { destroyedUntil: number; channelUntil: number; pushedBy: EntityId | -1 } | null;
 }
@@ -282,6 +293,7 @@ export interface Building {
 export interface Piece {
   id: EntityId;
   type: 'piece';
+  capture?: StructureCaptureState | null;
   kind: PieceKind;
   faction: Owner;
   /** Wall: edge id; else -1. */

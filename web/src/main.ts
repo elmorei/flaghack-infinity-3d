@@ -21,6 +21,8 @@ declare global {
 
 /** A host answers at once; anything slower is not a FLAGHACK host worth waiting for. */
 const PROBE_TIMEOUT_MS = 1500;
+/** The actual built game chunk, required in the warm-cache proof. */
+export const GAME_MODULE_URL = import.meta.url;
 
 /** Same-origin discovery preserves host-served pages; invite targets are never contacted here. */
 async function discoverHost(): Promise<HostInfo | null> {
@@ -30,19 +32,20 @@ async function discoverHost(): Promise<HostInfo | null> {
   } catch { return null; }
 }
 
-async function boot(): Promise<void> {
+export async function boot(progress: (message: string) => void = () => {}): Promise<{ app: App; cacheable: boolean }> {
   const invite = takeLocationInvite(location, history);
   // Canvas-lettered textures (GCC banner, signage) need the fonts before first draw.
-  const fonts = Promise.all(
+  progress('Preparing fonts…');
+  const fonts = Promise.allSettled(
     ['700 32px "Stardos Stencil"', '700 32px "Cinzel"', '400 32px "Bungee"', '500 16px "Rubik"'].map((f) =>
       document.fonts.load(f),
     ),
   );
-  const [hostInfo] = await Promise.all([discoverHost(), fonts]);
+  const [hostInfo, fontResults] = await Promise.all([discoverHost(), fonts]);
+  progress('Preparing the title scene…');
   const root = document.getElementById('app')!;
-  const app = new App(root, { hostInfo, invitePassword: invite.password, inviteHost: invite.host, inviteError: invite.error });
+  const app = new App(root, { hostInfo, invitePassword: invite.password, inviteHost: invite.host, inviteError: invite.error, startupPending: true });
   window.flaghack = app;
   installDebug(app);
+  return { app, cacheable: fontResults.every((result) => result.status === 'fulfilled' && result.value.length > 0) };
 }
-
-void boot();

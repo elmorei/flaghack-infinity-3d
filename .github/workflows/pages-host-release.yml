@@ -46,6 +46,39 @@ jobs:
         with:
           path: web/dist
 
+  startup-browser:
+    needs: [client]
+    runs-on: macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/flaghack-pages
+      - name: Verify exact built artifact in stock Chrome with native Metal WebGL
+        run: |
+          mkdir -p dist
+          tar -xf "$RUNNER_TEMP/flaghack-pages/artifact.tar" -C dist
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false playwright@1.56.1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
+      - name: Upload startup browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: startup-browser-smoke
+          path: web/host-release/startup-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
   windows-host:
     runs-on: windows-latest
     timeout-minutes: 35
@@ -95,7 +128,7 @@ jobs:
           retention-days: 14
 
   publish-host:
-    needs: [client, windows-host]
+    needs: [client, windows-host, startup-browser]
     if: github.repository == 'elmorei/flaghack-infinity-3d' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10

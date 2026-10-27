@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventOf } from '../../sim/events';
-import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, SceneryEruptions } from './sceneryEruptions';
+import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, STRUCTURE_FLAME_MAX_LIFE, STRUCTURE_FLAME_HEIGHT_SCALE, SceneryEruptions } from './sceneryEruptions';
 import { Shape } from './particles';
 import { VfxRenderer } from './vfxRenderer';
 
@@ -12,20 +12,29 @@ const attr = (fx: SceneryEruptions, index: number) => fx.mesh.geometry.getAttrib
 const rows = (fx: SceneryEruptions, index: number) => Array.from({ length: fx.mesh.geometry.instanceCount }, (_, i) =>
   [attr(fx, index).getX(i), attr(fx, index).getY(i), attr(fx, index).getZ(i), attr(fx, index).getW(i)]);
 
-describe('small dark scenery eruptions', () => {
-  it('renders ground-anchored alpha dust and ballistic debris, with no light or gameplay mutation', () => {
+describe('large billowing destruction fireballs', () => {
+  it('renders emissive flame lobes and a small smoke tail, with no lights or gameplay mutation', () => {
     const fx = make(), e = event(), before = JSON.stringify(e);
     fx.onEvent(e, 10); fx.update(10);
     expect(fx.mesh.visible).toBe(true);
     expect(fx.mesh.material.defines.ADDITIVE).toBeUndefined();
     expect(fx.mesh.material.depthWrite).toBe(false);
     const shapes = rows(fx, 5).map(r => r[0]);
-    expect(shapes).toContain(Shape.Smoke); expect(shapes).toContain(Shape.Chip); expect(shapes).toContain(Shape.Shard);
+    expect(shapes).toContain(Shape.Smoke); expect(shapes).toContain(Shape.Fireball);
+    expect(shapes.filter(s => s === Shape.Fireball).length).toBeGreaterThan(shapes.filter(s => s === Shape.Smoke).length);
+    expect(shapes).not.toContain(Shape.Chip);
+    for (let i = 0; i < shapes.length; i++) if (shapes[i] === Shape.Fireball) {
+      expect(attr(fx, 1).getW(i)).toBeLessThanOrEqual(STRUCTURE_FLAME_MAX_LIFE);
+      expect(attr(fx, 7).getW(i)).toBeCloseTo(STRUCTURE_FLAME_HEIGHT_SCALE);
+      expect(attr(fx, 6).getZ(i)).toBe(e.pos.y);
+      expect(attr(fx, 2).getY(i)).toBeGreaterThan(attr(fx, 2).getX(i) * 5);
+    }
+    expect(fx.mesh.material.fragmentShader).toContain('fireColor : rgb * uLight');
     for (const [x, y, z, born] of rows(fx, 0)) {
       expect(Math.abs(x - e.pos.x)).toBeLessThan(1.2); expect(Math.abs(z - e.pos.z)).toBeLessThan(1.2);
-      expect(y).toBeGreaterThan(e.pos.y); expect(y).toBeLessThan(e.pos.y + 1); expect(born).toBe(10);
+      expect(y).toBeGreaterThan(e.pos.y); expect(y).toBeLessThan(e.pos.y + 2); expect(born).toBe(10);
     }
-    for (const [r, g, b, alpha] of rows(fx, 3)) { expect(Math.max(r, g, b)).toBeLessThan(.09); expect(alpha).toBeGreaterThan(.5); }
+    for (const row of rows(fx, 3)) expect(row.every(Number.isFinite)).toBe(true);
     for (const [, , , life] of rows(fx, 1)) expect(life).toBeLessThanOrEqual(SCENERY_ERUPTION_MAX_LIFE + 1e-6);
     expect(JSON.stringify(e)).toBe(before); fx.dispose();
   });
@@ -40,9 +49,9 @@ describe('small dark scenery eruptions', () => {
     expect(attr(large, 2).getX(0)).toBeGreaterThan(attr(small, 2).getX(0));
     for (const fx of [small, large, tall]) {
       expect(fx.mesh.geometry.instanceCount).toBeLessThanOrEqual(38);
-      for (const [start, end] of rows(fx, 2)) { expect(start).toBeLessThanOrEqual(1.25); expect(end).toBeLessThanOrEqual(2.063); }
+      for (const [start, end] of rows(fx, 2)) { expect(start).toBeLessThanOrEqual(1.3); expect(end).toBeLessThanOrEqual(4.5); }
       for (const [x, y, z] of rows(fx, 0)) {
-        expect(Math.hypot(x - 30, z + 20)).toBeLessThan(7.6); expect(y).toBeLessThanOrEqual(7.021);
+        expect(Math.hypot(x - 30, z + 20)).toBeLessThan(7.6); expect(y).toBeLessThanOrEqual(8.3);
       }
       fx.dispose();
     }
@@ -88,6 +97,44 @@ describe('small dark scenery eruptions', () => {
     const fx = make(), stub = { ctx: { time: 3 }, sceneryEruptions: fx, syncClock: vi.fn(), spend: () => false };
     VfxRenderer.prototype.onEvent.call(stub as unknown as VfxRenderer, event()); fx.update(3);
     expect(fx.mesh.visible).toBe(true); fx.dispose();
+  });
+
+  it('keeps structure and scenery IDs separate and deduplicates repeated structure facts', () => {
+    const fx = make(), e = event();
+    fx.onEvent(e, 0); fx.update(0); const n = fx.mesh.geometry.instanceCount;
+    fx.onStructure(e.sceneryId, e.pos, e.size, 0); fx.update(0);
+    expect(fx.mesh.geometry.instanceCount).toBe(n * 2);
+    fx.onStructure(e.sceneryId, e.pos, e.size, 0); fx.update(0);
+    expect(fx.mesh.geometry.instanceCount).toBe(n * 2); fx.dispose();
+  });
+
+  it('routes boss building/piece bursts outside the routine budget, leaving normal destruction alone', () => {
+    const fx = make(), wreck = vi.fn(), splinters = vi.fn();
+    const stub = { ctx: { time: 3, world: {} }, sceneryEruptions: fx, syncClock: vi.fn(),
+      groundY: () => 6, spend: () => false, fx: { wreck, splinters }, shake: vi.fn() };
+    const send = (e: Parameters<VfxRenderer['onEvent']>[0]) => VfxRenderer.prototype.onEvent.call(stub as unknown as VfxRenderer, e);
+    send({ t: 'buildingDisabled', buildingId: 5, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 }, bossDestroyed: true });
+    send({ t: 'pieceDestroyed', pieceId: 6, kind: 'wall', faction: 0, pos: { x: 30, y: 6, z: -20 }, bossDestroyed: true });
+    fx.update(3); expect(fx.mesh.visible).toBe(true); expect(wreck).not.toHaveBeenCalled();
+    const count = fx.mesh.geometry.instanceCount;
+    send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
+    send({ t: 'pieceDestroyed', pieceId: 9, kind: 'wall', faction: 0, pos: { x: 30, y: 6, z: -20 } });
+    fx.update(3); expect(fx.mesh.geometry.instanceCount).toBe(count); expect(wreck).toHaveBeenCalledOnce(); fx.dispose();
+  });
+
+  it('stretches flames 45% in world vertical, preserving width, age and ground anchor', () => {
+    expect(STRUCTURE_FLAME_HEIGHT_SCALE).toBe(1.45);
+    const fx = make(), e = event(); fx.onEvent(e, 10); fx.update(10);
+    const shapes = rows(fx, 5).map(r => r[0]);
+    for (let i = 0; i < shapes.length; i++) {
+      if (shapes[i] !== Shape.Fireball) { expect(attr(fx, 7).getW(i)).toBe(0); continue; }
+      const scale = attr(fx, 7).getW(i), ground = attr(fx, 6).getZ(i), initialY = attr(fx, 0).getY(i);
+      expect(ground + (initialY - ground) * scale).toBeGreaterThan(initialY);
+      expect(attr(fx, 0).getW(i)).toBe(10);
+    }
+    expect(fx.mesh.material.vertexShader).toContain('mv.xyz += worldUpInView');
+    expect(fx.mesh.material.vertexShader).toContain('p.y - a6.z + offsetWorldY');
+    fx.dispose();
   });
 
   it('low quality reduces particle count without skipping any prop eruption', () => {

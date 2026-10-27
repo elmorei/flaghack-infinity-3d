@@ -12,6 +12,7 @@ import { ActorsRenderer } from './actors/actorsRenderer';
 import type { PostFxState, RenderContext, RenderModule } from './context';
 import { EnvRenderer } from './env/envRenderer';
 import { PostFx } from './post/postfx';
+import { WreckageRenderer } from './structures/wreckageRenderer';
 import { StructuresRenderer } from './structures/structuresRenderer';
 import { SurveyRenderer } from './survey/surveyRenderer';
 import { renderCommandOverlay } from './survey/markedNodes';
@@ -45,6 +46,8 @@ export class GameRenderer {
   private needsWarm = false;
   /** Programs are compiling in parallel: the canvas keeps its last frame until this time. */
   private warmUntil = 0;
+  /** Surface an asynchronous compile failure through the next render/readiness check. */
+  private warmError: Error | null = null;
   /**
    * Bound while compiling ahead: PostFx draws the scene into a render target, and three keys
    * programs on whether one is bound (tone mapping and output colour space are left to the
@@ -101,6 +104,7 @@ export class GameRenderer {
       new EnvRenderer(ctx),
       new SurveyRenderer(ctx),
       new StructuresRenderer(ctx),
+      new WreckageRenderer(ctx),
       new ActorsRenderer(ctx),
       new VfxRenderer(ctx),
     ];
@@ -108,6 +112,7 @@ export class GameRenderer {
     this.resize();
     this.needsWarm = true;
     this.warmUntil = 0;
+    this.warmError = null;
   }
 
   detach(): void {
@@ -137,9 +142,16 @@ export class GameRenderer {
     }
   }
 
-  render(dt: number): void {
+  /** True only when the scene was drawn to the canvas (shader warmup alone is not ready). */
+  render(dt: number): boolean {
     const ctx = this.ctx;
-    if (!ctx) return;
+    const post = this.post;
+    if (!ctx || !post) return false;
+    if (this.warmError) {
+      const error = this.warmError;
+      this.warmError = null;
+      throw error;
+    }
     ctx.time += dt;
     ctx.beat = this.beatSource?.() ?? (ctx.time * FESTIVAL_BPM) / 60;
     this.updateFx(dt);
@@ -152,15 +164,23 @@ export class GameRenderer {
       this.warmUntil = performance.now() + WARM_CAP_MS;
       const target = this.renderer.getRenderTarget();
       this.renderer.setRenderTarget(this.warmTarget);
-      void this.renderer.compileAsync(ctx.scene, this.camera).then(() => {
-        if (this.ctx === ctx) this.warmUntil = 0;
-      });
-      this.renderer.setRenderTarget(target);
+      try {
+        void this.renderer.compileAsync(ctx.scene, this.camera).then(() => {
+          if (this.ctx === ctx) this.warmUntil = 0;
+        }, (error: unknown) => {
+          if (this.ctx !== ctx) return;
+          this.warmUntil = 0;
+          this.warmError = error instanceof Error ? error : new Error('Could not compile the game scene.', { cause: error });
+        });
+      } finally {
+        this.renderer.setRenderTarget(target);
+      }
       this.disposeRetired();
     }
-    if (performance.now() < this.warmUntil) return;
-    this.post?.render(dt);
+    if (performance.now() < this.warmUntil) return false;
+    post.render(dt);
     renderCommandOverlay(this.renderer, this.camera, ctx.shared.commandOverlay);
+    return true;
   }
 
   private updateFx(dt: number): void {

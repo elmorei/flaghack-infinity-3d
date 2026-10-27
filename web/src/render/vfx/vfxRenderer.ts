@@ -12,7 +12,7 @@
  * Owner: RenderSurvey agent.
  */
 import * as THREE from 'three';
-import { ABILITY, CAPTURE, NEUTRAL_COLOR } from '../../sim/constants';
+import { ABILITY, BUILDINGS, BUILDING_HEIGHT, CAPTURE, LEVEL_HEIGHT, NEUTRAL_COLOR } from '../../sim/constants';
 import type { EventOf, GameEvent } from '../../sim/events';
 import type { Building, Hippie, Owner, Ping, Projectile, Zone } from '../../sim/types';
 import type { RenderContext, RenderModule } from '../context';
@@ -225,6 +225,20 @@ export class VfxRenderer implements RenderModule {
   onEvent(e: GameEvent): void {
     this.syncClock();
     if (e.t === 'sceneryDestroyed') { this.sceneryEruptions.onEvent(e, this.ctx.time); return; }
+    if (e.t === 'buildingDisabled' && e.bossDestroyed) {
+      const radius = BUILDINGS[e.kind].radius;
+      this.sceneryEruptions.onStructure(e.buildingId,
+        { x: e.pos.x, y: this.groundY(e.pos.x, e.pos.z), z: e.pos.z },
+        { x: radius * 2, y: BUILDING_HEIGHT[e.kind], z: radius * 2 }, this.ctx.time);
+      this.shake(e.pos.x, e.pos.z, 0.2, 8, 35);
+      return;
+    }
+    if (e.t === 'pieceDestroyed' && e.bossDestroyed) {
+      this.sceneryEruptions.onStructure(e.pieceId, e.pos,
+        { x: 3, y: LEVEL_HEIGHT, z: 3 }, this.ctx.time);
+      this.shake(e.pos.x, e.pos.z, 0.18, 6, 25);
+      return;
+    }
     if (e.t === 'bossBarrierShattered') { this.barrierShatter.onEvent(e, this.ctx.time); return; }
     if (e.t === 'meleeImpact') { this.meleeImpacts.onEvent(e); return; }
     const w = this.ctx.world;

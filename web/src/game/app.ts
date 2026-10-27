@@ -31,11 +31,14 @@ import type { World } from '../sim/world';
 import { createTutorial } from '../tutorial/director';
 import type { TutorialDriver, TutorialRun } from '../tutorial/types';
 import { GameUI } from '../ui/ui';
+import { CameraRig } from './cameraRig';
 import { Controls } from './controls';
 import { Session } from './session';
 
 /** The surface UI, controls and audio use to drive the app. */
 export interface AppApi {
+  /** An intro still owns input and sound. Optional for non-startup callers/test doubles. */
+  readonly startupPending?: boolean;
   readonly session: Session;
   readonly world: World | null;
   readonly sim: Simulation | null;
@@ -81,6 +84,8 @@ export interface AppBoot {
   invitePassword: string | null;
   inviteHost?: string | null;
   inviteError?: string | null;
+  /** Prepare the title behind the intro, but do not run the game until finishStartup(). */
+  startupPending?: boolean;
 }
 
 const MAX_STEPS_PER_FRAME = 6;
@@ -100,6 +105,14 @@ function seatNames(lobby: LobbyState): Partial<Record<FactionId, string>> {
 }
 
 export class App implements AppApi {
+  /** Resolves only after the first scene has actually drawn, not merely started compiling. */
+  readonly ready: Promise<void>;
+  private resolveReady!: () => void;
+  private rejectReady!: (reason: unknown) => void;
+  private readySettled = false;
+  private startupHeld = false;
+  private startupPrepared = false;
+  private startupFailed = false;
   readonly session = new Session();
   world: World | null = null;
   sim: Simulation | null = null;
@@ -135,6 +148,13 @@ export class App implements AppApi {
   private tickCmds: Command[] = [];
 
   constructor(root: HTMLElement, boot: AppBoot = { hostInfo: null, invitePassword: null }) {
+    this.startupHeld = boot.startupPending ?? false;
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectReady = reject;
+    });
+    // Existing callers need not observe readiness; startup callers still receive its rejection.
+    void this.ready.catch(() => {});
     const canvas = root.querySelector('canvas#game') as HTMLCanvasElement;
     const uiRoot = root.querySelector('#ui') as HTMLElement;
     this.hostInfo = boot.hostInfo;
@@ -161,6 +181,19 @@ export class App implements AppApi {
     requestAnimationFrame(this.frame);
   }
 
+  get startupPending(): boolean {
+    return this.startupHeld;
+  }
+
+  /** The intro ended or was skipped after readiness. Never turn its gestures into game audio. */
+  finishStartup(): void {
+    if (!this.startupHeld) return;
+    this.startupHeld = false;
+    this.controls.resetForSeat();
+    this.acc = 0;
+    this.last = performance.now();
+  }
+
   get remoteHostsAvailable(): boolean {
     return browserAllowsRemoteHosts();
   }
@@ -176,12 +209,14 @@ export class App implements AppApi {
 
   /** Configure a local burn before creating its world. */
   openLobby(): void {
+    if (this.startupPending) return;
     this.dropClient();
     if (this.session.screen !== 'title' && this.session.screen !== 'lobby') this.loadAttract();
     this.session.screen = 'lobby';
   }
 
   startMatch(opts: Partial<MatchOptions> = {}): void {
+    if (this.startupPending) return;
     this.dropClient();
     const seed = opts.seed ?? `burn-${Date.now().toString(36)}`;
     const difficulty = opts.difficulty ?? this.session.settings.difficulty;
@@ -194,6 +229,7 @@ export class App implements AppApi {
   }
 
   startTutorial(): void {
+    if (this.startupPending) return;
     this.dropClient();
     this.load({ seed: 'training-burn', difficulty: 'normal', humans: [TRAINING_PLAYER], mode: 'tutorial' });
     const world = this.world;
@@ -203,6 +239,7 @@ export class App implements AppApi {
   }
 
   async joinHost(name: string, password: string, address = location.origin): Promise<void> {
+    if (this.startupPending) return;
     if (!this.remoteHostsAvailable) {
       this.joinError = 'This launcher runs solo games offline. Open FLAGHACK in a web browser to join a host.';
       return;
@@ -271,6 +308,7 @@ export class App implements AppApi {
   }
 
   quitToTitle(): void {
+    if (this.startupPending) return;
     this.cancelJoin();
     const client = this.client;
     if (client && client.status !== 'closed') {
@@ -283,11 +321,13 @@ export class App implements AppApi {
   }
 
   setPaused(paused: boolean): void {
+    if (this.startupPending) return;
     if (this.session.screen === 'playing' && paused) this.session.screen = 'paused';
     else if (this.session.screen === 'paused' && !paused) this.session.screen = 'playing';
   }
 
   takeBossCamp(seat: FactionId): boolean {
+    if (this.startupPending) return false;
     const world = this.world, s = this.session;
     if (!world || s.spectator || !world.options.humans.includes(s.playerFaction)) return false;
     if (this.mirror) {
@@ -310,6 +350,7 @@ export class App implements AppApi {
   }
 
   submit(cmd: Command): void {
+    if (this.startupPending) return;
     if (!this.mirror) {
       this.world?.submit(cmd);
       return;
@@ -335,6 +376,7 @@ export class App implements AppApi {
    * one-shot effects at once). Local burns only: online the host owns time.
    */
   fastForward(seconds: number): void {
+    if (this.startupPending) return;
     if (!this.sim || !this.world || this.mirror) return;
     const steps = Math.round(seconds / SIM_DT);
     for (let i = 0; i < steps && this.world.phase === 'playing'; i++) {
@@ -522,6 +564,47 @@ export class App implements AppApi {
 
   // ── Frame loop ─────────────────────────────────────────────────────────────
 
+  private draw(dt: number): void {
+    try {
+      if (this.renderer.render(dt) && !this.readySettled) {
+        this.readySettled = true;
+        this.resolveReady();
+      }
+    } catch (error) {
+      this.failReadiness(error);
+      throw error;
+    }
+  }
+
+  private failReadiness(error: unknown): void {
+    if (this.readySettled) return;
+    this.readySettled = true;
+    this.rejectReady(error);
+  }
+
+  private prepareStartup(): void {
+    // Keep the first title image while the intro plays instead of competing with its video
+    // decoder for GPU time. The regular frame loop redraws immediately after release.
+    if (this.startupFailed || this.readySettled) return;
+    try {
+      if (!this.startupPrepared && this.world) {
+        // Controls.update also navigates menus with the gamepad. Build the exact title pose
+        // without polling input, and let Controls take over normally after the intro.
+        const rig = new CameraRig();
+        rig.setMode('title', 0);
+        rig.updateTitle(this.world, this.session.playerFaction, 0);
+        rig.apply(this.renderer.camera, 0, 0);
+        this.ui.update(0);
+        this.startupPrepared = true;
+      }
+      // A zero-delta frame warms GPU programs and draws without advancing presentation time.
+      this.draw(0);
+    } catch (error) {
+      this.startupFailed = true;
+      this.failReadiness(error);
+    }
+  }
+
   private stepLocal(dt: number): void {
     const screen = this.session.screen;
     const running = screen === 'playing' || screen === 'title' || screen === 'lobby';
@@ -551,6 +634,11 @@ export class App implements AppApi {
       this.fpsFrames = 0;
     }
 
+    if (this.startupPending) {
+      this.prepareStartup();
+      return;
+    }
+
     this.controls.update(dt);
     if (this.mirror) this.stepOnline(this.mirror, now, dt);
     else this.stepLocal(dt);
@@ -561,7 +649,7 @@ export class App implements AppApi {
     this.renderer.onEvents(events);
     this.ui.onEvents(events);
     this.audio.onEvents(events);
-    this.renderer.render(dt);
+    this.draw(dt);
     this.ui.update(dt);
     this.audio.update(dt);
   };

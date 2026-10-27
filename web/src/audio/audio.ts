@@ -84,7 +84,10 @@ export class GameAudio {
 
   constructor(app: AppApi) {
     this.app = app;
-    const onGesture = (): void => {
+    const onGesture = (event: Event): void => {
+      // Holding Enter to skip the intro must not unlock audio when that press repeats
+      // after startup releases. Require a fresh key press (pointer gestures are unchanged).
+      if (event.type === 'keydown' && (event as KeyboardEvent).repeat) return;
       // Browser interruptions and rejected autoplay resumes can suspend audio again.
       // Keep the gesture path available; unlock is a no-op while already running.
       this.unlock();
@@ -95,6 +98,8 @@ export class GameAudio {
 
   /** Create/resume the AudioContext (must follow a user gesture). */
   unlock(): void {
+    // The intro's Sound/Skip buttons own their gestures, not the game's global listeners.
+    if (this.app.startupPending) return;
     if (!this.parts) {
       const engine = new AudioEngine();
       this.parts = {
@@ -112,6 +117,7 @@ export class GameAudio {
   }
 
   onEvents(events: GameEvent[]): void {
+    if (this.app.startupPending) return;
     const parts = this.parts;
     const w = this.app.world;
     if (!parts || !w || parts.engine.ctx.state !== 'running' || events.length === 0) return;
@@ -124,6 +130,7 @@ export class GameAudio {
   }
 
   update(dt: number): void {
+    if (this.app.startupPending) return;
     const parts = this.parts;
     if (!parts || parts.engine.ctx.state !== 'running') return;
     const t0 = performance.now();
@@ -218,6 +225,7 @@ export class GameAudio {
    * audio is locked/suspended. The renderer phase-locks RenderContext.beat to this.
    */
   beat(): number | null {
+    if (this.app.startupPending) return null;
     return this.parts ? this.parts.music.beat() : null;
   }
 
@@ -245,6 +253,7 @@ export class GameAudio {
 
   /** Parts when audio is unlocked and running, else null (every cue is a no-op then). */
   private ready(): Parts | null {
+    if (this.app.startupPending) return null;
     return this.parts && this.parts.engine.ctx.state === 'running' ? this.parts : null;
   }
 

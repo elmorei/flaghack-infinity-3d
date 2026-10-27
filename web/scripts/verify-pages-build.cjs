@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { readFileSync, existsSync } = require('node:fs');
+const { readFileSync, existsSync, readdirSync, statSync } = require('node:fs');
 const { resolve, join } = require('node:path');
 const dist = resolve(__dirname, '../dist');
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
@@ -16,7 +16,19 @@ for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
   assert.ok(existsSync(join(dist, relative)), `Missing built asset ${relative}`);
   assets++;
 }
-assert.ok(assets >= 2, 'Expected bundled script and stylesheet');
+assert.ok(assets >= 1, 'Expected the lightweight startup entry');
+assert.ok(html.includes('id="startup"') && html.includes('id="startup-skip"'), 'Startup shell must paint from the HTML');
+assert.ok(html.includes('<div id="app" inert>'), 'The game must stay inert until startup finishes');
+const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)];
+assert.equal(scripts.length, 1, 'Load only the small startup entry eagerly');
+const entry = new URL(scripts[0][1], base).pathname.slice('/flaghack-infinity-3d/'.length);
+assert.ok(statSync(join(dist, entry)).size < 32_000, 'Startup entry should not contain the game bundle');
+const builtAssets = readdirSync(join(dist, 'assets'));
+assert.ok(builtAssets.some((file) => /^main-.*\.js$/.test(file)), 'Expected deferred game code');
+assert.ok(builtAssets.some((file) => /^main-.*\.css$/.test(file)), 'Expected deferred game styles');
+const intros = builtAssets.filter((file) => /\.mp4$/.test(file));
+assert.equal(intros.length, 1, 'Ship exactly one real self-hosted intro asset');
+assert.ok(statSync(join(dist, 'assets', intros[0])).size > 10_000, 'Intro must contain actual media bytes');
 assert.ok(existsSync(join(dist, '.nojekyll')));
 assert.ok(readFileSync(join(dist, 'LICENSES.txt'), 'utf8').includes('three'));
 const metadata = JSON.parse(readFileSync(join(dist, 'build.json'), 'utf8'));
