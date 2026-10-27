@@ -200,7 +200,7 @@ export function damagePiece(world: World, p: Piece, amount: number, by: EntityId
     const info = econ(world).pieceInfo.get(p.id);
     if (info) world.emit({ t: 'hit', target: p.id, by, amount, pos: { x: info.x, y: info.y, z: info.z } });
   }
-  if (p.hp <= 0) destroyPiece(world, p);
+  if (p.hp <= 0) destroyPiece(world, p, world.boss?.id === by);
   return true;
 }
 
@@ -218,13 +218,13 @@ export function piecePosition(world: World, p: Piece): Readonly<V3> | undefined 
  * Remove a piece (collision, nav, slot index), emit pieceDestroyed, then destroy every piece
  * above that lost its support, breadth-first in lattice order.
  */
-export function destroyPiece(world: World, p: Piece): void {
+export function destroyPiece(world: World, p: Piece, bossDestroyed = false): void {
   const queue: Piece[] = [p];
   const deps: Piece[] = [];
   for (let qi = 0; qi < queue.length; qi++) {
     const q = queue[qi];
     if (world.pieces.get(q.id) !== q) continue;
-    removePiece(world, q);
+    removePiece(world, q, bossDestroyed);
     deps.length = 0;
     collectDependents(world, q, deps);
     for (const d of deps) {
@@ -233,11 +233,11 @@ export function destroyPiece(world: World, p: Piece): void {
   }
 }
 
-function removePiece(world: World, p: Piece): void {
+function removePiece(world: World, p: Piece, bossDestroyed: boolean): void {
   const info = econ(world).pieceInfo.get(p.id);
   const pos = info ? { x: info.x, y: info.y, z: info.z } : { x: 0, y: 0, z: 0 };
   detachPiece(world, p);
-  world.emit({ t: 'pieceDestroyed', pieceId: p.id, kind: p.kind, faction: p.faction, pos });
+  world.emit({ t: 'pieceDestroyed', pieceId: p.id, kind: p.kind, faction: p.faction, pos, ...(bossDestroyed ? { bossDestroyed: true as const } : {}) });
 }
 
 /**

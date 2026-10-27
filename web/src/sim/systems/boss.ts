@@ -349,7 +349,7 @@ export function consumeBuilding(world: World, building: Building, destroyed = fa
     }
     if (fac.gccId === building.id) fac.gccId = null;
   }
-  world.emit({ t: 'buildingDisabled', buildingId: building.id, kind: building.kind, faction: building.faction, pos: { ...building.pos } });
+  world.emit({ t: 'buildingDisabled', buildingId: building.id, kind: building.kind, faction: building.faction, pos: { ...building.pos }, ...(destroyed ? { bossDestroyed: true as const } : {}) });
 }
 
 function inSwipe(b: BossState, p: V2): boolean {
@@ -409,7 +409,7 @@ function crushObjects(world: World, b: BossState, at: V2, radius: number, heavy:
     if (s.kind === 'hearth') damageEntity(world, s.id, 250, b.id);
     else consumeBuilding(world, s, true);
   }
-  for (const p of [...world.pieces.values()]) { const pos = piecePosition(world, p); if (pos && distance(pos, at) < radius + 1.5 && attackReaches(world, b, pos)) destroyPiece(world, p); }
+  for (const p of [...world.pieces.values()]) { const pos = piecePosition(world, p); if (pos && distance(pos, at) < radius + 1.5 && attackReaches(world, b, pos)) destroyPiece(world, p, true); }
   // Boundary flags are dismantled by the grab/eat action; foot impacts cannot bypass a field.
   const protectedIds = new Set<number>();
   for (const edge of bossLoopEdges(world)) for (const f of barrierFlags(world, edge)) protectedIds.add(f.id);

@@ -32,6 +32,8 @@ export const Shape = {
   Shard: 6,
   /** Digital glitch block with scanlines. */
   Glitch: 7,
+  /** Emissive, turbulent fire lobe with a hot core and cooling rim. */
+  Fireball: 8,
 } as const;
 export type ShapeId = (typeof Shape)[keyof typeof Shape];
 
@@ -225,7 +227,9 @@ void main() {
     vel = vec3(-s, 0.0, c) * (r * a1.z * spinUp) - vec3(c, 0.0, s) * (a6.z * r);
     vel.y = a1.y - a2.z * age;
   }
-  float size = mix(a2.x, a2.y, t);
+  // Flame poofs inflate sharply, then billow rather than growing linearly.
+  float growth = a5.x > 7.5 ? 1.0 - exp(-7.0 * t) : t;
+  float size = mix(a2.x, a2.y, growth);
   vec4 mv = viewMatrix * vec4(p, 1.0);
   float depth = max(-mv.z, 0.05);
   // Keep far particles >= ~1.6 px, trading area for brightness so they do not shimmer away.
@@ -240,7 +244,7 @@ void main() {
   vec2 ax;
   vec2 center = mv.xy;
   float sx = size;
-  float sy = size;
+  float sy = size * (a5.x > 7.5 ? 1.18 : 1.0);
   if (a5.w > 0.0) {
     // Motion blur: stretch along the on-screen velocity, head at the particle.
     vec2 sv = (viewMatrix * vec4(vel, 0.0)).xy;
@@ -329,10 +333,25 @@ void main() {
     float w = 0.42 * (1.0 - abs(vUv.x)) * (1.0 + 0.45 * vUv.x);
     m = 1.0 - smoothstep(w * 0.7, w, abs(vUv.y));
     m *= 0.75 + 0.6 * smoothstep(0.75, 1.0, sin(vUv.x * 3.0 - vUv.y * 2.0 + vT * 16.0 + vSeed * 20.0));
-  } else {
+  } else if (vShape < 7.5) {
     vec2 a = abs(vUv);
     float box = 1.0 - step(0.92, max(a.x, a.y));
     m = box * (0.55 + 0.45 * step(0.5, fract(vUv.y * 3.0 + vSeed * 5.0 + vT * 7.0)));
+  }
+  // Fire is a billowing, opaque/emissive volume, not stacked additive white disks.
+  vec3 fireColor = vec3(0.0);
+  if (vShape > 7.5) {
+    vec2 flow = vUv * 3.0 + vec2(vSeed * 41.0, -vT * 2.8);
+    float n = fxNoise(flow) * .65 + fxNoise(flow * 2.3 + vT) * .35;
+    float contour = r + (n - .5) * .42;
+    m = 1.0 - smoothstep(.62, 1.0, contour);
+    float folds = fxNoise(flow * 1.7 - vec2(vT * 1.2, vT * 2.1));
+    float heat = clamp(1.02 - contour * .65 - vT * .65 + (n - .5) * .65, 0.0, 1.0);
+    fireColor = mix(vec3(.42, .025, .002), vec3(2.5, .32, .012), smoothstep(.08, .55, heat));
+    fireColor = mix(fireColor, vec3(4.0, 3.0, .9), smoothstep(.48, .88, heat));
+    // A soft rounded shaded rim makes overlapping lobes read as a volume.
+    fireColor *= (.65 + .35 * max(0.0, 1.0 - r * r)) * mix(.22, 1.0, smoothstep(.22, .53, folds));
+    m *= 1.0 - smoothstep(.5, 1.0, vT);
   }
   float alpha = vColor.a * m;
   if (alpha < 0.003) discard;
@@ -340,7 +359,7 @@ void main() {
 #ifdef ADDITIVE
   gl_FragColor = vec4(rgb * alpha, 0.0);
 #else
-  gl_FragColor = vec4(rgb * uLight * alpha, alpha);
+  gl_FragColor = vec4((vShape > 7.5 ? fireColor : rgb * uLight) * alpha, alpha);
 #endif
   ${FOG_FRAG_GLSL}
   ${OUTPUT_GLSL}
