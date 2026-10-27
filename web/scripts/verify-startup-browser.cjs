@@ -10,6 +10,7 @@ const DIST = resolve(__dirname, '../dist');
 const OUT = resolve(__dirname, '../host-release/startup-smoke');
 const PROJECT = '/flaghack-infinity-3d/';
 const CACHE_PREFIX = 'flaghack.startup-cache.v1:';
+const INTRO_SECONDS = JSON.parse(readFileSync(resolve(__dirname, '../src/startup/assets/gameplay-intro-provenance.json'), 'utf8')).delivery.durationSeconds;
 const requests = [];
 let failMedia = false;
 let failGame = false;
@@ -105,7 +106,7 @@ async function main() {
     await page.waitForFunction(() => !!document.querySelector('video')?.getAttribute('src'));
     assert.equal(await page.getByRole('button', { name: 'Loading…', exact: true }).isDisabled(), true);
     await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.1);
-    assert.equal(await page.locator('video').evaluate((video) => video.duration), 30);
+    assert.equal(await page.locator('video').evaluate((video) => video.duration), INTRO_SECONDS);
     releaseGame();
     await ready();
     let state = await readState();
