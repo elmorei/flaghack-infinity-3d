@@ -1,0 +1,40 @@
+name: Capture spoiler-free night altar
+on:
+  push:
+    branches: [capture/night-altar-20261027]
+    paths:
+      - '.github/workflows/capture-night-altar.yml'
+      - 'web/bench/capture-night-altar.mjs'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: command -v ffmpeg || brew install ffmpeg
+      - name: Capture actual contested-altar gameplay with native Metal
+        env:
+          CAPTURE_BASE_SHA: '2938df043f50bb798362e3e6b04e63009cb9767b'
+        run: node bench/capture-night-altar.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: flaghack-night-contested-altar
+          path: web/montage-output/
+          retention-days: 7
+          if-no-files-found: error
