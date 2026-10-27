@@ -24,6 +24,7 @@ import type {
   MatchOptions,
   MatchPhase,
   Owner,
+  SceneryCaptureState,
   Pile,
   Piece,
   Ping,
@@ -84,6 +85,8 @@ export class World {
   bossOutcome: BossOutcome | null = null;
   /** Canonical map obstacle IDs removed by direct boss beam hits; replicated for late joins. */
   destroyedScenery = new Set<number>();
+  /** Durable allegiance and Survey pressure of claimed neutral map structures. */
+  sceneryCapture = new Map<number, SceneryCaptureState>();
 
   lattice!: Lattice;
   map!: MapLayout;

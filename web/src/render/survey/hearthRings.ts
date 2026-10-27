@@ -8,10 +8,11 @@
  */
 import * as THREE from 'three';
 import type { Session } from '../../game/session';
-import { IMPLIED_MAX_ORDER, NEUTRAL_COLOR } from '../../sim/constants';
+import { BUILDINGS, IMPLIED_MAX_ORDER, NEUTRAL_COLOR } from '../../sim/constants';
 import { criticalNodes, enclosureBoundary } from '../../sim/lattice/geometry';
+import { pieceCaptureAnchor } from '../../sim/systems/structureEnclosure';
 import { geometryOwners } from '../../sim/systems/survey';
-import type { Building, CaptureStage, FactionId } from '../../sim/types';
+import type { Building, CaptureStage, FactionId, Owner, StructureCaptureState } from '../../sim/types';
 import type { World } from '../../sim/world';
 import { BEAM } from './beams';
 import type { BeamLayer } from './beams';
@@ -22,6 +23,7 @@ import { SPRITE } from './sprites';
 import type { SpriteLayer } from './sprites';
 import type { SurveyData } from './surveyData';
 
+interface CaptureTarget { id: number; pos: { x: number; z: number }; facet: number; faction: Owner; hearth?: Building['hearth']; capture?: StructureCaptureState | null; radius: number; }
 const RING_R = 7.5;
 const STAGE_CODE: Record<CaptureStage, number> = {
   safe: 0,
@@ -59,7 +61,7 @@ export class HearthFeature {
   private xray: SpriteLayer | null = null;
   private now = 0;
   private readonly visit = (b: Building): void => {
-    if (b.kind === 'hearth' && b.hearth) this.drawHearth(b);
+    if (b.hearth || b.capture) this.drawHearth({ ...b, radius: b.kind === 'hearth' ? RING_R : BUILDINGS[b.kind].radius + 1.2 });
   };
 
   constructor(world: World, session: Session, data: SurveyData) {
@@ -75,10 +77,18 @@ export class HearthFeature {
     this.beams = beams;
     this.xray = xray;
     this.world.buildings.forEach(this.visit);
+    for (const p of this.world.pieces.values()) {
+      if (p.capture) this.drawHearth({ ...pieceCaptureAnchor(this.world, p), id: p.id, faction: p.faction, capture: p.capture });
+    }
+    for (const o of this.world.map.obstacles) {
+      const state = this.world.sceneryCapture.get(o.id);
+      if (!state || this.world.destroyedScenery.has(o.id)) continue;
+      this.drawHearth({ id: -1 - o.id, pos: { x: o.x, z: o.z }, facet: this.world.lattice.facetAt(o.x, o.z), faction: state.faction, capture: state, radius: o.radius + 1.2 });
+    }
   }
 
-  private drawHearth(b: Building): void {
-    const h = b.hearth;
+  private drawHearth(b: CaptureTarget): void {
+    const h = b.hearth ?? b.capture;
     const decals = this.decals;
     const beams = this.beams;
     if (!h || !decals || !beams) return;
@@ -104,7 +114,7 @@ export class HearthFeature {
       default:
         this.color.copy(WHITE);
     }
-    const ring = decals.push(DECAL.hearth, b.pos.x, b.pos.z, RING_R, 0, this.color, stage === 0 ? 0.7 : 1, 0.7, stage, pressure, b.id * 0.31);
+    const ring = decals.push(DECAL.hearth, b.pos.x, b.pos.z, b.radius, 0, this.color, stage === 0 ? 0.7 : 1, 0.7, stage, pressure, b.id * 0.31);
     if (h.stage === 'contested') decals.setColor2(ring, this.color2.setHex(attackerColor));
 
     if (stage >= 2 && attacker !== null) {
@@ -132,14 +142,13 @@ export class HearthFeature {
     }
   }
 
-  private drawCritical(loop: LoopCache, b: Building, attacker: FactionId): void {
+  private drawCritical(loop: LoopCache, b: CaptureTarget, attacker: FactionId): void {
     const xray = this.xray;
     const decals = this.decals;
-    const h = b.hearth;
-    if (!xray || !decals || !h) return;
+    if (!xray || !decals) return;
     if (loop.criticalFor !== this.data.surveyStamp) {
       loop.criticalFor = this.data.surveyStamp;
-      loop.critical = criticalNodes(this.data.lat, geometryOwners(this.world), attacker, h.facet, IMPLIED_MAX_ORDER);
+      loop.critical = criticalNodes(this.data.lat, geometryOwners(this.world), attacker, b.facet, IMPLIED_MAX_ORDER);
     }
     for (let i = 0; i < loop.critical.length; i++) {
       const n = loop.critical[i];
@@ -149,7 +158,7 @@ export class HearthFeature {
   }
 
   /** Enclosing-loop Ley Line edges for this Hearth and attacker (cached per survey stamp). */
-  private loopFor(b: Building, attacker: FactionId): LoopCache {
+  private loopFor(b: CaptureTarget, attacker: FactionId): LoopCache {
     const h = b.hearth;
     const facet = h ? h.facet : b.facet;
     let c = this.cache.get(b.id);

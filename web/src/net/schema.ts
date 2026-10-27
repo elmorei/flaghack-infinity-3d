@@ -28,6 +28,7 @@ import type {
   Building,
   BuildingKind,
   CaptureStage,
+  StructureCaptureState,
   ChakraId,
   Crystal,
   Difficulty,
@@ -539,6 +540,21 @@ const hearthField: Field<Building> = {
   },
 };
 
+/** Independent camp capture state, separate from Hearth victory state. */
+function captureField<T extends { capture?: StructureCaptureState | null }>(): Field<T> { return {
+  key: 'capture',
+  enc: (b) => { const h = b.capture; return h ? [h.stage, h.attacker, ...FACTION_IDS.map(f => quant(h.pressure[f], CM)), quant(h.overwriteAt, MS)] : null; },
+  same: (b, p) => { const h = b.capture; if (!h) return p === null; return Array.isArray(p) && p.length === 7 && p[0] === h.stage && p[1] === h.attacker && FACTION_IDS.every(f => p[2 + f] === quant(h.pressure[f], CM)) && p[6] === quant(h.overwriteAt, MS); },
+  dec: (b, v) => { if (!Array.isArray(v)) { b.capture = null; return; }
+    const h = b.capture ?? { stage: 'safe', attacker: null, pressure: { 0: 0, 1: 0, 2: 0, 3: 0 }, overwriteAt: 0 };
+    if (oneOf(v[0], CAPTURE_STAGES)) h.stage = v[0]; h.attacker = optFaction(v[1]);
+    for (const f of FACTION_IDS) h.pressure[f] = dequant(v[2 + f], CM);
+    h.overwriteAt = dequant(v[6], MS); b.capture = h;
+  },
+}; }
+const structureCaptureField = captureField<Building>();
+const pieceCaptureField = captureField<Piece>();
+
 /** Drug Lab: [brewing, progress, queue]. */
 const labField: Field<Building> = {
   key: 'lab',
@@ -895,9 +911,11 @@ const BUILDING_FIELDS: readonly Field<Building>[] = [
   hearthField,
   labField,
   gccField,
+  structureCaptureField,
 ];
 
 const PIECE_FIELDS: readonly Field<Piece>[] = [
+  pieceCaptureField,
   choice('kind', PIECE_KINDS, (p) => p.kind, (p, v) => {
     p.kind = v;
   }),
@@ -1398,7 +1416,27 @@ export function bossFromWire(v: Wire): BossState | null {
   };
 }
 
+function sceneryCaptureWire(w: World): Wire[] {
+  return [...w.sceneryCapture].sort(([a], [b]) => a - b).map(([id, h]) =>
+    [id, h.faction, h.stage, h.attacker, ...FACTION_IDS.map(f => quant(h.pressure[f], CM)), quant(h.overwriteAt, MS)]);
+}
+
 export const WORLD_FIELDS: readonly Field<World>[] = [
+  {
+    key: 'sceneryCapture', enc: sceneryCaptureWire,
+    same: (w, p) => wireEqual(sceneryCaptureWire(w), p),
+    dec: (w, v) => {
+      w.sceneryCapture.clear();
+      for (const row of list(v)) {
+        if (!Array.isArray(row) || row.length !== 9) continue;
+        const id = int(row[0], -1);
+        const o = w.map.obstacles.find(o => o.id === id);
+        if (!o || !['tent','dome','shade','porta','art','car'].includes(o.kind) || !oneOf(row[2], CAPTURE_STAGES)) continue;
+        w.sceneryCapture.set(id, { faction: owner(row[1]), stage: row[2], attacker: optFaction(row[3]),
+          pressure: { 0: dequant(row[4], CM), 1: dequant(row[5], CM), 2: dequant(row[6], CM), 3: dequant(row[7], CM) }, overwriteAt: dequant(row[8], MS) });
+      }
+    },
+  },
   {
     key: 'destroyedScenery',
     enc: (w) => [...w.destroyedScenery].sort((a, b) => a - b),

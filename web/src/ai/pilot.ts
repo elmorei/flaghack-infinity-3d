@@ -6,7 +6,10 @@
  * chakras and work the Command Table. Every command is pre-checked so none is rejected.
  * Owner: AI agent.
  */
-import { ALIGN_RADIUS, AVATAR, BUILDINGS, HIPPIE, LIGHTNING_PULL_MULT, SIM_DT } from '../sim/constants';
+import { ALIGN_RADIUS, AVATAR, BUILDINGS, HIPPIE, IMPLIED_MAX_ORDER, LIGHTNING_PULL_MULT, SIM_DT } from '../sim/constants';
+import { criticalNodes } from '../sim/lattice/geometry';
+import { pieceCaptureAnchor } from '../sim/systems/structureEnclosure';
+import { geometryOwners } from '../sim/systems/survey';
 import { TAU } from '../sim/math';
 import type { V2, V3 } from '../sim/math';
 import { GROUND_SHAPE } from '../sim/physics/collision';
@@ -16,7 +19,7 @@ import { nearestHearth, population, popCap, stockAt } from '../sim/systems/econo
 import { canPlantAt, flagPullDefender } from '../sim/systems/flags';
 import { canRecruit, handFlagBlocker } from '../sim/systems/recruitment';
 import { NEUTRAL } from '../sim/types';
-import type { Avatar, EntityId } from '../sim/types';
+import type { Avatar, EntityId, Owner, StructureCaptureState } from '../sim/types';
 import type { Brain, PilotTask } from './brain';
 import { SIGHT } from './perception';
 import { MAX_THROW_RANGE, solveThrow } from './ballistics';
@@ -138,6 +141,33 @@ function taskValid(b: Brain, av: Avatar, t: PilotTask): boolean {
   }
 }
 
+/** Break a visible siege loop around our ordinary camp structures, after Hearth defense. */
+export function structureDefenseFlag(b: Brain, av: Avatar): number {
+  const w = b.world;
+  let best = -1, bestScore = Infinity;
+  const targets: { faction: Owner; pos: V2; facet: number; capture?: StructureCaptureState | null }[] = [...w.buildings.values()];
+  for (const p of w.pieces.values()) if (p.capture) targets.push({ ...pieceCaptureAnchor(w, p), faction: p.faction, capture: p.capture });
+  for (const o of w.map.obstacles) {
+    const capture = w.sceneryCapture.get(o.id);
+    if (capture && !w.destroyedScenery.has(o.id)) targets.push({ faction: capture.faction, pos: { x: o.x, z: o.z }, facet: w.lattice.facetAt(o.x,o.z), capture });
+  }
+  for (const structure of targets) {
+    const hs = structure.capture;
+    if (structure.facet < 0 || structure.faction !== b.f || !hs || hs.attacker === null ||
+        (hs.stage !== 'contained' && hs.stage !== 'contested') ||
+        (structure.pos.x - av.pos.x) ** 2 + (structure.pos.z - av.pos.z) ** 2 > SIGHT ** 2) continue;
+    const nodes = criticalNodes(w.lattice, geometryOwners(w), hs.attacker, structure.facet, IMPLIED_MAX_ORDER);
+    for (const node of nodes) {
+      const fl = w.flags.get(w.survey.nodeFlag[node]);
+      if (!fl || fl.owner === b.f || fl.state !== 'planted' || isFlagProtected(w, fl)) continue;
+      const distance = (fl.pos.x - av.pos.x) ** 2 + (fl.pos.z - av.pos.z) ** 2;
+      const score = distance * (flagPullDefender(w, fl, b.f) ? LIGHTNING_PULL_MULT : 1) / (1 + hs.pressure[hs.attacker] / 100);
+      if (score < bestScore) { bestScore = score; best = fl.id; }
+    }
+  }
+  return best;
+}
+
 function pending(b: Brain, node: number): boolean {
   const until = b.pilot.thrownAt.get(node);
   return until !== undefined && until > b.world.time;
@@ -167,6 +197,8 @@ function chooseTask(b: Brain, av: Avatar): PilotTask {
     }
     return { kind: 'hold' };
   }
+  const defendStructure = structureDefenseFlag(b, av);
+  if (defendStructure >= 0) return { kind: 'pull', flagId: defendStructure };
   // Shared-population losses return neutral: rebuild with Flags instead of waiting for respawns.
   const recruiting = population(world, b.f) < popCap(world, b.f);
   if (recruiting && av.carried.length > 0) {

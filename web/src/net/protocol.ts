@@ -23,7 +23,7 @@ import type { DeltaSnapshot, FullSnapshot } from './codec';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
 // v14: Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
