@@ -8,6 +8,8 @@ permissions:
   actions: read
 jobs:
   encode:
+    # One-time test render complete; do not rerun.
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
