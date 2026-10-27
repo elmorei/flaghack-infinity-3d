@@ -9,8 +9,6 @@ permissions:
   contents: read
 jobs:
   capture:
-    # Clear-view capture complete; prevent repeat temporary renders.
-    if: false
     runs-on: macos-15
     timeout-minutes: 25
     defaults:

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventOf } from '../../sim/events';
-import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, STRUCTURE_FLAME_MAX_LIFE, SceneryEruptions } from './sceneryEruptions';
+import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, STRUCTURE_FLAME_MAX_LIFE, STRUCTURE_FLAME_HEIGHT_SCALE, SceneryEruptions } from './sceneryEruptions';
 import { Shape } from './particles';
 import { VfxRenderer } from './vfxRenderer';
 
@@ -25,6 +25,8 @@ describe('large billowing destruction fireballs', () => {
     expect(shapes).not.toContain(Shape.Chip);
     for (let i = 0; i < shapes.length; i++) if (shapes[i] === Shape.Fireball) {
       expect(attr(fx, 1).getW(i)).toBeLessThanOrEqual(STRUCTURE_FLAME_MAX_LIFE);
+      expect(attr(fx, 7).getW(i)).toBeCloseTo(STRUCTURE_FLAME_HEIGHT_SCALE);
+      expect(attr(fx, 6).getZ(i)).toBe(e.pos.y);
       expect(attr(fx, 2).getY(i)).toBeGreaterThan(attr(fx, 2).getX(i) * 5);
     }
     expect(fx.mesh.material.fragmentShader).toContain('fireColor : rgb * uLight');
@@ -118,6 +120,21 @@ describe('large billowing destruction fireballs', () => {
     send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
     send({ t: 'pieceDestroyed', pieceId: 9, kind: 'wall', faction: 0, pos: { x: 30, y: 6, z: -20 } });
     fx.update(3); expect(fx.mesh.geometry.instanceCount).toBe(count); expect(wreck).toHaveBeenCalledOnce(); fx.dispose();
+  });
+
+  it('stretches flames 45% in world vertical, preserving width, age and ground anchor', () => {
+    expect(STRUCTURE_FLAME_HEIGHT_SCALE).toBe(1.45);
+    const fx = make(), e = event(); fx.onEvent(e, 10); fx.update(10);
+    const shapes = rows(fx, 5).map(r => r[0]);
+    for (let i = 0; i < shapes.length; i++) {
+      if (shapes[i] !== Shape.Fireball) { expect(attr(fx, 7).getW(i)).toBe(0); continue; }
+      const scale = attr(fx, 7).getW(i), ground = attr(fx, 6).getZ(i), initialY = attr(fx, 0).getY(i);
+      expect(ground + (initialY - ground) * scale).toBeGreaterThan(initialY);
+      expect(attr(fx, 0).getW(i)).toBe(10);
+    }
+    expect(fx.mesh.material.vertexShader).toContain('mv.xyz += worldUpInView');
+    expect(fx.mesh.material.vertexShader).toContain('p.y - a6.z + offsetWorldY');
+    fx.dispose();
   });
 
   it('low quality reduces particle count without skipping any prop eruption', () => {

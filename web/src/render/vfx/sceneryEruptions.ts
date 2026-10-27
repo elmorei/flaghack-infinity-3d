@@ -11,6 +11,7 @@ import { Prng } from './prng';
 export const SCENERY_PARTICLE_CAPACITY = 2048;
 export const SCENERY_ERUPTION_MAX_LIFE = 1.65;
 export const STRUCTURE_FLAME_MAX_LIFE = .95;
+export const STRUCTURE_FLAME_HEIGHT_SCALE = 1.45;
 const SMOKE = new THREE.Color(0x493c32);
 const ASH = new THREE.Color(0x302d2b);
 const FIRE = new THREE.Color(0xffb32c);
@@ -71,7 +72,8 @@ export class SceneryEruptions {
           .time(rng.range(.7, STRUCTURE_FLAME_MAX_LIFE))
           .size(puff * .16, puff).phys(-.3, 1.8)
           .from(FIRE, 1, .98).to(FIRE, 1, .5)
-          .look(Shape.Fireball, rng.signed() * .65, angle).anim(0, 0, .025);
+          .look(Shape.Fireball, rng.signed() * .65, angle).anim(0, 0, .025)
+          .stretchVertical(STRUCTURE_FLAME_HEIGHT_SCALE, pos.y);
       } else {
         const puff = radius * rng.range(.5, .7);
         spec.vel(Math.cos(angle) * .5, rng.range(.8, 1.6), Math.sin(angle) * .5)

@@ -78,6 +78,8 @@ export class ParticleSpec {
   flicker = 0;
   flutter = 0;
   fadeIn = 0.03;
+  verticalScale = 1;
+  groundY = 0;
 
   /** Reset to a 1 s white dot at the origin; every recipe starts here. */
   reset(): this {
@@ -96,6 +98,8 @@ export class ParticleSpec {
     this.theta = this.shrink = 0;
     this.flicker = this.flutter = 0;
     this.fadeIn = 0.03;
+    this.verticalScale = 1;
+    this.groundY = 0;
     return this;
   }
 
@@ -162,6 +166,13 @@ export class ParticleSpec {
     this.g1 = c.g * intensity;
     this.b1 = c.b * intensity;
     this.a1 = alpha;
+    return this;
+  }
+
+  /** Fireball only: stretch in WORLD vertical about the ground, never horizontal width. */
+  stretchVertical(scale: number, groundY: number): this {
+    this.verticalScale = scale;
+    this.groundY = groundY;
     return this;
   }
 
@@ -265,6 +276,14 @@ void main() {
   }
   vec2 ay = vec2(-ax.y, ax.x);
   mv.xy = center + ax * (position.x * sx) + ay * (position.y * sy);
+  if (a5.x > 7.5) {
+    // Stretch the entire lobe, including its rise, about ground in world Y. Scaling
+    // screen Y would skew the shape sideways when the billboard spins or camera tilts.
+    vec3 worldUpInView = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+    vec2 offset = ax * (position.x * sx) + ay * (position.y * sy);
+    float offsetWorldY = dot(offset, worldUpInView.xy);
+    mv.xyz += worldUpInView * ((p.y - a6.z + offsetWorldY) * (a7.w - 1.0));
+  }
   gl_Position = projectionMatrix * mv;
   vec4 col = mix(a3, a4, t);
   float fade = a7.z > 0.0 ? clamp(age / a7.z, 0.0, 1.0) : 1.0;
@@ -276,7 +295,7 @@ void main() {
   vSeed = a6.w;
   vT = t;
   #ifdef USE_FOG
-  vFogDepth = depth;
+  vFogDepth = max(-mv.z, 0.05);
   #endif
 }
 `;
@@ -428,12 +447,12 @@ export class ParticlePool {
     d[o++] = s.streak;
     d[o++] = s.motion;
     d[o++] = s.theta;
-    d[o++] = s.shrink;
+    d[o++] = s.shape === Shape.Fireball ? s.groundY : s.shrink;
     d[o++] = this.seedSeq;
     d[o++] = s.flicker;
     d[o++] = s.flutter;
     d[o++] = s.fadeIn;
-    d[o] = 0;
+    d[o] = s.shape === Shape.Fireball ? s.verticalScale : 0;
     this.buf.mark(i, i + 1);
     this.cursor = i + 1 === this.buf.capacity ? 0 : i + 1;
     if (i + 1 > this.used) this.used = i + 1;
