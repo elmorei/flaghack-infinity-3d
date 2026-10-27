@@ -9,8 +9,6 @@ permissions:
   contents: read
 jobs:
   capture:
-    # One-time test render complete; do not rerun.
-    if: false
     runs-on: macos-15
     timeout-minutes: 25
     defaults:
