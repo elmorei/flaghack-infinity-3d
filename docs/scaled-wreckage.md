@@ -9,6 +9,6 @@ Boss-destroyed scenery and deleted camp buildings/modular pieces leave determini
 - Existing disabled-building/GCC wreck models and effigy/boss craters are preserved. Swallowed entities and ordinary player dismantling do not create extra material.
 - Up to 48 fragments per object are drawn in three shared instanced meshes, with no debris physics or per-frame simulation.
 
-This branch adds a protocol field and uses version 15. The independent structure-capture branch also introduces version 15; a combined release must use a coordinated newer protocol (16) and matching clients/hosts.
+This combined milestone uses protocol 16 for both persistent wreckage and structure capture, with matching clients and hosts required.
 
 Actual-game proof: `web/bench/capture-structure-wreckage.mjs`, eight seconds of real boss destruction and lingering aftermath. Run in a supported Chrome/WebGL environment, not a generated/composited substitute.

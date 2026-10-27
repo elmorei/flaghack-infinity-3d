@@ -49,12 +49,13 @@ fast-start MP4 metadata. Keep the whole approved source duration. A missing sour
 video. Do not publish a missing or synthetic test fixture as a finished intro.
 
 The supplied original intro is deferred until a playable source is supplied.
-The current replacement is a temporary 30-second montage captured from the actual unmodified
+The current replacement is a temporary 25-second montage captured from the actual unmodified
 production game at `2938df043f50bb798362e3e6b04e63009cb9767b`, staged with offline test controls
 and cinematic camera framing. It is not AI-generated footage or a recording of a live player.
-The 6.57 MB MP4 is 1280×720, 30 fps, H.264/yuv420p with fast-start metadata. It has no audio,
-so the Sound button is intentionally hidden. The last half-second holds the actual final boss
-frame, which also remains visible if loading takes longer than the video.
+The 5.70 MB MP4 is 1280×720, 30 fps, H.264/yuv420p with fast-start metadata. All footage runs
+at 1.2× speed. It has no audio, so the Sound button is intentionally hidden. All boss footage
+has been removed; the ending shows a nighttime contested altar with boss mode disabled.
+That safe final frame remains visible if loading takes longer than the video.
 Provenance, capture run, encoding and SHA-256 are recorded in
 `web/src/startup/assets/gameplay-intro-provenance.json`. The original intro remains deferred.
 
