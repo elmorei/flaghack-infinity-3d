@@ -15,6 +15,7 @@
  *
  * Floors and ramps share the facet slot of a level: one of them per (facet, level).
  */
+import { leavePieceWreckage } from '../wreckage';
 import type { CommandOf } from '../commands';
 import { LEVEL_HEIGHT, MAX_BUILD_LEVEL, PIECE, PIECE_REACH } from '../constants';
 import { spawnPiece } from '../factory';
@@ -236,6 +237,7 @@ export function destroyPiece(world: World, p: Piece, bossDestroyed = false): voi
 function removePiece(world: World, p: Piece, bossDestroyed: boolean): void {
   const info = econ(world).pieceInfo.get(p.id);
   const pos = info ? { x: info.x, y: info.y, z: info.z } : { x: 0, y: 0, z: 0 };
+  if (bossDestroyed) leavePieceWreckage(world, p);
   detachPiece(world, p);
   world.emit({ t: 'pieceDestroyed', pieceId: p.id, kind: p.kind, faction: p.faction, pos, ...(bossDestroyed ? { bossDestroyed: true as const } : {}) });
 }

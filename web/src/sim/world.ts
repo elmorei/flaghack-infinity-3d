@@ -3,6 +3,7 @@
  * Systems (sim/systems/*) mutate it during Simulation.step(); everyone else only reads it
  * and submits Commands.
  */
+import type { Wreckage } from './wreckage';
 import type { Command } from './commands';
 import type { BossOutcome, BossState } from './boss';
 import type { GameEvent } from './events';
@@ -84,6 +85,8 @@ export class World {
   bossOutcome: BossOutcome | null = null;
   /** Canonical map obstacle IDs removed by direct boss beam hits; replicated for late joins. */
   destroyedScenery = new Set<number>();
+  /** Durable cosmetic remnants of removed constructed structures, oldest first. */
+  wreckage: Wreckage[] = [];
 
   lattice!: Lattice;
   map!: MapLayout;

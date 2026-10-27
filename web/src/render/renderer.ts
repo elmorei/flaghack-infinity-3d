@@ -12,6 +12,7 @@ import { ActorsRenderer } from './actors/actorsRenderer';
 import type { PostFxState, RenderContext, RenderModule } from './context';
 import { EnvRenderer } from './env/envRenderer';
 import { PostFx } from './post/postfx';
+import { WreckageRenderer } from './structures/wreckageRenderer';
 import { StructuresRenderer } from './structures/structuresRenderer';
 import { SurveyRenderer } from './survey/surveyRenderer';
 import { renderCommandOverlay } from './survey/markedNodes';
@@ -101,6 +102,7 @@ export class GameRenderer {
       new EnvRenderer(ctx),
       new SurveyRenderer(ctx),
       new StructuresRenderer(ctx),
+      new WreckageRenderer(ctx),
       new ActorsRenderer(ctx),
       new VfxRenderer(ctx),
     ];

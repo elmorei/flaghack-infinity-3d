@@ -1,3 +1,4 @@
+import { leaveBuildingWreckage } from '../wreckage';
 import { groundHeight } from '../terrain';
 /** Host-only giant AI, movement and once-per-action impact windows. */
 import { BOSS_DEATH_DURATION, BOSS_INTERRUPT_IMMUNITY, BOSS_RADIUS, BOSS_RECOIL_DURATION, BOSS_TIMING, createBossEyeState } from '../boss';
@@ -337,6 +338,7 @@ export function consumeBuilding(world: World, building: Building, destroyed = fa
   // Altars are consumed only by the eating path, never any destructive impact.
   if (destroyed && building.kind === 'hearth') return;
   for (const f of [...world.flags.values()]) if (f.holder === building.id) consumeFlag(world, f.id);
+  if (destroyed) leaveBuildingWreckage(world, building);
   world.buildings.delete(building.id);
   registerBuildingShape(world, building);
   for (const av of world.avatars.values()) if (av.pushing === building.id) av.pushing = -1;

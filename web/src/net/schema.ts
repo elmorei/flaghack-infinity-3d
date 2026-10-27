@@ -14,6 +14,8 @@
  * changed with a bitmask (bit i = field i).
  * Owner: NetCore agent.
  */
+import { MAX_WRECKAGE } from '../sim/wreckage';
+import type { Wreckage } from '../sim/wreckage';
 import type { SurveyState, World } from '../sim/world';
 import { BOSS_ACTIONS } from '../sim/boss';
 import type { BossEyeState, BossState, BossTargetKind } from '../sim/boss';
@@ -1398,7 +1400,28 @@ export function bossFromWire(v: Wire): BossState | null {
   };
 }
 
+const WRECKAGE_KINDS = ['workshop', 'drumcircle', 'ward', 'druglab', 'gcc', 'wall', 'floor', 'ramp'];
+function wreckageWire(w: World): Wire {
+  return w.wreckage.map(r => [r.id, r.kind, quant(r.pos.x, CM), quant(r.pos.y, CM), quant(r.pos.z, CM),
+    quant(r.size.x, CM), quant(r.size.y, CM), quant(r.size.z, CM), quant(r.yaw, MRAD)]);
+}
+function wreckageFromWire(value: Wire): Wreckage[] {
+  const records: Wreckage[] = [], ids = new Set<string>();
+  for (const raw of list(value).slice(-MAX_WRECKAGE)) {
+    const r = list(raw);
+    if (r.length !== 9 || typeof r[0] !== 'string' || !/^(building|piece):\d+$/.test(r[0]) ||
+      typeof r[1] !== 'string' || !WRECKAGE_KINDS.includes(r[1]) || ids.has(r[0]) ||
+      !r.slice(2).every(n => typeof n === 'number' && Number.isFinite(n)) ||
+      r.slice(5, 8).some(n => typeof n !== 'number' || n <= 0 || n > 100000)) continue;
+    ids.add(r[0]);
+    records.push({ id: r[0], kind: r[1], pos: { x: dequant(r[2], CM), y: dequant(r[3], CM), z: dequant(r[4], CM) },
+      size: { x: dequant(r[5], CM), y: dequant(r[6], CM), z: dequant(r[7], CM) }, yaw: dequant(r[8], MRAD) });
+  }
+  return records;
+}
 export const WORLD_FIELDS: readonly Field<World>[] = [
+  { key: 'wreckage', enc: wreckageWire, same: (w, prev) => wireEqual(wreckageWire(w), prev),
+    dec: (w, v) => { w.wreckage = wreckageFromWire(v); } },
   {
     key: 'destroyedScenery',
     enc: (w) => [...w.destroyedScenery].sort((a, b) => a - b),
