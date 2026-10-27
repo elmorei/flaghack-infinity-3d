@@ -9,6 +9,8 @@ permissions:
   contents: read
 jobs:
   capture:
+    # One-time wreckage proof captured; prevent repeat renders.
+    if: false
     runs-on: macos-15
     timeout-minutes: 25
     defaults:
