@@ -332,6 +332,8 @@ export interface Crystal {
   bornAt: number;
   /** 0..1 growth. */
   growth: number;
+  /** Host-authored unit attack lock; null while idle. Reconstructed by late joins. */
+  attack: { target: EntityId; readyAt: number; faction: FactionId } | null;
   /** The five pentacle nodes that sustain it. */
   pentacle: number[];
 }

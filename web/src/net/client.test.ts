@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FACTION_IDS } from '../sim/types';
+import { normalizeMatch } from '../sim/matchSettings';
 import type { FactionId, MatchOptions } from '../sim/types';
 import { NetClient } from './client';
 import type { NetClientHooks, TokenStore } from './client';
@@ -273,5 +274,120 @@ describe('NetClient', () => {
     socket(1).receive({ t: 'matchStart', options: OPTIONS, seat: 3, inputEpoch: 3, snapshot: {} });
     client.sendInput(1, input, []);
     expect(socket(1).sent.at(-1)).toMatchObject({ t: 'input', inputEpoch: 3, seq: 1 });
+  });
+});
+
+describe('host-acknowledged lobby setup', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] }));
+  afterEach(() => vi.useRealTimers());
+  const messages = (kind: string, i = 0) => socket(i).sent.filter((m: any) => m.t === kind) as any[];
+  function ready() {
+    const t = setup(); socket(0).open();
+    socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
+    return t;
+  }
+  function echo(settings: any, extra: Partial<LobbyState> = {}) {
+    socket(0).receive({ t: 'lobby', lobby: { ...lobby('lobby'), settings, ...extra } });
+  }
+
+  it('coalesces three rapid independent toggles, keeps optimistic state through stale echoes, and starts only after final acknowledgment', () => {
+    const { client } = ready();
+    for (const key of ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const) {
+      client.setSettings({ match: { ...normalizeMatch(client.setupSettings?.match), [key]: false } });
+      vi.advanceTimersByTime(80);
+    }
+    expect(client.setupSettings?.match).toMatchObject({ buildingCapture: false, crystalFlagProtection: false, crystalAttacks: false });
+    expect(client.lobby?.settings.match).toBeUndefined(); // authoritative state is never optimistic
+    echo(lobby('lobby').settings);
+    expect(client.setupSettings?.match?.buildingCapture).toBe(false);
+    client.start(); client.start();
+    expect(client.startPending).toBe(true); expect(messages('start')).toHaveLength(0);
+    vi.advanceTimersByTime(550);
+    expect(messages('settings')).toHaveLength(1);
+    expect(messages('settings')[0].settings.match).toMatchObject({ buildingCapture: false, crystalFlagProtection: false, crystalAttacks: false });
+    expect(messages('start')).toHaveLength(0);
+    echo(messages('settings')[0].settings);
+    expect(client.settingsPending).toBe(false); expect(client.startPending).toBe(false);
+    expect(messages('start')).toHaveLength(1);
+  });
+
+  it('does not confuse an older in-flight acknowledgment with newer changes or overwrite their cumulative settings', () => {
+    const { client } = ready();
+    client.setSettings({ match: normalizeMatch({ buildingCapture: false }) });
+    vi.advanceTimersByTime(550);
+    const first = messages('settings')[0].settings;
+    client.setSettings({ match: { ...client.setupSettings!.match!, crystalFlagProtection: false } });
+    client.setSettings({ match: { ...client.setupSettings!.match!, crystalAttacks: false } });
+    client.start();
+    vi.advanceTimersByTime(1500);
+    expect(messages('settings')).toHaveLength(1); expect(messages('start')).toHaveLength(0);
+    echo(first);
+    expect(client.setupSettings!.match).toMatchObject({ buildingCapture: false, crystalFlagProtection: false, crystalAttacks: false });
+    vi.advanceTimersByTime(549); expect(messages('settings')).toHaveLength(1);
+    vi.advanceTimersByTime(1); expect(messages('settings')).toHaveLength(2);
+    expect(messages('start')).toHaveLength(0);
+    echo(messages('settings')[1].settings);
+    expect(messages('start')).toHaveLength(1);
+  });
+
+  it('paces setup after other lobby mutations and canonicalizes the seed like the host', () => {
+    const { client } = ready();
+    client.setSettings({ seed: '  a\n  b\u200b  ' });
+    vi.advanceTimersByTime(400); client.setReady(true);
+    vi.advanceTimersByTime(150); expect(messages('settings')).toHaveLength(0);
+    vi.advanceTimersByTime(550); expect(messages('settings')).toHaveLength(1);
+    expect(messages('settings')[0].settings.seed).toBe('a b');
+    echo(messages('settings')[0].settings);
+    expect(client.settingsPending).toBe(false);
+  });
+
+  it.each(['leader', 'phase'] as const)('cancels queued changes and Start on %s loss without sending them', reason => {
+    const { client } = ready();
+    client.setSettings({ match: normalizeMatch({ crystalAttacks: false }) }); client.start();
+    echo(lobby('lobby').settings, reason === 'leader' ? { leaderId: 'other' } : { phase: 'playing' });
+    vi.advanceTimersByTime(2000);
+    expect(messages('settings')).toHaveLength(0); expect(messages('start')).toHaveLength(0);
+    expect(client.settingsPending).toBe(false); expect(client.startPending).toBe(false);
+    expect(client.settingsError).toMatch(/no longer editable/);
+    client.setSettings({ match: normalizeMatch() }); client.start();
+    vi.advanceTimersByTime(1000); expect(messages('settings')).toHaveLength(0); expect(messages('start')).toHaveLength(0);
+  });
+
+  it('cancels uncertain edits and Start on disconnect instead of replaying them after reconnection', () => {
+    const { client } = ready();
+    client.setSettings({ match: normalizeMatch({ buildingCapture: false }) });
+    vi.advanceTimersByTime(550); client.start(); socket(0).drop();
+    expect(client.settingsError).toMatch(/Connection interrupted/);
+    expect(client.settingsPending).toBe(false); expect(client.startPending).toBe(false);
+    vi.advanceTimersByTime(500); socket(1).open();
+    const applied = { ...lobby('lobby'), settings: messages('settings')[0].settings };
+    socket(1).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: applied });
+    vi.advanceTimersByTime(2000);
+    expect(client.setupSettings!.match!.buildingCapture).toBe(false);
+    expect(messages('settings', 1)).toHaveLength(0); expect(messages('start', 1)).toHaveLength(0);
+  });
+
+  it('fails visibly and never starts if the host does not acknowledge a rejected setup, and allows an explicit retry', () => {
+    const { client } = ready();
+    client.setSettings({ match: normalizeMatch({ buildingCapture: false }) }); client.start();
+    vi.advanceTimersByTime(10_550);
+    expect(messages('settings')).toHaveLength(1); expect(messages('start')).toHaveLength(0);
+    expect(client.settingsPending).toBe(false); expect(client.startPending).toBe(false);
+    expect(client.settingsError).toMatch(/did not confirm/);
+    client.setSettings({ match: normalizeMatch({ crystalAttacks: false }) });
+    expect(client.settingsError).toBeNull(); vi.advanceTimersByTime(550);
+    echo(messages('settings')[1].settings);
+    expect(client.settingsPending).toBe(false); expect(messages('start')).toHaveLength(0);
+  });
+
+  it('cancels timers on leave and does not mutate settings during a match', () => {
+    const { client } = ready();
+    client.setSettings({ match: normalizeMatch({ crystalAttacks: false }) }); client.start(); client.leave();
+    vi.advanceTimersByTime(20_000);
+    expect(messages('settings')).toHaveLength(0); expect(messages('start')).toHaveLength(0);
+    const playing = inMatch().client;
+    playing.setSettings({ match: normalizeMatch({ crystalAttacks: false }) }); playing.start();
+    vi.advanceTimersByTime(2000);
+    expect(messages('settings')).toHaveLength(0); expect(messages('start')).toHaveLength(0);
   });
 });

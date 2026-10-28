@@ -200,3 +200,23 @@ describe('ten-minute day default', () => {
     expect(restored.match.dayLength).toBe(1800);
   });
 });
+
+
+describe('persisted optional match rules', () => {
+  const keys = ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
+  it('defaults each missing rule on without changing older explicit match choices', () => {
+    storage({ matchSettingsVersion: 3, match: { days: 2, jumpHeight: 1, maxSignifiers: 40 } });
+    const settings = new Session().settings;
+    loadSettings(settings);
+    expect(settings.match).toMatchObject({ days: 2, jumpHeight: 1, maxSignifiers: 40, buildingCapture: true, crystalFlagProtection: true, crystalAttacks: true });
+  });
+  it.each(Array.from({ length: 8 }, (_, mask) => [mask]))('round-trips all independent choices %s', mask => {
+    storage({});
+    const settings = new Session().settings;
+    for (const [bit, key] of keys.entries()) settings.match[key] = !!(mask & (1 << bit));
+    saveSettings(settings);
+    const restored = new Session().settings;
+    loadSettings(restored);
+    expect(restored.match).toEqual(settings.match);
+  });
+});

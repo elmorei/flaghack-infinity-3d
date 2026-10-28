@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { bossFixture } from '../../../tests/bossFixture';
 import { createMatch } from '../../sim/setup';
+import { normalizeMatch } from '../../sim/matchSettings';
 import { BossLightningFx } from './bossLightningFx';
+import { setLightningPalette } from './lightningPalette';
+import type { Building, Crystal } from '../../sim/types';
 const flat = () => 0;
 function fixture() {
   const world = createMatch({ seed: 'boss-lightning-fx', difficulty: 'normal', humans: [0], mode: 'standard' });
@@ -14,6 +17,35 @@ function fixture() {
   const fx = new BossLightningFx(); return { world, fx, boss: world.boss };
 }
 describe('persistent boss defensive lightning presentation', () => {
+  it('keeps boss lightning visible when all optional ordinary rules are disabled', () => {
+    const e = fixture();
+    e.world.options.match = normalizeMatch({ buildingCapture: false, crystalFlagProtection: false, crystalAttacks: false });
+    e.fx.update(e.world, 100, flat);
+    expect(e.fx.group.visible).toBe(true); expect(e.fx.group.children).toHaveLength(3); e.fx.dispose();
+  });
+  it('uses all four source-owner palettes for crystals and wards and recolors reused arcs after ownership changes', () => {
+    const e = fixture(), link = e.boss.lightning[0];
+    e.boss.lightning = [link];
+    const crystal = { id: link.id, faction: 0 } as Crystal; e.world.crystals.set(link.id, crystal);
+    e.fx.update(e.world, 100, flat); const mesh = e.fx.group.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    const geometry = mesh.geometry, core = mesh.material.uniforms.uCore.value, glow = mesh.material.uniforms.uGlow.value;
+    for (const faction of [0, 1, 2, 3] as const) {
+      crystal.faction = faction; e.fx.update(e.world, 100 + faction, flat);
+      const expectedCore = new THREE.Color(), expectedGlow = new THREE.Color();
+      setLightningPalette(expectedCore, expectedGlow, e.world.factions[faction].color);
+      expect(core).toEqual(expectedCore); expect(glow).toEqual(expectedGlow);
+      expect(mesh.geometry).toBe(geometry); expect(e.fx.group.children[0]).toBe(mesh);
+    }
+    // A changed authoritative link works without the entity (late-join / sparse mirror).
+    e.world.crystals.delete(link.id); link.faction = 1; e.fx.update(e.world, 104, flat);
+    expect(glow).toEqual(new THREE.Color(e.world.factions[1].color).multiplyScalar(2.2));
+    link.kind = 'ward'; e.world.buildings.set(link.id, { id: link.id, faction: 2 } as Building);
+    e.world.factions[2].color = 0xff8800; e.fx.update(e.world, 105, flat);
+    expect(glow).toEqual(new THREE.Color(0xff8800).multiplyScalar(2.2));
+    const materialDispose = vi.spyOn(mesh.material, 'dispose');
+    e.boss.lightning = []; e.fx.update(e.world, 106, flat); expect(materialDispose).toHaveBeenCalledOnce();
+    expect(e.fx.group.visible).toBe(false); e.fx.dispose();
+  });
   it('reconstructs every source on a late join with precise full-height endpoints, including the 75 m crystal', () => {
     const e = fixture(); e.fx.update(e.world, 100, flat); expect(e.fx.group.children).toHaveLength(3);
     for (const link of e.boss.lightning) {

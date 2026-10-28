@@ -22,9 +22,9 @@ import type { GameEvent } from '../sim/events';
 import type { DeltaSnapshot, FullSnapshot } from './codec';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
-// v16: Combined independent structure ownership and durable wreckage fields.
+// v18: Optional capture/protection/attack settings and authoritative crystal target locks.
 // Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -41,6 +41,8 @@ export const MAX_SEED_LENGTH = 64;
 export const MAX_FRAME_COMMANDS = 16;
 /** Seats are the four factions; further players spectate. */
 export const SEAT_COUNT = 4;
+/** Shared pacing for lobby seat/ready/settings mutations. The host still enforces this. */
+export const LOBBY_CHANGE_COOLDOWN_MS = 500;
 
 export interface HostInfo {
   serverName: string;

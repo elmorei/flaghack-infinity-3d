@@ -970,7 +970,14 @@ const PILE_FIELDS: readonly Field<Pile>[] = [
   }),
 ];
 
+const crystalAttackField: Field<Crystal> = {
+  key: 'attack',
+  enc: c => c.attack ? [c.attack.target, quant(c.attack.readyAt, MS), c.attack.faction] : null,
+  same: (c, p) => c.attack ? Array.isArray(p) && p[0] === c.attack.target && p[1] === quant(c.attack.readyAt, MS) && p[2] === c.attack.faction : p === null,
+  dec: (c, v) => { c.attack = Array.isArray(v) && int(v[0], -1) >= 0 ? { target: int(v[0], -1), readyAt: dequant(v[1], MS), faction: faction(v[2]) } : null; },
+};
 const CRYSTAL_FIELDS: readonly Field<Crystal>[] = [
+  crystalAttackField,
   num('scale', MILLI, (c) => c.scale, (c, v) => { c.scale = v; }),
   idField('node', (c) => c.node, (c, v) => {
     c.node = v;
@@ -1174,7 +1181,7 @@ function blankPile(id: EntityId): Pile {
 }
 
 function blankCrystal(id: EntityId): Crystal {
-  return { id, type: 'crystal', scale: 1, node: -1, faction: 0, pos: { x: 0, z: 0 }, bornAt: 0, growth: 0, pentacle: [] };
+  return { id, type: 'crystal', scale: 1, node: -1, faction: 0, pos: { x: 0, z: 0 }, bornAt: 0, growth: 0, pentacle: [], attack: null };
 }
 
 function blankProjectile(id: EntityId): Projectile {

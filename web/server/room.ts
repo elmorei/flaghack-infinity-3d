@@ -15,7 +15,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 import type { RawData } from 'ws';
 import { BUILD_ID } from '../src/net/build';
-import { MAX_CHAT_LENGTH, MAX_NAME_LENGTH, MAX_SEED_LENGTH, PROTOCOL_VERSION, SEAT_COUNT } from '../src/net/protocol';
+import { LOBBY_CHANGE_COOLDOWN_MS, MAX_CHAT_LENGTH, MAX_NAME_LENGTH, MAX_SEED_LENGTH, PROTOCOL_VERSION, SEAT_COUNT } from '../src/net/protocol';
 import type {
   ChatLine,
   ClientMessage,
@@ -72,7 +72,7 @@ const FAILURE_LIMIT = 5;
 const PEER_FAILURE_LIMIT = 30;
 const FAILURE_WINDOW_MS = 60_000;
 /** Seat, ready and settings changes reach everyone: one per player per this long, extras ignored. */
-export const CHANGE_COOLDOWN_MS = 500;
+export const CHANGE_COOLDOWN_MS = LOBBY_CHANGE_COOLDOWN_MS;
 
 /** Application close codes (4000-4999). */
 const CLOSE_REPLACED = 4000;

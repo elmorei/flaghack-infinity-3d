@@ -16,7 +16,7 @@ function claim(faction: SceneryCaptureState['faction'] = 0, stage: SceneryCaptur
 function setup(kind: Obstacle['kind'] = 'dome') {
   const o = prop(kind), session = new Session(); session.screen = 'playing';
   session.hover.point = { x: 0, y: 4, z: 0 };
-  const world = { map: { obstacles: [o] }, destroyedScenery: new Set(), sceneryCapture: new Map([[o.id, claim()]]),
+  const world = { options: { match: {} }, map: { obstacles: [o] }, destroyedScenery: new Set(), sceneryCapture: new Map([[o.id, claim()]]),
     factions: [0, 1, 2, 3].map(id => ({ id, alive: true, name: `Camp ${id}` })),
     collision: { groundHeight: () => 0 }, flags: new Map(), hippies: new Map() } as unknown as World;
   return { o, session, world };
@@ -49,6 +49,14 @@ describe('captured scenery context information', () => {
     const v = sceneryBenefitView(world, o, session);
     expect(v.owner).toBe('Neutral'); expect(v.tone).toBe('neutral');
     expect(v.state).toContain('capture'); expect(v.description).toContain('+2');
+  });
+
+  it('explains capture is off for neutral scenery without removing already-owned benefits', () => {
+    const { world, o, session } = setup('tent');
+    world.options.match = { buildingCapture: false } as never;
+    expect(sceneryBenefitView(world, o, session).state).toContain('lodging');
+    world.sceneryCapture.clear();
+    expect(sceneryBenefitView(world, o, session).state).toBe('Building Capture is off');
   });
 
   it('pauses only real capture, retains threat-only services and handles owner loss', () => {

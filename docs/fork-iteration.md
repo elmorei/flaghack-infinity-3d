@@ -4,7 +4,7 @@
 
 Begin the Survey opens the lobby for local games; joining a host opens the multiplayer lobby. Each of the four player seats has an On/Off toggle, and the number of days is selected in the lobby. At least one seat remains on. Offline, choose any enabled character with Play this character; other enabled seats use AI. Turning off the selected local seat moves you to another enabled seat. Disabled seats show a neutral numbered placeholder and have no avatar, Hearth, GCC, starting stock or Signifiers in the match. They also stay out of the Hearth rail, standings and end-of-match statistics. Their camp scenery remains part of the map.
 
-In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 12; all players must use the same build.
+In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 18; all players must use the same build.
 
 Choose 0–5 days or Unlimited. A day means one complete daylight/night cycle. Default: 1 day at 600 seconds, with the Burn at 4:40 and Dawn deadline at 10:00. Explicit saved day lengths are preserved. With multiple days, the Burn occurs at the same point in the **last** cycle. The sky repeats each cycle. Zero days begins at ignition, with the Burn sky and simulation time 0:00; the boss still reveals 90 seconds later. With boss mode off, zero days retains the full remaining Burn night before Dawn (5 minutes 20 seconds at the default day length, or 160 seconds with a 300-second day). Conquest can finish a competitive match earlier; a single-camp creative/solo match finishes only at its time limit. Unlimited remains a separate choice with no time limit or scheduled Burn; competitive conquest still works. Previously saved Unlimited choices are migrated without changing their meaning.
 
@@ -314,3 +314,32 @@ Right-click your avatar to make selected workers follow. **Hold position** guard
 ## Gentle gameplay terrain dome
 
 The square arena rises smoothly to 2 metres at the central effigy base. Every point on all four playable edges stays at the original zero height. The summit and border have horizontal tangents; outside decorative hills are unchanged. Terrain elevation is shared by physics, rendering and network mirrors. Avatars, Flags, projectiles, structures, scenery, survey markings and the Boss use the same ground profile. Horizontal lattice positions and gameplay radii are unchanged. Multiplayer protocol 13 rejects older clients with a reload hint; terrain heights, shared encounter state and input ownership epochs require the same version on every peer.
+
+## Optional capture and Crystal rules
+
+Advanced Game Settings → **Optional rules** has three independent switches, all **On** by
+default. Choices are saved in this browser and apply to the next match only. Old saves
+without these fields use On; explicit Off choices survive reloads and restarts. Reset defaults
+restores all three to On while preserving enabled seats. Online guests can inspect the host's
+choices, but only the lobby leader can change them before starting. Protocol **18** carries
+the exact rules and Crystal target locks; older clients/hosts must update together.
+
+- **Building Capture:** controls enclosure capture of ordinary camp buildings, modular walls,
+  floors and ramps, and capturable neutral scenery. Original altar/Hearth capture and its
+  camp-conversion consequences remain active. Turning this rule off never strips existing
+  ownership, stored Flags, collision geometry or captured-scenery benefits. Capture progress
+  is cleared, not completed, when the rule is disabled; AI ignores those disabled sieges.
+- **Crystal Flag Protection:** controls the existing 2× pull-time multiplier on a grown
+  Crystal's sustaining Flags and its associated flag-protection lightning. Wards retain
+  their existing protection. It does not enable or disable unit attacks.
+- **Crystal Attacks:** grown ordinary Crystals warn for **1 second**, then shock one hostile
+  unit within **16 m** at **12 HP/s**. A valid target stays locked; solid cover, retreat,
+  knockout, allegiance changes or loss of the Crystal's sustaining pattern end the attack.
+  A new target always gets a new warning. Overlapping Crystals deal at most **18 HP/s** to
+  one victim. Attacks do not stun or reset pull progress, do not target neutrals or friends,
+  and introduce no new Crystal health bar. The Training Burn retains its lesson behavior.
+
+The existing Crystal/Ward lightning against the giant is separate and unchanged by these
+switches. During the existing shared-alliance encounter, ordinary camp units are friendly and
+are not targeted. Warning rings and attack arcs use the source Crystal owner's current color.
+The host alone applies damage; clients and late joins render its replicated lock and timer.

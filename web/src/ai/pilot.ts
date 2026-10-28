@@ -144,6 +144,7 @@ function taskValid(b: Brain, av: Avatar, t: PilotTask): boolean {
 /** Break a visible siege loop around our ordinary camp structures, after Hearth defense. */
 export function structureDefenseFlag(b: Brain, av: Avatar): number {
   const w = b.world;
+  if (w.options.match?.buildingCapture === false) return -1;
   let best = -1, bestScore = Infinity;
   const targets: { faction: Owner; pos: V2; facet: number; capture?: StructureCaptureState | null }[] = [...w.buildings.values()];
   for (const p of w.pieces.values()) if (p.capture) targets.push({ ...pieceCaptureAnchor(w, p), faction: p.faction, capture: p.capture });

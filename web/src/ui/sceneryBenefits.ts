@@ -57,7 +57,7 @@ export function sceneryBenefitView(world: World, o: Obstacle, session: Pick<Sess
   const claim = world.sceneryCapture.get(o.id), owner = claim?.faction ?? -1;
   const view: SceneryBenefitView = { ...role(o), owner: owner === -1 ? 'Neutral' :
     owner === session.playerFaction ? 'Your camp' : factionName(world, owner, session.playerNames),
-    state: 'Surround the whole footprint to capture', description: sceneryBenefitDescription(o), tone: 'neutral' };
+    state: world.options.match?.buildingCapture === false ? 'Building Capture is off' : 'Surround the whole footprint to capture', description: sceneryBenefitDescription(o), tone: 'neutral' };
   if (world.destroyedScenery.has(o.id)) { view.state = 'Destroyed • no benefit'; return view; }
   if (owner === -1) return view;
   if (!sceneryBenefitActive(world, o.id)) {

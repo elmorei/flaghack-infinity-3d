@@ -13,6 +13,9 @@ export interface MatchSettings {
   jumpHeight: number; // multiplier of the original jump apex; 1 = original height
   maxSignifiers: number; // fixed shared world population (alive and knocked out)
   structuresBlockFlagPlacement: boolean;
+  buildingCapture: boolean; // independent non-altar buildings, pieces and scenery capture
+  crystalFlagProtection: boolean; // crystal pull slowdown only; Wards are unchanged
+  crystalAttacks: boolean; // ordinary-unit crystal defense; separate from boss lightning
   bossMode: boolean; // reveal the boss 90 seconds after The Burn
   bossHp: number; // starting and maximum boss health, sampled once at encounter creation
 }
@@ -30,9 +33,13 @@ export const DEFAULT_MATCH: MatchSettings = {
   jumpHeight: 3,
   maxSignifiers: 200,
   structuresBlockFlagPlacement: false,
+  buildingCapture: true,
+  crystalFlagProtection: true,
+  crystalAttacks: true,
   bossMode: true,
   bossHp: BOSS_MAX_HP,
 };
+export const MATCH_BOOLEAN_KEYS = ['bossMode', 'structuresBlockFlagPlacement', 'buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
 export const MATCH_RANGES = {
   dayLength: [300, 7200, 60],
   bossHp: [100, 1000000, 100],
@@ -53,8 +60,7 @@ export function normalizeMatch(value: Partial<MatchSettings> = {}): MatchSetting
     if (active.length) out.active = active;
   }
   if (isMatchDays(value.days)) out.days = value.days;
-  if (typeof value.bossMode === 'boolean') out.bossMode = value.bossMode;
-  if (typeof value.structuresBlockFlagPlacement === 'boolean') out.structuresBlockFlagPlacement = value.structuresBlockFlagPlacement;
+  for (const key of MATCH_BOOLEAN_KEYS) if (typeof value[key] === 'boolean') out[key] = value[key];
   for (const k of Object.keys(MATCH_RANGES) as (keyof typeof MATCH_RANGES)[]) {
     const v = value[k];
     const [min, max] = MATCH_RANGES[k];

@@ -227,6 +227,7 @@ export function spawnCrystal(world: World, node: number, faction: FactionId, pen
     bornAt: world.time,
     growth: 0,
     pentacle: pentacle.slice(),
+    attack: null,
   };
   world.crystals.set(c.id, c);
   return c;

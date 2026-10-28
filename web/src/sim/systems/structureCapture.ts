@@ -30,7 +30,7 @@ export function resetStructureCapture(world: World): void {
 
 /** Transfers only this structure and its stored stock. No elimination, camp conversion or healing. */
 export function captureStructure(world: World, b: Building, to: FactionId): boolean {
-  if (!canCaptureStructure(b) || world.buildings.get(b.id) !== b || b.faction === to ||
+  if (world.options.match?.buildingCapture === false || !canCaptureStructure(b) || world.buildings.get(b.id) !== b || b.faction === to ||
       !world.factions[to].alive || world.effigyRevealedAt !== null) return false;
   const from = b.faction;
   b.faction = to;
@@ -42,7 +42,7 @@ export function captureStructure(world: World, b: Building, to: FactionId): bool
   return true;
 }
 export function capturePiece(world: World, p: Piece, to: FactionId): boolean {
-  if (world.pieces.get(p.id) !== p || p.faction === to || !world.factions[to].alive || world.effigyRevealedAt !== null) return false;
+  if (world.options.match?.buildingCapture === false || world.pieces.get(p.id) !== p || p.faction === to || !world.factions[to].alive || world.effigyRevealedAt !== null) return false;
   const from = p.faction;
   p.faction = to; p.capture = newStructureCapture();
   // Ownership controls repair/demolition/tint only; support and collision are geometric.
@@ -92,7 +92,11 @@ function stepCapture(world: World, sc: CaptureScratch, target: { pos: { x: numbe
 export function updateStructureCapture(world: World, dt: number): void {
   // Destroyed props cannot retain capture progress or ownership markers after late joins.
   for (const id of world.sceneryCapture.keys()) if (world.destroyedScenery.has(id)) world.sceneryCapture.delete(id);
-  if (world.effigyRevealedAt !== null) { resetStructureCapture(world); return; }
+  if (world.options.match?.buildingCapture === false || world.effigyRevealedAt !== null) {
+    // Clearing pressure never removes ownership, stored stock or captured scenery benefits.
+    // Invalidate discovery so a later restored option can notice the same Survey geometry.
+    resetStructureCapture(world); sceneryScans.delete(world); return;
+  }
   let sc = scratches.get(world);
   if (!sc) { sc = new CaptureScratch(); scratches.set(world, sc); }
   for (const b of world.buildings.values()) {

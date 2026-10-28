@@ -156,7 +156,7 @@ export function knockback(world: World, target: EntityId, from: V2, strength: nu
 /** All surviving camps ally at reveal; environmental/boss damage stays dangerous. */
 export function friendlyBossDamage(world: World, target: EntityId, by: EntityId | -1): boolean {
   if (!bossEncounterActive(world) || by === world.boss?.id || by < 0) return false;
-  const source = world.avatars.get(by) ?? world.hippies.get(by) ?? world.buildings.get(by) ?? world.pieces.get(by);
+  const source = world.avatars.get(by) ?? world.hippies.get(by) ?? world.buildings.get(by) ?? world.pieces.get(by) ?? world.crystals.get(by);
   const victim = world.avatars.get(target) ?? world.hippies.get(target) ?? world.buildings.get(target) ?? world.pieces.get(target);
   return !!source && !!victim && source.faction >= 0 && victim.faction >= 0;
 }

@@ -216,3 +216,23 @@ describe('configurable matches', () => {
     }
   });
 });
+
+
+describe('independent optional match rules', () => {
+  const keys = ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
+  it('defaults missing and malformed choices on, including older match options', () => {
+    for (const key of keys) {
+      expect(normalizeMatch()[key]).toBe(true);
+      for (const value of [undefined, null, 0, 1, 'false', {}, []])
+        expect(normalizeMatch({ [key]: value } as never)[key]).toBe(true);
+      expect(normalizeMatch({ [key]: false })[key]).toBe(false);
+    }
+  });
+  it.each(Array.from({ length: 8 }, (_, mask) => [mask]))('preserves all rule combinations %s at creation and restart', mask => {
+    const match = normalizeMatch({ ...Object.fromEntries(keys.map((key, bit) => [key, !!(mask & (1 << bit))])), maxSignifiers: 0 });
+    for (let restart = 0; restart < 2; restart++) {
+      const world = createMatch(options(match));
+      for (const key of keys) expect(world.options.match?.[key]).toBe(match[key]);
+    }
+  });
+});

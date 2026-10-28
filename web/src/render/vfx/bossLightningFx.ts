@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { BossLightning } from '../../sim/boss';
 import type { World } from '../../sim/world';
 import { FOG_FRAG_GLSL, OUTPUT_GLSL, fxMaterial } from './glsl';
+import { lightningSourceColor, setLightningPalette } from './lightningPalette';
 
 const MAIN = 25, BRANCH = 8, POINTS = MAIN + BRANCH * 2;
 const JITTER_HZ = 28;
@@ -26,12 +27,14 @@ void main() {
 }`;
 const FRAG = /* glsl */ `
 uniform float uFlicker;
+uniform vec3 uCore;
+uniform vec3 uGlow;
 varying float vSide;
 #include <fog_pars_fragment>
 void main() {
   float s = abs(vSide);
-  vec3 core = vec3(.96, .93, 1.0) * exp(-s * s * 45.0) * 3.6;
-  vec3 glow = vec3(.49, .42, 1.0) * exp(-s * s * 3.5) * 1.2;
+  vec3 core = uCore * exp(-s * s * 45.0) * 3.0;
+  vec3 glow = uGlow * exp(-s * s * 3.5) * .55;
   gl_FragColor = vec4((core + glow) * uFlicker, 0.0);
   ${FOG_FRAG_GLSL}
   ${OUTPUT_GLSL}
@@ -42,28 +45,28 @@ function noise(seed: number, point: number, sample: number): number {
   return ((n ^ (n >>> 16)) >>> 0) / 0x100000000 * 2 - 1;
 }
 
-class Arc {
+export class LightningArc {
   readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   private readonly path = new Float32Array(POINTS * 3);
   private readonly position = new THREE.BufferAttribute(new Float32Array(POINTS * 6), 3).setUsage(THREE.DynamicDrawUsage);
   private readonly next = new THREE.BufferAttribute(new Float32Array(POINTS * 6), 3).setUsage(THREE.DynamicDrawUsage);
   seen = 0;
-  constructor(readonly id: number, order: number) {
+  constructor(readonly id: number, order: number, widthScale = 1, prefix = 'boss-defensive-lightning') {
     const geometry = new THREE.BufferGeometry(), strips = new Float32Array(POINTS * 4), indices: number[] = [];
     for (const [first, count, branch] of [[0, MAIN, 0], [MAIN, BRANCH, 1], [MAIN + BRANCH, BRANCH, 1]]) {
       for (let i = 0; i < count; i++) {
-        const width = branch ? .38 * (1 - .8 * i / (count - 1)) : .75;
+        const width = (branch ? .38 * (1 - .8 * i / (count - 1)) : .75) * widthScale;
         const p = first + i; strips.set([-1, width, 1, width], p * 4);
         if (i < count - 1) indices.push(p * 2, p * 2 + 1, p * 2 + 2, p * 2 + 1, p * 2 + 3, p * 2 + 2);
       }
     }
     geometry.setAttribute('position', this.position); geometry.setAttribute('aNext', this.next);
     geometry.setAttribute('aStrip', new THREE.BufferAttribute(strips, 2)); geometry.setIndex(indices);
-    const material = fxMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlicker: { value: 1 } }, side: THREE.DoubleSide });
-    this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = `boss-defensive-lightning-${id}`;
+    const material = fxMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlicker: { value: 1 }, uCore: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() } }, side: THREE.DoubleSide });
+    this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = `${prefix}-${id}`;
     this.mesh.frustumCulled = false; this.mesh.renderOrder = order;
   }
-  update(link: BossLightning, sample: number, _groundY: (x: number, z: number) => number): void {
+  update(link: BossLightning, sample: number, _groundY: (x: number, z: number) => number, intensity = 1): void {
     const f = link.from, t = link.to, fy = f.y, ty = t.y; // Authoritative absolute endpoints.
     const dx = t.x - f.x, dy = ty - fy, dz = t.z - f.z, length = Math.max(.001, Math.hypot(dx, dy, dz));
     const horizontal = Math.hypot(dx, dz), ux = horizontal > .001 ? -dz / horizontal : 1, uz = horizontal > .001 ? dx / horizontal : 0;
@@ -87,7 +90,7 @@ class Arc {
     }
     this.writeStrip(0, MAIN); this.writeStrip(MAIN, BRANCH); this.writeStrip(MAIN + BRANCH, BRANCH);
     this.position.needsUpdate = true; this.next.needsUpdate = true;
-    this.mesh.material.uniforms.uFlicker.value = .78 + .2 * noise(this.id, 97, sample);
+    this.mesh.material.uniforms.uFlicker.value = (.78 + .2 * noise(this.id, 97, sample)) * intensity;
   }
   private writeStrip(first: number, count: number): void {
     const out = this.position.array, next = this.next.array, p = this.path;
@@ -102,7 +105,7 @@ class Arc {
 
 export class BossLightningFx {
   readonly group = new THREE.Group();
-  private readonly arcs = new Map<number, Arc>();
+  private readonly arcs = new Map<number, LightningArc>();
   private frame = 0;
   constructor(private readonly renderOrder = 16) { this.group.name = 'boss-defensive-lightning'; }
   update(world: World, now: number, groundY: (x: number, z: number) => number): void {
@@ -111,7 +114,8 @@ export class BossLightningFx {
       const sample = Math.floor(now * JITTER_HZ);
       for (const link of boss.lightning) {
         let arc = this.arcs.get(link.id);
-        if (!arc) { arc = new Arc(link.id, this.renderOrder); this.arcs.set(link.id, arc); this.group.add(arc.mesh); }
+        if (!arc) { arc = new LightningArc(link.id, this.renderOrder); this.arcs.set(link.id, arc); this.group.add(arc.mesh); }
+        setLightningPalette(arc.mesh.material.uniforms.uCore.value, arc.mesh.material.uniforms.uGlow.value, lightningSourceColor(world, link));
         arc.seen = frame; arc.update(link, sample, groundY);
       }
     }

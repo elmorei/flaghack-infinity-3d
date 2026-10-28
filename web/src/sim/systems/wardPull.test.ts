@@ -116,3 +116,32 @@ describe('Ward lightning protecting Flags', () => {
     expect(defendedPullRate(world, flag, 0)).toBe(1);
   });
 });
+
+describe('optional Crystal Flag Protection', () => {
+  it.each([false, true])('disables only crystal slowdown and its lightning, independent of attacks %s', crystalAttacks => {
+    const { world, flag, ward } = scenario('crystal');
+    world.options.match = { ...world.options.match!, crystalFlagProtection: false, crystalAttacks };
+    expect(defendedPullRate(world, flag, 0, true)).toBe(1);
+    expect(world.drainEvents().filter(e => e.t === 'crystalLightning')).toHaveLength(0);
+    ward.disabled = false;
+    expect(defendedPullRate(world, flag, 0, true)).toBe(.5);
+    expect(world.drainEvents().filter(e => e.t === 'wardLightning')).toHaveLength(1);
+    ward.disabled = true;
+    world.options.match.crystalFlagProtection = true;
+    expect(defendedPullRate(world, flag, 0, true)).toBe(.5);
+    expect(world.drainEvents().filter(e => e.t === 'crystalLightning')).toHaveLength(1);
+  });
+
+  it('finishes the same ongoing pull at the normal rate without losing accumulated progress', () => {
+    const { world, flag } = scenario('crystal');
+    const av = world.avatarOf(0);
+    av.pos = { x: flag.pos.x, y: 0, z: flag.pos.z };
+    cmdPull(world, { t: 'pull', faction: 0, flagId: flag.id });
+    for (let i = 0; i < Math.round(AVATAR.pullEnemyTime / SIM_DT); i++) { world.time += SIM_DT; world.tick++; updateAvatars(world, SIM_DT); }
+    expect(flag.state).toBe('planted');
+    world.options.match = { ...world.options.match!, crystalFlagProtection: false };
+    for (let i = 0; i <= Math.round(AVATAR.pullEnemyTime * .5 / SIM_DT); i++) { world.time += SIM_DT; world.tick++; updateAvatars(world, SIM_DT); }
+    expect(flag.state).toBe('carried');
+    expect(flag.holder).toBe(av.id);
+  });
+});

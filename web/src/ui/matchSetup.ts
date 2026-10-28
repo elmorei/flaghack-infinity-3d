@@ -6,6 +6,12 @@ import { DIFFICULTIES, DIFFICULTY_INFO } from './catalog';
 import { button, el, setText, show } from './dom';
 import { iconSvg } from './icons';
 
+const OPTIONAL_RULES = [
+  { key: 'buildingCapture', label: 'Building Capture', hint: 'Capture non-altar camp buildings, modular pieces and neutral scenery by enclosure. Altar capture stays active.' },
+  { key: 'crystalFlagProtection', label: 'Crystal Flag Protection', hint: 'Grown Crystals double the time needed to pull their sustaining Flags. Ward protection is unchanged.' },
+  { key: 'crystalAttacks', label: 'Crystal Attacks', hint: 'Grown Crystals warn, then shock one hostile unit within 16 m. Solid cover blocks the attack.' },
+] as const;
+type OptionalRuleKey = typeof OPTIONAL_RULES[number]['key'];
 type NumericKey = Exclude<keyof typeof MATCH_RANGES, 'bossHp'>;
 const FIELDS: { key: NumericKey; label: string; hint: string; group: string }[] = [
   { key: 'dayLength', label: 'Day length (seconds)', hint: 'Length of one complete day and night.', group: 'Time' },
@@ -29,6 +35,7 @@ export class MatchSetup {
   private seed: HTMLInputElement;
   private random: HTMLButtonElement;
   private structures: HTMLInputElement;
+  private optionalRules: { key: OptionalRuleKey; input: HTMLInputElement }[] = [];
   private summary: HTMLElement;
   private note: HTMLElement;
   private enabled = false;
@@ -98,6 +105,20 @@ export class MatchSetup {
     this.structures.addEventListener('change', () => {
       if (this.enabled) this.changeMatch({ structuresBlockFlagPlacement: this.structures.checked });
     });
+
+    const optional = el('section', 'advanced-section', scroll);
+    el('h3', '', optional, 'Optional rules');
+    for (const def of OPTIONAL_RULES) {
+      const row = el('label', 'setup-field', optional);
+      const label = el('span', '', row, def.label);
+      el('small', 'setup-hint', label, def.hint);
+      const input = el('input', '', row);
+      input.type = 'checkbox';
+      input.addEventListener('change', () => {
+        if (this.enabled) this.changeMatch({ [def.key]: input.checked });
+      });
+      this.optionalRules.push({ key: def.key, input });
+    }
 
     let group = '';
     let section = rules;
@@ -206,6 +227,10 @@ export class MatchSetup {
     const s = normalizeMatch(settings.match);
     this.structures.checked = s.structuresBlockFlagPlacement;
     this.structures.disabled = !enabled;
+    for (const { key, input } of this.optionalRules) {
+      input.checked = s[key];
+      input.disabled = !enabled;
+    }
     for (const { key, input } of this.fields) {
       if (document.activeElement !== input || !enabled) input.value = key === 'jumpHeight' ? s[key].toFixed(1) : String(s[key]);
       if (key === 'startingSignifiers') (input as HTMLInputElement).max = String(Math.min(MATCH_RANGES.startingSignifiers[1], Math.floor(s.maxSignifiers / s.active.length)));

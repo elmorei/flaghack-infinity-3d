@@ -39,7 +39,7 @@ export function wardProtectsFlag(ward: Building, flag: Flag): boolean {
 /** Pure query shared by pulling and AI planning; reading protection never emits lightning. */
 export function flagPullDefender(world: World, fl: Flag, puller: FactionId): Building | Crystal | null {
   if (fl.state !== 'planted' || fl.owner === NEUTRAL || fl.owner === puller) return null;
-  for (const c of world.crystals.values()) {
+  if (world.options.match?.crystalFlagProtection !== false) for (const c of world.crystals.values()) {
     if (c.faction === fl.owner && c.growth >= 1 &&
       (c.pentacle.includes(fl.node) || (fl.altNode >= 0 && c.pentacle.includes(fl.altNode)))) return c;
   }

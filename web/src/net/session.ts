@@ -19,6 +19,11 @@ export interface NetSession {
   readonly version: number;
   readonly serverName: string;
   readonly lobby: LobbyState | null;
+  /** Local cumulative setup while awaiting the host; never authoritative simulation state. */
+  readonly setupSettings: LobbySettings | null;
+  readonly settingsPending: boolean;
+  readonly settingsError: string | null;
+  readonly startPending: boolean;
   readonly playerId: string | null;
   /** This client's seat (null: spectator or not yet seated). */
   readonly seat: FactionId | null;

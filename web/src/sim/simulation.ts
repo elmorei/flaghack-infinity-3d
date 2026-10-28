@@ -10,6 +10,7 @@ import { updateBuildings } from './systems/buildings';
 import { applyCommands } from './systems/commands';
 import { updateCapture } from './systems/capture';
 import { updateCrystals } from './systems/crystals';
+import { updateCrystalAttacks } from './systems/crystalAttacks';
 import { updateDrugs } from './systems/drugs';
 import { updateEconomy } from './systems/economy';
 import { updateSceneryDepots } from './systems/sceneryDepots';
@@ -72,6 +73,7 @@ export class Simulation {
     updateBoss(w, dt);
     t = this.lap('boss', t);
     updateCrystals(w, dt);
+    updateCrystalAttacks(w, dt);
     t = this.lap('crystals', t);
     updateInstability(w, dt);
     t = this.lap('instability', t);

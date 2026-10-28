@@ -195,7 +195,7 @@ export class LobbyScreen implements UiPart {
 
   private readSettings(): LobbySettings {
     const s = this.host.app.session.settings;
-    return this.net?.lobby?.settings ?? { match: s.match, difficulty: s.difficulty, seed: this.localSeed };
+    return this.net?.setupSettings ?? this.net?.lobby?.settings ?? { match: s.match, difficulty: s.difficulty, seed: this.localSeed };
   }
 
   private canEdit(): boolean {
@@ -428,16 +428,17 @@ export class LobbyScreen implements UiPart {
   private renderRules(net: NetSession, lobby: LobbyState): void {
     const leader = net.isLeader;
     show(this.start, leader);
-    setDisabled(this.start, lobby.phase === 'playing');
+    setDisabled(this.start, lobby.phase === 'playing' || net.startPending);
     const name = leaderName(lobby);
-    this.hint =
-      lobby.phase === 'playing'
+    this.hint = net.settingsError ?? (net.settingsPending
+      ? (net.startPending ? 'Saving settings with the host before starting…' : 'Saving settings with the host…')
+      : lobby.phase === 'playing'
         ? 'A burn is under way. The next one gathers here.'
         : leader
           ? 'On seats without players use AI. Off seats have no camp. Light the burn when ready.'
           : name
             ? `Waiting for ${name} to light the burn…`
-            : 'Waiting for a leader…';
+            : 'Waiting for a leader…');
     this.renderHint(performance.now());
   }
 

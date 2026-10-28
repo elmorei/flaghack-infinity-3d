@@ -300,3 +300,18 @@ describe('network Flag hoarding threshold', () => {
     expect(parseClientMessage(JSON.stringify({ t: 'settings', settings: { match: { ...normalizeMatch(), hoardThreshold } } }))).toBeNull();
   });
 });
+
+
+describe('network optional match rules', () => {
+  const keys = ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
+  it.each(Array.from({ length: 8 }, (_, mask) => [mask]))('accepts exact boolean combination %s', mask => {
+    const match = normalizeMatch(Object.fromEntries(keys.map((key, bit) => [key, !!(mask & (1 << bit))])));
+    const message = { t: 'settings', settings: { match } };
+    expect(parseClientMessage(JSON.stringify(message))).toEqual(message);
+  });
+  it('rejects missing/malformed wire flags rather than silently changing the host rule', () => {
+    for (const key of keys) for (const value of [undefined, null, 0, 1, 'false', [], {}]) {
+      expect(parseClientMessage(JSON.stringify({ t: 'settings', settings: { match: { ...normalizeMatch(), [key]: value } } }))).toBeNull();
+    }
+  });
+});

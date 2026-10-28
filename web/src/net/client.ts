@@ -6,10 +6,11 @@
  * Owner: Controls (NetClient role).
  */
 import { BUILD_ID } from './build';
+import { normalizeMatch } from '../sim/matchSettings';
 import type { Command } from '../sim/commands';
 import type { AvatarInput, FactionId, MatchOptions } from '../sim/types';
 import type { FullSnapshot } from './codec';
-import { MAX_CHAT_LENGTH, MAX_NAME_LENGTH, PROTOCOL_VERSION, SEAT_COUNT, WS_PATH } from './protocol';
+import { LOBBY_CHANGE_COOLDOWN_MS, MAX_CHAT_LENGTH, MAX_SEED_LENGTH, MAX_NAME_LENGTH, PROTOCOL_VERSION, SEAT_COUNT, WS_PATH } from './protocol';
 import type { ChatLine, ClientMessage, DenyReason, HostInfo, LobbySettings, LobbyState, ServerMessage, StateFrame } from './protocol';
 import type { NetSession, NetStatus } from './session';
 
@@ -52,6 +53,19 @@ const CHAT_KEEP = 100;
 const NOTICES_KEEP = 20;
 /** RTT smoothing weight of a new sample. */
 const RTT_BLEND = 0.2;
+const SETTINGS_SETTLE_MS = LOBBY_CHANGE_COOLDOWN_MS + 50;
+const SETTINGS_ACK_TIMEOUT_MS = 10_000;
+
+/** Same seed canonicalization as the host's cleanText; compare its echo, not raw typing. */
+function canonicalSettings(settings: LobbySettings): LobbySettings {
+  const seed = settings.seed === null ? null : Array.from(settings.seed.replace(/\s+/g, ' ')
+    .replace(/[\p{Cc}\p{Cf}\p{Cs}]/gu, '').replace(/ {2,}/g, ' ').trim())
+    .slice(0, MAX_SEED_LENGTH).join('').trimEnd() || null;
+  return { difficulty: settings.difficulty, seed, match: normalizeMatch(settings.match) };
+}
+function sameSettings(a: LobbySettings, b: LobbySettings): boolean {
+  return JSON.stringify(canonicalSettings(a)) === JSON.stringify(canonicalSettings(b));
+}
 
 /** Host close codes (server/host.ts): a newer window took the token, a denial, shutdown, abuse. */
 const CLOSE_REPLACED = 4000;
@@ -153,6 +167,8 @@ export class NetClient implements NetSession {
   readonly notices: string[] = [];
   pendingBossTakeover: FactionId | null = null;
   bossTakeoverError: string | null = null;
+  settingsError: string | null = null;
+  startPending = false;
 
   private readonly url: string;
   private readonly name: string;
@@ -176,6 +192,11 @@ export class NetClient implements NetSession {
   private attempt = 0;
   private pingId = 0;
   private handshakeTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingSettings: LobbySettings | null = null;
+  private settingsInFlight: LobbySettings | null = null;
+  private settingsTimer: ReturnType<typeof setTimeout> | null = null;
+  private settingsAckTimer: ReturnType<typeof setTimeout> | null = null;
+  private lobbyChangeAt = -Infinity;
 
   constructor(opts: NetClientOptions) {
     this.url = opts.url;
@@ -206,6 +227,7 @@ export class NetClient implements NetSession {
   }
 
   setSeat(seat: FactionId | null): void {
+    this.lobbyChangeAt = performance.now();
     this.send({ t: 'seat', seat });
   }
 
@@ -218,15 +240,82 @@ export class NetClient implements NetSession {
   }
 
   setReady(ready: boolean): void {
+    this.lobbyChangeAt = performance.now();
     this.send({ t: 'ready', ready });
   }
 
+  get setupSettings(): LobbySettings | null { return this.pendingSettings ?? this.lobby?.settings ?? null; }
+  get settingsPending(): boolean { return this.pendingSettings !== null || this.settingsInFlight !== null; }
+
+  private canEditSettings(): boolean {
+    return this.connected && this.isLeader && this.lobby?.phase === 'lobby' && !this.inMatch;
+  }
+
   setSettings(settings: Partial<LobbySettings>): void {
-    this.send({ t: 'settings', settings });
+    if (!this.canEditSettings() || !this.setupSettings) return;
+    this.pendingSettings = canonicalSettings({ ...this.setupSettings, ...settings });
+    this.settingsError = null;
+    this.changed();
+    this.scheduleSettings();
   }
 
   start(): void {
+    if (!this.canEditSettings()) return;
+    if (this.settingsPending) {
+      this.startPending = true;
+      this.changed();
+      this.scheduleSettings();
+      return;
+    }
     this.send({ t: 'start' });
+  }
+
+  /** Coalesce rapid choices. Only one full payload is in flight, then wait out host pacing. */
+  private scheduleSettings(): void {
+    if (this.settingsTimer !== null) clearTimeout(this.settingsTimer);
+    this.settingsTimer = null;
+    if (!this.pendingSettings || this.settingsInFlight || !this.canEditSettings()) return;
+    this.settingsTimer = setTimeout(() => {
+      this.settingsTimer = null;
+      if (!this.pendingSettings || !this.canEditSettings()) return;
+      const remaining = this.lobbyChangeAt + SETTINGS_SETTLE_MS - performance.now();
+      if (remaining > 0) { this.scheduleSettings(); return; }
+      this.settingsInFlight = canonicalSettings(this.pendingSettings);
+      this.lobbyChangeAt = performance.now();
+      this.send({ t: 'settings', settings: this.settingsInFlight });
+      this.settingsAckTimer = setTimeout(() => {
+        this.cancelSettings('The host did not confirm these settings. Check the lobby choices and try again; the match was not started.');
+        this.changed();
+      }, SETTINGS_ACK_TIMEOUT_MS);
+    }, Math.max(SETTINGS_SETTLE_MS, this.lobbyChangeAt + SETTINGS_SETTLE_MS - performance.now()));
+  }
+
+  /** The matching authoritative lobby echo acknowledges only the payload actually sent. */
+  private reconcileSettings(): void {
+    if (!this.canEditSettings()) {
+      if (this.settingsPending || this.startPending) this.cancelSettings('Setup changes were canceled because this lobby is no longer editable.');
+      return;
+    }
+    if (!this.settingsInFlight || !this.lobby || !sameSettings(this.settingsInFlight, this.lobby.settings)) return;
+    if (this.settingsAckTimer !== null) clearTimeout(this.settingsAckTimer);
+    this.settingsAckTimer = null;
+    this.settingsInFlight = null;
+    this.lobbyChangeAt = performance.now();
+    if (this.pendingSettings && sameSettings(this.pendingSettings, this.lobby.settings)) this.pendingSettings = null;
+    if (this.pendingSettings) this.scheduleSettings();
+    else if (this.startPending) {
+      this.startPending = false;
+      this.send({ t: 'start' });
+    }
+  }
+
+  private cancelSettings(error: string | null = null): void {
+    if (this.settingsTimer !== null) clearTimeout(this.settingsTimer);
+    if (this.settingsAckTimer !== null) clearTimeout(this.settingsAckTimer);
+    this.settingsTimer = this.settingsAckTimer = null;
+    this.pendingSettings = this.settingsInFlight = null;
+    this.startPending = false;
+    if (error) this.settingsError = error;
   }
 
   backToLobby(): void {
@@ -316,6 +405,7 @@ export class NetClient implements NetSession {
           this.bossTakeoverError = null;
           this.status = 'lobby';
         }
+        this.reconcileSettings();
         this.changed();
         this.hooks.lobby(msg.lobby);
         return;
@@ -337,6 +427,7 @@ export class NetClient implements NetSession {
           this.bossTakeoverError = null;
           this.status = 'lobby';
         }
+        this.reconcileSettings();
         this.changed();
         this.hooks.lobby(msg.lobby);
         return;
@@ -346,6 +437,7 @@ export class NetClient implements NetSession {
         this.changed();
         return;
       case 'matchStart':
+        this.cancelSettings();
         this.inMatch = true;
         this.matchSeat = msg.seat;
         this.inputEpoch = msg.inputEpoch;
@@ -384,6 +476,7 @@ export class NetClient implements NetSession {
 
   private socketClosed(code: number): void {
     this.clearHandshakeTimer();
+    if (this.settingsPending || this.startPending) this.cancelSettings('Connection interrupted. Unconfirmed setup changes and Start were canceled; check the host choices after reconnecting.');
     if (this.finished) return;
     this.inputEpoch = null;
     this.pendingBossTakeover = null;
@@ -428,6 +521,7 @@ export class NetClient implements NetSession {
     if (this.finished) return;
     this.finished = true;
     this.clearHandshakeTimer();
+    this.cancelSettings();
     this.attempt++;
     const ws = this.ws;
     this.ws = null;

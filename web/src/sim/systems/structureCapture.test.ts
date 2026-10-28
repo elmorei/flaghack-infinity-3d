@@ -7,6 +7,7 @@ import { normalizeMatch } from '../matchSettings';
 import { createMatch } from '../setup';
 import { captureStructure, capturePiece, updateStructureCapture } from './structureCapture';
 import { updateCapture } from './capture';
+import { sceneryBenefitActive } from './sceneryBenefits';
 import { recruitNear } from './recruitment';
 import { updateBuildings } from './buildings';
 import { attachPiece, isSupported, cmdDemolish } from './pieces';
@@ -169,4 +170,58 @@ describe('independent structure Survey capture', () => {
     cmdDemolish(w,{t:'demolish',faction:0,pieceId:lower.id});expect(w.pieces.has(lower.id)).toBe(false);
   });
 
+});
+
+describe('optional Building Capture', () => {
+  it('blocks direct and surveyed building/piece/neutral-scenery captures, but leaves altar capture active', () => {
+    const { w, b, facet, survey, step } = fixture();
+    w.options.match!.buildingCapture = false;
+    const piece = spawnPiece(w, 'wall', 1, facet.edges[0], -1, 0, -1);
+    survey(0); step(20); step(3);
+    expect(b.faction).toBe(1); expect(b.capture ?? null).toBeNull();
+    expect(piece.faction).toBe(1); expect(piece.capture ?? null).toBeNull();
+    expect(w.sceneryCapture.size).toBe(0);
+    expect(captureStructure(w, b, 0)).toBe(false);
+    expect(capturePiece(w, piece, 0)).toBe(false);
+    b.faction = -1; expect(captureStructure(w, b, 0)).toBe(false);
+    // Hearth capture is its own rule: independent progress must still advance.
+    const hearth = w.hearthOf(1)!;
+    updateCapture(w, 20);
+    expect(hearth.hearth!.stage).toBe('overwritten');
+    w.time += CAPTURE.overwriteTime + .01; updateCapture(w, .01);
+    expect(hearth.faction).toBe(0);
+  });
+
+  it('clears stale pressure without stripping ownership, stock, geometry or captured benefits', () => {
+    const { w, b, facet, survey, step } = fixture();
+    const piece = spawnPiece(w, 'wall', 1, facet.edges[0], -1, 0, -1);
+    const stock = spawnFlag(w, { state: 'stock', owner: 1, holder: b.id, pos: { ...b.pos, y: 0 } });
+    survey(0); step(20); step(3);
+    expect(b.faction).toBe(0); expect(piece.faction).toBe(0);
+    const claims = [...w.sceneryCapture].filter(([, state]) => state.faction === 0);
+    expect(claims.length).toBeGreaterThan(0);
+    const hp = b.hp, shapeIds = [...piece.shapeIds];
+    survey(2); step(20); // Even a pending overwrite cannot finish while disabled.
+    w.options.match!.buildingCapture = false; step(3);
+    expect(b.faction).toBe(0); expect(b.hp).toBe(hp); expect(b.capture).toBeNull();
+    expect(piece.faction).toBe(0); expect(piece.shapeIds).toEqual(shapeIds); expect(piece.capture).toBeNull();
+    expect(stock.owner).toBe(0);
+    for (const [id] of claims) expect(w.sceneryCapture.get(id)).toMatchObject({ faction: 0, stage: 'safe', attacker: null, pressure: { 0: 0, 1: 0, 2: 0, 3: 0 } });
+    for (const [id] of claims) expect(sceneryBenefitActive(w, id)).toBe(true);
+    const peer = NetMirror.create(w.options, JSON.parse(JSON.stringify(new SnapshotEncoder(w).full())));
+    expect(peer.world.options.match?.buildingCapture).toBe(false);
+    expect(peer.world.sceneryCapture).toEqual(w.sceneryCapture);
+    // Restoring this fixture option requires a fresh full pressure cycle, even with unchanged geometry.
+    w.options.match!.buildingCapture = true; step(.1);
+    expect(b.faction).toBe(0); expect(b.capture!.pressure[2]).toBeCloseTo(CAPTURE.baseRate * .1);
+  });
+
+  it('keeps the AI from defending disabled capture pressure', () => {
+    const { w, b } = fixture();
+    const loop = planEnclosure(w.lattice, { x: b.pos.x, z: b.pos.z, minRadius: 15, cost: freeCost(w, 0) })!;
+    plantFresh(w, 0, loop); runRules(w, .1); w.avatarOf(1).pos = { ...b.pos, y: 0 };
+    expect(structureDefenseFlag(new Brain(w, 1, 0), w.avatarOf(1))).toBeGreaterThanOrEqual(0);
+    w.options.match!.buildingCapture = false;
+    expect(structureDefenseFlag(new Brain(w, 1, 0), w.avatarOf(1))).toBe(-1);
+  });
 });

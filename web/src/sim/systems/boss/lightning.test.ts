@@ -5,6 +5,7 @@ import { BOSS_HEIGHT } from '../../bossDimensions';
 import { BUILDING_HEIGHT, CRYSTAL_HEIGHT, WARD_FLAG_RADIUS } from '../../constants';
 import { spawnBuilding, spawnCrystal, spawnFlag } from '../../factory';
 import { createMatch } from '../../setup';
+import { normalizeMatch } from '../../matchSettings';
 import { spawnBoss, updateBoss } from '../boss';
 import { damageEntity } from '../combat';
 import { defendedPullRate } from '../flags';
@@ -32,6 +33,14 @@ function wardEncounter() {
 }
 
 describe('authoritative defensive boss lightning', () => {
+  it.each([false, true])('preserves boss crystal/ward lightning with ordinary crystal rules %s', enabled => {
+    const e = wardEncounter(), start = e.boss.hp;
+    e.world.options.match = normalizeMatch({ crystalAttacks: enabled, crystalFlagProtection: enabled, buildingCapture: enabled });
+    e.crystal(5); e.step(1);
+    expect(e.boss.hp).toBe(start - 50);
+    expect(e.boss.lightning.map(link => link.kind).sort()).toEqual(['crystal', 'ward']);
+    expect(defendedPullRate(e.world, e.flag, 1, false)).toBeLessThan(1);
+  });
   it('stacks two ordinary Crystals at 50 damage per second with inclusive ground-space boundaries', () => {
     const e = encounter(), start = e.boss.hp;
     e.crystal(50); e.crystal(0, -50); const outside = e.crystal(50.0001); e.step(1);

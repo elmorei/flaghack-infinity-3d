@@ -193,3 +193,34 @@ describe('population and jump setup', () => {
     ui.dispose();
   });
 });
+
+
+describe('optional rule setup', () => {
+  const labels = ['Building Capture', 'Crystal Flag Protection', 'Crystal Attacks'];
+  const keys = ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
+  it('edits all combinations independently, mirrors read-only choices, and resets all on without changing seats', () => {
+    const { ui, overlay, root, read, write } = setup();
+    const fields = labels.map(label => descendants(overlay).find(node => node.tagName === 'label' && node.children.some(c => c.textContent === label))!.children.find(c => c.tagName === 'input')!);
+    expect(fields.map(f => f.checked)).toEqual([true, true, true]);
+    for (let mask = 0; mask < 8; mask++) {
+      fields.forEach((f, bit) => { f.checked = !!(mask & (1 << bit)); f.dispatchEvent(new Event('change')); });
+      ui.update();
+      fields.forEach((f, bit) => expect(f.checked).toBe(read().match?.[keys[bit]]));
+      expect(keys.map(k => read().match?.[k])).toEqual(fields.map(f => f.checked));
+    }
+    ui.update(false); write.mockClear();
+    fields.forEach(f => { expect(f.disabled).toBe(true); f.checked = false; f.dispatchEvent(new Event('change')); });
+    expect(write).not.toHaveBeenCalled();
+    ui.update(false); expect(fields.every(f => f.checked)).toBe(true);
+    ui.update(true);
+    fields.forEach(f => { f.checked = false; f.dispatchEvent(new Event('change')); });
+    // Closing and reopening must preserve the chosen values, not reset them.
+    const open = descendants(root).find(n => n.innerHTML === 'Advanced Game Settings')!;
+    open.dispatchEvent(new Event('click')); ui.close(); open.dispatchEvent(new Event('click'));
+    expect(fields.every(f => !f.checked)).toBe(true);
+    descendants(overlay).find(n => n.innerHTML === 'Reset defaults')!.dispatchEvent(new Event('click')); ui.update();
+    expect(fields.every(f => f.checked)).toBe(true);
+    expect(read().match?.active).toEqual([0, 2]);
+    ui.dispose();
+  });
+});
