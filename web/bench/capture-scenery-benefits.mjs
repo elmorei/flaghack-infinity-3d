@@ -129,8 +129,8 @@ try {
     const result=await page.evaluate(()=>window.sceneryResult());scenes.push({setup,result});
     await writeFile(resolve(out,'provenance.json'),JSON.stringify({scenes,errors,pageErrors,responses},null,2));
   }
-  const hostFailures=responses.filter(r=>r.url==='http://127.0.0.1:5173/api/info'&&r.status===502);
-  const optionalOnly=pageErrors.length===0&&hostFailures.length>0&&responses.length===hostFailures.length&&errors.length<=hostFailures.length&&errors.every(e=>e.startsWith('Failed to load resource:'));
+  const hostFailures=responses.filter(r=>r.url==='http://127.0.0.1:5173/api/info'&&(r.status===502||r.failure==='net::ERR_ABORTED'));
+  const optionalOnly=pageErrors.length===0&&hostFailures.some(r=>r.status===502)&&responses.length===hostFailures.length&&errors.length<=hostFailures.length&&errors.every(e=>e.startsWith('Failed to load resource:'));
   if(errors.length&&!optionalOnly)throw Error(errors.join('\n'));
   execFileSync('ffmpeg',['-y','-framerate','30','-i',resolve(out,'%04d.png'),'-c:v','libx264','-pix_fmt','yuv420p','-crf','20','-movflags','+faststart',resolve(out,'scenery-benefits.mp4')]);
   await writeFile(resolve(out,'provenance.json'),JSON.stringify({scenes,errors,pageErrors,responses,note:'Six staged actual-game production-system shots, full rendered page including real contextual HUD; no synthetic overlays, compositing, rule overrides or main publication.'},null,2));
