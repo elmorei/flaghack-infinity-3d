@@ -24,7 +24,7 @@ jobs:
       - name: Install isolated browser harness
         timeout-minutes: 5
         run: |
-          npm install --prefix "$RUNNER_TEMP/scenery-browser" --no-save --package-lock=false playwright@1.56.1
+          npm install --prefix "$RUNNER_TEMP/scenery-browser" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=0 --fetch-timeout=60000 --loglevel=verbose playwright@1.56.1
           ln -s "$RUNNER_TEMP/scenery-browser/node_modules/playwright" node_modules/playwright
       - run: brew install ffmpeg
       - name: Verify and render production scenery services
@@ -42,3 +42,4 @@ jobs:
             ${{ runner.temp }}/scenery-vite.log
           if-no-files-found: warn
           retention-days: 7
+
