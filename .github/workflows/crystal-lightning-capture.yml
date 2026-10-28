@@ -1,0 +1,50 @@
+name: Temporary crystal owner lightning proof
+on:
+  push:
+    branches: [testcapture/crystal-owner-lightning-20261028]
+permissions:
+  contents: read
+concurrency:
+  group: crystal-owner-lightning-proof-20261028
+  cancel-in-progress: true
+jobs:
+  capture:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Install isolated browser harness
+        timeout-minutes: 5
+        run: |
+          npm install --prefix "$RUNNER_TEMP/lightning-browser" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=0 --fetch-timeout=60000 playwright@1.56.1
+          ln -s "$RUNNER_TEMP/lightning-browser/node_modules/playwright" node_modules/playwright
+      - run: brew install ffmpeg
+      - name: Verify and render actual game lightning
+        run: |
+          npm run typecheck
+          npx vitest run src/render/vfx/bossLightningFx.test.ts src/render/vfx/bolts.test.ts --maxWorkers=2
+          npm run dev -- --host 127.0.0.1 > "$RUNNER_TEMP/lightning-vite.log" 2>&1 &
+          for i in {1..60}; do curl --fail --silent http://127.0.0.1:5173/ > /dev/null && break; sleep 1; done
+          node bench/capture-crystal-lightning.mjs
+          ffprobe -v error -show_entries stream=codec_name,width,height,nb_frames -show_entries format=duration -of json crystal-lightning-proof/crystal-owner-lightning.mp4
+          ffmpeg -v error -i crystal-lightning-proof/crystal-owner-lightning.mp4 -f null -
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: captured-crystal-owner-lightning-proof
+          path: |
+            web/crystal-lightning-proof/
+            ${{ runner.temp }}/lightning-vite.log
+          if-no-files-found: warn
+          retention-days: 7

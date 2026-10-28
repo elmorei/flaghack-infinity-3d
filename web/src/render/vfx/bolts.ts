@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { COLLAPSE_GLSL, FOG_FRAG_GLSL, OUTPUT_GLSL, fxMaterial } from './glsl';
 import type { Prng } from './prng';
+import { setLightningPalette, type LightningSource } from './lightningPalette';
 
 const BOLTS = 8;
 const MAIN = 22;
@@ -23,10 +24,14 @@ const BRANCH_WIDTH = 0.55;
 
 const VERT = /* glsl */ `
 uniform float uAlpha[${BOLTS}];
+uniform vec3 uCore[${BOLTS}];
+uniform vec3 uGlow[${BOLTS}];
 attribute vec3 aNext;
 attribute vec4 aInfo; // side, half width, bolt index, along
 varying float vSide;
 varying float vAlpha;
+varying vec3 vCore;
+varying vec3 vGlow;
 #include <fog_pars_vertex>
 
 void main() {
@@ -46,6 +51,8 @@ void main() {
   gl_Position = projectionMatrix * v0;
   vSide = aInfo.x;
   vAlpha = alpha;
+  vCore = uCore[int(aInfo.z + 0.5)];
+  vGlow = uGlow[int(aInfo.z + 0.5)];
   #ifdef USE_FOG
   vFogDepth = -v0.z;
   #endif
@@ -53,17 +60,17 @@ void main() {
 `;
 
 const FRAG = /* glsl */ `
-uniform vec3 uCore;
-uniform vec3 uGlow;
 varying float vSide;
 varying float vAlpha;
+varying vec3 vCore;
+varying vec3 vGlow;
 #include <fog_pars_fragment>
 
 void main() {
   float s = abs(vSide);
   float core = exp(-s * s * 45.0);
   float glow = exp(-s * s * 3.5) * 0.55;
-  gl_FragColor = vec4((uCore * core * 3.0 + uGlow * glow) * vAlpha, 0.0);
+  gl_FragColor = vec4((vCore * core * 3.0 + vGlow * glow) * vAlpha, 0.0);
   ${FOG_FRAG_GLSL}
   ${OUTPUT_GLSL}
 }
@@ -71,6 +78,7 @@ void main() {
 
 interface Bolt {
   active: boolean;
+  source?: LightningSource;
   born: number;
   nextStrike: number;
   strike: number;
@@ -86,6 +94,8 @@ export class Bolts {
   readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   private readonly bolts: Bolt[] = [];
   private readonly alpha = new Float32Array(BOLTS);
+  private readonly core = Array.from({ length: BOLTS }, () => new THREE.Color());
+  private readonly glow = Array.from({ length: BOLTS }, () => new THREE.Color());
   private readonly pos: THREE.BufferAttribute;
   private readonly next: THREE.BufferAttribute;
   /** Scratch path points (x, y, z per point) for one bolt. */
@@ -94,9 +104,10 @@ export class Bolts {
   private readonly noiseW = new Float32Array(MAIN);
   private readonly rng: Prng;
 
-  constructor(rng: Prng, renderOrder: number) {
+  constructor(rng: Prng, renderOrder: number, private readonly sourceColor?: (source: LightningSource) => number) {
     this.rng = rng;
     for (let i = 0; i < BOLTS; i++) {
+      setLightningPalette(this.core[i], this.glow[i]);
       this.bolts.push({ active: false, born: 0, nextStrike: 0, strike: 1, fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0 });
     }
     const geometry = new THREE.BufferGeometry();
@@ -118,12 +129,13 @@ export class Bolts {
       fragmentShader: FRAG,
       uniforms: {
         uAlpha: { value: this.alpha },
-        uCore: { value: new THREE.Color(0xf4ecff).multiplyScalar(1.2) },
-        uGlow: { value: new THREE.Color(0x7d6bff).multiplyScalar(2.2) },
+        uCore: { value: this.core },
+        uGlow: { value: this.glow },
       },
       side: THREE.DoubleSide,
     });
     this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.name = 'crystal-protection-lightning';
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = renderOrder;
     this.mesh.visible = false;
@@ -140,7 +152,7 @@ export class Bolts {
     }
   }
 
-  strike(now: number, fx: number, fy: number, fz: number, tx: number, ty: number, tz: number): void {
+  strike(now: number, fx: number, fy: number, fz: number, tx: number, ty: number, tz: number, source?: LightningSource): void {
     let slot = 0;
     let oldest = Infinity;
     for (let i = 0; i < BOLTS; i++) {
@@ -156,6 +168,9 @@ export class Bolts {
     }
     const b = this.bolts[slot];
     b.active = true;
+    b.source = source;
+    // Every pooled slot resets its palette, including ownerless instability discharges.
+    setLightningPalette(this.core[slot], this.glow[slot], source && this.sourceColor?.(source));
     b.born = now;
     b.nextStrike = now;
     b.fx = fx;
@@ -178,9 +193,11 @@ export class Bolts {
       const t = (now - b.born) / LIFE;
       if (t >= 1) {
         b.active = false;
+        b.source = undefined;
         this.alpha[i] = 0;
         continue;
       }
+      if (b.source) setLightningPalette(this.core[i], this.glow[i], this.sourceColor?.(b.source));
       if (now >= b.nextStrike) {
         this.build(i, b);
         b.nextStrike = now + JITTER_INTERVAL;

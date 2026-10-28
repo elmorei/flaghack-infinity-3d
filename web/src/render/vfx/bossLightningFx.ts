@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { BossLightning } from '../../sim/boss';
 import type { World } from '../../sim/world';
 import { FOG_FRAG_GLSL, OUTPUT_GLSL, fxMaterial } from './glsl';
+import { lightningSourceColor, setLightningPalette } from './lightningPalette';
 
 const MAIN = 25, BRANCH = 8, POINTS = MAIN + BRANCH * 2;
 const JITTER_HZ = 28;
@@ -26,12 +27,14 @@ void main() {
 }`;
 const FRAG = /* glsl */ `
 uniform float uFlicker;
+uniform vec3 uCore;
+uniform vec3 uGlow;
 varying float vSide;
 #include <fog_pars_fragment>
 void main() {
   float s = abs(vSide);
-  vec3 core = vec3(.96, .93, 1.0) * exp(-s * s * 45.0) * 3.6;
-  vec3 glow = vec3(.49, .42, 1.0) * exp(-s * s * 3.5) * 1.2;
+  vec3 core = uCore * exp(-s * s * 45.0) * 3.0;
+  vec3 glow = uGlow * exp(-s * s * 3.5) * .55;
   gl_FragColor = vec4((core + glow) * uFlicker, 0.0);
   ${FOG_FRAG_GLSL}
   ${OUTPUT_GLSL}
@@ -59,7 +62,7 @@ class Arc {
     }
     geometry.setAttribute('position', this.position); geometry.setAttribute('aNext', this.next);
     geometry.setAttribute('aStrip', new THREE.BufferAttribute(strips, 2)); geometry.setIndex(indices);
-    const material = fxMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlicker: { value: 1 } }, side: THREE.DoubleSide });
+    const material = fxMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: { uFlicker: { value: 1 }, uCore: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() } }, side: THREE.DoubleSide });
     this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = `boss-defensive-lightning-${id}`;
     this.mesh.frustumCulled = false; this.mesh.renderOrder = order;
   }
@@ -112,6 +115,7 @@ export class BossLightningFx {
       for (const link of boss.lightning) {
         let arc = this.arcs.get(link.id);
         if (!arc) { arc = new Arc(link.id, this.renderOrder); this.arcs.set(link.id, arc); this.group.add(arc.mesh); }
+        setLightningPalette(arc.mesh.material.uniforms.uCore.value, arc.mesh.material.uniforms.uGlow.value, lightningSourceColor(world, link));
         arc.seen = frame; arc.update(link, sample, groundY);
       }
     }

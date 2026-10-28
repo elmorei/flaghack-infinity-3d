@@ -21,6 +21,7 @@ import { Billboards } from './billboards';
 import { BarrierShatter } from './barrierShatter';
 import { Bolts } from './bolts';
 import { BossLightningFx } from './bossLightningFx';
+import { lightningSourceColor } from './lightningPalette';
 import { Bursts } from './bursts';
 import { ColumnStyle, Columns } from './columns';
 import { Domes } from './domes';
@@ -120,7 +121,7 @@ export class VfxRenderer implements RenderModule {
     this.ground = new GroundFx(512, this.shared, ORDER.ground);
     this.walls = new ShockWalls(64, this.shared, ORDER.walls);
     this.arcs = new SwingArcs(48, this.shared, ORDER.arcs);
-    this.bolts = new Bolts(this.rng, ORDER.bolts);
+    this.bolts = new Bolts(this.rng, ORDER.bolts, source => lightningSourceColor(this.ctx.world, source));
     this.domes = new Domes(12, this.shared, ORDER.domes);
     this.columns = new Columns(64, this.shared, ORDER.columns);
     this.boards = new Billboards(64, this.shared, ctx.renderer, ORDER.boards);
@@ -306,7 +307,10 @@ export class VfxRenderer implements RenderModule {
       case 'wardLightning': {
         const fy = e.from.y;
         const ty = e.to.y;
-        this.bolts.strike(this.ctx.time, e.from.x, fy, e.from.z, e.to.x, ty, e.to.z);
+        this.bolts.strike(this.ctx.time, e.from.x, fy, e.from.z, e.to.x, ty, e.to.z, {
+          kind: e.t === 'crystalLightning' ? 'crystal' : 'ward',
+          id: e.t === 'crystalLightning' ? e.crystalId : e.buildingId, faction: e.faction,
+        });
         break;
       }
       case 'discharge': {
