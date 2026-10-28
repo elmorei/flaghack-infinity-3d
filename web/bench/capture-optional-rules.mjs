@@ -21,7 +21,7 @@ try {
   await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.captureFrozen = false; window.requestAnimationFrame = fn => raf(time => { if (!window.captureFrozen) fn(time); }); });
   await page.goto(process.env.CAPTURE_URL || 'http://127.0.0.1:5173/');
   await page.waitForFunction(() => !!window.flaghack && !!window.fh, null, { polling: 100, timeout: 90000 });
-  await page.evaluate(async () => { await window.flaghack.ready; document.querySelector('#startup-skip')?.click(); });
+  const introSkipped = await page.evaluate(async () => { await window.flaghack.ready; const skip = document.querySelector('#startup-skip'); skip?.click(); return !!skip; });
   await page.waitForFunction(() => !document.querySelector('#startup'), null, { polling: 100, timeout: 30000 });
   await page.evaluate(() => { window.captureFrozen = true; const app = window.flaghack; app.openLobby(); app.ui.update(0); });
   await page.getByRole('button', { name: 'Advanced Game Settings', exact: true }).click();
@@ -129,7 +129,10 @@ try {
   }
   const info = new URL('/api/info', process.env.CAPTURE_URL || 'http://127.0.0.1:5173/').href;
   const hostFailures = responses.filter(r => r.url === info && (r.status === 502 || r.failure === 'net::ERR_ABORTED'));
-  const optionalOnly = pageErrors.length === 0 && hostFailures.some(r => r.status === 502) && responses.length === hostFailures.length && errors.length <= hostFailures.length && errors.every(e => e.startsWith('Failed to load resource:'));
+  // Skipping the real startup video intentionally cancels its in-flight media request.
+  const intro = new URL('/src/startup/assets/flaghack-gameplay-intro-25s.mp4', info).href;
+  const skippedIntro = responses.filter(r => introSkipped && r.url === intro && r.failure === 'net::ERR_ABORTED');
+  const optionalOnly = pageErrors.length === 0 && hostFailures.some(r => r.status === 502) && responses.length === hostFailures.length + skippedIntro.length && errors.length <= hostFailures.length && errors.every(e => e.startsWith('Failed to load resource:'));
   if (errors.length && !optionalOnly) throw Error(errors.join('\n'));
   execFileSync('ffmpeg',['-y','-framerate','30','-i',resolve(out,'%04d.png'),'-c:v','libx264','-pix_fmt','yuv420p','-crf','20','-movflags','+faststart',resolve(out,'optional-rules.mp4')]);
   for (let i=0;i<frame;i++) if (i>=90 && ![0,28,32,59,60,89].includes((i-90)%90)) await unlink(resolve(out,`${String(i).padStart(4,'0')}.png`));
