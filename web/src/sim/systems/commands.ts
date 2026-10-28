@@ -26,6 +26,11 @@ export function applyCommands(world: World): void {
     const fac = world.factions[c.faction];
     if (!fac || !fac.alive) continue;
     if (c.t === 'avatarInput' && latestInput.get(c.faction) !== c) continue;
+    // RTS rulers have no body: only strategic orders, construction queues and map signals.
+    if (fac.controlMode === 'rts' && !['order', 'plan', 'jobWeights', 'placeBuilding', 'brew', 'ping'].includes(c.t)) {
+      if (c.t !== 'avatarInput') world.emit({ t: 'rejected', faction: c.faction, reason: 'This action requires a roaming vexillomancer.' });
+      continue;
+    }
     dispatch(world, c);
   }
 }

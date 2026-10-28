@@ -75,6 +75,7 @@ function nearOwnHearth(world: World, f: FactionId, av: Avatar): boolean {
 export function alignBlocker(world: World, f: FactionId, chakra: ChakraId): string {
   const fac = world.factions[f];
   if (!fac.alive) return 'Your camp has fallen.';
+  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
   const av = world.avatarOf(f);
   if (av.koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';
   const level = fac.chakras[chakra];
@@ -110,6 +111,7 @@ function tendAlignments(world: World): void {
     const ch = st.aligning[f];
     if (!ch) continue;
     const av = world.avatarOf(f);
+    if (!av) { st.aligning[f] = null; continue; }
     const act = av.action;
     if (act !== ch.action || act.kind !== 'align') {
       st.aligning[f] = null;
@@ -143,6 +145,7 @@ function tendAlignments(world: World): void {
 export function abilityBlocker(world: World, f: FactionId, a: AbilityId): string {
   const fac = world.factions[f];
   if (!fac.alive) return 'Your camp has fallen.';
+  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
   const chakra = ABILITY_CHAKRA[a];
   if (fac.chakras[chakra] <= 0) return `Align the ${CHAKRA_NAMES[chakra]} chakra at your Hearth first.`;
   if (world.avatarOf(f).koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';

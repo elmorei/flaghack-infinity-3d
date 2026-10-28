@@ -80,3 +80,13 @@ describe('boss camp takeover rules', () => {
     expect(applyBossTakeover(world, 0, 2, [1, 3])).toBe(false);
   });
 });
+
+it('keeps an RTS player command-only and permits compatible camps without creating a body', () => {
+  const w = fixture(); w.factions[0].controlMode = 'rts';
+  expect(bossTakeoverSeats(w, 0, [1, 2, 3])).toEqual([]);
+  expect(applyBossTakeover(w, 0, 1, [1, 2, 3])).toBe(false);
+  w.factions[2].controlMode = 'rts'; w.avatars.delete(w.factions[2].avatarId); w.factions[2].avatarId = -1;
+  expect(bossTakeoverSeats(w, 0, [1, 2, 3])).toEqual([2]);
+  expect(applyBossTakeover(w, 0, 2, [1, 2, 3])).toBe(true);
+  expect(w.avatarOf(2)).toBeUndefined(); expect(w.factions[2].controlMode).toBe('rts');
+});

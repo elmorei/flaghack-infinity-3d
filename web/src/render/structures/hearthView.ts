@@ -16,8 +16,9 @@
  */
 import * as THREE from 'three';
 import { isHoarding } from '../../sim/systems/economy';
+import { rtsThroneAltar } from '../../sim/rts';
 import { angleDiff } from '../../sim/math';
-import type { Building } from '../../sim/types';
+import type { Building, FactionId } from '../../sim/types';
 import { BuildingView, SMOKE_GREY, type FrameInfo } from './buildingView';
 import { createFireStyle, dampFireStyle, Fire, type FireStyle } from './fire';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
@@ -63,20 +64,6 @@ function buildHearth(mb: ModelBuilder): void {
     const cap: [number, number][] = [capO[k], capO[n], capI[n], capI[k]];
     mb.add('brick', extrudeUp(cap, 0.07, 0.01), 0, PIT_H, 0);
   }
-  // Coal bed and charred logs leaning in a teepee around the pole.
-  mb.add('ember', extrudeUp(pentagon(PIT_IN - 0.02, TAU / 10), 0.08, 0), 0, 0.03, 0);
-  for (let k = 0; k < 5; k++) {
-    const a = (k * TAU) / 5 + 0.3;
-    const c = Math.cos(a);
-    const s = Math.sin(a);
-    mb.rod('woodDark', [c * 0.95, 0.14, s * 0.95], [c * 0.16, 0.9, s * 0.16], 0.07, 7);
-  }
-  // The flagpole, collars and finial.
-  mb.cyl('wood', 0.055, 0.085, POLE_H, 0, POLE_H / 2, 0, 12);
-  mb.cyl('brass', 0.11, 0.11, 0.08, 0, 1.05, 0, 14);
-  mb.cyl('brass', 0.075, 0.075, 0.06, 0, POLE_H - 0.1, 0, 12);
-  mb.add('brass', new THREE.SphereGeometry(0.13, 16, 12), 0, POLE_H + 0.08, 0);
-
   // Stock rack: two curved rows on posts, rails with holes for the poles.
   const steps = 14;
   for (const r of [RACK_IN, RACK_OUT]) {
@@ -118,11 +105,29 @@ function buildHearth(mb: ModelBuilder): void {
   }
 }
 
+function buildHearthCenter(mb: ModelBuilder): void {
+  // Coal bed and charred logs leaning in a teepee around the pole.
+  mb.add('ember', extrudeUp(pentagon(PIT_IN - 0.02, TAU / 10), 0.08, 0), 0, 0.03, 0);
+  for (let k = 0; k < 5; k++) {
+    const a = (k * TAU) / 5 + 0.3;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    mb.rod('woodDark', [c * 0.95, 0.14, s * 0.95], [c * 0.16, 0.9, s * 0.16], 0.07, 7);
+  }
+  // The flagpole, collars and finial.
+  mb.cyl('wood', 0.055, 0.085, POLE_H, 0, POLE_H / 2, 0, 12);
+  mb.cyl('brass', 0.11, 0.11, 0.08, 0, 1.05, 0, 14);
+  mb.cyl('brass', 0.075, 0.075, 0.06, 0, POLE_H - 0.1, 0, 12);
+  mb.add('brass', new THREE.SphereGeometry(0.13, 16, 12), 0, POLE_H + 0.08, 0);
+
+}
+
 /** Static model of the Flag Hearth (shared with its placement ghost). */
-export const HEARTH_MODEL: ModelRecipe = { name: 'hearth', build: buildHearth };
+export const HEARTH_MODEL: ModelRecipe = { name: 'hearth', build: mb => { buildHearth(mb); buildHearthCenter(mb); } };
 
 export class HearthView extends BuildingView {
   private readonly fire: Fire;
+  private readonly center = new THREE.Group();
   private readonly target: FireStyle = createFireStyle();
   private readonly flag: THREE.Mesh;
   private readonly ribbon: THREE.Mesh;
@@ -144,7 +149,9 @@ export class HearthView extends BuildingView {
 
   constructor(kit: StructureKit, b: Building, light: THREE.PointLight | null) {
     super(kit, b, POLE_H, 3.2);
-    this.addStatic(kit.model(HEARTH_MODEL.name, HEARTH_MODEL.build));
+    this.addStatic(kit.model('hearth-base', buildHearth));
+    this.body.add(this.center);
+    this.addStatic(kit.model('hearth-center', buildHearthCenter), this.center);
     this.fire = new Fire(kit, 3);
     this.fire.mesh.position.y = 0.1;
     this.body.add(this.fire.mesh);
@@ -171,6 +178,9 @@ export class HearthView extends BuildingView {
 
   protected override animate(b: Building, f: FrameInfo, active: boolean): void {
     void active;
+    const seated = b.faction >= 0 && rtsThroneAltar(f.world, b.faction as FactionId)?.id === b.id;
+    this.center.visible = !seated;
+    this.flag.visible = this.ribbon.visible = this.fire.mesh.visible = !seated;
     const hs = b.hearth;
     const stage = hs ? hs.stage : 'safe';
     const fc = this.factionColor;
@@ -245,7 +255,7 @@ export class HearthView extends BuildingView {
 
     // Embers, overwrite sparks and a thin smoke column.
     const p = this.root.position;
-    this.emberAcc += f.dt * (5 + st.turb * 6 + st.white * 30);
+    this.emberAcc += seated ? 0 : f.dt * (5 + st.turb * 6 + st.white * 30);
     while (this.emberAcc >= 1) {
       this.emberAcc -= 1;
       const a = Math.random() * TAU;
@@ -265,7 +275,7 @@ export class HearthView extends BuildingView {
         0.6,
       );
     }
-    this.smokeAcc += f.dt * 1.4;
+    this.smokeAcc += seated ? 0 : f.dt * 1.4;
     while (this.smokeAcc >= 1) {
       this.smokeAcc -= 1;
       f.smoke.emit(p.x, p.y + st.height * 0.9, p.z, 0.3, 0.8, 0.15, 0.6, 2.8, 4.5, SMOKE_GREY, 0.28, 0.25);

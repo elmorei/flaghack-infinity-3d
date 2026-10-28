@@ -49,3 +49,23 @@ describe('ordinary crystal attack presentation', () => {
     }
   });
 });
+
+import { spawnBuilding } from '../../sim/factory';
+import { THRONE_ATTACK_HEIGHT } from '../../sim/systems/crystalAttacks';
+describe('seated ruler attack presentation', () => {
+  it.each([0, 1, 2, 3] as const)('uses faction %s tint and seated origin without changing gameplay', faction => {
+    const e = crystalAttackFixture(), f = e.world.factions[faction];
+    const altar = spawnBuilding(e.world, 'hearth', faction, 0, 1);
+    altar.pos = { x: 0, z: 0 }; f.hearthIds = [altar.id]; f.controlMode = 'rts';
+    const h = e.unit(10, 0, faction === 0 ? 1 : 0); updateCrystalAttacks(e.world, 0);
+    const before = JSON.stringify(f), hp = h.hp, fx = new CrystalAttackFx(); fx.update(e.world, 10000, flat);
+    const arc = fx.group.getObjectByName(`crystal-unit-lightning-${altar.id}`) as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    const ring = fx.group.getObjectByName(`crystal-unit-warning-${altar.id}`) as THREE.Mesh;
+    expect(arc).toBeTruthy(); expect(ring.visible).toBe(true);
+    expect(arc.material.uniforms.uGlow.value).toEqual(new THREE.Color(f.color).multiplyScalar(2.2));
+    expect(arc.geometry.getAttribute('position').getY(0)).toBeCloseTo(THRONE_ATTACK_HEIGHT);
+    for (let i = 0; i < 10; i++) fx.update(e.world, 11000 + i, flat);
+    expect(JSON.stringify(f)).toBe(before); expect(h.hp).toBe(hp); expect(ring.visible).toBe(true);
+    e.world.buildings.delete(altar.id); fx.update(e.world, 12000, flat); expect(fx.group.visible).toBe(false); fx.dispose();
+  });
+});

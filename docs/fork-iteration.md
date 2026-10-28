@@ -343,3 +343,41 @@ The existing Crystal/Ward lightning against the giant is separate and unchanged 
 switches. During the existing shared-alliance encounter, ordinary camp units are friendly and
 are not targeted. Warning rings and attack arcs use the source Crystal owner's current color.
 The host alone applies damage; clients and late joins render its replicated lock and timer.
+
+### Command-only RTS camps (prototype)
+
+Choose **RTS · command only** in the local or multiplayer lobby before starting.
+This is a faction of your own, not a spectator or a second controller for another camp.
+The choice is fixed for that match and survives reconnects. RTS players may only take over
+compatible command-only camps after elimination; avatar camps are not silently converted. Touch/mobile layout is still a
+separate milestone; the existing desktop Command View is used for now.
+
+An RTS ruler sits at a matching pipe-frame desk on a throne above their altar, with tall split black banners
+striped in the faction color. This is not an avatar entity: there is no roaming body,
+personal flag placement/pulling, staff attack, personal ability/drug use, GCC pushing or
+presence-based Hearth defense. Signifiers still do the field work. Camp buildings can be
+queued from the map and need normal workers to build them. The starting personal quiver is
+put into altar stock instead, preserving total starting Flags.
+
+**Defense Lightning** (the existing Crystal Attacks optional rule) now covers both grown
+crystals and RTS thrones: a one-second warning, one visible hostile target within 16 m,
+12 HP/s, with a shared 18 HP/s maximum from overlapping emitters. Solid cover blocks it.
+Throne defense ends when its altar is lost/disabled or the faction falls; ordinary PvP
+lightning pauses during the boss alliance. It does not confer the avatar's Hearth-holding bonus.
+
+### Recruitment for every faction
+
+Select a Signifier and right-click an awake neutral, or use **Recruit…** then click the
+neutral. The worker fetches a real stocked Flag if needed, walks to the target and hands
+it over. The new recruit carries that same Flag; no unit or Flag is created. Canceling,
+losing a worker or losing a race for a recruit keeps normal inventory/KO rules.
+
+Working GCCs and completed drum circles retain their normal 60 m attraction and 15 m
+recruitment range, enlisting one nearby neutral every 14 seconds without a per-recruit
+resource charge. Recruitment attraction takes priority over the pre-Burn audience.
+A camp with no awake Signifiers can have its functioning GCC call one unclaimed,
+reachable neutral from farther away. The individual must walk back; this is neither a
+spawn nor a teleport, and it cannot steal another recruiter's nearby audience or a
+commanded recruitment target. A bounded search retries blocked candidates later.
+No neutral pool or no working GCC means no recovery guarantee; altar loss still eliminates
+the faction. Existing soft population caps and attention costs continue to apply.

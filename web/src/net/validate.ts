@@ -213,6 +213,10 @@ const ORDERS: { [K in HippieOrder['kind']]: Entry<Extract<HippieOrder, { kind: K
       return at && { kind: 'defend', at };
     },
   },
+  recruit: {
+    keys: ['kind', 'target'],
+    parse: ({ target }) => (isInt(target, 0) ? { kind: 'recruit', target } : null),
+  },
   attack: {
     keys: ['kind', 'target'],
     parse: ({ target }) => (isInt(target, 0) ? { kind: 'attack', target } : null),
@@ -412,6 +416,10 @@ const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } 
   bossTakeover: {
     keys: ['t', 'seat'],
     parse: ({ seat }) => (isFaction(seat) ? { t: 'bossTakeover', seat } : null),
+  },
+  controlMode: {
+    keys: ['t', 'mode'],
+    parse: ({ mode }) => (mode === 'avatar' || mode === 'rts' ? { t: 'controlMode', mode } : null),
   },
   ready: {
     keys: ['t', 'ready'],

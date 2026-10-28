@@ -205,7 +205,9 @@ export class SeatChooser implements UiPart {
       ? 'Your camp has fallen, but the fight goes on. Choose a surviving AI camp to take command, or keep watching.'
       : 'The rivals’ AI steers these camps. Take one over where it stands.');
     setText(this.empty, recovery
-      ? 'No surviving AI camps are available. Keep watching: the surviving camps can still win together.'
+      ? world.factions[s.playerFaction].controlMode === 'rts'
+        ? 'No compatible RTS camps are available. Avatar camps require a roaming body; keep watching the surviving camps.'
+        : 'No surviving AI camps are available. Keep watching: the surviving camps can still win together.'
       : 'Every camp has its Signifier or has fallen. Watch on: a seat may yet free up.');
     if (recovery && this.pending !== null && net?.pendingBossTakeover === null) {
       this.pending = null; this.picked = null;

@@ -222,6 +222,7 @@ function completeOverwrite(world: World, b: Building, hs: HearthState, owner: Fa
  * for as long as the ring stood (the overlap still breeds instability instead).
  */
 export function holdsHearth(world: World, b: Pick<Building, 'pos'>, owner: FactionId): boolean {
+  if (world.factions[owner].controlMode === 'rts') return false;
   const av = world.avatars.get(world.factions[owner].avatarId);
   if (!av || isAvatarDown(world, av)) return false;
   return dist2(av.pos.x, av.pos.z, b.pos.x, b.pos.z) <= CAPTURE.holdRadius * CAPTURE.holdRadius;

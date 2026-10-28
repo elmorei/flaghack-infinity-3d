@@ -22,9 +22,9 @@ import type { GameEvent } from '../sim/events';
 import type { DeltaSnapshot, FullSnapshot } from './codec';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
-// v18: Optional capture/protection/attack settings and authoritative crystal target locks.
+// v19: RTS faction modes, throne defense locks and physical worker recruitment.
 // Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -69,6 +69,8 @@ export interface LobbySettings {
 }
 
 export interface LobbyPlayer {
+  /** Preferred mode for the next match; frozen into the faction at match start. */
+  controlMode?: 'avatar' | 'rts';
   id: string;
   name: string;
   /** Faction seat, or null for a spectator. */
@@ -127,6 +129,7 @@ export type ClientMessage =
   | { t: 'seat'; seat: FactionId | null }
   /** An eliminated human claims an unreserved surviving AI camp during the actual boss encounter. */
   | { t: 'bossTakeover'; seat: FactionId }
+  | { t: 'controlMode'; mode: 'avatar' | 'rts' }
   | { t: 'ready'; ready: boolean }
   /** Leader only. */
   | { t: 'settings'; settings: Partial<LobbySettings> }

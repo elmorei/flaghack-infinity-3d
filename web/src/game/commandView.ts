@@ -44,10 +44,11 @@ const ENCLOSE_THROTTLE = 90;
 /** Survey changes elsewhere (rivals planting) refresh a standing plan preview at most this often (ms). */
 const PREVIEW_REFRESH = 250;
 
-type OrderKind = 'none' | 'pull' | 'attack' | 'gather' | 'pushArm' | 'pushTo' | 'follow' | 'plant' | 'move' | 'defend';
+type OrderKind = 'recruit' | 'none' | 'pull' | 'attack' | 'gather' | 'pushArm' | 'pushTo' | 'follow' | 'plant' | 'move' | 'defend';
 
 const ORDER_LABEL: Record<OrderKind, string> = {
   none: '',
+  recruit: 'RMB  Recruit with a Flag',
   pull: 'RMB  Pull this Flag',
   attack: 'RMB  Attack',
   gather: 'RMB  Gather lumber',
@@ -157,6 +158,7 @@ export class CommandView {
 
   /** Forget per-visit state (entering/leaving the view, new match). */
   reset(s: Session): void {
+    s.recruitTargeting = false;
     this.pushArm = -1;
     this.boxing = false;
     this.lmbDown = false;
@@ -227,6 +229,7 @@ export class CommandView {
   frame(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera, ghost: GhostInfo | null): boolean {
     const inp = this.input;
     this.pruneSelection(world, s);
+    if (s.recruitTargeting) this.pushArm = -1;
     if (s.planTool !== this.lastTool) this.toolChanged(s);
 
     // Hotkeys.
@@ -237,7 +240,8 @@ export class CommandView {
     if (inp.wasPressed('KeyR')) this.setTool(s, 'ring');
     if (inp.wasPressed('Backspace')) this.queue.push({ t: 'plan', faction: f, op: 'clear', nodes: [] });
     if (inp.wasPressed('Escape')) {
-      if (s.planTool !== 'select') this.setTool(s, 'select');
+      if (s.recruitTargeting) s.recruitTargeting = false;
+      else if (s.planTool !== 'select') this.setTool(s, 'select');
       else if (s.tool === 'building') s.tool = 'flag';
       else if (this.pushArm >= 0) this.pushArm = -1;
       else exit = true;
@@ -248,7 +252,10 @@ export class CommandView {
 
     // Left button: place / plan / select.
     if (inp.buttonPressed(LMB)) {
-      if (s.tool === 'building') {
+      if (s.recruitTargeting) {
+        if (this.okind === 'recruit') { this.issueOrder(world, s, f); s.recruitTargeting = false; }
+        else s.post('Choose an awake neutral Signifier to recruit.');
+      } else if (s.tool === 'building') {
         if (ghost && ghost.valid) {
           this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet });
           if (!inp.shift) s.tool = 'flag';
@@ -275,7 +282,8 @@ export class CommandView {
     // Ctrl+RMB is an explicit defend order, even when a target/tool would normally win.
     // Plain RMB still cancels a tool before issuing contextual orders.
     if (inp.buttonPressed(RMB)) {
-      if (inp.ctrl) {
+      if (s.recruitTargeting) s.recruitTargeting = false;
+      else if (inp.ctrl) {
         if (s.tool === 'building') s.tool = 'flag';
         if (s.planTool !== 'select') this.setTool(s, 'select');
         this.issueOrder(world, s, f);
@@ -290,17 +298,19 @@ export class CommandView {
       this.queue.push({ t: 'ping', faction: f, kind: pingKindAt(world, f, s.hover), at: { x: p.x, z: p.z } });
     }
 
-    inp.setCursor(this.grabbing && inp.buttons[MMB] ? 'grabbing' : s.planTool !== 'select' || s.tool === 'building' || this.pushArm >= 0 ? 'crosshair' : 'default');
+    inp.setCursor(this.grabbing && inp.buttons[MMB] ? 'grabbing' : s.recruitTargeting || s.planTool !== 'select' || s.tool === 'building' || this.pushArm >= 0 ? 'crosshair' : 'default');
     s.prompt = this.prompt(s);
     return exit;
   }
 
   private setTool(s: Session, tool: PlanTool): void {
+    s.recruitTargeting = false;
     s.planTool = s.planTool === tool ? 'select' : tool;
     this.toolChanged(s);
   }
 
   private toolChanged(s: Session): void {
+    if (s.planTool !== 'select') s.recruitTargeting = false;
     this.lastTool = s.planTool;
     s.planPreview = [];
     this.encLoop = null;
@@ -367,6 +377,7 @@ export class CommandView {
         return;
       }
       const h = world.hippies.get(he);
+      if (h && h.faction === -1 && h.koUntil === 0) { this.okind = 'recruit'; return; }
       if (h && h.faction !== f && h.faction !== -1) {
         this.okind = 'attack';
         return;
@@ -401,6 +412,9 @@ export class CommandView {
     switch (this.okind) {
       case 'pull':
         order = { kind: 'pull', flagId: this.otarget };
+        break;
+      case 'recruit':
+        order = { kind: 'recruit', target: this.otarget };
         break;
       case 'attack':
         order = { kind: 'attack', target: this.otarget };
@@ -693,6 +707,7 @@ export class CommandView {
   }
 
   private prompt(s: Session): string | null {
+    if (s.recruitTargeting) return 'LMB  Choose a neutral Signifier · worker fetches and hands over a Flag   RMB / Esc  Cancel';
     if (s.tool === 'building') return null; // the controls compose the building prompt from the ghost
     switch (s.planTool) {
       case 'node':

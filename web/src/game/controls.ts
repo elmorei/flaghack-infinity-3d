@@ -192,6 +192,24 @@ export class Controls {
   private throwPitch = 0;
   private throwQueued = false;
   private jumpLatch = false;
+  /** Camera/picking anchor only: never inserted into World or sent as a unit. */
+  private readonly rtsAnchor: Avatar = {
+    id: -1, type: 'avatar', faction: 0, pos: { x: 0, y: 0, z: 0 }, vel: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
+    onGround: true, hp: 0, lastHurtAt: -999, koUntil: 0, carried: [], action: { kind: 'idle' },
+    input: { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: 0, pitch: 0 }, throwReadyAt: 0, effects: [], pushing: -1,
+  };
+
+  private controlAnchor(world: World, f: FactionId): Avatar | undefined {
+    if (world.factions[f].controlMode !== 'rts') return world.avatars.get(world.factions[f].avatarId);
+    const altar = world.hearthOf(f);
+    this.rtsAnchor.faction = f;
+    if (altar) {
+      this.rtsAnchor.pos = { x: altar.pos.x, y: world.collision.groundHeight(altar.pos.x, altar.pos.z), z: altar.pos.z };
+      this.rtsAnchor.yaw = altar.yaw;
+    }
+    return this.rtsAnchor;
+  }
+
   /** Reused every tick (the sim copies the input it is given). */
   private inputCmd: CommandOf<'avatarInput'> = {
     t: 'avatarInput',
@@ -254,7 +272,7 @@ export class Controls {
       // Pointer lock can only be requested inside a user gesture: take it now for keys that are
       // about to return the player to the action view.
       const s = app.session;
-      if (s.screen !== 'playing' || this.spectating()) return;
+      if (s.screen !== 'playing' || this.spectating() || app.world?.factions[s.playerFaction].controlMode === 'rts') return;
       const p = s.panels;
       const open = (p.chakras ? 1 : 0) + (p.codex ? 1 : 0) + (p.help ? 1 : 0) + (p.settings ? 1 : 0);
       const closesLast = open === 1 && ((code === 'KeyK' && p.chakras) || (code === 'KeyJ' && p.codex) || (code === 'F1' && p.help));
@@ -270,10 +288,14 @@ export class Controls {
     if (!world) return;
     const fresh = world !== this.world;
     if (fresh) this.attachWorld(world, s);
+    if (world.factions[s.playerFaction].controlMode === 'rts' && s.view !== 'command') {
+      s.view = 'command';
+      s.viewBlend = 1;
+    }
     // A new burn (Play again) is a fresh start even when the screen stays 'playing'.
     if (fresh || s.screen !== this.screen) this.screenChanged(s);
     const f = s.playerFaction;
-    const av = world.avatars.get(world.factions[f].avatarId);
+    const av = this.controlAnchor(world, f);
     const inPlay = s.screen === 'playing' && av !== undefined && (seated(world, s) || s.spectator);
     const watcher = inPlay && watching(world, s);
     // A text field (chat) has the keyboard: keys held when it opened must not keep the vexillomancer running.
@@ -300,7 +322,8 @@ export class Controls {
     this.updateCamera(world, s, av, watcher, dt);
     if (inPlay && av && !watcher && !typing && !s.campChoiceOpen) {
       this.pick(world, s, av);
-      this.targetedKeys(s, av);
+      if (world.factions[f].controlMode !== 'rts') this.targetedKeys(s, av);
+      else if (this.input.wasPressed('KeyB')) { s.recruitTargeting = false; s.tool = s.tool === 'building' ? 'flag' : 'building'; }
       if (s.view === 'action') this.actionFrame(world, s, av, dt);
       else this.commandFrame(world, s, av);
     } else this.idle(s);
@@ -312,7 +335,7 @@ export class Controls {
     const s = this.app.session;
     const world = this.app.world;
     if (!world || world !== this.world || s.screen !== 'playing' || s.campChoiceOpen || !seated(world, s)) return;
-    const av = world.avatars.get(world.factions[s.playerFaction].avatarId);
+    const av = this.controlAnchor(world, s.playerFaction);
     if (!av) return;
     if (!world.factions[s.playerFaction].alive) {
       // Spectating: a fallen camp sends nothing (commands queued this frame fall with it).
@@ -353,7 +376,7 @@ export class Controls {
       out.pitch = this.throwQueued ? this.throwPitch : -s.camera.pitch;
     }
     cmd.faction = s.playerFaction;
-    this.app.submit(cmd);
+    if (world.factions[s.playerFaction].controlMode !== 'rts') this.app.submit(cmd);
     for (const c of this.queue) this.app.submit(c);
     this.queue.length = 0;
     this.throwQueued = false;
@@ -369,7 +392,7 @@ export class Controls {
     this.lastPullAt = this.lastSwingAt = this.lastThrowAt = -Infinity;
     this.throwPitch = 0;
     this.idle(s);
-    const avatar = world.avatars.get(world.factions[s.playerFaction].avatarId);
+    const avatar = this.controlAnchor(world, s.playerFaction);
     if (avatar) {
       this.beginMatch(s, avatar);
       s.camera.cmdX = avatar.pos.x;
@@ -415,6 +438,7 @@ export class Controls {
     s.planTool = 'select';
     s.tool = 'flag';
     s.orderMarker = null;
+    s.recruitTargeting = false;
   }
 
   /**
@@ -514,6 +538,7 @@ export class Controls {
     s.camera.pitch = START_PITCH;
     this.aimYaw = av.yaw;
     this.view = s.view;
+    if (this.app.world?.factions[s.playerFaction].controlMode === 'rts') this.enterCommand(s, av.pos);
   }
 
   private screenChanged(s: Session): void {
@@ -553,7 +578,7 @@ export class Controls {
     if (inp.wasPressed('F1')) p.help = !p.help;
     if (inp.wasPressed('KeyL')) s.showLattice = !s.showLattice;
     if (inp.wasPressed('Backquote')) s.debug = !s.debug;
-    if (inp.wasPressed('Tab') && !effigyCameraTarget(world)) {
+    if (inp.wasPressed('Tab') && world.factions[s.playerFaction].controlMode !== 'rts' && !effigyCameraTarget(world)) {
       if (s.view === 'action') {
         const target = watcher ? this.followed(world, s) : av;
         this.enterCommand(s, target ? target.pos : null);
@@ -586,6 +611,7 @@ export class Controls {
   }
 
   private exitCommand(s: Session): void {
+    if (this.app.world?.factions[s.playerFaction].controlMode === 'rts') { this.app.setPaused(true); return; }
     this.view = 'action';
     s.view = 'action';
     this.command.reset(s);

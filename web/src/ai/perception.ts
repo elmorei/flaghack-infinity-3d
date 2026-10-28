@@ -139,7 +139,7 @@ export function perceive(b: Brain, sched: Scheduler): void {
   const fac = world.factions[f];
   const av = world.avatarOf(f);
   v.stock = world.stockCount(f);
-  v.carried = av.carried.length;
+  v.carried = av?.carried.length ?? 0;
   v.lumber = fac.lumber;
   v.ritual = fac.ritual;
   v.population = population(world, f);
@@ -163,7 +163,7 @@ function senseUnits(b: Brain, world: World, hearth: Building): void {
   const av = world.avatarOf(f);
   const observers = b.observers;
   observers.length = 0;
-  if (av.koUntil <= world.time) observers.push(av.pos);
+  if (av && av.koUntil <= world.time) observers.push(av.pos);
   for (const h of world.hippies.values()) if (h.faction === f && h.koUntil <= world.time) observers.push(h.pos);
   for (const bd of world.buildings.values()) if (bd.faction === f) observers.push(bd.pos);
 
@@ -184,7 +184,7 @@ function senseUnits(b: Brain, world: World, hearth: Building): void {
     const dh2 = (h.pos.x - hearth.pos.x) ** 2 + (h.pos.z - hearth.pos.z) ** 2;
     const facet = world.lattice.facetAt(h.pos.x, h.pos.z);
     if (dh2 <= INTRUDER_RADIUS * INTRUDER_RADIUS || world.inSurvey(facet, f)) v.intruders.push(h.id);
-    if ((h.pos.x - av.pos.x) ** 2 + (h.pos.z - av.pos.z) ** 2 <= omegaR * omegaR) v.rivalsNearAvatar++;
+    if (av && (h.pos.x - av.pos.x) ** 2 + (h.pos.z - av.pos.z) ** 2 <= omegaR * omegaR) v.rivalsNearAvatar++;
   }
 }
 

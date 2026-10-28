@@ -24,7 +24,8 @@ export function bossTakeoverSeats(world: World, sourceSeat: FactionId | null, ai
   if (!isBossTakeoverActive(world) || sourceSeat === null || !world.factions[sourceSeat] || world.factions[sourceSeat].alive) return [];
   const active = matchSettings(world.options).active;
   return FACTION_IDS.filter((f) => f !== sourceSeat && active.includes(f) && aiSeats.includes(f) &&
-    hasSurvivingAltar(world, f) && world.avatars.has(world.factions[f].avatarId));
+    (world.factions[sourceSeat].controlMode !== 'rts' || world.factions[f].controlMode === 'rts') &&
+    hasSurvivingAltar(world, f) && (world.factions[f].controlMode === 'rts' || world.avatars.has(world.factions[f].avatarId)));
 }
 
 /**
@@ -44,7 +45,7 @@ export function applyBossTakeover(world: World, sourceSeat: FactionId, targetSea
   for (const command of world.takeCommands()) {
     if (command.faction !== sourceSeat && command.faction !== targetSeat) world.submit(command);
   }
-  const avatar = world.avatars.get(target.avatarId)!;
-  avatar.input = { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: avatar.input.yaw, pitch: avatar.input.pitch };
+  const avatar = world.avatars.get(target.avatarId);
+  if (avatar) avatar.input = { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: avatar.input.yaw, pitch: avatar.input.pitch };
   return true;
 }

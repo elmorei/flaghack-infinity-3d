@@ -124,6 +124,7 @@ export class Session {
   tool: ToolKind = 'flag';
   buildingKind: BuildingKind = 'workshop';
   planTool: PlanTool = 'select';
+  recruitTargeting = false;
   selection = new Set<EntityId>();
   hover: HoverInfo = { point: null, node: -1, facet: -1, edge: -1, entity: -1 };
   aim: AimInfo = { active: false, arc: [], landing: null, node: -1 };

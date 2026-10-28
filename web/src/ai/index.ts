@@ -78,7 +78,8 @@ function alignedTick(from: number, period: number, phase: number): number {
 function think(b: Brain, sched: Scheduler): void {
   const world = b.world;
   if (!world.factions[b.f].alive) return;
-  if (pilotBoss(world, b.f)) return;
+  const rts = world.factions[b.f].controlMode === 'rts';
+  if (!rts && pilotBoss(world, b.f)) return;
   const tick = world.tick;
   if (tick >= b.nextPerceiveTick) {
     b.nextPerceiveTick = alignedTick(tick + 1, PERCEIVE_TICKS, b.phase);
@@ -107,7 +108,7 @@ function think(b: Brain, sched: Scheduler): void {
   }
   if (tick >= b.nextPowersTick) {
     b.nextPowersTick = alignedTick(tick + 1, POWERS_TICKS, b.phase + 2);
-    usePowers(b);
+    if (!rts) usePowers(b);
   }
-  pilotTick(b);
+  if (!rts) pilotTick(b);
 }

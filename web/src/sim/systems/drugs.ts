@@ -91,6 +91,7 @@ export function cmdBrew(world: World, c: CommandOf<'brew'>): void {
 /** Why the drug can't be taken right now ('' = it can). */
 export function drugBlocker(world: World, f: FactionId, d: DrugId): string {
   const fac = world.factions[f];
+  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
   if (fac.drugs[d] <= 0) return `No ${DRUG_NAMES[d]} on the shelf: brew some at a Drug Lab.`;
   if (fac.drugActive[d] > world.time) return `${DRUG_NAMES[d]} is already in effect.`;
   return '';
@@ -131,6 +132,7 @@ function rollFalseFlags(world: World, f: FactionId): void {
   out.length = 0;
   st.falseFlagsRollAt[f] = world.time + DRUG.falseFlagReroll;
   const av = world.avatarOf(f);
+  if (!av) return;
   const lat = world.lattice;
   const cand = st.nodeBuf;
   cand.length = 0;

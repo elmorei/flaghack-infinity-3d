@@ -50,6 +50,8 @@ export function createFaction(id: FactionId, isPlayer: boolean, difficulty: Diff
     css: def.css,
     personality: isPlayer ? 'player' : def.personality,
     isPlayer,
+    controlMode: 'avatar',
+    throneAttack: null,
     alive: true,
     eliminatedAt: null,
     eliminatedBy: null,

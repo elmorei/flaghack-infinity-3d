@@ -340,3 +340,27 @@ describe('emergence look lock', () => {
     expect(session.camera.yaw).not.toBe(yaw);
   });
 });
+
+describe('command-only RTS controls', () => {
+  it('uses an unregistered camera anchor, stays in Command View, and submits orders without avatar input', async () => {
+    const { createMatch } = await import('../sim/setup');
+    const fixture = setup(), session = new Session();
+    const world = createMatch({ seed: 'rts-controls', humans: [0], rtsFactions: [0], mode: 'standard', difficulty: 'normal' });
+    session.screen = 'playing';
+    const submitted: any[] = [], pause = vi.fn();
+    const controls = new Controls({ session, world, submit: (c: any) => submitted.push(c), setPaused: pause } as unknown as AppApi, fixture.input.canvas) as any;
+    controls.world = world;
+    const anchor = controls.controlAnchor(world, 0);
+    expect(world.avatars.has(anchor.id)).toBe(false);
+    expect(anchor.pos.x).toBe(world.hearthOf(0)!.pos.x);
+    controls.beginMatch(session, anchor);
+    expect(session.view).toBe('command');
+    controls.exitCommand(session);
+    expect(session.view).toBe('command'); expect(pause).toHaveBeenCalledWith(true);
+    const own = [...world.hippies.values()].find(h => h.faction === 0)!;
+    controls.queue.push({ t: 'order', faction: 0, hippies: [own.id], order: { kind: 'move', to: { x: 1, z: 2 } } });
+    controls.tick();
+    expect(submitted).toHaveLength(1); expect(submitted[0].t).toBe('order');
+    expect(world.avatars.size).toBe(3);
+  });
+});

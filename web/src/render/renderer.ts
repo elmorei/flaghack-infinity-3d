@@ -137,7 +137,7 @@ export class GameRenderer {
       if (this.ctx && (e.t === 'captured' || e.t === 'burn')) this.fx.flash = 1;
       if (this.ctx && e.t === 'hit') {
         const av = this.ctx.world.avatarOf(this.ctx.session.playerFaction);
-        if (e.target === av.id) this.fx.damage = Math.min(1, this.fx.damage + e.amount / 60);
+        if (av && e.target === av.id) this.fx.damage = Math.min(1, this.fx.damage + e.amount / 60);
       }
     }
   }
@@ -196,7 +196,8 @@ export class GameRenderer {
     this.fx.damage = Math.max(0, this.fx.damage - dt * 1.5);
     this.fx.flash = Math.max(0, this.fx.flash - dt * 0.8);
     const av = w.avatarOf(ctx.session.playerFaction);
-    const facet = w.lattice.facetAt(av.pos.x, av.pos.z);
+    const at = av?.pos ?? w.hearthOf(ctx.session.playerFaction)?.pos;
+    const facet = at ? w.lattice.facetAt(at.x, at.z) : -1;
     this.fx.instability = ease(this.fx.instability, facet >= 0 ? w.survey.facetInstability[facet] : 0, 3);
   }
 

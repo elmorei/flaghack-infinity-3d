@@ -205,7 +205,7 @@ function isHelped(world: World, b: Building, f: FactionId): boolean {
   const r = BUILDINGS[b.kind].radius;
   const av = world.avatarOf(f);
   const reach = r + BUILD_HELP_RADIUS;
-  if (av.koUntil <= world.time && (av.pos.x - b.pos.x) ** 2 + (av.pos.z - b.pos.z) ** 2 <= reach * reach) return true;
+  if (av && av.koUntil <= world.time && (av.pos.x - b.pos.x) ** 2 + (av.pos.z - b.pos.z) ** 2 <= reach * reach) return true;
   const helperReach = r + HELPER_REACH;
   for (const h of world.hippies.values()) {
     if (h.faction !== f || (h.status !== 'building' && h.status !== 'repairing')) continue;

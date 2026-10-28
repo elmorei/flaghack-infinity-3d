@@ -58,7 +58,8 @@ function pullCost(b: Brain, id: EntityId): number {
   const fl = b.world.flags.get(id);
   if (!fl) return Infinity;
   const av = b.world.avatarOf(b.f);
-  return Math.hypot(fl.pos.x - av.pos.x, fl.pos.z - av.pos.z) +
+  const pos = av?.pos ?? { x: b.view.hx, z: b.view.hz };
+  return Math.hypot(fl.pos.x - pos.x, fl.pos.z - pos.z) +
     (flagPullDefender(b.world, fl, b.f) ? LIGHTNING_PULL_MULT : 1) * 12;
 }
 

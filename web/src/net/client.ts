@@ -226,6 +226,12 @@ export class NetClient implements NetSession {
     return this.welcomed && !this.reconnecting && this.ws !== null && this.ws.readyState === OPEN;
   }
 
+  setControlMode(mode: 'avatar' | 'rts'): void {
+    if (!this.connected || this.lobby?.phase !== 'lobby') return;
+    this.lobbyChangeAt = performance.now();
+    this.send({ t: 'controlMode', mode });
+  }
+
   setSeat(seat: FactionId | null): void {
     this.lobbyChangeAt = performance.now();
     this.send({ t: 'seat', seat });

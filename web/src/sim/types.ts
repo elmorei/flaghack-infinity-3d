@@ -77,6 +77,9 @@ export interface FactionState {
   css: string;
   personality: Personality;
   isPlayer: boolean;
+  /** RTS rulers are visual altar occupants, never avatar entities. */
+  controlMode: 'avatar' | 'rts';
+  throneAttack: { target: EntityId; readyAt: number; faction: FactionId } | null;
   alive: boolean;
   eliminatedAt: number | null;
   eliminatedBy: FactionId | null;
@@ -200,6 +203,7 @@ export type HippieStatus =
   | 'ko';
 
 export type HippieOrder =
+  | { kind: 'recruit'; target: EntityId }
   | { kind: 'move'; to: V2 }
   | { kind: 'pull'; flagId: EntityId }
   | { kind: 'plant'; node: number }
@@ -411,6 +415,8 @@ export interface MatchOptions {
   difficulty: Difficulty;
   /** Human-controlled factions. Every other faction is AI (empty: attract mode / headless tests). */
   humans: FactionId[];
+  /** Human seats using command-only control. Fixed for a match. */
+  rtsFactions?: FactionId[];
   mode: MatchMode;
 }
 

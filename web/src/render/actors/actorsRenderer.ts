@@ -12,6 +12,7 @@ import type { GameEvent } from '../../sim/events';
 import type { EntityId } from '../../sim/types';
 import type { RenderContext, RenderModule } from '../context';
 import { AvatarRenderer } from './avatarRenderer';
+import { ThroneRenderer } from './throneRenderer';
 import { BeaconRenderer } from './beaconRenderer';
 import { FlagRenderer } from './flagRenderer';
 import { ActorView } from './lod';
@@ -28,6 +29,7 @@ export class ActorsRenderer implements RenderModule {
   private readonly icons: StatusIcons;
   private readonly plates: Nameplates;
   private readonly avatars: AvatarRenderer;
+  private readonly thrones: ThroneRenderer;
   private readonly hippies: HippieRenderer;
   private readonly beacons: BeaconRenderer;
 
@@ -40,6 +42,7 @@ export class ActorsRenderer implements RenderModule {
     this.icons = new StatusIcons(ctx.scene);
     this.plates = new Nameplates(ctx.scene, ctx.world.factions);
     this.avatars = new AvatarRenderer(ctx, this.view, this.flags, this.rings, this.plates, this.anchors);
+    this.thrones = new ThroneRenderer(ctx);
     this.hippies = new HippieRenderer(ctx, this.view, this.flags, this.rings, this.icons, this.anchors);
     this.beacons = new BeaconRenderer(ctx, this.rings, this.icons);
   }
@@ -53,6 +56,7 @@ export class ActorsRenderer implements RenderModule {
     this.icons.begin();
     this.plates.begin(ctx.session);
     this.avatars.update(dt);
+    this.thrones.update();
     this.hippies.update(dt);
     this.beacons.update();
     this.flags.end();
@@ -74,6 +78,7 @@ export class ActorsRenderer implements RenderModule {
     this.icons.dispose();
     this.plates.dispose();
     this.avatars.dispose();
+    this.thrones.dispose();
     this.hippies.dispose();
     this.beacons.dispose();
     if (this.ctx.shared.unitAnchors === this.anchors) delete this.ctx.shared.unitAnchors;

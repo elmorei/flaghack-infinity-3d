@@ -74,7 +74,9 @@ export function createMatch(options: MatchOptions): World {
   world.tide.nextAt = TIDE_INTERVAL;
 
   for (const f of FACTION_IDS) {
-    world.factions.push(createFaction(f, options.humans.includes(f), options.difficulty));
+    const faction = createFaction(f, options.humans.includes(f), options.difficulty);
+    faction.controlMode = options.mode !== 'tutorial' && options.humans.includes(f) && options.rtsFactions?.includes(f) ? 'rts' : 'avatar';
+    world.factions.push(faction);
   }
   for (const f of FACTION_IDS) {
     if (matchSettings(options).active.includes(f)) setupCamp(world, f);
@@ -138,15 +140,17 @@ function setupCamp(world: World, f: FactionId): void {
   registerBuildingShape(world, gcc);
 
   const avatarAt = clearSpot(world, hearth, gcc, Math.atan2(dirZ, dirX), AVATAR_START_DISTANCE, AVATAR.radius);
-  const av = spawnAvatar(world, f, avatarAt);
+  const av = fac.controlMode === 'avatar' ? spawnAvatar(world, f, avatarAt) : undefined;
   // Face the effigy at the map centre (yaw 0 = +z).
-  av.yaw = Math.atan2(-av.pos.x, -av.pos.z);
-  av.input.yaw = av.yaw;
+  if (av) {
+    av.yaw = Math.atan2(-av.pos.x, -av.pos.z);
+    av.input.yaw = av.yaw;
+  }
 
-  for (let i = 0; i < matchSettings(world.options).startingFlags; i++) {
+  for (let i = 0; i < matchSettings(world.options).startingFlags + (av ? 0 : START_CARRIED_FLAGS); i++) {
     spawnFlag(world, { state: 'stock', owner: f, holder: hearth.id, pos: { x: hearth.pos.x, y: 0, z: hearth.pos.z } });
   }
-  for (let i = 0; i < START_CARRIED_FLAGS; i++) {
+  for (let i = 0; av && i < START_CARRIED_FLAGS; i++) {
     const fl = spawnFlag(world, { state: 'carried', owner: f, holder: av.id, pos: { ...av.pos } });
     av.carried.push(fl.id);
   }

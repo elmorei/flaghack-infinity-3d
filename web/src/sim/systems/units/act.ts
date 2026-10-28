@@ -12,7 +12,7 @@ import type { Building, FactionId, Hippie } from '../../types';
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { aboveAttentionCap, nearestHearth } from '../economy';
-import { isRecruiter } from '../recruitment';
+import { canRecruit, recruitWithFlag, recoveryRecruiter, recoveryApproach, failRecoveryCall, recruiterApproach, recruitmentLineClear, isRecruiter } from '../recruitment';
 import { speedMultiplier } from '../effects';
 import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock, defendedPullRate } from '../flags';
 import { neutralizeHippie } from '../victory';
@@ -101,6 +101,9 @@ export function act(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
       setStatusAt(h, b, 'walking', b.px, b.pz);
       if (moveTo(world, sys, h, b, b.px, b.pz, 1) || routeExhausted(h, b)) finishOrder(world, h, b);
       return;
+    case 'recruit':
+      actRecruit(world, sys, h, b, f);
+      return;
     case 'fetchStock':
       actFetchStock(world, sys, h, b, f);
       return;
@@ -170,9 +173,35 @@ function actIdle(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
   if (home) pickSpotAround(world, b, home.pos.x, home.pos.z, IDLE_R0, IDLE_R1);
 }
 
+/** Transfers only at physical handoff range; stale/racing orders retain their real Flag. */
+function actRecruit(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {
+  const target = world.hippies.get(b.target);
+  const flag = world.flags.get(h.carryingFlag);
+  if (h.order?.kind !== 'recruit' || h.order.target !== b.target || !target || !canRecruit(target) ||
+      target.carryingFlag !== -1 || target.carryingLumber > 0 || !flag || flag.state !== 'carried' || flag.holder !== h.id) {
+    finishOrder(world, h, b);
+    return;
+  }
+  setStatusAt(h, b, 'carrying', target.pos.x, target.pos.z);
+  const dy = world.collision.groundHeight(target.pos.x, target.pos.z) + (target.airborne?.y ?? 0) - world.collision.groundHeight(h.pos.x, h.pos.z);
+  const dx = target.pos.x - h.pos.x, dz = target.pos.z - h.pos.z;
+  const distance = Math.hypot(dx, dy, dz);
+  if (distance <= HIPPIE.interactReach && !world.collision.raycast(h.pos.x, world.collision.groundHeight(h.pos.x, h.pos.z) + 1, h.pos.z, dx, dy, dz, distance)) {
+    recruitWithFlag(world, target, f, flag.id, 'hand');
+    finishOrder(world, h, b);
+    return;
+  }
+  moveTo(world, sys, h, b, target.pos.x, target.pos.z, HIPPIE.interactReach * .65);
+  if (routeExhausted(h, b)) finishOrder(world, h, b);
+}
+
 function actFetchStock(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {
+  if (h.order?.kind === 'recruit') {
+    const target = world.hippies.get(h.order.target);
+    if (!target || !canRecruit(target) || target.carryingFlag !== -1 || target.carryingLumber > 0) { finishOrder(world, h, b); return; }
+  }
   const hb = logisticsTarget(world, b.target, h.pos);
-  if (!hb || hb.faction !== f || hb.built < 1 || !plantTargetValid(world, sys, h, b, f)) {
+  if (!hb || hb.faction !== f || hb.built < 1 || (h.order?.kind !== 'recruit' && !plantTargetValid(world, sys, h, b, f))) {
     releaseTask(world, h, b);
     return;
   }
@@ -636,8 +665,9 @@ export function pickWanderSpot(world: World, h: Hippie, b: Brain): void {
   }
 }
 
-/** Drift between spots, lingering at each (neutral life; overstimulated hippies). */
-export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void {
+const recruiterRoutes = new WeakMap<Brain, { id: number; version: number; point: V2 }>();
+
+export function attractToRecruiter(world: World, sys: UnitsState, h: Hippie, b: Brain): boolean {
   b.pace = HIPPIE_AI.neutralPace;
   // The music draws unaligned hippies toward working recruiters. They wait in recruitment
   // range instead of endlessly wandering past the camp; the GCC can be pushed to meet them.
@@ -645,24 +675,51 @@ export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void
     let nearest: Building | undefined;
     let distance = RECRUIT_ATTRACT_RADIUS * RECRUIT_ATTRACT_RADIUS;
     for (const recruiter of world.buildings.values()) {
-      if (!isRecruiter(world, recruiter)) continue;
+      if (!isRecruiter(world, recruiter) || (b.avoidBuildings.get(recruiter.id) ?? 0) > world.time) continue;
       const d = (recruiter.pos.x - h.pos.x) ** 2 + (recruiter.pos.z - h.pos.z) ** 2;
       if (d < distance || (d === distance && nearest && recruiter.id < nearest.id)) {
         nearest = recruiter;
         distance = d;
       }
     }
+    if (!nearest) {
+      const recovery = recoveryRecruiter(world, h);
+      if (recovery && (b.avoidBuildings.get(recovery.id) ?? 0) <= world.time) {
+        nearest = recovery;
+        distance = (nearest.pos.x - h.pos.x) ** 2 + (nearest.pos.z - h.pos.z) ** 2;
+      }
+    }
     if (nearest) {
-      if (distance <= (RECRUIT_RADIUS * 0.8) ** 2) {
+      if (b.task !== 'wander') beginTask(world, h, b, 'wander');
+      if (distance <= (RECRUIT_RADIUS * 0.8) ** 2 && recruitmentLineClear(world, nearest, h)) {
         b.moving = false;
         setStatus(h, 'idle');
       } else {
-        moveTo(world, sys, h, b, nearest.pos.x, nearest.pos.z, RECRUIT_RADIUS * 0.8);
+        let cached = recruiterRoutes.get(b);
+        if (!cached || cached.id !== nearest.id || cached.version !== world.nav.version) {
+          cached = { id: nearest.id, version: world.nav.version, point: recruiterApproach(world, nearest, h) };
+          recruiterRoutes.set(b, cached);
+        }
+        const approach = recoveryApproach(world, h, nearest) ?? cached.point;
+        moveTo(world, sys, h, b, approach.x, approach.z, 1);
+        if (routeExhausted(h, b)) {
+          b.avoidBuildings.set(nearest.id, world.time + AVOID_TIME);
+          failRecoveryCall(world, h, nearest);
+          recruiterRoutes.delete(b);
+          return false;
+        }
         setStatusAt(h, b, 'walking', nearest.pos.x, nearest.pos.z);
       }
-      return;
+      return true;
     }
   }
+  return false;
+}
+
+/** Drift between spots, lingering at each (neutral life; overstimulated hippies). */
+export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void {
+  b.pace = HIPPIE_AI.neutralPace;
+  if (attractToRecruiter(world, sys, h, b)) return;
   if (world.time < b.waitUntil) {
     b.moving = false;
     setStatus(h, 'idle');

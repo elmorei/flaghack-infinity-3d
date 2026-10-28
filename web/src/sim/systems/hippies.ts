@@ -8,6 +8,7 @@
  * act.ts (doing it), move.ts (getting there), targets.ts (what matters).
  * Owner: Units agent.
  */
+import { canRecruit, updateRecoveryCalls } from './recruitment';
 import { stockOwner } from './sceneryDepots';
 import { updateSceneryService, cancelSceneryService } from './sceneryServices';
 import { damageMelee } from './meleeImpact';
@@ -23,7 +24,7 @@ import { isDrugActive } from './drugs';
 import { isHoarding, popCap } from './economy';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
 import { canPlantAt } from './flags';
-import { act, becomeDistracted, pickWanderSpot, wander } from './units/act';
+import { act, becomeDistracted, pickWanderSpot, wander, attractToRecruiter } from './units/act';
 import { beginTask, brainOf, releaseTask, setStatus } from './units/brain';
 import type { Brain } from './units/brain';
 import { decide, needsDecision, startEngage, startFlee } from './units/decide';
@@ -58,6 +59,10 @@ function inMap(p: V2): boolean {
 /** Can a hippie of `f` act on this order at all? */
 function orderValid(world: World, f: FactionId, o: HippieOrder): boolean {
   switch (o.kind) {
+    case 'recruit': {
+      const target = world.hippies.get(o.target);
+      return !!target && canRecruit(target) && target.carryingFlag === -1 && target.carryingLumber === 0;
+    }
     case 'move':
       return inMap(o.to);
     case 'defend':
@@ -144,6 +149,7 @@ export function cmdOrder(world: World, c: CommandOf<'order'>): void {
 }
 
 export function cmdRally(world: World, c: CommandOf<'rally'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (av.koUntil > 0) return;
   const order: HippieOrder = { kind: 'follow', avatarId: av.id };
@@ -165,6 +171,7 @@ export function cmdRally(world: World, c: CommandOf<'rally'>): void {
 }
 
 export function cmdSendFollowers(world: World, c: CommandOf<'sendFollowers'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   if (!inMap(c.at)) {
     reject(world, c.faction, 'The D.E.G.E.N. compass cannot point there.');
     return;
@@ -193,6 +200,7 @@ export function updateHippies(world: World, dt: number): void {
     sys.nextAllocAt[f] = world.time + HIPPIE_AI.jobInterval;
     allocateJobs(world, sys, f);
   }
+  updateRecoveryCalls(world);
   const audience = prepareEffigyAudience(world);
   for (const h of world.hippies.values()) updateHippie(world, sys, h, dt, audience);
 }
@@ -305,6 +313,11 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
   if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
   if (f === NEUTRAL) {
+    // Real camp recruitment takes precedence over the pre-Burn audience, including wipes.
+    if (attractToRecruiter(world, sys, h, b)) {
+      locomote(world, sys, h, b, dt);
+      return;
+    }
     // The audience uses normal movement; recruitment, KO and boss combat take priority.
     if (audience && watchEffigy(world, sys, h, b)) {
       locomote(world, sys, h, b, dt);

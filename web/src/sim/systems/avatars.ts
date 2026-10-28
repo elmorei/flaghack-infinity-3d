@@ -101,6 +101,7 @@ export function throwVelocity(yaw: number, pitch: number, out: V3): V3 {
  * stepAvatarMotion normalizes move length and clamps pitch itself.
  */
 export function cmdAvatarInput(world: World, c: CommandOf<'avatarInput'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const dst = world.avatarOf(c.faction).input;
   const src = c.input;
   dst.moveX = Number.isFinite(src.moveX) ? src.moveX : 0;
@@ -122,6 +123,7 @@ function canAct(world: World, av: Avatar): boolean {
 }
 
 export function cmdPlant(world: World, c: CommandOf<'plant'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (!canAct(world, av)) return;
   const lat = world.lattice;
@@ -153,6 +155,7 @@ export function cmdPlant(world: World, c: CommandOf<'plant'>): void {
 }
 
 export function cmdThrow(world: World, c: CommandOf<'throw'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (av.koUntil > 0 || hasEffect(world, av, 'stun') || world.time < av.throwReadyAt) return;
   if (av.input.sprint && !av.input.throwMode) {
@@ -202,6 +205,7 @@ function inPullReach(world: World, av: Avatar, fl: Flag, reach: number): boolean
 }
 
 export function cmdPull(world: World, c: CommandOf<'pull'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (c.flagId === -1) {
     // Releasing the pull key cancels the channel.
@@ -233,6 +237,7 @@ export function cmdPull(world: World, c: CommandOf<'pull'>): void {
 }
 
 export function cmdSwing(world: World, c: CommandOf<'swing'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (!canAct(world, av)) return;
   breakChannel(world, av);
@@ -241,6 +246,7 @@ export function cmdSwing(world: World, c: CommandOf<'swing'>): void {
 }
 
 export function cmdPushGcc(world: World, c: CommandOf<'pushGcc'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const av = world.avatarOf(c.faction);
   if (!c.on) {
     stopPushing(world, av);

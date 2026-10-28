@@ -212,8 +212,8 @@ function siegePlan(b: Brain, r: RivalIntel, inner: readonly number[], sched: Sch
   let waiting = 0;
   for (const n of inner) if (!held(world, b.f, n) && n !== key) waiting++;
   const av = world.avatarOf(b.f);
-  let ready = av.carried.length >= CLOSE_QUIVER;
-  if (ready && key >= 0) ready = Math.hypot(lat.nodes[key].x - av.pos.x, lat.nodes[key].z - av.pos.z) <= CLOSE_RANGE;
+  let ready = !av || av.carried.length >= CLOSE_QUIVER;
+  if (av && ready && key >= 0) ready = Math.hypot(lat.nodes[key].x - av.pos.x, lat.nodes[key].z - av.pos.z) <= CLOSE_RANGE;
   const closing = key < 0 || (waiting === 0 && ready) || world.time - b.assaultAt > SIEGE_PATIENCE;
   r.keystones = closing ? [] : [key];
   for (const n of inner) if (closing || n !== key) claim(n);

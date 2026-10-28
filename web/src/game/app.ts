@@ -223,7 +223,7 @@ export class App implements AppApi {
     const match = normalizeMatch(opts.match ?? this.session.settings.match);
     const requestedSeat = opts.humans?.[0] ?? this.session.playerFaction;
     const seat = match.active.includes(requestedSeat) ? requestedSeat : match.active[0];
-    this.load({ seed, difficulty, humans: [seat], mode: 'standard', match });
+    this.load({ seed, difficulty, humans: [seat], rtsFactions: opts.rtsFactions?.includes(seat) ? [seat] : [], mode: 'standard', match });
     this.session.playerFaction = seat;
     this.enterPlay();
   }

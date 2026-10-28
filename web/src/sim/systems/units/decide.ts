@@ -12,6 +12,7 @@ import type { World } from '../../world';
 import type { LogisticsTarget } from './targets';
 import { logisticsRadius } from './targets';
 import { nearestHearth } from '../economy';
+import { canRecruit } from '../recruitment';
 import { canPlantAt } from '../flags';
 import { beginTask, releaseTask } from './brain';
 import type { Brain } from './brain';
@@ -349,6 +350,26 @@ function pingToAnswer(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Fac
 
 function decideOrder(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId, order: HippieOrder): void {
   switch (order.kind) {
+    case 'recruit': {
+      const target = world.hippies.get(order.target);
+      if (!target || !canRecruit(target) || target.carryingFlag !== -1 || target.carryingLumber > 0) finishOrder(world, h, b);
+      else if (h.carryingLumber > 0) startDeliver(world, h, b, f, 'haul');
+      else if (h.carryingFlag !== -1) {
+        beginTask(world, h, b, 'recruit');
+        b.target = target.id;
+      } else {
+        // Recruitment uses real owned stock, not an enemy Flag or a virtual token.
+        const hearth = hearthWithStock(world, sys, f, h.pos.x, h.pos.z, b);
+        if (!hearth) finishOrder(world, h, b);
+        else {
+          beginTask(world, h, b, 'fetchStock');
+          b.target = hearth.id;
+          setRim(b, hearth, h);
+          sys.fetchers.set(hearth.id, (sys.fetchers.get(hearth.id) ?? 0) + 1);
+        }
+      }
+      return;
+    }
     case 'move':
       beginTask(world, h, b, 'goto');
       b.px = order.to.x;

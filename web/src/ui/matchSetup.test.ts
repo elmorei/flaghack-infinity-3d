@@ -196,7 +196,7 @@ describe('population and jump setup', () => {
 
 
 describe('optional rule setup', () => {
-  const labels = ['Building Capture', 'Crystal Flag Protection', 'Crystal Attacks'];
+  const labels = ['Building Capture', 'Crystal Flag Protection', 'Defense Lightning'];
   const keys = ['buildingCapture', 'crystalFlagProtection', 'crystalAttacks'] as const;
   it('edits all combinations independently, mirrors read-only choices, and resets all on without changing seats', () => {
     const { ui, overlay, root, read, write } = setup();

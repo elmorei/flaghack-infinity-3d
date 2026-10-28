@@ -73,5 +73,6 @@ export function campChoices(app: AppApi, world: World): FactionId[] {
       : FACTION_IDS.filter((f) => !world.options.humans.includes(f));
     return bossTakeoverSeats(world, app.session.playerFaction, aiSeats);
   }
-  return watchingOnline(app, world) ? FACTION_IDS.filter((f) => takeableSeat(world, app.net?.lobby ?? null, f)) : [];
+  const rtsOnly = app.net?.lobby?.players.find(p => p.id === app.net?.playerId)?.controlMode === 'rts';
+  return watchingOnline(app, world) ? FACTION_IDS.filter((f) => (!rtsOnly || world.factions[f].controlMode === 'rts') && takeableSeat(world, app.net?.lobby ?? null, f)) : [];
 }

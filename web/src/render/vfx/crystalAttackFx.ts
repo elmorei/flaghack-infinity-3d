@@ -1,7 +1,8 @@
 /** Snapshot-driven ordinary crystal warning/attack presentation; never simulates damage. */
 import * as THREE from 'three';
 import type { BossLightning } from '../../sim/boss';
-import { CRYSTAL_ATTACK_WARNING, crystalAttackAim, crystalAttackOrigin } from '../../sim/systems/crystalAttacks';
+import { CRYSTAL_ATTACK_WARNING, crystalAttackAim, crystalAttackOrigin, throneAttackOrigin } from '../../sim/systems/crystalAttacks';
+import { rtsThroneAltar } from '../../sim/rts';
 import type { World } from '../../sim/world';
 import { LightningArc } from './bossLightningFx';
 import { lightningSourceColor, setLightningPalette } from './lightningPalette';
@@ -15,11 +16,18 @@ export class CrystalAttackFx {
   update(world: World, now: number, groundY: (x: number, z: number) => number): void {
     const frame = ++this.frame;
     if (world.phase === 'playing' && world.options.mode !== 'tutorial' && world.options.match?.crystalAttacks !== false && world.effigyRevealedAt === null) {
-      for (const crystal of world.crystals.values()) {
+      const emitters = [...world.crystals.values()].filter(c => c.growth >= 1 && c.scale === 1 && world.factions[c.faction].alive)
+        .map(c => ({ id: c.id, faction: c.faction, attack: c.attack, origin: crystalAttackOrigin(world, c), kind: 'crystal' as const }));
+      const thrones = Object.values(world.factions).flatMap(f => {
+        const altar = rtsThroneAltar(world, f.id);
+        return altar ? [{ id: altar.id, faction: f.id, attack: f.throneAttack, origin: throneAttackOrigin(world, f.id), kind: 'ward' as const }] : [];
+      });
+      for (const crystal of [...emitters, ...thrones]) {
         const attack = crystal.attack;
-        if (!attack || attack.faction !== crystal.faction || crystal.growth < 1 || crystal.scale !== 1) continue;
+        if (!attack || attack.faction !== crystal.faction) continue;
         const target = world.avatars.get(attack.target) ?? world.hippies.get(attack.target);
-        if (!target || target.hp <= 0 || target.faction === crystal.faction || target.faction === -1) continue;
+        if (!target || target.hp <= 0 || target.faction === crystal.faction || target.faction === -1 || !world.factions[target.faction].alive ||
+          (target.type === 'avatar' && world.factions[target.faction].controlMode === 'rts')) continue;
         let fx = this.links.get(crystal.id);
         if (!fx) {
           const arc = new LightningArc(crystal.id, this.renderOrder, .24, 'crystal-unit-lightning');
@@ -29,8 +37,8 @@ export class CrystalAttackFx {
           fx = { arc, ring, seen: frame }; this.links.set(crystal.id, fx); this.group.add(arc.mesh, ring);
         }
         fx.seen = frame;
-        const link: BossLightning = { kind: 'crystal', id: crystal.id, faction: crystal.faction,
-          from: crystalAttackOrigin(world, crystal), to: crystalAttackAim(world, target) };
+        const link: BossLightning = { kind: crystal.kind, id: crystal.id, faction: crystal.faction,
+          from: crystal.origin, to: crystalAttackAim(world, target) };
         const color = lightningSourceColor(world, link);
         setLightningPalette(fx.arc.mesh.material.uniforms.uCore.value, fx.arc.mesh.material.uniforms.uGlow.value, color);
         // readyAt is an authoritative simulation timestamp, not the local animation clock.

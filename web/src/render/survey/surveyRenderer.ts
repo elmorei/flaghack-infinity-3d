@@ -150,7 +150,8 @@ export class SurveyRenderer implements RenderModule {
     u.uPx.value = ctx.renderer.getPixelRatio();
     u.uCameraNear.value = ctx.camera.near;
     const av = w.avatarOf(s.playerFaction);
-    u.uAvatar.value.set(av.pos.x, av.pos.z);
+    const at = av?.pos ?? w.hearthOf(s.playerFaction)?.pos ?? { x: 0, z: 0 };
+    u.uAvatar.value.set(at.x, at.z);
     const gcc = gccActive(w, s.playerFaction) ? w.gccOf(s.playerFaction) : undefined;
     if (gcc) u.uGcc.value.set(gcc.pos.x, gcc.pos.z, 1);
     else u.uGcc.value.z = 0;

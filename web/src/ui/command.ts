@@ -169,6 +169,11 @@ export class CommandPanels implements UiPart {
     this.selInfo = el('div', 'sel-info', this.sel);
     this.selOrders = el('div', 'sel-orders', this.sel);
     button('btn btn-small', this.selOrders, `${iconSvg('defend')}Hold position`, () => this.order('defend'));
+    button('btn btn-small', this.selOrders, 'Recruit…', () => {
+      const s = this.host.app.session;
+      s.tool = 'flag'; s.planTool = 'select'; s.planPreview = [];
+      s.recruitTargeting = true;
+    });
     button('btn btn-small', this.selOrders, `${iconSvg('close')}Clear orders`, () => this.order('clear'));
 
     // ── Deck: build menu ──
@@ -220,6 +225,7 @@ export class CommandPanels implements UiPart {
   }
 
   private order(kind: 'defend' | 'clear'): void {
+    this.host.app.session.recruitTargeting = false;
     const w = this.host.app.world;
     const s = this.host.app.session;
     if (!w) return;

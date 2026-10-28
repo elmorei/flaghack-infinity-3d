@@ -59,6 +59,7 @@ export function cmdPing(world: World, c: CommandOf<'ping'>): void {
 }
 
 export function cmdRetransmit(world: World, c: CommandOf<'retransmit'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const fac = world.factions[c.faction];
   if (fac.cooldowns.retransmit > world.time) {
     world.emit({ t: 'rejected', faction: c.faction, reason: 'The mesh is still ringing from the last shot.' });
@@ -79,6 +80,7 @@ export function cmdRetransmit(world: World, c: CommandOf<'retransmit'>): void {
 }
 
 export function cmdTapBeacon(world: World, c: CommandOf<'tapBeacon'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const bc = world.beacons.get(c.beaconId);
   if (!bc) {
     world.emit({ t: 'rejected', faction: c.faction, reason: 'That beacon has already been MOOPed.' });

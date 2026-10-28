@@ -134,7 +134,7 @@ export function canBuildPiece(
     if (kind === 'ramp' && (!Number.isInteger(rampEdge) || rampEdge < 0 || rampEdge > 3)) return NO.rampEdge;
   }
   const av = world.avatarOf(f);
-  if (av.koUntil > world.time) return NO.ko;
+  if (!av || av.koUntil > world.time) return NO.ko;
   slotCenter(lat, kind, edge, facet, level, CENTER);
   if ((av.pos.x - CENTER.x) ** 2 + (av.pos.z - CENTER.z) ** 2 > PIECE_REACH * PIECE_REACH) return NO.reach;
   if (pieceAt(world, kind, edge, facet, level)) return NO.occupied;
@@ -180,6 +180,7 @@ export function cmdBuild(world: World, c: CommandOf<'build'>): void {
 }
 
 export function cmdDemolish(world: World, c: CommandOf<'demolish'>): void {
+  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const p = world.pieces.get(c.pieceId);
   if (!p) {
     world.emit({ t: 'rejected', faction: c.faction, reason: 'That piece is already gone.' });

@@ -39,6 +39,7 @@ export interface NetSession {
   readonly pendingBossTakeover: FactionId | null;
   readonly bossTakeoverError: string | null;
 
+  setControlMode(mode: 'avatar' | 'rts'): void;
   setSeat(seat: FactionId | null): void;
   requestBossTakeover(seat: FactionId): void;
   setReady(ready: boolean): void;

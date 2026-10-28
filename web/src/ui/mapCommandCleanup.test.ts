@@ -89,9 +89,14 @@ describe('map command UI cleanup', () => {
     session.hover.point = { x: 99, y: 0, z: 99 };
     update();
     const orders = all(root).find(node => node.classList.contains('sel-orders'))!;
-    expect(orders.children.map(label)).toEqual(['Hold position', 'Clear orders']);
+    expect(orders.children.map(label)).toEqual(['Hold position', 'Recruit…', 'Clear orders']);
     expect(label(orders)).not.toMatch(/Follow me|Hand Flag|Defend here/);
+    session.tool = 'building'; session.planTool = 'enclose'; session.planPreview = [1, 2];
+    button('Recruit…').click();
+    expect(session.recruitTargeting).toBe(true); expect(queue).toEqual([]);
+    expect(session.tool).toBe('flag'); expect(session.planTool).toBe('select'); expect(session.planPreview).toEqual([]);
     button('Hold position').click();
+    expect(session.recruitTargeting).toBe(false);
     expect(queue).toEqual([{ t: 'order', faction: 0, hippies: own.map(unit => unit.id), order: { kind: 'defend', at: { x: 20, z: 30 } } }]);
     button('Clear orders').click();
     expect(queue[1]).toEqual({ t: 'order', faction: 0, hippies: own.map(unit => unit.id), order: null });

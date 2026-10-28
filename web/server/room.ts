@@ -121,6 +121,7 @@ interface Conn {
 }
 
 interface Player {
+  controlMode: 'avatar' | 'rts';
   readonly id: string;
   readonly token: string;
   name: string;
@@ -332,6 +333,7 @@ export class Room {
       token: randomBytes(16).toString('hex'),
       name: this.uniqueAmongOthers(name, null),
       seat: null,
+      controlMode: 'avatar',
       ready: false,
       conn: null,
       connectedAt: now,
@@ -421,6 +423,8 @@ export class Room {
     switch (msg.t) {
       case 'hello':
         return;
+      case 'controlMode':
+        return void this.setControlMode(player, msg.mode);
       case 'seat':
       case 'ready':
       case 'settings':
@@ -459,6 +463,14 @@ export class Room {
     if (changed) player.changedAt = now;
   }
 
+  private setControlMode(player: Player, mode: 'avatar' | 'rts'): boolean {
+    if (this.phase !== 'lobby' || player.controlMode === mode) return false;
+    player.controlMode = mode;
+    player.ready = false;
+    this.markLobby();
+    return true;
+  }
+
   private setReady(player: Player, ready: boolean): boolean {
     if (this.phase !== 'lobby' || player.ready === ready) return false;
     player.ready = ready;
@@ -483,6 +495,7 @@ export class Room {
       const holder = this.ownerOf(seat);
       if (holder && (holder.conn || Date.now() - holder.disconnectedAt < SEAT_GRACE_MS)) return false;
       if (match && !match.world.factions[seat].alive) return false;
+      if (match && player.controlMode === 'rts' && match.world.factions[seat].controlMode !== 'rts') return false;
       if (holder) holder.seat = null;
     }
     const from = player.seat;
@@ -523,6 +536,7 @@ export class Room {
     if (!player.inMatch || player.joining || player.pendingBossSeat !== null || !player.conn) return reply(false, 'Wait for your current camp handoff to finish.');
     const from = player.seat;
     if (from === null || match.world.factions[from].alive) return reply(false, 'Only an eliminated player can take over an AI camp.');
+    if ((player.controlMode === 'rts' || match.world.factions[from].controlMode === 'rts') && match.world.factions[seat].controlMode !== 'rts') return reply(false, 'RTS players can only take over command-only RTS camps; avatar camps require a roaming body.');
     if (this.ownerOf(seat) || [...this.players.values()].some((p) => p.pendingBossSeat === seat)) return reply(false, 'That camp is reserved for another player.');
     if (Date.now() - player.changedAt < CHANGE_COOLDOWN_MS) return reply(false, 'Wait a moment before choosing another camp.');
     const available = FACTION_IDS.filter((f) => !this.ownerOf(f) && match.drivenByNpc(f));
@@ -593,10 +607,12 @@ export class Room {
       return;
     }
     const humans = this.humanSeats();
+    const rtsFactions = humans.filter(f => this.ownerOf(f)?.controlMode === 'rts');
     const options: MatchOptions = {
       seed: this.settings.seed ?? `burn-${randomBytes(4).toString('hex')}`,
       difficulty: this.settings.difficulty,
       humans,
+      ...(rtsFactions.length ? { rtsFactions } : {}),
       mode: 'standard',
       match: normalizeMatch(this.settings.match),
     };
@@ -841,7 +857,7 @@ export class Room {
   private lobbyState(): LobbyState {
     const players = [];
     for (const p of this.players.values()) {
-      players.push({ id: p.id, name: p.name, seat: p.seat, ready: p.ready, connected: p.conn !== null, ping: p.shownPing });
+      players.push({ id: p.id, name: p.name, seat: p.seat, controlMode: p.controlMode, ready: p.ready, connected: p.conn !== null, ping: p.shownPing });
     }
     return {
       serverName: this.serverName,

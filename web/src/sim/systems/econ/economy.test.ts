@@ -11,6 +11,8 @@ describe('economy', () => {
     const h = newMatch();
     const { world } = h;
     dismissHippies(world, 0);
+    // This crafting fixture must not admit replacement workers who spend the stock.
+    world.gccOf(0)!.disabled = true;
     parkAvatarAway(world, 0);
     const fac = world.factions[0];
     fac.lumber = HEARTH_FLAG_COST * 3 + 2;

@@ -434,6 +434,8 @@ function orderWire(o: HippieOrder | null): Wire {
       return ['gather', o.pileId];
     case 'defend':
       return ['defend', quant(o.at.x, CM), quant(o.at.z, CM)];
+    case 'recruit':
+      return ['recruit', o.target];
     case 'attack':
       return ['attack', o.target];
     case 'follow':
@@ -457,6 +459,7 @@ function orderSame(o: HippieOrder | null, p: Wire): boolean {
       return p[1] === o.pileId;
     case 'defend':
       return p[1] === quant(o.at.x, CM) && p[2] === quant(o.at.z, CM);
+    case 'recruit':
     case 'attack':
       return p[1] === o.target;
     case 'follow':
@@ -480,6 +483,8 @@ function orderFrom(v: Wire): HippieOrder | null {
       return { kind: 'gather', pileId: int(v[1], -1) };
     case 'defend':
       return { kind: 'defend', at: at(1) };
+    case 'recruit':
+      return { kind: 'recruit', target: int(v[1], -1) };
     case 'attack':
       return { kind: 'attack', target: int(v[1], -1) };
     case 'follow':
@@ -1254,6 +1259,13 @@ export function readAvatarRow(av: Avatar, row: readonly Wire[], world: World): v
 // ── Factions ─────────────────────────────────────────────────────────────────
 
 export const FACTION_FIELDS: readonly Field<FactionState>[] = [
+  choice('controlMode', ['avatar', 'rts'] as const, f => f.controlMode, (f, v) => { f.controlMode = v; }),
+  {
+    key: 'throneAttack',
+    enc: f => f.throneAttack ? [f.throneAttack.target, quant(f.throneAttack.readyAt, MS), f.throneAttack.faction] : null,
+    same: (f, p) => !f.throneAttack ? p === null : Array.isArray(p) && p[0] === f.throneAttack.target && p[1] === quant(f.throneAttack.readyAt, MS) && p[2] === f.throneAttack.faction,
+    dec: (f, v) => { f.throneAttack = Array.isArray(v) ? { target: int(v[0], -1), readyAt: dequant(v[1], MS), faction: faction(v[2]) } : null; },
+  },
   text('name', (f) => f.name, (f, v) => {
     f.name = v;
   }),

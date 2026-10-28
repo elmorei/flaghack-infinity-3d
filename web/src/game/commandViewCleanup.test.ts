@@ -200,3 +200,40 @@ describe('revealed boss map targeting', () => {
     }
   });
 });
+
+describe('commanded recruitment interaction', () => {
+  it('right-click orders selected workers to recruit a real neutral', () => {
+    const { world, session, queue, click } = setup();
+    const neutral = [...world.hippies.values()].find(h => h.faction === -1)!;
+    session.hover.entity = neutral.id; click();
+    expect(queue[0]).toMatchObject({ t: 'order', order: { kind: 'recruit', target: neutral.id } });
+    expect(session.prompt).toContain('Recruit with a Flag');
+  });
+  it('armed Recruit uses left click, rejects hostile targets, and cancels cleanly', () => {
+    const { world, session, queue, click, key, frame, view } = setup();
+    session.recruitTargeting = true;
+    session.hover.entity = world.avatarOf(1).id; click(LMB);
+    expect(queue).toEqual([]); expect(session.recruitTargeting).toBe(true);
+    expect(session.prompt).toContain('Choose a neutral');
+    session.hover.entity = [...world.hippies.values()].find(h => h.faction === -1)!.id;
+    click(LMB);
+    expect(queue[0]).toMatchObject({ order: { kind: 'recruit', target: session.hover.entity } });
+    expect(session.recruitTargeting).toBe(false);
+    session.recruitTargeting = true; click(RMB);
+    expect(session.recruitTargeting).toBe(false); expect(queue).toHaveLength(1);
+    session.recruitTargeting = true; key('keydown', 'Escape');
+    expect(frame()).toBe(false); expect(session.recruitTargeting).toBe(false);
+    session.recruitTargeting = true; view.reset(session); expect(session.recruitTargeting).toBe(false);
+  });
+});
+
+  it('Recruit replaces a previously armed GCC push destination', () => {
+    const { world, session, queue, click } = setup();
+    session.hover.entity = world.gccOf(0)!.id; click();
+    expect(session.prompt).toContain('Push the Command Center here');
+    session.recruitTargeting = true;
+    session.hover.entity = [...world.hippies.values()].find(h => h.faction === -1)!.id;
+    click(LMB);
+    expect(queue[0]).toMatchObject({ order: { kind: 'recruit', target: session.hover.entity } });
+    expect(session.recruitTargeting).toBe(false);
+  });

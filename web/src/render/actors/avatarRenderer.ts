@@ -202,8 +202,14 @@ export class AvatarRenderer {
     this.fx.begin();
     const player = w.factions[ctx.session.playerFaction];
     const acid = player ? player.drugActive.acidcop > w.time : false;
+    for (const v of this.list) {
+      v.group.visible = w.avatars.has(v.id) && w.factions[v.slot].controlMode !== 'rts';
+      if (!v.group.visible) this.anchors.delete(v.id);
+    }
     for (const av of w.avatars.values()) {
+      if (w.factions[av.faction].controlMode === 'rts') continue;
       const v = this.byId.get(av.id) ?? this.create(av);
+      this.anchors.set(av.id, v.anchor);
       this.animate(v, av, dt);
       this.place(v, av, acid, dt);
     }

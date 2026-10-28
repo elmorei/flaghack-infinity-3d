@@ -12,6 +12,7 @@ export type TaskKind =
   | 'none' // needs a decision this tick
   | 'idle' // milling around its Hearth
   | 'goto' // move order
+  | 'recruit' // physical Flag handoff to an awake neutral
   | 'fetchStock' // walking to a Hearth to take a Flag from stock
   | 'pickup' // walking to / picking up a loose Flag
   | 'plant' // carrying a Flag to a node and planting it

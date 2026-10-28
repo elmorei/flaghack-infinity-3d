@@ -19,8 +19,11 @@ import { brainOf } from './brain';
 import { EFFIGY_AUDIENCE_RADIUS, EFFIGY_GATHER_SECONDS, effigyAudienceActive, prepareEffigyAudience } from './effigySpectators';
 
 function match(settings: Partial<MatchSettings> = {}, seed = 'effigy-audience'): World {
-  return createMatch({ seed, difficulty: 'normal', humans: [0], mode: 'standard',
+  const world = createMatch({ seed, difficulty: 'normal', humans: [0], mode: 'standard',
     match: normalizeMatch({ startingSignifiers: 0, maxSignifiers: 16, ...settings }) });
+  // Isolate audience navigation: active empty GCCs now intentionally call real recovery recruits.
+  for (const b of world.buildings.values()) if (b.kind === 'gcc' || b.kind === 'drumcircle') b.disabled = true;
+  return world;
 }
 function tick(world: World, seconds = SIM_DT): void {
   for (let i = 0; i < Math.ceil(seconds / SIM_DT); i++) {
