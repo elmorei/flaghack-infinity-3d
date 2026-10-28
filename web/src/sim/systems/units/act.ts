@@ -24,7 +24,7 @@ import { moveTo, routeExhausted } from './move';
 import { buildingClosest, pieceClosest, pieceSpan } from './reach';
 import type { ReachPoint, Span } from './reach';
 import type { UnitsState } from './state';
-import { atBuilding, deliveryHearth, HIPPIE_REACH_Y, nearestRivalUnit, needsRepair, rivalUnitPos, structureOwner } from './targets';
+import { logisticsTarget, atLogistics, atBuilding, deliveryHearth, HIPPIE_REACH_Y, nearestRivalUnit, needsRepair, rivalUnitPos, structureOwner } from './targets';
 
 const ARRIVE_NODE = 0.7;
 const ARRIVE_FLAG = 1.0;
@@ -171,13 +171,13 @@ function actIdle(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
 }
 
 function actFetchStock(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {
-  const hb = world.buildings.get(b.target);
+  const hb = logisticsTarget(world, b.target, h.pos);
   if (!hb || hb.faction !== f || hb.built < 1 || !plantTargetValid(world, sys, h, b, f)) {
     releaseTask(world, h, b);
     return;
   }
   setStatusAt(h, b, 'fetching', hb.pos.x, hb.pos.z);
-  if (!atBuilding(h, hb, HIPPIE.interactReach)) {
+  if (!atLogistics(h, hb, HIPPIE.interactReach)) {
     moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
     if (routeExhausted(h, b)) {
       b.avoidBuildings.set(hb.id, world.time + AVOID_TIME);
@@ -324,7 +324,7 @@ function actDeliver(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
     releaseTask(world, h, b);
     return;
   }
-  let hb = world.buildings.get(b.target);
+  let hb = logisticsTarget(world, b.target, h.pos);
   if (!hb || hb.faction !== f || hb.built < 1) {
     hb = deliveryHearth(world, h, b, f);
     if (!hb) {
@@ -333,7 +333,7 @@ function actDeliver(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
         return;
       }
       if (stow) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: world.collision.groundHeight(h.pos.x, h.pos.z), z: h.pos.z });
-      else h.carryingLumber = 0;
+      // Keep gathered lumber if every depot/altar is temporarily unavailable.
       releaseTask(world, h, b);
       return;
     }
@@ -341,7 +341,7 @@ function actDeliver(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
     setRim(b, hb, h);
   }
   setStatusAt(h, b, stow && b.stolen ? 'stealing' : 'hauling', hb.pos.x, hb.pos.z);
-  if (!atBuilding(h, hb, HIPPIE.interactReach)) {
+  if (!atLogistics(h, hb, HIPPIE.interactReach)) {
     moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
     if (routeExhausted(h, b)) {
       b.avoidBuildings.set(hb.id, world.time + AVOID_TIME);

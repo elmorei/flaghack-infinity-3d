@@ -803,6 +803,15 @@ const AVATAR_FIELDS: readonly Field<Avatar>[] = [
 ];
 
 const HIPPIE_FIELDS: readonly Field<Hippie>[] = [
+  {
+    key: 'sceneryService',
+    enc: h => h.sceneryService ? [h.sceneryService.id, h.sceneryService.phase] : null,
+    same: (h, p) => h.sceneryService ? Array.isArray(p) && p[0] === h.sceneryService.id && p[1] === h.sceneryService.phase : p === null,
+    dec: (h, v) => {
+      h.sceneryService = Array.isArray(v) && v.length === 2 && Number.isInteger(v[0]) && Number(v[0]) >= 0 &&
+        (v[1] === 'approach' || v[1] === 'queue' || v[1] === 'serving') ? { id: Number(v[0]), phase: v[1] } : undefined;
+    },
+  },
   ownerField('faction', (h) => h.faction, (h, v) => {
     h.faction = v;
   }),

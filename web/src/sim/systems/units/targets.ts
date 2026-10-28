@@ -12,6 +12,13 @@ import type { Building, EntityId, FactionId, Flag, Hippie, Owner, Pile } from '.
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { canPlantAt } from '../flags';
+import { activeScenery } from '../sceneryBenefits';
+import { getDepot, depotHolder, depotStock, vehicleCapacity } from '../sceneryDepots';
+import type { DepotTarget } from '../sceneryDepots';
+export type LogisticsTarget = Building | DepotTarget;
+export function logisticsTarget(world: World, id: number, at?: V2): LogisticsTarget | undefined { return world.buildings.get(id) ?? getDepot(world, id, at); }
+export function logisticsRadius(b: LogisticsTarget): number { return b.kind === 'car' ? 0 : BUILDINGS[b.kind].radius; }
+export function atLogistics(h: Hippie, b: LogisticsTarget, reach: number): boolean { return b.kind === 'car' ? Math.hypot(h.pos.x-b.servicePoint.x,h.pos.z-b.servicePoint.z) <= reach : atBuilding(h,b,reach); }
 import { geometryOwners } from '../survey';
 import { brainOf } from './brain';
 import type { Brain } from './brain';
@@ -28,9 +35,9 @@ const MAX_HELPERS = 2;
 const REPAIR_BELOW = 0.98;
 
 /** Nearest own Hearth whose stock is not already spoken for by hippies walking to it. */
-export function hearthWithStock(world: World, sys: UnitsState, f: FactionId, x: number, z: number, brain?: Brain): Building | null {
+export function hearthWithStock(world: World, sys: UnitsState, f: FactionId, x: number, z: number, brain?: Brain): LogisticsTarget | null {
   if (brain) pruneAvoidBuildings(world, brain);
-  let best: Building | null = null;
+  let best: LogisticsTarget | null = null;
   let bestD = Infinity;
   for (const hb of world.buildings.values()) {
     if (hb.faction !== f || (hb.kind !== 'hearth' && hb.kind !== 'workshop') || hb.built < 1) continue;
@@ -43,13 +50,20 @@ export function hearthWithStock(world: World, sys: UnitsState, f: FactionId, x: 
       best = hb;
     }
   }
+  for (const o of activeScenery(world, 'car', f)) {
+    const id = depotHolder(o.id);
+    if (world.time < (brain?.avoidBuildings.get(id) ?? 0) || depotStock(world,id) - (sys.fetchers.get(id) ?? 0) <= 0) continue;
+    const depot = getDepot(world,id,{x,z}); if (!depot) continue;
+    const d2 = (depot.servicePoint.x-x)**2+(depot.servicePoint.z-z)**2;
+    if (d2 < bestD) { bestD=d2; best=depot; }
+  }
   return best;
 }
 
 /** Nearest completed own Hearth that has not recently proved unreachable. */
-export function deliveryHearth(world: World, h: Hippie, b: Brain, f: FactionId): Building | undefined {
+export function deliveryHearth(world: World, h: Hippie, b: Brain, f: FactionId): LogisticsTarget | undefined {
   pruneAvoidBuildings(world, b);
-  let best: Building | undefined;
+  let best: LogisticsTarget | undefined;
   let bestD = Infinity;
   for (const id of world.factions[f].hearthIds) {
     const home = world.buildings.get(id);
@@ -57,13 +71,20 @@ export function deliveryHearth(world: World, h: Hippie, b: Brain, f: FactionId):
     const d2 = (home.pos.x - h.pos.x) ** 2 + (home.pos.z - h.pos.z) ** 2;
     if (d2 < bestD) { best = home; bestD = d2; }
   }
+  for (const o of activeScenery(world, 'car', f)) {
+    const id=depotHolder(o.id);
+    if (world.time < (b.avoidBuildings.get(id) ?? 0) || (h.carryingFlag !== -1 && depotStock(world,id) >= vehicleCapacity(o))) continue;
+    const depot=getDepot(world,id,h.pos); if (!depot) continue;
+    const d2=(depot.servicePoint.x-h.pos.x)**2+(depot.servicePoint.z-h.pos.z)**2;
+    if(d2<bestD) {bestD=d2;best=depot;}
+  }
   return best;
 }
 
 /** Buildings can disappear during an unlimited match; failed-route memory stays bounded. */
 function pruneAvoidBuildings(world: World, b: Brain): void {
   for (const [id, until] of b.avoidBuildings) {
-    if (until <= world.time || world.buildings.get(id)?.faction !== b.faction) b.avoidBuildings.delete(id);
+    if (until <= world.time || logisticsTarget(world, id)?.faction !== b.faction) b.avoidBuildings.delete(id);
   }
 }
 

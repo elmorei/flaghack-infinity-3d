@@ -22,6 +22,8 @@ import { knockback } from './combat';
 import { bossPlayerHull } from './boss/playerCollision';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
 import { canPlantAt, plantFlag, pullFlag, takeFromStock, defendedPullRate } from './flags';
+import { activeScenery, sceneryServicePoint } from './sceneryBenefits';
+import { depotHolder } from './sceneryDepots';
 import { gccActive } from './gcc';
 import { moveCart } from './units/cart';
 import { breakChannel, IDLE, isRooted } from './units/channel';
@@ -543,6 +545,11 @@ function restock(world: World, av: Avatar, mind: AvatarMind): void {
       mind.restockAt = world.time + AVATAR.restockInterval;
       return;
     }
+  }
+  for (const o of activeScenery(world, 'car', av.faction)) {
+    const point = sceneryServicePoint(world,o,av.pos);
+    if (!point || Math.hypot(point.x-av.pos.x,point.z-av.pos.z) > AVATAR.restockRadius) continue;
+    if (takeFromStock(world,depotHolder(o.id),av.id)) { mind.restockAt=world.time+AVATAR.restockInterval; return; }
   }
   mind.restockAt = world.time + RESTOCK_BACKOFF;
 }

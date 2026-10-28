@@ -12,6 +12,7 @@ import { updateCapture } from './systems/capture';
 import { updateCrystals } from './systems/crystals';
 import { updateDrugs } from './systems/drugs';
 import { updateEconomy } from './systems/economy';
+import { updateSceneryDepots } from './systems/sceneryDepots';
 import { updateEffigy } from './systems/effigy';
 import { updateGcc } from './systems/gcc';
 import { updateHippies } from './systems/hippies';
@@ -77,6 +78,7 @@ export class Simulation {
     updateTides(w, dt);
     t = this.lap('tides', t);
     updateCapture(w, dt);
+    updateSceneryDepots(w);
     t = this.lap('capture', t);
     updateVictory(w, dt);
     this.lap('victory', t);

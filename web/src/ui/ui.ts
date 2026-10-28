@@ -39,6 +39,7 @@ import { PauseMenu } from './pause';
 import { HearthRail } from './rail';
 import { Roster } from './roster';
 import { Scoreboard } from './scoreboard';
+import { SceneryBenefitsPart } from './sceneryBenefits';
 import { SeatChooser } from './seats';
 import { SettingsPanel } from './settings';
 import { UiSfx } from './sfx';
@@ -132,13 +133,14 @@ export class GameUI {
     this.minimap = new Minimap(host, layout.colRight);
     const command = new CommandPanels(host, layout);
     const roster = new Roster(host, layout.colRight);
+    const sceneryBenefits = new SceneryBenefitsPart(host, layout.colRight);
     const bar = new ActionBar(host, layout.bottomCenter);
     const feed = new FeedPart(host, layout.bottomLeft);
     this.chat = new ChatOverlay(host, layout.bottomLeft);
     const net = new NetHud(host, layout);
     const perf = new PerfOverlay(host, layout.bottomRight, () => this.uiMs);
     this.tutorialOverlay = new TutorialOverlay(host, layout);
-    this.parts.push(this.hud, rail, this.minimap, command, roster, bar, feed, this.chat, net, perf, this.banners, this.tutorialOverlay);
+    this.parts.push(this.hud, rail, this.minimap, command, roster, sceneryBenefits, bar, feed, this.chat, net, perf, this.banners, this.tutorialOverlay);
     this.lobby = new LobbyScreen(host, layout.overlay);
     this.scoreboard = new Scoreboard(host, layout.overlay);
     this.parts.push(

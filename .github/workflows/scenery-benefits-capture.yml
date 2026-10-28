@@ -1,0 +1,40 @@
+name: Captured scenery benefits proof
+on:
+  push:
+    branches: [testcapture/scenery-benefits-20261028]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: brew install ffmpeg
+      - name: Verify and render production scenery services
+        run: |
+          npx vitest run src/sim/systems/sceneryBenefits.test.ts src/sim/systems/sceneryServices.test.ts src/sim/systems/sceneryDepots.test.ts src/net/sceneryBenefits.test.ts src/ui/sceneryBenefits.test.ts src/ui/sceneryCaptureFixture.test.ts --maxWorkers=2
+          npm run dev -- --host 127.0.0.1 > "$RUNNER_TEMP/scenery-vite.log" 2>&1 &
+          for i in {1..60}; do curl --fail --silent http://127.0.0.1:5173/ > /dev/null && break; sleep 1; done
+          node bench/capture-scenery-benefits.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: captured-scenery-benefits-proof
+          path: |
+            web/scenery-benefits-proof/
+            ${{ runner.temp }}/scenery-vite.log
+          if-no-files-found: warn
+          retention-days: 7

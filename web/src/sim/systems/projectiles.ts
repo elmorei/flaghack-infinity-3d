@@ -18,6 +18,7 @@ import { isDrugActive } from './drugs';
 import { applyEffect } from './effects';
 import { nearestHearth } from './economy';
 import { depositToStock, destroyFlag, dropLoose, nearestPlantableNode, plantFlag } from './flags';
+import { depotHolder, getDepot } from './sceneryDepots';
 
 /** Surfaces at least this flat (normal y) catch a Flag; steeper ones knock it down. */
 const WALKABLE_NY = 0.7;
@@ -78,6 +79,11 @@ function stepProjectile(world: World, p: Projectile, dt: number): void {
     return;
   }
   if (hit) {
+    // Static scenery uses collision tag -1-id; storage has a separate -2-id namespace.
+    if (hit.tag < 0) {
+      const depot = getDepot(world,depotHolder(-1-hit.tag),p.pos);
+      if (depot?.faction === p.faction && depositToStock(world,p.flagId,depot.id)) { finish(world,p,-1); return; }
+    }
     const station = world.buildings.get(hit.tag);
     // Deposit only at our own completed storage. Earlier walls, units and boss hits retain precedence.
     if (station && station.faction === p.faction && station.built >= 1 &&

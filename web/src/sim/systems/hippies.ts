@@ -8,6 +8,8 @@
  * act.ts (doing it), move.ts (getting there), targets.ts (what matters).
  * Owner: Units agent.
  */
+import { stockOwner } from './sceneryDepots';
+import { updateSceneryService, cancelSceneryService } from './sceneryServices';
 import { damageMelee } from './meleeImpact';
 import { BOSS_RADIUS } from '../boss';
 import { AVATAR, BUILDINGS, HIPPIE, HIPPIE_AI, MAP_HALF } from '../constants';
@@ -220,7 +222,7 @@ function census(world: World, sys: UnitsState): void {
       if (h.job === 'raid') sys.raiders[h.faction]++;
       if (b.clearing) sys.clearers[h.faction]++;
     }
-    if (b.target < 0) continue;
+    if (b.target === -1) continue;
     if (b.task === 'fetchStock') bump(sys.fetchers, b.target);
     else if (b.task === 'build' || b.task === 'repair') bump(sys.helpers, b.target);
     else if (b.task === 'chop') bump(sys.choppers, b.target);
@@ -241,7 +243,7 @@ function census(world: World, sys: UnitsState): void {
   }
   for (const f of FACTION_IDS) {
     let stock = 0;
-    for (const building of world.buildings.values()) if (building.faction === f) stock += sys.stockByHearth.get(building.id) ?? 0;
+    for (const [holder, count] of sys.stockByHearth) if (stockOwner(world, holder) === f) stock += count;
     sys.stockByFaction[f] = stock;
     // Hoarding is villainy (the cold is the lack of activity); Acid Cop paranoia doubles it.
     let drain = HIPPIE.attentionDrain;
@@ -272,6 +274,9 @@ function sweepClaims(world: World, sys: UnitsState): void {
 
 function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audience: boolean): void {
   const b = brainOf(h);
+  if (h.airborne || h.status === 'ko' || b.faction !== h.faction || h.order || b.hurt ||
+      hasEffect(world, h, 'knockback') || hasEffect(world, h, 'stun') || hasEffect(world, h, 'overstimulated'))
+    cancelSceneryService(world, h);
   if (stepHippieAirborne(world, h, dt)) return;
   if (b.faction !== h.faction) convert(world, h, b);
   if (h.status === 'ko') {
@@ -297,7 +302,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
     b.moving = false;
     return;
   }
-  if (fightBoss(world, sys, h, b, dt)) return;
+  if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
   if (f === NEUTRAL) {
     // The audience uses normal movement; recruitment, KO and boss combat take priority.
@@ -317,6 +322,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
 }
 
 function live(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId, dt: number): void {
+  if (updateSceneryService(world, sys, h, b, f, dt)) return;
   attend(world, sys, h, b, f, dt);
   const overstim = b.task !== 'distracted' && hasEffect(world, h, 'overstimulated');
   if (overstim) {

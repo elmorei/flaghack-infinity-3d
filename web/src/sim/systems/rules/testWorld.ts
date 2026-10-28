@@ -17,6 +17,8 @@ import { updateInstability } from '../instability';
 import { updateSurvey } from '../survey';
 import { updateTides } from '../tides';
 import { updateVictory } from '../victory';
+import { depotSceneryId, depotStock, vehicleCapacity } from '../sceneryDepots';
+import { sceneryById } from '../sceneryBenefits';
 
 export function newMatch(seed: string): World {
   return createMatch({ seed, difficulty: 'normal', humans: [], mode: 'standard' });
@@ -137,7 +139,20 @@ export function flagProblems(world: World): string[] {
     } else if (fl.node !== -1 || fl.altNode !== -1) {
       problems.push(`flag ${fl.id} is ${fl.state} but keeps node ${fl.node}/${fl.altNode}`);
     }
-    if (fl.state === 'stock' && !['hearth', 'workshop'].includes(world.buildings.get(fl.holder)?.kind ?? '')) problems.push(`stock flag ${fl.id} not at a Hearth`);
+    if (fl.state === 'stock') {
+      const id = depotSceneryId(fl.holder);
+      if (id === null) {
+        if (!['hearth', 'workshop'].includes(world.buildings.get(fl.holder)?.kind ?? '')) problems.push(`stock flag ${fl.id} not at valid storage`);
+      } else {
+        // Contested service is paused, not invalid inventory.
+        const o = sceneryById(world, id), owner = world.sceneryCapture.get(id)?.faction ?? -1;
+        if (!o || o.kind !== 'car' || world.destroyedScenery.has(id) || owner === -1 || !world.factions[owner].alive) problems.push(`stock flag ${fl.id} not at a living owned depot`);
+        else {
+          if (fl.owner !== owner) problems.push(`stock flag ${fl.id} owner differs from depot ${id}`);
+          if (depotStock(world, fl.holder) > vehicleCapacity(o)) problems.push(`depot ${id} over capacity`);
+        }
+      }
+    }
     if (fl.history.length > 16) problems.push(`flag ${fl.id} history ${fl.history.length}`);
   }
   for (let n = 0; n < s.nodeFlag.length; n++) {

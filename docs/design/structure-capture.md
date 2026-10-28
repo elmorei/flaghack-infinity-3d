@@ -8,8 +8,8 @@ Capture uses the Hearth pressure constants: 6 pressure/second before modifiers, 
 
 Capture changes only the target's allegiance, not the owner's other structures or Signifiers, and never eliminates a player. Existing health, disabled status, construction progress, paid lab batch and production progress remain. Stored flags transfer allegiance. Recruitment, production, lab output and ward effects subsequently use the new owner. Disabled structures still need repair. Modular-piece repair/demolition permissions and tint follow the new owner; mixed-owner supports and collision stay geometrically unchanged.
 
-Neutral scenery gains ownership/capture markers, not invented production or recruitment powers. Original prop models, footprints, collision and destruction stay unchanged. Destroyed props lose their ownership markers and cannot be recaptured.
+Neutral scenery gains ownership/capture markers and the support benefits described in [scenery benefits](scenery-benefits.md). Original prop models, footprints, collision and destruction stay unchanged. Destroyed props lose their ownership markers and cannot be recaptured.
 
-Capture rings, pressure arcs, enclosing beams and critical-flag reticles show the same pressure stages as Hearths. Ownership and capture state replicate to existing clients and late joiners. Multiplayer protocol 16 requires matching hosts and clients. AI avatars defend visible structure sieges by pulling critical loop flags, while Hearth defense retains priority.
+Capture rings, pressure arcs, enclosing beams and critical-flag reticles show the same pressure stages as Hearths. Ownership and capture state replicate to existing clients and late joiners. Multiplayer protocol 17 requires matching hosts and clients. AI avatars defend visible structure sieges by pulling critical loop flags, while Hearth defense retains priority.
 
 The boss alliance cancels pending captures and prevents allied theft during the encounter. Existing Hearth camp conversion and elimination rules remain unchanged.

@@ -231,6 +231,8 @@ export interface Hippie {
   status: HippieStatus;
   /** Where the hippie is headed / working (for DEGEN display and debug). */
   statusTarget: V2 | null;
+  /** Public service reservation for spectators/late join HUD; timers remain host-owned. */
+  sceneryService?: { id: number; phase: 'approach' | 'queue' | 'serving' };
   carryingFlag: EntityId | -1;
   carryingLumber: number;
   /** Has a D.E.G.E.N. beacon (dropped beacons are gone until respawn). */

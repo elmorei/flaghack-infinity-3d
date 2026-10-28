@@ -19,6 +19,7 @@ import { isFlagProtected } from './abilities';
 import { isCollapsed } from './buildings';
 import { isFactionId } from './rules/factions';
 import { markSurveyDirty } from './survey';
+import { getDepot, depotSceneryId, depotStock, vehicleCapacity } from './sceneryDepots';
 
 /** Flag.history keeps only the newest entries. */
 const HISTORY_CAP = 16;
@@ -222,6 +223,16 @@ export function destroyFlag(world: World, flagId: EntityId): boolean {
 export function takeFromStock(world: World, hearthId: EntityId, carrier: EntityId): Flag | null {
   const hearth = world.buildings.get(hearthId);
   const c = carrierOf(world, carrier);
+  if (depotSceneryId(hearthId) !== null) {
+    const depot = getDepot(world, hearthId, c?.pos);
+    const taker = c ? holdingFaction(world, c) : null;
+    if (!depot || !c || taker === null || taker !== depot.faction) return null;
+    for (const fl of world.flags.values()) {
+      if (fl.state !== 'stock' || fl.holder !== hearthId) continue;
+      detach(world, fl); attach(world, fl, c, taker); return fl;
+    }
+    return null;
+  }
   if (!hearth || (hearth.kind !== 'hearth' && hearth.kind !== 'workshop') || hearth.built < 1 || !c) return null;
   const taker = holdingFaction(world, c);
   if (taker === null || taker !== hearth.faction) return null;
@@ -254,6 +265,18 @@ export function giveFlag(world: World, flagId: EntityId, carrier: EntityId): boo
 export function depositToStock(world: World, flagId: EntityId, hearthId: EntityId): boolean {
   const fl = world.flags.get(flagId);
   const hearth = world.buildings.get(hearthId);
+  if (depotSceneryId(hearthId) !== null) {
+    const depot = getDepot(world, hearthId, fl?.pos);
+    if (!fl || !depot || depotStock(world, hearthId) >= vehicleCapacity(depot.obstacle)) return false;
+    const carrier = fl.state === 'carried' || fl.state === 'flying' ? carrierOf(world, fl.holder) : undefined;
+    if ((carrier?.faction ?? fl.owner) !== depot.faction) return false;
+    if (fl.state === 'stock' && fl.holder === hearthId) return false;
+    const by = fl.state === 'carried' ? fl.holder : -1;
+    detach(world, fl); fl.owner = depot.faction; fl.holder = hearthId;
+    fl.pos.x = depot.servicePoint.x; fl.pos.z = depot.servicePoint.z;
+    fl.pos.y = world.collision.groundHeight(fl.pos.x, fl.pos.z); fl.tilt = 0;
+    record(world, fl, 'stock', by); return true;
+  }
   if (!fl || !hearth || (hearth.kind !== 'hearth' && hearth.kind !== 'workshop') || hearth.faction === NEUTRAL || hearth.built < 1) return false;
   if (hearth.kind === 'workshop') {
     let stock = 0;

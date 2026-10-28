@@ -28,6 +28,8 @@ import type { V2 } from '../math';
 import { FACTION_IDS, JOBS } from '../types';
 import type { Building, EntityId, FactionId, Hippie } from '../types';
 import type { World } from '../world';
+import { sceneryLodging, sceneryRitualMultiplier } from './sceneryBenefits';
+import { stockOwner } from './sceneryDepots';
 import { econ } from './econ/state';
 import type { EconState } from './econ/state';
 import { craftFlag } from './flags';
@@ -50,7 +52,7 @@ export function popCap(world: World, f: FactionId): number {
   for (const b of world.buildings.values()) {
     if (b.faction === f && b.kind === 'drumcircle' && b.built >= 1 && !b.disabled) circles++;
   }
-  return HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle;
+  return HIPPIE.popCapBase + circles * HIPPIE.popCapPerDrumCircle + sceneryLodging(world, f);
 }
 
 /** Active affiliated hippies; knocked-out workers will return neutral. */
@@ -97,8 +99,8 @@ function tallyStock(world: World, st: EconState): void {
   st.stock.fill(0);
   for (const fl of world.flags.values()) {
     if (fl.state !== 'stock') continue;
-    const hearth = world.buildings.get(fl.holder);
-    if (hearth && hearth.faction !== -1) st.stock[hearth.faction]++;
+    const owner = stockOwner(world, fl.holder);
+    if (owner !== -1) st.stock[owner]++;
   }
   for (const f of FACTION_IDS) st.hoarding[f] = st.stock[f] > hoardThreshold(world, f);
   st.stockTick = world.tick;
@@ -188,7 +190,7 @@ function gainRitual(world: World, st: EconState, dt: number): void {
       }
       if (best >= 0 && counts[best] < DRUMMERS_PER_CIRCLE) {
         counts[best]++;
-        drummers++;
+        drummers += sceneryRitualMultiplier(world, f, circles[best].pos);
       }
     }
     fac.ritual += drummers * DRUM_RITUAL_PER_SEC * dt;

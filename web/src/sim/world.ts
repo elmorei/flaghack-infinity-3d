@@ -191,7 +191,12 @@ export class World {
   /** Total stock across all of a faction's Hearths and Workshops. */
   stockCount(f: FactionId): number {
     let n = 0;
-    for (const fl of this.flags.values()) if (fl.state === 'stock' && this.buildings.get(fl.holder)?.faction === f) n++;
+    for (const fl of this.flags.values()) {
+      if (fl.state !== 'stock') continue;
+      const sceneryId = -fl.holder - 2;
+      const owner = fl.holder <= -2 ? (!this.destroyedScenery.has(sceneryId) ? this.sceneryCapture.get(sceneryId)?.faction : -1) : this.buildings.get(fl.holder)?.faction;
+      if (owner === f) n++;
+    }
     return n;
   }
 

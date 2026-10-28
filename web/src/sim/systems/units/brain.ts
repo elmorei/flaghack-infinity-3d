@@ -155,7 +155,7 @@ export function releaseTask(world: World, h: Hippie, b: Brain): void {
     : b.task === 'build' || b.task === 'repair' ? sys.helpers
     : b.task === 'chop' ? sys.choppers
     : b.task === 'respond' ? sys.responders : null;
-  if (counts && b.target >= 0) {
+  if (counts && b.target !== -1) {
     const remaining = (counts.get(b.target) ?? 0) - 1;
     if (remaining > 0) counts.set(b.target, remaining);
     else counts.delete(b.target);

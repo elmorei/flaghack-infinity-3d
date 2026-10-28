@@ -9,6 +9,8 @@ import type { V2 } from '../../math';
 import { FACTION_IDS } from '../../types';
 import type { Building, EntityId, FactionId, Hippie, HippieOrder, Pile } from '../../types';
 import type { World } from '../../world';
+import type { LogisticsTarget } from './targets';
+import { logisticsRadius } from './targets';
 import { nearestHearth } from '../economy';
 import { canPlantAt } from '../flags';
 import { beginTask, releaseTask } from './brain';
@@ -160,7 +162,7 @@ function startFetch(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
   const loose = nearestLooseFlag(world, sys, h, b, f, HIPPIE_AI.fetchRadius);
   if (loose) {
     const dl = Math.hypot(loose.pos.x - h.pos.x, loose.pos.z - h.pos.z);
-    const dh = hearth ? Math.hypot(hearth.pos.x - h.pos.x, hearth.pos.z - h.pos.z) - BUILDINGS[hearth.kind].radius : Infinity;
+    const dh = hearth ? Math.hypot(hearth.pos.x - h.pos.x, hearth.pos.z - h.pos.z) - logisticsRadius(hearth) : Infinity;
     if (dl <= dh) {
       beginTask(world, h, b, 'pickup');
       claimFlag(sys, h, b, loose.id);
@@ -435,7 +437,8 @@ function reserveNode(sys: UnitsState, h: Hippie, b: Brain, node: number): void {
 }
 
 /** Approach spot on a building's rim, on the hippie's side. */
-export function setRim(b: Brain, bld: Building, h: Hippie): void {
+export function setRim(b: Brain, bld: LogisticsTarget, h: Hippie): void {
+  if (bld.kind === 'car') { b.px=bld.servicePoint.x; b.pz=bld.servicePoint.z; return; }
   const dx = h.pos.x - bld.pos.x;
   const dz = h.pos.z - bld.pos.z;
   const d = Math.hypot(dx, dz);

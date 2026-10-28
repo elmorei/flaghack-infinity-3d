@@ -1,0 +1,17 @@
+.col-right > .scenery-benefit { order: 1; }
+.scenery-benefit {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border-left: 3px solid #b8b3a5; background: rgba(14, 18, 20, .94);
+  pointer-events: none;
+}
+.scenery-benefit-heading { display: flex; align-items: center; gap: 8px; }
+.scenery-benefit-icon { width: 21px; height: 21px; flex: 0 0 21px; color: #ffd878; }
+.scenery-benefit-icon svg { width: 100%; height: 100%; }
+.scenery-benefit-name { font-size: 13px; line-height: 1.25; color: #fff3d6; }
+.scenery-benefit-owner { display: block; margin-top: 3px; color: #bab6a9; font-size: 10px; }
+.scenery-benefit-state { margin-top: 7px; font-size: 11px; line-height: 1.4; color: #d0cbbd; }
+.scenery-benefit-description { margin: 5px 0 0; font-size: 11px; line-height: 1.45; color: #c0c3bd; }
+.scenery-active { border-left-color: #8bd6b0; }
+.scenery-active .scenery-benefit-state { color: #a5e1be; }
+.scenery-paused, .scenery-full { border-left-color: #efb35c; }
+.scenery-paused .scenery-benefit-state, .scenery-full .scenery-benefit-state { color: #f4c67d; }
