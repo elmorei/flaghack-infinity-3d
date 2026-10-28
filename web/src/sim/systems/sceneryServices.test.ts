@@ -10,6 +10,8 @@ import { updateSceneryService, cancelSceneryService, sceneryServiceOf, scenerySe
 import { brainOf, beginTask } from './units/brain';
 import { unitsState } from './units/state';
 import { updateHippies } from './hippies';
+import { eliminate } from './victory';
+import { NEUTRAL } from '../types';
 
 function fixture(kind: 'dome' | 'shade' | 'porta') {
   const w = createMatch({seed:'scenery-services', difficulty:'normal', mode:'standard', humans:[0,1,2,3], match:normalizeMatch({maxSignifiers:0})});
@@ -114,6 +116,41 @@ describe('captured scenery recovery services',()=>{
     const {w,o,add,step}=fixture('dome');const h=add();w.sceneryCapture.get(o.id)!.faction=1;
     expect(step(h,1)).toBe(false);w.effigyRevealedAt=w.time;w.time+=1;
     expect(step(h,1)).toBe(true);expect(h.hp).toBe(53);expect(w.sceneryCapture.get(o.id)!.faction).toBe(1);
+  });
+  it('elimination midway through a toilet visit clears public service state on the normal unit update',()=>{
+    const {w,o,add}=fixture('porta');const h=add();
+    updateHippies(w,2);
+    expect(h.sceneryService).toEqual({id:o.id,phase:'serving'});
+    expect(h.attention).toBe(40);
+    eliminate(w,0,1);
+    expect(h.faction).toBe(NEUTRAL);
+    w.time+=1;updateHippies(w,1);
+    expect(h.sceneryService).toBeUndefined();expect(sceneryServiceOf(h)).toBeNull();
+    expect(h.attention).toBe(40);
+    expect(sceneryServiceOccupancy(w,o.id)).toEqual({serving:0,queued:0,approaching:0});
+    for(let i=0;i<5;i++){w.time+=1;updateHippies(w,1);}
+    expect(h.attention).toBe(40);expect(h.sceneryService).toBeUndefined();
+  });
+  it('finishes travel and stationary rest at a rotated shelter through full unit updates',()=>{
+    const {w,o,add}=fixture('shade');const h=add();
+    expect(o.shape).toBe('box');expect(Math.abs(Math.sin(o.yaw))).toBeGreaterThan(.01);
+    const point=sceneryServicePoint(w,o)!;
+    h.pos={...w.nav.nearestWalkable(point.x+9,point.z+5)};
+    let approached=false,served=false,completed=false;
+    for(let i=0;i<600;i++){
+      const before={...h.pos};w.time+=.1;updateHippies(w,.1);
+      expect(Math.hypot(h.pos.x-before.x,h.pos.z-before.z)).toBeLessThan(2);
+      if(h.sceneryService?.phase==='approach')approached=true;
+      if(h.sceneryService?.phase==='serving'){
+        served=true;expect(w.nav.isWalkable(h.pos.x,h.pos.z)).toBe(true);
+        const dx=h.pos.x-o.x,dz=h.pos.z-o.z,c=Math.cos(o.yaw),s=Math.sin(o.yaw);
+        expect(Math.abs(c*dx-s*dz)>o.hx || Math.abs(s*dx+c*dz)>o.hz).toBe(true);
+      }
+      if(served && !h.sceneryService){completed=true;break;}
+    }
+    expect(approached).toBe(true);expect(served).toBe(true);expect(completed).toBe(true);
+    expect(h.attention).toBeGreaterThanOrEqual(94);expect(h.job).toBe('gather');
+    expect(sceneryServiceOf(h)).toBeNull();
   });
   it('actual HP loss cancels treatment and queued reservation on the next unit tick',()=>{
     const {w,add}=fixture('dome');const h=add();updateHippies(w,1);expect(h.hp).toBe(53);

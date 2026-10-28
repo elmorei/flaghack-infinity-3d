@@ -17,9 +17,12 @@ try {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('response', r => { if (r.status() >= 400) responses.push({ url: r.url(), status: r.status() }); });
   page.on('requestfailed', r => responses.push({ url: r.url(), failure: r.failure()?.errorText }));
-  await page.addInitScript(() => { window.requestAnimationFrame = () => 1; window.cancelAnimationFrame = () => {}; });
+  await page.addInitScript(() => { const raf = window.requestAnimationFrame.bind(window); window.captureFrozen = false; window.requestAnimationFrame = fn => raf(time => { if (!window.captureFrozen) fn(time); }); });
   await page.goto(process.env.CAPTURE_URL || 'http://127.0.0.1:5173/');
-  await page.waitForFunction(() => !!window.flaghack && !!window.fh);
+  await page.waitForFunction(() => !!window.flaghack && !!window.fh, null, { polling: 100, timeout: 90000 });
+  await page.evaluate(async () => { await window.flaghack.ready; document.querySelector('#startup-skip')?.click(); });
+  await page.waitForFunction(() => !document.querySelector('#startup'), null, { polling: 100, timeout: 30000 });
+  await page.evaluate(() => { window.captureFrozen = true; });
   const roles = ['tent', 'art', 'car', 'dome', 'shade', 'porta'];
   for (const [shot, kind] of roles.entries()) {
     const setup = await page.evaluate(async kind => {
@@ -131,4 +134,4 @@ try {
   if(errors.length&&!optionalOnly)throw Error(errors.join('\n'));
   execFileSync('ffmpeg',['-y','-framerate','30','-i',resolve(out,'%04d.png'),'-c:v','libx264','-pix_fmt','yuv420p','-crf','20','-movflags','+faststart',resolve(out,'scenery-benefits.mp4')]);
   await writeFile(resolve(out,'provenance.json'),JSON.stringify({scenes,errors,pageErrors,responses,note:'Six staged actual-game production-system shots, full rendered page including real contextual HUD; no synthetic overlays, compositing, rule overrides or main publication.'},null,2));
-} finally { await browser.close(); }
+} finally { await writeFile(resolve(out,'capture-diagnostics.json'),JSON.stringify({scenes,errors,pageErrors,responses},null,2)); await browser.close(); }
