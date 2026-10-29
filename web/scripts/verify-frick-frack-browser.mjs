@@ -97,6 +97,23 @@ async function main(){
           h.pos=touch?{x:av.pos.x+.6,z:av.pos.z+1.8}:{x:o.x+d.x*depth,z:o.z+d.z*depth};h.vel={x:0,z:0};
           if(h.brain.mind){h.brain.mind.task='wander';h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
         },{touch:spec.touch,throwChase});
+        if(throwChase){
+          // Enter actual aiming input, then stage the stationary actor on the production
+          // ballistic predictor. Hovering a wizard's hat alone aims at the ground behind him.
+          await page.mouse.click(spec.width/2,spec.height/2);
+          await page.waitForFunction(()=>window.flaghack.controls.input.locked||window.flaghack.controls.input.lockUnavailable);
+          await page.evaluate(()=>{const a=window.flaghack;a.session.camera.pitch=-.28;a.controls.rig.resetFollow();});
+          await page.waitForTimeout(900);
+          await page.mouse.down({button:'right'});
+          await page.waitForFunction(()=>window.flaghack.session.aim.active&&window.flaghack.session.aim.arc.length>3);
+          await page.evaluate(()=>{
+            const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId);
+            const candidates=a.session.aim.arc.filter(p=>{const distance=Math.hypot(p.x-av.pos.x,p.z-av.pos.z),height=p.y-w.collision.groundHeight(p.x,p.z);return distance>=5&&distance<=14&&height>.35&&height<1.5&&w.nav.isWalkable(p.x,p.z);});
+            const p=candidates.at(-1);if(!p)throw Error('No reachable wizard point on the normal throw trajectory');
+            h.pos={x:p.x,z:p.z};h.vel={x:0,z:0};if(h.brain.mind){h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
+            window.__frickQa.throwStage={point:{...p},arc:a.session.aim.arc.map(p=>({...p})),hover:{...a.session.hover.point}};
+          });
+        }
         await page.waitForTimeout(150);
         await page.evaluate(()=>{const a=window.flaghack;window.__frickQa.cameraBefore={...a.session.camera};window.__frickQa.viewBefore=a.session.view;});
         await holdForDemo('wizard-before-gift',2200);
@@ -104,6 +121,8 @@ async function main(){
           const before=await state();
           mark('throw-to-wizard');
           await page.keyboard.press('KeyQ');
+          await page.waitForTimeout(120);
+          await page.mouse.up({button:'right'});
           await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='chasing',null,{timeout:10000});
           assert.equal(await dialog.isVisible(),false,'Thrown gift does not remotely open dialogue');
           mark('wizard-chasing');
