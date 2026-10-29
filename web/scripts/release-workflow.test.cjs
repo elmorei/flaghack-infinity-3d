@@ -41,7 +41,7 @@ test('immutable releases are checksummed and never overwritten', () => {
 test('real startup browser validation gates publication of the same built client', () => {
   const browser = workflow.jobs['startup-browser'];
   assert.deepEqual(browser.needs, ['client']);
-  assert.equal(browser['runs-on'], 'macos-15-intel');
+  assert.equal(browser['runs-on'], 'macos-15');
   const artifact = browser.steps.find(step => step.uses?.startsWith('actions/download-artifact@'));
   assert.equal(artifact.with.name, 'github-pages');
   const run = browser.steps.find(step => step.run)?.run;

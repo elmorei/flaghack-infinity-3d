@@ -48,7 +48,7 @@ jobs:
 
   startup-browser:
     needs: [client]
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 15
     defaults:
       run:
