@@ -49,7 +49,7 @@ async function main() {
   const project = pos => page.evaluate(pos => window.__qa.project(pos), pos);
   try {
     for (const spec of specs) {
-      const context = await browser.newContext({ viewport: { width: spec.width, height: spec.height }, userAgent: spec.desktop ? DESKTOP_UA : MOBILE_UA, hasTouch: !spec.desktop, isMobile: !spec.desktop, deviceScaleFactor: 1, recordVideo: spec.name === 'phone-portrait' ? { dir: join(OUT, 'video'), size: { width: 390, height: 844 } } : undefined });
+      const context = await browser.newContext({ viewport: { width: spec.width, height: spec.height }, userAgent: spec.desktop ? DESKTOP_UA : MOBILE_UA, hasTouch: !spec.desktop, isMobile: !spec.desktop, deviceScaleFactor: 1, recordVideo: process.env.RECORD_VIDEO === '1' && spec.name === 'phone-portrait' ? { dir: join(OUT, 'video'), size: { width: 390, height: 844 } } : undefined });
       page = await context.newPage();
       const entry = { name: spec.name, errors: [] }; results.scenarios.push(entry);
       page.on('pageerror', error => entry.errors.push(error.message));
