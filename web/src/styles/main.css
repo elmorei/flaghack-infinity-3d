@@ -45,6 +45,12 @@ canvas#game {
   outline: none;
 }
 
+/* The field owns its touch gestures. Scope this to the mobile canvas so full-screen
+   menus retain native scrolling and the desktop browser keeps its normal gestures. */
+html[data-device-layout='mobile'] canvas#game {
+  touch-action: none;
+}
+
 #ui {
   position: absolute;
   inset: 0;

@@ -109,11 +109,13 @@ async function main() {
       assert.deepEqual(afterPan.selection, beforePan.selection); assert.deepEqual(afterPan.plan, beforePan.plan); assert.equal(afterPan.menu, null);
       // Pinch is deliberately unsupported, and must not leak a tap or long-press.
       const pinchBefore = await state();
+      const pageScaleBefore = await page.evaluate(() => visualViewport?.scale ?? 1);
       await touch('touchStart', [{ x: spec.width*.4, y: spec.height*.45, id: 0 }]);
       await touch('touchStart', [{ x: spec.width*.4, y: spec.height*.45, id: 0 }, { x: spec.width*.6, y: spec.height*.55, id: 1 }]);
       await touch('touchMove', [{ x: spec.width*.25, y: spec.height*.4, id: 0 }, { x: spec.width*.75, y: spec.height*.6, id: 1 }]);
       await page.waitForTimeout(650); await touch('touchEnd', []); await page.waitForTimeout(150);
       const pinchAfter = await state();
+      assert.equal(await page.evaluate(() => visualViewport?.scale ?? 1), pageScaleBefore, 'Pinch must not zoom the browser page either');
       assert.equal(pinchAfter.camera.cmdHeight, pinchBefore.camera.cmdHeight); assert.deepEqual(pinchAfter.selection, pinchBefore.selection); assert.deepEqual(pinchAfter.plan, pinchBefore.plan); assert.equal(pinchAfter.menu, null);
       check(`${spec.name}: minimal field, drag-pan and cancelled two-finger gesture without zoom/actions`);
 
