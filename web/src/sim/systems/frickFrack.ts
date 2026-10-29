@@ -49,10 +49,17 @@ export function offerFrickFrackFlag(w: World, h: Hippie, f: FactionId, flagId: n
   if (w.frickFrack.sessions[f] || (secret.cooldown.get(f) ?? 0) > w.time || !flag || flag.owner !== f ||
       !['carried', 'flying'].includes(flag.state) ||
       (flag.state === 'carried' ? flag.holder !== av.id : w.projectiles.get(flag.holder)?.thrower !== av.id)) return false;
-  // Flying flags remain represented in the projectile until canonical detach clears them.
-  if (flag.state === 'flying') { const projectileId = flag.holder; dropLoose(w, flag.id, { ...av.pos }); w.projectiles.delete(projectileId); if (!giveFlag(w, flag.id, av.id)) {
-    const altar = ownedAltar(w, f); if (altar) depositToStock(w, flag.id, altar.id);
-  } }
+  // A quiver may refill between throw and impact. Keep the gifted Flag in the wagerable
+  // quiver and relocate an existing carried Flag, preserving both identities and capacity.
+  if (flag.state === 'flying') {
+    const projectileId = flag.holder;
+    if (av.carried.length >= AVATAR.quiver) {
+      const displaced = av.carried.at(-1)!, altar = ownedAltar(w, f);
+      if (!altar || !depositToStock(w, displaced, altar.id)) dropLoose(w, displaced, { ...av.pos });
+    }
+    dropLoose(w, flag.id, { ...av.pos }); w.projectiles.delete(projectileId);
+    giveFlag(w, flag.id, av.id);
+  }
   const s: FrickFrackSession = { id: secret.nextSession++, revision: 0, faction: f, phase: 'dialogue', dialogueIndex: 0,
     dialogueStartedAt: w.time, readyAt: w.time + frickFrackTextDuration(FRICK_FRACK_DIALOGUE[0]), wager: 0, player: [], dealer: [], result: null, message: '' };
   w.frickFrack.sessions[f] = s; clearControl(w, f); return true;
