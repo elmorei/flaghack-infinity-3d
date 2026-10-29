@@ -89,12 +89,14 @@ async function main(){
         // Let the normal title-to-play camera transition finish before using its ray.
         await page.waitForTimeout(2500);
         // Resolve the actual production camera shoulder offset, rather than assuming its sign.
-        await page.evaluate(()=>{
+        await page.evaluate(touch=>{
           const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),o=a.controls.rig.origin,d=a.controls.rig.dir;
+          // Phone presentation intentionally keeps the tactical camera; its offer button
+          // uses physical reach, not the distant command-camera centre ray.
           const depth=((av.pos.x-o.x)*d.x+(av.pos.z-o.z)*d.z)/(d.x*d.x+d.z*d.z)+1.8;
-          h.pos={x:o.x+d.x*depth,z:o.z+d.z*depth};h.vel={x:0,z:0};
+          h.pos=touch?{x:av.pos.x+.6,z:av.pos.z+1.8}:{x:o.x+d.x*depth,z:o.z+d.z*depth};h.vel={x:0,z:0};
           if(h.brain.mind){h.brain.mind.task='wander';h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
-        });
+        },spec.touch);
         await page.waitForTimeout(150);
         await holdForDemo('wizard-before-gift',2200);
         if(spec.touch){
