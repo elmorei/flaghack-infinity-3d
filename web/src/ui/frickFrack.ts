@@ -144,6 +144,7 @@ export class FrickFrackUI implements UiPart {
         this.wager = clampWager(this.wager, available);
         button('ff-button', row, '−', () => this.setWager(this.wager - 1)).setAttribute('aria-label', 'Wager one fewer Flag');
         this.wagerInput = el('input', '', row);
+        this.wagerInput.setAttribute('aria-label', 'Flags to wager');
         this.wagerInput.type = 'number'; this.wagerInput.min = '1'; this.wagerInput.max = String(available); this.wagerInput.step = '1'; this.wagerInput.inputMode = 'numeric'; this.wagerInput.value = String(this.wager);
         this.wagerInput.addEventListener('change', () => this.setWager(Number(this.wagerInput?.value)));
         button('ff-button', row, '+', () => this.setWager(this.wager + 1)).setAttribute('aria-label', 'Wager one more Flag');
