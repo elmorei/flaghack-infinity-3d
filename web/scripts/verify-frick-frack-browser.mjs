@@ -59,7 +59,9 @@ async function main(){
         window.__frickQa={};
       });
       await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
-      const tap=async locator=>{await locator.scrollIntoViewIfNeeded();if(spec.touch)await locator.tap({noWaitAfter:true});else await locator.click({noWaitAfter:true});};
+      // Locator actions already scroll and re-resolve after UI revisions; a separate
+      // scrollIntoViewIfNeeded can retain a detached element across a normal rerender.
+      const tap=async locator=>{if(spec.touch)await locator.tap({noWaitAfter:true});else await locator.click({noWaitAfter:true});};
       const dialog=page.locator('.ff-overlay');
       const button=name=>dialog.getByRole('button',{name,exact:true});
       async function stageGift(throwChase=false){
@@ -281,7 +283,12 @@ async function main(){
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.sunId);
         assert.equal((await state()).session.dealer.includes(null),false,'The Sun permanently reveals the actual dealer hole card');
         assert.equal((await state()).session.player.some(c=>c.arcana!==undefined),false,'Major Arcana is an effect, not a numeric hand card');
-        await dialog.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();
+        await button('Use The Sun').waitFor({state:'detached'});
+        await dialog.locator('.ff-hand-dealer .ff-card-back').waitFor({state:'detached'});
+        // Read the current DOM atomically rather than scrolling an element handle
+        // captured immediately before the authoritative revision rerenders it.
+        await page.evaluate(()=>document.querySelector('.ff-hand-dealer')?.scrollIntoView({block:'nearest',behavior:'instant'}));
+        await page.waitForTimeout(150);
         await shot('desktop-sun-revealed');await holdForDemo('sun-revealed',2500);
         await tap(button('Stand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
