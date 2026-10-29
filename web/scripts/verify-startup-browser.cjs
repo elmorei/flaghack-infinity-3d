@@ -86,6 +86,7 @@ async function main() {
     return page;
   };
   const page = await makePlaybackPage(context);
+  let activePage = page;
   const check = (label) => { results.checks.push(label); console.log(`PASS ${label}`); };
   const mediaRequests = () => requests.filter((path) => path.endsWith('.mp4')).length;
   const ready = () => page.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
@@ -158,8 +159,11 @@ async function main() {
     await page.locator('#startup').waitFor({ state: 'detached', timeout: 10_000 });
     assert.equal((await readState()).pending, false); check('natural video ending releases an already-ready game');
 
+    // Subsequent cases use independent contexts. Release the completed title renderer
+    // so it does not compete with another cold WebGL startup on native CI GPUs.
+    await context.close();
     noStoreTitle = true;
-    const partialContext = await browser.newContext(); const partial = await makePlaybackPage(partialContext);
+    const partialContext = await browser.newContext(); const partial = await makePlaybackPage(partialContext); activePage = partial;
     await partial.goto(url, { waitUntil: 'domcontentloaded' });
     await partial.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
     await partial.getByRole('button', { name: 'Skip', exact: true }).click();
@@ -171,7 +175,7 @@ async function main() {
     check('one uncached required title asset prevents false warm bypass while other assets are cached');
 
     holdGame = true;
-    const slowContext = await browser.newContext(); const slow = await slowContext.newPage(); trackErrors(slow);
+    const slowContext = await browser.newContext(); const slow = await slowContext.newPage(); activePage = slow; trackErrors(slow);
     await slow.goto(url, { waitUntil: 'domcontentloaded' });
     await slow.waitForFunction(() => document.querySelector('video')?.readyState >= 2);
     await slow.evaluate(() => {
@@ -188,7 +192,7 @@ async function main() {
     await slowContext.close(); check('video ending before readiness retains its last frame and Loading until game readiness');
 
     const autoplayContext = await browser.newContext();
-    const autoplay = await autoplayContext.newPage(); trackErrors(autoplay);
+    const autoplay = await autoplayContext.newPage(); activePage = autoplay; trackErrors(autoplay);
     await autoplay.addInitScript(() => { HTMLMediaElement.prototype.play = function () { return Promise.reject(new Error('Test: autoplay blocked')); }; });
     await autoplay.goto(url, { waitUntil: 'domcontentloaded' });
     await autoplay.locator('#startup').waitFor({ state: 'detached', timeout: 180_000 });
@@ -196,14 +200,14 @@ async function main() {
     await autoplayContext.close(); check('blocked autoplay cannot block game startup');
 
     failMedia = true;
-    const missingContext = await browser.newContext(); const missing = await missingContext.newPage(); trackErrors(missing);
+    const missingContext = await browser.newContext(); const missing = await missingContext.newPage(); activePage = missing; trackErrors(missing);
     await missing.goto(url, { waitUntil: 'domcontentloaded' });
     await missing.locator('#startup').waitFor({ state: 'detached', timeout: 180_000 });
     assert.equal(await missing.evaluate(() => window.flaghack.startupPending), false);
     await missingContext.close(); failMedia = false; check('missing media falls back to ordinary loading');
 
     failGame = true;
-    const failureContext = await browser.newContext(); const failure = await failureContext.newPage();
+    const failureContext = await browser.newContext(); const failure = await failureContext.newPage(); activePage = failure;
     await failure.goto(url, { waitUntil: 'domcontentloaded' });
     await failure.getByRole('button', { name: 'Reload', exact: true }).waitFor({ timeout: 15_000 });
     assert.equal(await failure.locator('#app').getAttribute('inert'), '');
@@ -212,7 +216,17 @@ async function main() {
     results.completed = true;
   } catch (error) {
     results.error = error.stack || String(error);
-    await page.screenshot({ path: join(OUT, 'failure.png') }).catch(() => {});
+    results.pageErrors = pageErrors;
+    results.failureState = await activePage.evaluate(() => {
+      const root = document.getElementById('startup'), video = document.querySelector('video');
+      return { cache: document.documentElement.dataset.startupCache,
+        pending: window.flaghack?.startupPending, screen: window.flaghack?.session?.screen,
+        ready: root?.dataset.ready, media: root?.dataset.video,
+        skip: document.getElementById('startup-skip')?.textContent,
+        video: video && { time: video.currentTime, paused: video.paused, ended: video.ended,
+          readyState: video.readyState, error: video.error?.message, src: video.getAttribute('src') } };
+    }).catch(error => ({ diagnosticError: String(error) }));
+    await activePage.screenshot({ path: join(OUT, 'failure.png') }).catch(() => {});
     throw error;
   } finally {
     writeFileSync(join(OUT, 'result.json'), JSON.stringify(results, null, 2));
