@@ -193,6 +193,7 @@ async function main(){
         await tap(button('Play A♠ once'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
         assert.ok((await state()).session.player.some(c=>c.id===card.id),'Known card added to hand');
+        await button('Play A♠ once').waitFor({state:'detached'});
         assert.equal(await button('Play A♠ once').count(),0,'Consumed card is unavailable for replay');
         await shot('desktop-cheat-played');await holdForDemo('cheat-played',2200);
         await tap(button('Stand'));
