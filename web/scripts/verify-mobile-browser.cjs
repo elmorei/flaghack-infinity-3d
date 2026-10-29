@@ -88,6 +88,7 @@ async function main() {
       await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.1, null, { timeout: 180_000 });
       entry.media = await page.locator('video').evaluate(v => ({ src: v.currentSrc, duration: v.duration, width: v.videoWidth, height: v.videoHeight }));
       assert.equal(entry.media.duration, 25);
+      assert.equal(new Set(entry.mediaRequests.map(value => new URL(value).pathname)).size, 1, 'Only the selected intro should download');
       if (spec.mobile && spec.width < spec.height) assert.ok(entry.media.width < entry.media.height && /mobile/.test(entry.media.src), 'portrait device decodes cropped mobile video');
       else assert.ok(entry.media.width > entry.media.height, 'landscape/desktop decodes widescreen original');
       await page.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
@@ -161,6 +162,7 @@ async function main() {
           await page.setViewportSize({ width: spec.height, height: spec.width });
           await fits(lobby.locator('.lobby-box'), 'Rotated landscape lobby');
           await shot(spec.name + '-rotated-lobby');
+          assert.equal(new Set(entry.mediaRequests.map(value => new URL(value).pathname)).size, 1, 'Rotation must not fetch a second movie');
           await tap(advancedButton, spec.touch);
           await fits(advanced.locator('.advanced-box'), 'Rotated landscape advanced box');
           await shot(spec.name + '-rotated-advanced');
