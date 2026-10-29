@@ -38,13 +38,16 @@ async function main(){
   const shot=name=>page.screenshot({path:join(OUT,name+'.png'),animations:'disabled'});
   const state=()=>page.evaluate(()=>{
     const a=window.flaghack,w=a.world,f=a.session.playerFaction,av=w.avatarOf(f),g=w.frickFrack;
-    return {time:w.time,session:g.sessions[f]??null,carried:[...av.carried],sideboard:g.sideboards[f].map(c=>({...c})),drops:g.drops.length,position:{...av.pos},alive:w.factions[f].alive,screen:a.session.screen,pointerLocked:!!document.pointerLockElement,altarStock:[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(f)?.id).length};
+    return {time:w.time,session:g.sessions[f]??null,carried:[...av.carried],sideboard:g.sideboards[f].map(c=>({...c})),drops:g.drops.length,position:{...av.pos},alive:w.factions[f].alive,hover:a.session.hover.entity,wizardId:g.wizardId,wizardPosition:w.hippies.get(g.wizardId)?.pos,camera:{...a.session.camera},screen:a.session.screen,pointerLocked:!!document.pointerLockElement,altarStock:[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(f)?.id).length};
   });
   try{
     for(const spec of specs){
       const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},userAgent:spec.touch?ANDROID:DESKTOP,hasTouch:spec.touch,isMobile:spec.touch,deviceScaleFactor:1,recordVideo:process.env.RECORD_VIDEO==='1'&&spec.full?{dir:join(OUT,'video'),size:{width:1280,height:800}}:undefined});
       page=await context.newPage();
-      const entry={name:spec.name,pageErrors:[]};results.scenarios.push(entry);
+      const entry={name:spec.name,pageErrors:[],videoMarks:[]};results.scenarios.push(entry);
+      const videoStart=Date.now();
+      const mark=label=>entry.videoMarks.push({label,seconds:(Date.now()-videoStart)/1000});
+      const holdForDemo=async(label,ms=1800)=>{if(spec.full&&process.env.RECORD_VIDEO==='1'){mark(label);await page.waitForTimeout(ms);}};
       page.on('pageerror',error=>entry.pageErrors.push(error.message));
       await page.goto(url,{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>document.querySelector('#startup[data-ready="true"]')||window.flaghack&&!window.flaghack.startupPending,null,{timeout:180_000});
@@ -83,13 +86,23 @@ async function main(){
           window.__frickQa.giftCount=av.carried.length;
         });
         await page.waitForTimeout(500);
+        // Resolve the actual production camera shoulder offset, rather than assuming its sign.
+        await page.evaluate(()=>{
+          const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),cam=a.renderer.camera;
+          cam.updateMatrixWorld();const e=cam.matrixWorld.elements,dx=-e[8],dz=-e[10];
+          const depth=((av.pos.x-cam.position.x)*dx+(av.pos.z-cam.position.z)*dz)/(dx*dx+dz*dz)+1.8;
+          h.pos={x:cam.position.x+dx*depth,z:cam.position.z+dz*depth};h.vel={x:0,z:0};
+          if(h.brain.mind){h.brain.mind.task='wander';h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
+        });
+        await page.waitForTimeout(150);
+        await holdForDemo('wizard-before-gift',2200);
         if(spec.touch){
           await tap(page.getByRole('button',{name:'Give Flag to wizard',exact:true}));
         }else{
           await page.waitForFunction(()=>window.flaghack.session.hover.entity===window.flaghack.world.frickFrack.wizardId,null,{timeout:5000});
           await page.keyboard.press('KeyE');
         }
-        await dialog.waitFor();
+        await dialog.waitFor();mark('dialogue-start');
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='dialogue');
       }
       async function dialogueToChoice(){
@@ -109,6 +122,7 @@ async function main(){
             await shot(spec.name+'-dialogue-typing');
           }
           await page.waitForFunction(()=>{const a=window.flaghack,s=a.world.frickFrack.sessions[0];return s&&a.world.time>=s.readyAt;},null,{timeout:15_000});
+          await holdForDemo('dialogue-page-'+index,700);
           if(index<2)await tap(button('Continue'));
         }
         await shot(spec.name+'-dialogue-invitation');
@@ -125,7 +139,7 @@ async function main(){
       await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
       const held=await page.evaluate(()=>window.__frickQa.giftCount);
       assert.equal((await state()).carried.length,held,'Gift remains available for wagering');
-      await shot(spec.name+'-table');
+      await shot(spec.name+'-table');await holdForDemo('table-ready',2200);
       check(`${spec.name}: real flag gift, three typed screens, locked avatar/live world, gift retained and blackjack table`);
       const box=await dialog.boundingBox();assert.ok(box&&box.x>=-1&&box.x+box.width<=spec.width+1,'Overlay fits viewport horizontally');
       await tap(button('Leave table'));
@@ -172,19 +186,19 @@ async function main(){
         assert.equal((await state()).session.phase,'playing');
         assert.equal((await state()).session.player.reduce((n,c)=>n+Math.min(c.rank,10),0),6);
         assert.equal((await state()).session.dealer[1],null,'Hole card remains concealed during play');
-        await shot('desktop-hand-and-sideboard');
+        await shot('desktop-hand-and-sideboard');await holdForDemo('dealt-hand',2200);
         await tap(button('Hit'));
-        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0].player.length===3);
+        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0].player.length===3);await holdForDemo('random-hit',1800);
         await tap(button('Play A♠ once'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
         assert.ok((await state()).session.player.some(c=>c.id===card.id),'Known card added to hand');
         assert.equal(await button('Play A♠ once').count(),0,'Consumed card is unavailable for replay');
-        await shot('desktop-cheat-played');
+        await shot('desktop-cheat-played');await holdForDemo('cheat-played',2200);
         await tap(button('Stand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         assert.equal((await state()).session.result,'win');
         assert.equal((await state()).session.dealer.includes(null),false,'Dealer revealed after settlement');
-        await shot('desktop-winning-hand');
+        await shot('desktop-winning-hand');await holdForDemo('winning-hand',2500);
         check('desktop: physical card pickup, random Hit, one-use known card, Stand and settled win');
 
         await tap(button('Another hand'));
@@ -195,7 +209,7 @@ async function main(){
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         const overflow=await state();assert.equal(overflow.session.result,'win');assert.equal(overflow.carried.length,10);
         assert.equal(overflow.altarStock-stockBefore,10,'Ten overflow winnings are real altar-stock flags');
-        await shot('desktop-overflow-win');
+        await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 
         await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
@@ -205,8 +219,9 @@ async function main(){
         assert.equal((await state()).carried.length,0);
         await page.waitForFunction(()=>{const w=window.flaghack.world;return w.time>=w.frickFrack.sessions[0].readyAt;});
         assert.match(await dialog.locator('.ff-dialogue').textContent(),/no Flags left to bet.*Come back/i);
-        await shot('desktop-no-flags');
+        await shot('desktop-no-flags');await holdForDemo('no-flags',2500);
         await tap(button('Return to the burn'));await dialog.waitFor({state:'hidden'});
+        await holdForDemo('returned-to-field',1800);
         check('desktop: losing last wager shows come-back dialogue and exits cleanly');
 
         await page.waitForTimeout(1100);await stageGift();await dialogueToChoice();await tap(button('Yes, play Frick-frack'));
