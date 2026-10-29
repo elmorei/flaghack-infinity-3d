@@ -142,6 +142,7 @@ async function main(){
       await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
       const held=await page.evaluate(()=>window.__frickQa.giftCount);
       assert.equal((await state()).carried.length,held,'Gift remains available for wagering');
+      await button('Deal hand').waitFor({state:'visible'});
       await shot(spec.name+'-table');await holdForDemo('table-ready',2200);
       check(`${spec.name}: real flag gift, three typed screens, locked avatar/live world, gift retained and blackjack table`);
       const box=await dialog.boundingBox();assert.ok(box&&box.x>=-1&&box.x+box.width<=spec.width+1,'Overlay fits viewport horizontally');
