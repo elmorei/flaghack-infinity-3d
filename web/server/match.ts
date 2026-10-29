@@ -9,6 +9,8 @@
  * seat order, the simulation steps. Every second tick the drained events and the encoder's delta
  * go out as one state frame, serialized once and shared by every client.
  */
+import { randomBytes } from 'node:crypto';
+import { closeFrickFrackSession, resetFrickFrackEntropy } from '../src/sim/systems/frickFrack';
 import { createAi } from '../src/ai';
 import type { AiController } from '../src/ai';
 import { SnapshotEncoder } from '../src/net/codec';
@@ -117,6 +119,8 @@ export class Match {
 
   constructor(options: MatchOptions, listener: MatchListener, log: (line: string) => void) {
     this.world = createMatch(options);
+    // The public map seed must not reveal the future shoe to network clients.
+    resetFrickFrackEntropy(this.world, randomBytes(32).toString('hex'));
     this.sim = new Simulation(this.world);
     // Before the first step: the encoder's baseline is the freshly built world.
     this.encoder = new SnapshotEncoder(this.world);
@@ -160,6 +164,7 @@ export class Match {
 
   /** The NPC drives seat `f` from now on; nothing more is submitted for it on a human's behalf. */
   driveNpc(f: FactionId): void {
+    closeFrickFrackSession(this.world, f);
     const prev = this.human[f];
     if (prev) delete this.acks[prev.playerId];
     this.human[f] = null;
@@ -168,6 +173,7 @@ export class Match {
 
   /** The seat's human dropped: stand still (keep the aim) until they return or the NPC takes over. */
   holdStill(f: FactionId): void {
+    closeFrickFrackSession(this.world, f);
     const seat = this.human[f];
     if (!seat) return;
     seat.queue.length = 0;

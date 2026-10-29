@@ -196,6 +196,8 @@ export class HippieRenderer {
     for (const level of this.levels) level.set.begin();
 
     for (const h of w.hippies.values()) {
+      // The unique wizard has a separate full robe/hat silhouette, not a second crowd body.
+      if (h.id === w.frickFrack?.wizardId) continue;
       const v = this.vis.get(h.id) ?? this.create(h);
       v.seen = this.frame;
 

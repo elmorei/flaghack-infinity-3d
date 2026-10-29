@@ -1,3 +1,4 @@
+import { cmdFrickFrack, isFrickFrackLocked } from './frickFrack';
 /**
  * Command dispatch: routes validated player/AI commands to the owning system handlers.
  * Commands from eliminated factions (or after match end) are rejected here.
@@ -31,12 +32,15 @@ export function applyCommands(world: World): void {
       if (c.t !== 'avatarInput') world.emit({ t: 'rejected', faction: c.faction, reason: 'This action requires a roaming vexillomancer.' });
       continue;
     }
+    if (isFrickFrackLocked(world, c.faction) && c.t !== 'frickFrack') continue;
     dispatch(world, c);
   }
 }
 
 function dispatch(world: World, c: Command): void {
   switch (c.t) {
+    case 'frickFrack':
+      return cmdFrickFrack(world, c);
     case 'avatarInput':
       return cmdAvatarInput(world, c);
     case 'plant':

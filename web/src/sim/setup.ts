@@ -1,3 +1,4 @@
+import { initializeFrickFrack } from './systems/frickFrack';
 import { burnTime, matchSettings } from "./matchSettings";
 /**
  * Match setup: map, lattice, physics, nav, factions, four corner camps (Hearth + GCC +
@@ -102,6 +103,7 @@ export function createMatch(options: MatchOptions): World {
   // Keep simulation time at zero so the 90-second reveal and all other timers run normally.
   if (options.mode !== 'tutorial' && burnTime(options) === 0) updateVictory(world, 0);
   initializeEffigyAudience(world);
+  initializeFrickFrack(world);
   return world;
 }
 

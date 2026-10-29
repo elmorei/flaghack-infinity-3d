@@ -206,6 +206,11 @@ export class AvatarPredictor {
     const saved = w.time, renderedBoss = w.boss;
     w.time = time;
     if (this.predictionBoss !== undefined) w.boss = this.predictionBoss;
+    const faction = w.avatars.get(this.avatarId)?.faction;
+    if (faction !== undefined && w.frickFrack.sessions[faction]) {
+      this.body.vel.x = 0; this.body.vel.z = 0;
+      input = { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: this.body.yaw, pitch: this.body.pitch };
+    }
     try { stepAvatarMotion(w, this.body, input, SIM_DT); }
     finally { w.time = saved; w.boss = renderedBoss; }
   }

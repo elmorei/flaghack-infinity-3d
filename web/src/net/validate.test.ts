@@ -47,6 +47,9 @@ const VALID: Command[] = [
   { t: 'ping', faction: 0, kind: 'sos', at: AT },
   { t: 'retransmit', faction: 0 },
   { t: 'tapBeacon', faction: 0, beaconId: 66 },
+  { t: 'frickFrack', faction: 0, sessionId: 1, revision: 0, action: 'hit' },
+  { t: 'frickFrack', faction: 0, sessionId: 1, revision: 0, action: 'bet', wager: 1 },
+  { t: 'frickFrack', faction: 0, sessionId: 1, revision: 0, action: 'cheat', cardId: 1 },
 ];
 
 /** Every supported Command type; the retired GCC discriminator is tested as invalid. */
@@ -73,6 +76,7 @@ const COMMAND_TYPES: Record<Exclude<CommandType, 'gcc'>, true> = {
   ping: true,
   retransmit: true,
   tapBeacon: true,
+  frickFrack: true,
 };
 
 /** Wrong in exactly one way each. */

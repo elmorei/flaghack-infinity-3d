@@ -15,6 +15,7 @@ import { AvatarRenderer } from './avatarRenderer';
 import { ThroneRenderer } from './throneRenderer';
 import { BeaconRenderer } from './beaconRenderer';
 import { FlagRenderer } from './flagRenderer';
+import { FrickFrackRenderer } from './frickFrackRenderer';
 import { ActorView } from './lod';
 import { HippieRenderer } from './hippieRenderer';
 import { Nameplates } from './nameplates';
@@ -32,6 +33,7 @@ export class ActorsRenderer implements RenderModule {
   private readonly thrones: ThroneRenderer;
   private readonly hippies: HippieRenderer;
   private readonly beacons: BeaconRenderer;
+  private readonly frickFrack: FrickFrackRenderer;
 
   constructor(ctx: RenderContext) {
     this.ctx = ctx;
@@ -45,6 +47,7 @@ export class ActorsRenderer implements RenderModule {
     this.thrones = new ThroneRenderer(ctx);
     this.hippies = new HippieRenderer(ctx, this.view, this.flags, this.rings, this.icons, this.anchors);
     this.beacons = new BeaconRenderer(ctx, this.rings, this.icons);
+    this.frickFrack = new FrickFrackRenderer(ctx);
   }
 
   update(dt: number): void {
@@ -59,6 +62,7 @@ export class ActorsRenderer implements RenderModule {
     this.thrones.update();
     this.hippies.update(dt);
     this.beacons.update();
+    this.frickFrack.update(dt);
     this.flags.end();
     this.rings.end(ctx.time);
     const command = ctx.session.viewBlend > 0.5 ? 1 : 0;
@@ -81,6 +85,7 @@ export class ActorsRenderer implements RenderModule {
     this.thrones.dispose();
     this.hippies.dispose();
     this.beacons.dispose();
+    this.frickFrack.dispose();
     if (this.ctx.shared.unitAnchors === this.anchors) delete this.ctx.shared.unitAnchors;
     this.anchors.clear();
   }

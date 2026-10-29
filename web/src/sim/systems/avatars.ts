@@ -1,3 +1,4 @@
+import { isFrickFrackLocked } from './frickFrack';
 /**
  * Vexillomancer avatars: movement through CollisionWorld (run/sprint/jump/gravity/step),
  * actions (plant, throw, pull channel, staff swing, align/dialectics channels), quiver
@@ -292,6 +293,12 @@ function updateAvatar(world: World, av: Avatar, mind: AvatarMind, dt: number): v
   if (alive && av.koUntil > 0 && world.time >= av.koUntil) respawnAvatar(world, av, mind);
   if (av.koUntil > 0 || !alive) {
     // Flagless (for good once eliminated): no control or actions, but the body still settles.
+    stepAvatarMotion(world, av, av.input, dt);
+    return;
+  }
+  if (isFrickFrackLocked(world, av.faction)) {
+    av.input = { moveX: 0, moveZ: 0, jump: false, sprint: false, yaw: av.yaw, pitch: av.pitch };
+    av.vel.x = 0; av.vel.z = 0;
     stepAvatarMotion(world, av, av.input, dt);
     return;
   }

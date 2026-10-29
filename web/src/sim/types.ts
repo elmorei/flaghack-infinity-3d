@@ -214,6 +214,8 @@ export type HippieOrder =
   | { kind: 'push'; gccId: EntityId; to: V2 };
 
 export interface Hippie {
+  /** Unique non-recruitable Frick-frack dealer. */
+  wizard?: boolean;
   id: EntityId;
   type: 'hippie';
   faction: Owner;

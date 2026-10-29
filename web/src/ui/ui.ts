@@ -30,6 +30,7 @@ import { matchScreen } from './core';
 import { el, setClass } from './dom';
 import { EndScreen } from './endscreen';
 import { FeedPart } from './feed';
+import { FrickFrackUI } from './frickFrack';
 import { HelpOverlay } from './help';
 import { HudPart, PerfOverlay } from './hud';
 import { LobbyScreen } from './lobby';
@@ -75,6 +76,7 @@ export class GameUI {
   private scoreboard: Scoreboard;
   /** Training Burn mentor, pointers and graduation (TutorialUI agent); its typewriter runs every frame. */
   private tutorialOverlay: TutorialOverlay;
+  private frickFrack: FrickFrackUI;
   private seats: SeatChooser;
   private sfx: UiSfx;
   /** Last blocked-action reason posted, so a hammered button does not flood the feed. */
@@ -162,6 +164,9 @@ export class GameUI {
       this.parts.push(new MobileCommandUI(host, layout, this.rootEl));
     }
 
+    this.frickFrack = new FrickFrackUI(host, layout.raw);
+    this.parts.push(this.frickFrack);
+
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('keyup', this.onKeyUp);
@@ -192,6 +197,7 @@ export class GameUI {
 
     this.hud.frame();
     this.tutorialOverlay.frame(t0);
+    this.frickFrack.frame();
     if (t0 - this.lastTick >= TICK_MS) {
       this.lastTick = t0;
       const root = this.rootEl;

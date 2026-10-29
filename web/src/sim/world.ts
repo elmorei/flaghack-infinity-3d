@@ -3,6 +3,7 @@
  * Systems (sim/systems/*) mutate it during Simulation.step(); everyone else only reads it
  * and submits Commands.
  */
+import { createFrickFrackState } from './frickFrack';
 import type { Wreckage } from './wreckage';
 import type { Command } from './commands';
 import type { BossOutcome, BossState } from './boss';
@@ -96,6 +97,7 @@ export class World {
   collision!: CollisionWorld;
   nav!: NavGrid;
 
+  frickFrack = createFrickFrackState();
   factions: FactionState[] = [];
   flags = new Map<EntityId, Flag>();
   avatars = new Map<EntityId, Avatar>();

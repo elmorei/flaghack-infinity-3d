@@ -13,6 +13,7 @@ import * as capture from '../sim/systems/capture';
 import * as flags from '../sim/systems/flags';
 import * as pieces from '../sim/systems/pieces';
 import * as survey from '../sim/systems/survey';
+import { resetFrickFrackEntropy } from '../sim/systems/frickFrack';
 import * as tides from '../sim/systems/tides';
 import type { FactionId } from '../sim/types';
 import type { App } from './app';
@@ -53,6 +54,13 @@ export function installDebug(app: App): void {
     abilities,
     buildings,
     pieces,
+    /** Offline fixture control only; online decks remain host-private. */
+    frickFrack: {
+      resetEntropy(seed: string): void {
+        if (!app.world || refuseOnline(app)) return;
+        resetFrickFrackEntropy(app.world, seed);
+      },
+    },
     /** Run AI + simulation synchronously for `seconds` of game time (events discarded). */
     advance(seconds: number): void {
       if (refuseOnline(app)) return;

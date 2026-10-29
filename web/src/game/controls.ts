@@ -1,3 +1,4 @@
+import { frickFrackInputLocked } from './frickFrackControls';
 import { isMobileCommandLayout } from './mobileTouch';
 import { matchSettings } from "../sim/matchSettings";
 /**
@@ -257,7 +258,7 @@ export class Controls {
     this.input = new Input(canvas);
     this.command = new CommandView(this.input, this.queue);
     const input = this.input;
-    input.capturesKey = (code) => app.session.screen === 'playing' && !app.session.campChoiceOpen && (GAME_KEYS[code] === true || input.owns(code));
+    input.capturesKey = (code) => app.session.screen === 'playing' && !frickFrackInputLocked(app.world, app.session) && !app.session.campChoiceOpen && (GAME_KEYS[code] === true || input.owns(code));
     input.onMenuBack = ()=>{const s=app.session;if(s.panels.settings)s.panels.settings=false;else if(s.panels.codex)s.panels.codex=false;else if(s.panels.help)s.panels.help=false;else if(s.panels.chakras)s.panels.chakras=false;else if(s.screen==='paused')app.setPaused(false);};
     input.onLockLost = () => {
       const s = app.session;
@@ -273,7 +274,7 @@ export class Controls {
       // Pointer lock can only be requested inside a user gesture: take it now for keys that are
       // about to return the player to the action view.
       const s = app.session;
-      if (s.screen !== 'playing' || this.spectating() || app.world?.factions[s.playerFaction].controlMode === 'rts') return;
+      if (s.screen !== 'playing' || frickFrackInputLocked(app.world, s) || this.spectating() || app.world?.factions[s.playerFaction].controlMode === 'rts') return;
       const p = s.panels;
       const open = (p.chakras ? 1 : 0) + (p.codex ? 1 : 0) + (p.help ? 1 : 0) + (p.settings ? 1 : 0);
       const closesLast = open === 1 && ((code === 'KeyK' && p.chakras) || (code === 'KeyJ' && p.codex) || (code === 'F1' && p.help));
@@ -303,7 +304,8 @@ export class Controls {
     this.input.controls = s.settings.controls;
     const typing = this.input.typing;
     const mobile = isMobileCommandLayout();
-    const touchEnabled = mobile && inPlay && !watcher && !typing && !s.campChoiceOpen && !panelOpen(s);
+    const tableLocked = frickFrackInputLocked(world, s);
+    const touchEnabled = !tableLocked && mobile && inPlay && !watcher && !typing && !s.campChoiceOpen && !panelOpen(s);
     this.input.touch.enabled = touchEnabled;
     if (!touchEnabled) {
       this.input.touch.cancel();
@@ -315,6 +317,13 @@ export class Controls {
     this.input.pollGamepad(Math.min(dt,0.05),inPlay&&!typing&&!this.cursorWanted(s),s.view==='command');
     if (typing) this.input.clear();
     if (inPlay && av && this.freshWorld) this.beginMatch(s, av);
+    if (tableLocked) {
+      this.queue.length = 0; this.throwQueued = false; this.jumpLatch = false;
+      this.releaseHolds(); this.input.clear(); this.input.touch.cancel();
+      if (this.input.locked) this.input.exitLock();
+      this.idle(s); this.updateCamera(world, s, av, watcher, dt);
+      this.input.endFrame(); return;
+    }
 
     if (inPlay && av && !s.campChoiceOpen) {
       this.toggles(world, s, av, watcher);
@@ -362,7 +371,8 @@ export class Controls {
     out.jump = false;
     out.sprint = false;
     out.throwMode = false;
-    if (s.view === 'action' && av.koUntil <= world.time) {
+    if (frickFrackInputLocked(world, s)) { this.queue.length = 0; this.throwQueued = false; this.jumpLatch = false; }
+    if (!frickFrackInputLocked(world, s) && s.view === 'action' && av.koUntil <= world.time) {
       // WASD relative to the camera yaw; yaw 0 faces +z, screen-right is (-cos, sin).
       const fwd = (inp.isDown('KeyW') ? 1 : 0) - (inp.isDown('KeyS') ? 1 : 0) - inp.moveY;
       const side = (inp.isDown('KeyD') ? 1 : 0) - (inp.isDown('KeyA') ? 1 : 0) + inp.moveX;
@@ -465,7 +475,7 @@ export class Controls {
 
   /** A modal wants the mouse (panels, the Training Burn's graduation): no lock, no auto-pause. */
   private cursorWanted(s: Session): boolean {
-    return s.campChoiceOpen || panelOpen(s) || this.app.tutorial?.state.phase === 'graduated';
+    return frickFrackInputLocked(this.app.world, s) || s.campChoiceOpen || panelOpen(s) || this.app.tutorial?.state.phase === 'graduated';
   }
 
   /**
@@ -1117,6 +1127,7 @@ export class Controls {
     if (aiming) {
       if (av.carried.length === 0) return 'Quiver empty: move near loose Flags to collect them';
       const target = world.hippies.get(s.hover.entity);
+      if (target?.wizard) return 'LMB  Offer Flag to the Frick-frack Wizard';
       if (target && canRecruit(target)) return 'LMB  Throw Flag to recruit Signifier';
       return s.aim.node >= 0 ? 'LMB  Throw: the Flag plants on the Ley Node' : 'LMB  Throw: the Flag lands loose';
     }
@@ -1132,6 +1143,7 @@ export class Controls {
     }
     let e: string | null = null;
     if (this.ctxKind === 'pull') e = this.pullPrompt(world, s.playerFaction);
+    else if (this.ctxKind === 'handFlag' && world.hippies.get(this.ctxTarget)?.wizard) e = 'E  Offer Flag to the Frick-frack Wizard';
     else if (this.ctxKind !== 'none') e = CONTEXT_PROMPT[this.ctxKind];
     return this.join(tool, e);
   }

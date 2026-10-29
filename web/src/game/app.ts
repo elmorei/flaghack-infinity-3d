@@ -1,3 +1,4 @@
+import { frickFrackInputLocked } from './frickFrackControls';
 /**
  * App: owns the lifecycle and the frame loop. Local burns (title attract, single player, the
  * Training Burn) step the Simulation here. Online burns mirror the host's World (net/*): the
@@ -321,7 +322,7 @@ export class App implements AppApi {
   }
 
   setPaused(paused: boolean): void {
-    if (this.startupPending) return;
+    if (this.startupPending || (paused && frickFrackInputLocked(this.world, this.session))) return;
     if (this.session.screen === 'playing' && paused) this.session.screen = 'paused';
     else if (this.session.screen === 'paused' && !paused) this.session.screen = 'playing';
   }

@@ -380,6 +380,18 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
     keys: ['t', 'faction'],
     parse: (_m, faction) => ({ t: 'retransmit', faction }),
   },
+  frickFrack: {
+    keys: [], // Action-dependent exact keys are checked by parseCommand below.
+    parse: (m, faction) => {
+      const { sessionId, revision, action, wager, cardId } = m;
+      if (!isInt(sessionId, 0) || !isInt(revision, 0)) return null;
+      const base = { t: 'frickFrack' as const, faction, sessionId, revision };
+      if (action === 'bet') return isInt(wager, 1) ? { ...base, action, wager } : null;
+      if (action === 'cheat') return isInt(cardId, 0) ? { ...base, action, cardId } : null;
+      if (action === 'next' || action === 'play' || action === 'decline' || action === 'hit' || action === 'stand' || action === 'again' || action === 'exit') return { ...base, action };
+      return null;
+    },
+  },
   tapBeacon: {
     keys: ['t', 'faction', 'beaconId'],
     parse: ({ beaconId }, faction) => (isInt(beaconId, 0) ? { t: 'tapBeacon', faction, beaconId } : null),
@@ -392,6 +404,12 @@ export function parseCommand(v: unknown): Command | null {
   const { t, faction } = v;
   if (!isKeyOf(COMMANDS, t) || !isFaction(faction)) return null;
   const entry = COMMANDS[t];
+  if (t === 'frickFrack') {
+    const keys = ['t', 'faction', 'sessionId', 'revision', 'action'];
+    if (v.action === 'bet') keys.push('wager');
+    if (v.action === 'cheat') keys.push('cardId');
+    return exact(v, keys) ? entry.parse(v, faction) : null;
+  }
   return exact(v, entry.keys) ? entry.parse(v, faction) : null;
 }
 

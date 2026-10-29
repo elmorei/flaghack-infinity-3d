@@ -1,3 +1,4 @@
+import { offerFrickFrackFlag } from './frickFrack';
 /** Recruitment changes allegiance within the shared population; it never creates a hippie. */
 import type { CommandOf } from '../commands';
 import { AVATAR, BUILDINGS, RECRUIT_ATTRACT_RADIUS, RECRUIT_RADIUS } from '../constants';
@@ -13,7 +14,7 @@ import { breakChannel } from './units/channel';
 type RecruitVia = Extract<GameEvent, { t: 'recruited' }>['via'];
 
 export function canRecruit(h: Hippie): boolean {
-  return h.faction === NEUTRAL && h.status !== 'ko' && h.koUntil === 0 && h.hp > 0;
+  return !h.wizard && h.faction === NEUTRAL && h.status !== 'ko' && h.koUntil === 0 && h.hp > 0;
 }
 
 export function isRecruiter(world: World, b: Building): boolean {
@@ -23,6 +24,7 @@ export function isRecruiter(world: World, b: Building): boolean {
 
 /** Also used by Dialectics: a new allegiance gets a new place in the soft-cap queue. */
 export function enlist(world: World, h: Hippie, f: FactionId, via: RecruitVia): void {
+  if (h.wizard) return;
   h.faction = f;
   h.recruitedAt = world.time;
   h.order = null;
@@ -36,6 +38,7 @@ export function enlist(world: World, h: Hippie, f: FactionId, via: RecruitVia): 
 
 /** A real carried or thrown Flag changes hands, preserving its identity and inventory. */
 export function recruitWithFlag(world: World, h: Hippie, f: FactionId, flagId: number, via: 'hand' | 'throw'): boolean {
+  if (h.wizard) return offerFrickFrackFlag(world, h, f, flagId);
   const flag = world.flags.get(flagId);
   if (!world.factions[f].alive || !canRecruit(h) || h.carryingFlag !== -1 || h.carryingLumber > 0 || !flag) return false;
   if (flag.state !== 'carried' && flag.state !== 'flying') return false;
@@ -55,7 +58,7 @@ export function handFlagBlocker(world: World, f: FactionId, target: number): str
   const h = world.hippies.get(target);
   if (world.factions[f].controlMode === 'rts' || !world.factions[f].alive || !av || av.koUntil > 0 || hasEffect(world, av, 'stun')) return 'You cannot hand over a Flag right now.';
   if (av.action.kind === 'swing' || av.action.kind === 'plant') return 'Finish your current action first.';
-  if (!h || !canRecruit(h)) return 'Choose an awake neutral Signifier.';
+  if (!h || (!canRecruit(h) && !(h.wizard && h.hp > 0 && h.koUntil === 0 && h.status !== 'ko'))) return 'Choose an awake neutral Signifier.';
   if (h.carryingFlag !== -1 || h.carryingLumber > 0) return 'That Signifier has its hands full.';
   if (!av.carried.length) return 'Your quiver is empty.';
   const dy = world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) - av.pos.y;

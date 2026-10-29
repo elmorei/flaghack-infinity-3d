@@ -14,6 +14,7 @@
  * changed with a bitmask (bit i = field i).
  * Owner: NetCore agent.
  */
+import { frickFrackFromWire, frickFrackWire } from './frickFrack';
 import { MAX_WRECKAGE } from '../sim/wreckage';
 import type { Wreckage } from '../sim/wreckage';
 import type { SurveyState, World } from '../sim/world';
@@ -808,6 +809,7 @@ const AVATAR_FIELDS: readonly Field<Avatar>[] = [
 ];
 
 const HIPPIE_FIELDS: readonly Field<Hippie>[] = [
+  bool('wizard', h => h.wizard === true, (h, v) => { h.wizard = v; }),
   {
     key: 'sceneryService',
     enc: h => h.sceneryService ? [h.sceneryService.id, h.sceneryService.phase] : null,
@@ -1471,6 +1473,8 @@ function sceneryCaptureWire(w: World): Wire[] {
 }
 
 export const WORLD_FIELDS: readonly Field<World>[] = [
+  { key: 'frickFrack', enc: w => frickFrackWire(w.frickFrack), same: (w, prev) => wireEqual(frickFrackWire(w.frickFrack), prev),
+    dec: (w, v) => { w.frickFrack = frickFrackFromWire(v); } },
   { key: 'wreckage', enc: wreckageWire, same: (w, prev) => wireEqual(wreckageWire(w), prev),
     dec: (w, v) => { w.wreckage = wreckageFromWire(v); } },
   {

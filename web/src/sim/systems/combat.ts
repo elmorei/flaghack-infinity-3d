@@ -1,3 +1,4 @@
+import { dropFrickFrackCard } from './frickFrack';
 /**
  * Damage and knockback for units, plus a dispatcher that routes structure damage to the
  * Economy systems. Every damage source in the game calls `damageEntity`.
@@ -107,6 +108,7 @@ function koAvatar(world: World, av: Avatar, by: EntityId | -1): void {
  * beacon, forgets one-shot orders and waits HIPPIE.respawnTime.
  */
 function koHippie(world: World, h: Hippie, by: EntityId | -1): void {
+  dropFrickFrackCard(world, h);
   releaseTask(world, h, brainOf(h));
   if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0), z: h.pos.z });
   h.carryingLumber = 0;

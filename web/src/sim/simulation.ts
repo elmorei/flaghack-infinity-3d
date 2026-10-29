@@ -1,3 +1,4 @@
+import { updateFrickFrack } from './systems/frickFrack';
 /**
  * Fixed-step simulation orchestrator. One call to step() = one SIM_DT tick.
  * System order matters: commands → actors → economy → geometry → consequences.
@@ -45,6 +46,7 @@ export class Simulation {
     let t = performance.now();
     updateEffigy(w);
     spawnBoss(w);
+    updateFrickFrack(w);
     applyCommands(w);
     t = this.lap('commands', t);
     if (w.phase !== 'playing') return;
@@ -83,6 +85,7 @@ export class Simulation {
     updateSceneryDepots(w);
     t = this.lap('capture', t);
     updateVictory(w, dt);
+    updateFrickFrack(w);
     this.lap('victory', t);
   }
 

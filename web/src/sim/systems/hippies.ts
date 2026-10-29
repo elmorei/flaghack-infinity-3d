@@ -310,6 +310,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
     b.moving = false;
     return;
   }
+  if (h.wizard && Object.keys(world.frickFrack.sessions).length > 0) { h.vel.x = 0; h.vel.z = 0; h.status = 'idle'; h.statusTarget = null; return; }
   if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
   if (f === NEUTRAL) {
