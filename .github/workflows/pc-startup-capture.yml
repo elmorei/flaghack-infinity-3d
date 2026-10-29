@@ -7,7 +7,7 @@ permissions:
   actions: read
 jobs:
   startup:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 20
     defaults:
       run:
