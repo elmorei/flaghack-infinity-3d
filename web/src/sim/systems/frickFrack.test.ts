@@ -100,5 +100,19 @@ describe('Frick-frack authoritative minigame', () => {
     w.factions[0].controlMode = 'rts'; updateFrickFrack(w); expect(w.frickFrack.sideboards[0]).toHaveLength(0); w.factions[0].controlMode = 'avatar'; updateFrickFrack(w); updateFrickFrack(w);
     expect(w.frickFrack.sideboards[0].filter(c => c.id === drop.id)).toHaveLength(1); expect(w.frickFrack.drops.some(d => d.id === drop.id)).toBe(false);
   });
+  it('pays a real natural at even money and overflows the real quiver limit', () => {
+    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'qa-28');
+    const altar = w.hearthOf(0)!, before = [...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id).length;
+    command(w, 'bet', { wager: AVATAR.quiver });
+    expect(w.frickFrack.sessions[0]!.result).toBe('win'); expect(av.carried).toHaveLength(AVATAR.quiver);
+    expect([...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id)).toHaveLength(before + AVATAR.quiver);
+    expect(new Set(av.carried).size).toBe(AVATAR.quiver);
+  });
+  it('leaves overflow as real loose Flags if no owned altar remains', () => {
+    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'qa-28');
+    w.factions[0].hearthIds = []; const before = [...w.flags.values()].filter(f => f.state === 'loose').length;
+    command(w, 'bet', { wager: AVATAR.quiver }); expect(av.carried).toHaveLength(AVATAR.quiver);
+    expect([...w.flags.values()].filter(f => f.state === 'loose')).toHaveLength(before + AVATAR.quiver);
+  });
   it('scores aces and face cards', () => { const c = (rs: number[]) => rs.map((rank, id) => ({ id, rank, suit: 0 })); expect(frickFrackTotal(c([1, 1, 9]))).toBe(21); expect(frickFrackTotal(c([1, 13]))).toBe(21); expect(frickFrackTotal(c([10, 12, 2]))).toBe(22); });
 });

@@ -252,3 +252,17 @@ describe('avatar prediction', () => {
     expect(run.recoveredError).toBeLessThan(0.05);
   });
 });
+
+describe('Frick-frack prediction lock', () => {
+  it('does not replay stale movement while the public session locks the avatar', () => {
+    const world=createMatch(OPTIONS),av=world.avatarOf(0),source=new ExactFrames();
+    const start=world.nav.nearestWalkable(10,10);av.pos.x=start.x;av.pos.z=start.z;av.pos.y=world.collision.groundHeight(start.x,start.z);
+    source.frame=capture(world,av.id,0);
+    const predictor=new AvatarPredictor(world,av.id,PLAYER);
+    predictor.frame(source,0,0);
+    world.frickFrack.sessions[0]={id:1,revision:0,faction:0,phase:'dialogue',dialogueIndex:0,dialogueStartedAt:0,readyAt:5,wager:0,player:[],dealer:[],result:null,message:''};
+    for(let seq=1;seq<=30;seq++) {predictor.tick(seq,{moveX:1,moveZ:1,jump:true,sprint:true,yaw:2,pitch:1});predictor.frame(source,SIM_DT,1);}
+    expect(av.pos.x).toBeCloseTo(start.x,5);expect(av.pos.z).toBeCloseTo(start.z,5);
+    expect(av.yaw).toBe(source.frame.kin.yaw);
+  });
+});

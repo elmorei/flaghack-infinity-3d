@@ -2,7 +2,7 @@
 
 Frick-frack is a Regular-playstyle diversion using only in-match Flags. It has no purchases, real-money bets, or cash-out.
 
-Find the unique wizard hippie and give him a Flag. The Flag is not an admission fee: it remains available for betting. His three-part, letter-by-letter introduction ends with a choice to play or decline. The burn continues while talking or playing, and the avatar cannot move or issue ordinary commands from the table. Knockout, elimination, match end, or disconnect closes the session safely.
+Find the unique wizard hippie and give him a Flag. He appears in standard matches with a human Regular player and at least two neutral hippies, so he never takes the last recruit needed for recovery. The Flag is not an admission fee: it remains available for betting. His three-part, letter-by-letter introduction ends with a choice to play or decline. The burn continues while talking or playing, and the avatar cannot move or issue ordinary commands from the table. Knockout, elimination, match end, or disconnect closes the session safely.
 
 ## Table rules
 
