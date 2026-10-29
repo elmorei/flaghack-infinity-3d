@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { crystalAttackFixture } from '../../../tests/crystalAttackFixture';
+import { captureHearth } from './capture';
+import { consumeBuilding } from './boss';
 import { spawnBuilding } from '../factory';
 import { THRONE_ATTACK_HEIGHT, throneAttackOrigin, updateCrystalAttacks } from './crystalAttacks';
 
@@ -64,4 +66,24 @@ describe('seated ruler defensive lightning', () => {
     expect(e.faction.throneAttack?.readyAt).toBeCloseTo(e.world.time + 1); expect(h.hp).toBe(hp);
   });
 
+});
+
+
+it.each(['capture', 'boss'] as const)('moves the single throne defense after primary %s without carrying its old target lock', cause => {
+  const e = fixture(), oldTarget = e.unit();
+  const second = spawnBuilding(e.world, 'hearth', 0, 1, 1); second.pos = { x: 100, z: 0 };
+  const newTarget = e.unit(110);
+  updateCrystalAttacks(e.world, 0); e.step(2);
+  expect(e.faction.throneAttack?.target).toBe(oldTarget.id);
+  const oldHp = oldTarget.hp;
+  if (cause === 'capture') captureHearth(e.world, e.altar, 1); else consumeBuilding(e.world, e.altar);
+  e.step(.1);
+  expect(e.faction.alive).toBe(true);
+  expect(throneAttackOrigin(e.world, 0)).toEqual({ x: 100, y: THRONE_ATTACK_HEIGHT, z: 0 });
+  expect(e.faction.throneAttack).toEqual({ target: newTarget.id, readyAt: e.world.time + 1, faction: 0 });
+  expect(newTarget.hp).toBe(100); expect(oldTarget.hp).toBe(oldHp);
+  e.step(2); expect(newTarget.hp).toBeCloseTo(88); expect(oldTarget.hp).toBe(oldHp);
+  if (cause === 'capture') captureHearth(e.world, second, 1); else consumeBuilding(e.world, second);
+  e.step(2); expect(e.faction.alive).toBe(false); expect(e.faction.throneAttack).toBeNull();
+  expect(newTarget.hp).toBeCloseTo(88);
 });

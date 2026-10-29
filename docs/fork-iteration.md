@@ -4,7 +4,7 @@
 
 Begin the Survey opens the lobby for local games; joining a host opens the multiplayer lobby. Each of the four player seats has an On/Off toggle, and the number of days is selected in the lobby. At least one seat remains on. Offline, choose any enabled character with Play this character; other enabled seats use AI. Turning off the selected local seat moves you to another enabled seat. Disabled seats show a neutral numbered placeholder and have no avatar, Hearth, GCC, starting stock or Signifiers in the match. They also stay out of the Hearth rail, standings and end-of-match statistics. Their camp scenery remains part of the map.
 
-In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 18; all players must use the same build.
+In multiplayer, the leader controls match setup. A human must leave a seat before its camp can be disabled. New arrivals take only enabled seats; other arrivals spectate. Match settings travel with the authoritative world options so clients generate the same lattice. The network protocol is version 19; all players must use the same build.
 
 Choose 0–5 days or Unlimited. A day means one complete daylight/night cycle. Default: 1 day at 600 seconds, with the Burn at 4:40 and Dawn deadline at 10:00. Explicit saved day lengths are preserved. With multiple days, the Burn occurs at the same point in the **last** cycle. The sky repeats each cycle. Zero days begins at ignition, with the Burn sky and simulation time 0:00; the boss still reveals 90 seconds later. With boss mode off, zero days retains the full remaining Burn night before Dawn (5 minutes 20 seconds at the default day length, or 160 seconds with a 300-second day). Conquest can finish a competitive match earlier; a single-camp creative/solo match finishes only at its time limit. Unlimited remains a separate choice with no time limit or scheduled Burn; competitive conquest still works. Previously saved Unlimited choices are migrated without changing their meaning.
 
@@ -362,7 +362,9 @@ put into altar stock instead, preserving total starting Flags.
 **Defense Lightning** (the existing Crystal Attacks optional rule) now covers both grown
 crystals and RTS thrones: a one-second warning, one visible hostile target within 16 m,
 12 HP/s, with a shared 18 HP/s maximum from overlapping emitters. Solid cover blocks it.
-Throne defense ends when its altar is lost/disabled or the faction falls; ordinary PvP
+If the primary altar is captured or eaten, the ruler, desk and defense relocate to the next
+owned altar, with a fresh defensive warning. A disabled altar cannot fire. Losing the last
+owned altar eliminates the faction, exactly as for avatar players; ordinary PvP
 lightning pauses during the boss alliance. It does not confer the avatar's Hearth-holding bonus.
 
 ### Recruitment for every faction
@@ -379,5 +381,5 @@ A camp with no awake Signifiers can have its functioning GCC call one unclaimed,
 reachable neutral from farther away. The individual must walk back; this is neither a
 spawn nor a teleport, and it cannot steal another recruiter's nearby audience or a
 commanded recruitment target. A bounded search retries blocked candidates later.
-No neutral pool or no working GCC means no recovery guarantee; altar loss still eliminates
-the faction. Existing soft population caps and attention costs continue to apply.
+No neutral pool or no working GCC means no recovery guarantee; losing the last owned altar
+still eliminates the faction. Existing soft population caps and attention costs continue to apply.

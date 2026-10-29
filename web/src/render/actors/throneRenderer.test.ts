@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { spawnBuilding } from '../../sim/factory';
+import { captureHearth } from '../../sim/systems/capture';
+import { consumeBuilding } from '../../sim/systems/boss';
 import { createMatch } from '../../sim/setup';
 import type { RenderContext } from '../context';
 import { buildThrone, poseSeatedRuler, ThroneRenderer, THRONE_PLATFORM_HEIGHT, THRONE_SCALE } from './throneRenderer';
@@ -68,4 +71,18 @@ describe('RTS throne presentation',()=>{
     e.renderer.update(); expect(throne.visible).toBe(true); expect(e.renderer.group.children).toHaveLength(1);
     e.renderer.dispose();
   });
+});
+
+
+it.each(['capture', 'boss'] as const)('moves the existing ruler and desk to the next owned altar after %s', cause => {
+  const e = fixture(); e.world.factions[0].controlMode = 'rts';
+  const first = e.world.hearthOf(0)!;
+  const second = spawnBuilding(e.world, 'hearth', 0, 0, 1); second.pos = { x: 40, z: 70 }; second.yaw = .8;
+  e.renderer.update(); const throne = e.renderer.group.children[0];
+  if (cause === 'capture') captureHearth(e.world, first, 1); else consumeBuilding(e.world, first);
+  e.renderer.update();
+  expect(e.renderer.group.children).toHaveLength(1); expect(e.renderer.group.children[0]).toBe(throne);
+  expect(throne.visible).toBe(true); expect(throne.position.toArray()).toEqual([40, 7, 70]); expect(throne.rotation.y).toBe(.8);
+  if (cause === 'capture') captureHearth(e.world, second, 1); else consumeBuilding(e.world, second);
+  e.renderer.update(); expect(throne.visible).toBe(false); e.renderer.dispose();
 });

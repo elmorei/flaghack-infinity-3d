@@ -16,7 +16,7 @@ import { cmdAvatarInput, cmdPlant, cmdThrow, cmdPull, cmdSwing, cmdPushGcc } fro
 import { cmdRally, cmdSendFollowers } from './systems/hippies';
 import { cmdRetransmit, cmdTapBeacon } from './systems/pings';
 import { cmdDemolish } from './systems/pieces';
-import { spawnAvatar } from './factory';
+import { spawnAvatar, spawnBuilding } from './factory';
 import { normalizeMatch } from './matchSettings';
 
 describe('RTS factions without roaming avatars', () => {
@@ -89,4 +89,35 @@ it('keeps initial flag supply equal by putting the RTS personal quiver in altar 
   expect(ownFlags(rts)).toBe(ownFlags(action));
   expect(rts.stockCount(0)).toBe(action.stockCount(0) + action.avatarOf(0).carried.length);
   expect([...rts.flags.values()].filter(f => f.owner === 0 && f.state === 'carried')).toHaveLength(0);
+});
+
+
+describe('RTS owned-altar fallback', () => {
+  it.each(['capture', 'boss'] as const)('relocates after primary %s and falls only after the last altar, including mirrors', cause => {
+    const w = createMatch({ seed: 'rts-owned-altar-fallback', mode: 'standard', difficulty: 'normal',
+      humans: [...FACTION_IDS], rtsFactions: [0], match: normalizeMatch({ maxSignifiers: 0 }) });
+    const first = w.hearthOf(0)!;
+    const facet = w.lattice.facets.find(f => !f.boundary && f.id !== first.facet)!;
+    const second = spawnBuilding(w, 'hearth', 0, facet.id, 1);
+    const encoder = new SnapshotEncoder(w), json = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+    const peer = NetMirror.create(w.options, json(encoder.full()));
+    const flush = () => {
+      w.tick++; w.time++;
+      peer.push(json({ tick: w.tick, time: w.time, acks: {}, delta: encoder.delta([]), events: [] })); peer.catchUp();
+      return [w, peer.world, NetMirror.create(w.options, json(encoder.full())).world];
+    };
+    if (cause === 'capture') captureHearth(w, first, 1); else consumeBuilding(w, first);
+    for (const state of flush()) {
+      expect(state.factions[0].alive).toBe(true);
+      expect(state.factions[0].hearthIds).toEqual([second.id]);
+      expect(rtsThroneAltar(state, 0)?.id).toBe(second.id);
+      expect(state.avatarOf(0)).toBeUndefined();
+    }
+    if (cause === 'capture') captureHearth(w, second, 1); else consumeBuilding(w, second);
+    for (const state of flush()) {
+      expect(state.factions[0].alive).toBe(false);
+      expect(rtsThroneAltar(state, 0)).toBeUndefined();
+      expect(state.avatarOf(0)).toBeUndefined();
+    }
+  });
 });
