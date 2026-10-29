@@ -1,0 +1,41 @@
+name: Temporary PC startup artifact verification
+on:
+  push:
+    branches: [testcapture/pc-startup-20261029]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  startup:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: github-pages
+          run-id: 40873053658
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/flaghack-pages
+      - name: Check existing exact artifact with candidate harness
+        run: |
+          mkdir -p dist
+          tar -xf "$RUNNER_TEMP/flaghack-pages/artifact.tar" -C dist
+          node -e "if(require('./dist/build.json').build !== '7216cf810c2ad83ef29e17437967df885b333157')process.exit(1)"
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pc-startup-isolated-evidence
+          path: web/host-release/startup-smoke/
+          if-no-files-found: warn
+          retention-days: 7
