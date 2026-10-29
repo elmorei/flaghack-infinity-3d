@@ -14,6 +14,7 @@ import type { Avatar, Building, FactionId } from '../sim/types';
 import type { World } from '../sim/world';
 import { effigyCameraTarget } from './effigyCamera';
 import type { CameraState } from './session';
+import { isMobileCommandLayout } from './mobileTouch';
 
 const DEG = Math.PI / 180;
 
@@ -25,6 +26,14 @@ export const CMD_PITCH = -58 * DEG;
 export const CMD_HEIGHT_MIN = 30;
 export const CMD_HEIGHT_MAX = 260;
 export const FOV_COMMAND = 50;
+/** Fixed diagonal tactical view on phones. No user-controlled zoom or rotation. */
+export const MOBILE_COMMAND_PITCH = -Math.atan(1 / Math.sqrt(2));
+export const MOBILE_COMMAND_YAW = Math.PI * 1.25;
+/** Keep actors approximately 28 CSS pixels tall at the centre in either orientation.
+ * This changes only the window extent on resize, not the user's zoom level. */
+export function mobileCommandHeight(viewportHeight: number): number {
+  return Math.max(1, Number.isFinite(viewportHeight) ? viewportHeight : 720) * 0.035;
+}
 /** Fraction of the GCC dive spent descending onto the tabletop before the cut to world scale. */
 export const DIVE_CUT = 0.4;
 
@@ -104,18 +113,22 @@ export function blendPose(a: RigPose, b: RigPose, t: number, out: RigPose): void
  * Used for zoom-toward-cursor and grab-panning. Returns false if that ray misses the ground.
  */
 export function commandGroundPoint(cam: CameraState, nx: number, ny: number, aspect: number, out: V2): boolean {
-  const sp = Math.sin(CMD_PITCH);
-  const cp = Math.cos(CMD_PITCH);
+  const mobile = isMobileCommandLayout();
+  const pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
+  const yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
+  const sp = Math.sin(pitch), cp = Math.cos(pitch);
+  const sy = Math.sin(yaw), cy = Math.cos(yaw);
   const dist = cam.cmdHeight / -sp;
-  // Facing -z (yaw π): forward (0, sp, -cp), right (+1, 0, 0), up (0, cp, sp).
   const tanH = Math.tan((FOV_COMMAND * DEG) / 2);
-  const dx = nx * tanH * aspect;
-  const dy = sp + ny * tanH * cp;
-  const dz = -cp + ny * tanH * sp;
+  const rx = nx * tanH * aspect, uy = ny * tanH;
+  // Forward (sy*cp,sp,cy*cp), right (-cy,0,sy), up (-sy*sp,cp,-cy*sp).
+  const dx = sy * cp - cy * rx - sy * sp * uy;
+  const dy = sp + cp * uy;
+  const dz = cy * cp + sy * rx - cy * sp * uy;
   if (dy >= -1e-6) return false;
   const t = cam.cmdHeight / -dy;
-  out.x = cam.cmdX + dx * t;
-  out.z = cam.cmdZ + cp * dist + dz * t;
+  out.x = cam.cmdX - sy * cp * dist + dx * t;
+  out.z = cam.cmdZ - cy * cp * dist + dz * t;
   return true;
 }
 
@@ -337,7 +350,8 @@ export class CameraRig {
     // Trauma²-scaled smooth multi-sine wobble: deterministic, no RNG, decays with the trauma.
     this.shakeClock += dt;
     const s = this.shakeClock;
-    const k = trauma * trauma;
+    // Touch targeting needs a stable field; impact geometry/audio still convey attacks.
+    const k = isMobileCommandLayout() ? 0 : trauma * trauma;
     const sy = k * 0.045 * (Math.sin(s * 39.1) + 0.6 * Math.sin(s * 23.3 + 1.7));
     const sx = k * 0.045 * (Math.sin(s * 31.7 + 0.4) + 0.6 * Math.sin(s * 17.9 + 2.9));
     const sz = k * 0.06 * Math.sin(s * 27.3 + 4.1);
@@ -439,13 +453,16 @@ export class CameraRig {
     const k = Math.min(1, dt * 12);
     this.cmdX += (cam.cmdX - this.cmdX) * k;
     this.cmdZ += (cam.cmdZ - this.cmdZ) * k;
-    this.cmdH += (cam.cmdHeight - this.cmdH) * k;
+    const mobile = isMobileCommandLayout();
+    // Orientation resize must not produce a zoom animation or temporarily shrink actors.
+    if (mobile) this.cmdH = cam.cmdHeight;
+    else this.cmdH += (cam.cmdHeight - this.cmdH) * k;
     out.tx = this.cmdX;
     out.ty = world.collision.groundHeight(this.cmdX, this.cmdZ);
     out.tz = this.cmdZ;
-    out.yaw = Math.PI;
-    out.pitch = CMD_PITCH;
-    out.dist = this.cmdH / -Math.sin(CMD_PITCH);
+    out.yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
+    out.pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
+    out.dist = this.cmdH / -Math.sin(out.pitch);
     out.fov = FOV_COMMAND;
   }
 

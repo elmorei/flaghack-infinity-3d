@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from './mobileTouch';
 /**
  * Command View (the GCC table): tactical camera control (WASD / arrows / screen-edge /
  * middle-drag pan, wheel zoom toward the cursor), D.E.G.E.N. selection (drag box, click),
@@ -16,7 +17,7 @@ import { canPlantAt } from '../sim/systems/flags';
 import { gccActive } from '../sim/systems/gcc';
 import type { EntityId, FactionId, HippieOrder, PingKind } from '../sim/types';
 import type { World } from '../sim/world';
-import { CMD_HEIGHT_MAX, CMD_HEIGHT_MIN, commandGroundPoint } from './cameraRig';
+import { CMD_HEIGHT_MAX, CMD_HEIGHT_MIN, mobileCommandHeight, commandGroundPoint } from './cameraRig';
 import type { Input } from './input';
 import { LMB, MMB, RMB } from './input';
 import type { GhostInfo, HoverInfo, PlanTool, SelectBox, Session } from './session';
@@ -98,6 +99,7 @@ export function planNodeCost(world: World, f: FactionId, n: number, relax = 0): 
 
 export class CommandView {
   private input: Input;
+  private mobileSerial = -1;
   private queue: Command[];
   private box: SelectBox = { x0: 0, y0: 0, x1: 0, y1: 0 };
   private boxing = false;
@@ -177,6 +179,21 @@ export class CommandView {
   controlCamera(s: Session, dt: number): void {
     const inp = this.input;
     const cam = s.camera;
+    if (isMobileCommandLayout()) {
+      cam.cmdHeight = mobileCommandHeight(inp.height);
+      if (this.mobileSerial !== s.mobileCancelSerial) { inp.touch.cancel(); s.selectBox = null; this.mobileSerial = s.mobileCancelSerial; }
+      const touch = inp.touch;
+      if (!s.mobileBoxSelect && (touch.dx || touch.dy)) {
+        const aspect = inp.width / inp.height;
+        if (commandGroundPoint(cam, (touch.x - touch.dx) / inp.width * 2 - 1, 1 - (touch.y - touch.dy) / inp.height * 2, aspect, this.g0) &&
+            commandGroundPoint(cam, touch.x / inp.width * 2 - 1, 1 - touch.y / inp.height * 2, aspect, this.g1)) {
+          cam.cmdX += this.g0.x - this.g1.x; cam.cmdZ += this.g0.z - this.g1.z;
+        }
+      }
+      const lim = MAP_HALF + 10;
+      cam.cmdX = Math.max(-lim, Math.min(lim, cam.cmdX)); cam.cmdZ = Math.max(-lim, Math.min(lim, cam.cmdZ));
+      return;
+    }
     const w = inp.width;
     const h = inp.height;
     const aspect = w / h;
@@ -229,6 +246,7 @@ export class CommandView {
   frame(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera, ghost: GhostInfo | null): boolean {
     const inp = this.input;
     this.pruneSelection(world, s);
+    if (isMobileCommandLayout()) return this.mobileFrame(world, s, f, camera, ghost);
     if (s.recruitTargeting) this.pushArm = -1;
     if (s.planTool !== this.lastTool) this.toolChanged(s);
 
@@ -301,6 +319,84 @@ export class CommandView {
     inp.setCursor(this.grabbing && inp.buttons[MMB] ? 'grabbing' : s.recruitTargeting || s.planTool !== 'select' || s.tool === 'building' || this.pushArm >= 0 ? 'crosshair' : 'default');
     s.prompt = this.prompt(s);
     return exit;
+  }
+
+  /** Touch never shares desktop mouse edges: each release produces at most one command. */
+  private mobileFrame(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera, ghost: GhostInfo | null): boolean {
+    const touch = this.input.touch;
+    if (s.mobileMenu !== null) { touch.cancel(); s.mobileBuildConfirm = false; return false; }
+    if (s.mobileBuildConfirm) {
+      s.mobileBuildConfirm = false;
+      if (s.tool === 'building' && ghost?.valid && ghost.facet === s.mobileBuildFacet) {
+        this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet });
+        s.tool = 'flag'; s.mobileBuildFacet = -1; s.ghost = null;
+      } else s.post(ghost?.reason || 'Choose a buildable space first.', 'warn');
+    }
+    if (s.mobileBoxSelect && touch.dragging) {
+      this.box.x0 = touch.startX; this.box.y0 = touch.startY; this.box.x1 = touch.x; this.box.y1 = touch.y;
+      s.selectBox = this.box;
+    }
+    const action = touch.action;
+    if (!action) { if (!touch.active) s.selectBox = null; return false; }
+    if (action.kind === 'drag') {
+      if (s.mobileBoxSelect) {
+        this.box.x0 = action.startX; this.box.y0 = action.startY; this.box.x1 = action.x; this.box.y1 = action.y;
+        this.boxSelect(world, s, f, camera); s.mobileBoxSelect = false;
+      }
+      s.selectBox = null; return false;
+    }
+    if (action.kind === 'hold') {
+      s.mobileAbility = null; s.recruitTargeting = false; s.tool = 'flag';
+      const n = s.hover.node;
+      const node = world.lattice.nodes[n];
+      if (node && this.project(camera, node.x, world.collision.groundHeight(node.x, node.z), node.z) && Math.hypot(this.sx - action.x, this.sy - action.y) <= 22) {
+        s.mobileMode = 'build'; s.planTool = 'node'; s.mobileBuildFacet = -1;
+        s.post('Plan mode: tap nodes to mark targets.'); return false;
+      }
+      const facet = world.lattice.facets[s.hover.facet];
+      if (facet && facet.thick && !facet.boundary && world.inSurvey(s.hover.facet, f) &&
+          this.project(camera, facet.cx, world.collision.groundHeight(facet.cx, facet.cz), facet.cz) && Math.hypot(this.sx - action.x, this.sy - action.y) <= 30) {
+        s.mobileMode = 'build'; s.planTool = 'node'; s.mobileBuildFacet = s.hover.facet; s.mobileMenu = 'build';
+      } else s.post('Hold the center of a buildable space inside your Survey.', 'warn');
+      return false;
+    }
+    if (s.mobileAbility && s.hover.point) {
+      this.queue.push({ t: 'ability', faction: f, ability: s.mobileAbility, at: { x: s.hover.point.x, z: s.hover.point.z }, node: s.hover.node });
+      s.mobileAbility = null; return false;
+    }
+    // A 44px target around a character's body takes priority over adjacent ground/flags.
+    let unit = -1, distance = 24;
+    for (const h of [...world.hippies.values(), ...world.avatars.values()]) {
+      if (this.project(camera, h.pos.x, ('y' in h.pos ? h.pos.y : world.collision.groundHeight(h.pos.x, h.pos.z)) + 1, h.pos.z)) {
+        const d = Math.hypot(this.sx - action.x, this.sy - action.y);
+        if (d < distance) { unit = h.id; distance = d; }
+      }
+    }
+    if (unit >= 0) s.hover.entity = unit;
+    const h = world.hippies.get(s.hover.entity);
+    const av = world.avatars.get(s.hover.entity);
+    const ownSelected = this.ownSelectedCount(world, s, f);
+    if ((h || av) && (s.mobileMode === 'build' || (h?.faction ?? av?.faction) === f || ownSelected === 0)) {
+      s.mobileMode = 'units'; s.planTool = 'select'; s.tool = 'flag'; s.mobileBuildFacet = -1; s.mobileBoxSelect = false;
+      s.selection.clear(); s.selection.add(s.hover.entity); s.recruitTargeting = false; return false;
+    }
+    if (s.tool === 'building' && s.mobileBuildFacet >= 0) return false; // placement needs explicit Confirm
+    if (s.mobileMode === 'build') {
+      if (s.planTool === 'select') s.planTool = 'node';
+      this.updatePreview(world, s, f); this.planClick(world, s, f); return false;
+    }
+    this.classify(world, s, f);
+    if (s.recruitTargeting && this.okind !== 'recruit') { s.post('Tap a neutral Signifier to recruit.'); return false; }
+    if (ownSelected > 0) { this.issueOrder(world, s, f); s.recruitTargeting = false; }
+    else this.clickSelect(s);
+    s.prompt = null;
+    return false;
+  }
+
+  private ownSelectedCount(world: World, s: Session, f: FactionId): number {
+    let n = 0;
+    for (const id of s.selection) if (world.hippies.get(id)?.faction === f) n++;
+    return n;
   }
 
   private setTool(s: Session, tool: PlanTool): void {

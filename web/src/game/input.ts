@@ -1,3 +1,4 @@
+import { isMobileCommandLayout, MobileTouch } from './mobileTouch';
 import { defaultControls, stick } from './bindings';
 import type { ControlSettings } from './bindings';
 /**
@@ -26,6 +27,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
 
 export class Input {
   readonly canvas: HTMLCanvasElement;
+  readonly touch = new MobileTouch();
   /** Physical keys currently held. */
   private held = new Set<string>();
   private pressed = new Set<string>();
@@ -199,6 +201,11 @@ export class Input {
     document.addEventListener('pointerlockchange', this.onLockChange);
     document.addEventListener('pointerlockerror', this.onLockError);
     canvas.addEventListener('mousedown', this.onMouseDown);
+    window.addEventListener('pointerdown', this.onTouchDown, { passive: false, capture: true });
+    window.addEventListener('pointermove', this.onTouchMove, { passive: false });
+    window.addEventListener('pointerup', this.onTouchUp, { passive: false });
+    window.addEventListener('pointercancel', this.onTouchCancel);
+    window.addEventListener('resize', this.onTouchCancel);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
     canvas.addEventListener('contextmenu', this.onContextMenu);
   }
@@ -252,6 +259,7 @@ export class Input {
   }
 
   requestLock(): void {
+    if (isMobileCommandLayout()) return;
     if (this.locked || this.disposed || document.pointerLockElement === this.canvas) return;
     // Outside a user gesture (an online match starting from a host message) the browser refuses
     // the lock; that must not read as "pointer lock unavailable" here, so wait for the next click.
@@ -285,6 +293,7 @@ export class Input {
 
   /** Forget every held key/button (focus loss, pause, view switch). */
   clear(): void {
+    this.touch.cancel();
     for (const code of this.held) this.released.add(code);
     this.held.clear();
     this.padHeld.clear();
@@ -302,6 +311,7 @@ export class Input {
 
   /** Consume this frame's edges and deltas. */
   endFrame(): void {
+    this.touch.endFrame();
     this.pressed.clear();
     this.padPressed.clear();
     this.padReleased.clear();
@@ -317,6 +327,12 @@ export class Input {
   }
 
   dispose(): void {
+    this.touch.cancel();
+    window.removeEventListener('pointerdown', this.onTouchDown, true);
+    window.removeEventListener('pointermove', this.onTouchMove);
+    window.removeEventListener('pointerup', this.onTouchUp);
+    window.removeEventListener('pointercancel', this.onTouchCancel);
+    window.removeEventListener('resize', this.onTouchCancel);
     this.disposed = true;
     this.exitLock();
     window.removeEventListener('keydown', this.onKeyDown);
@@ -390,7 +406,27 @@ export class Input {
     this.hasCursor = true;
   }
 
+  private onTouchDown = (e: PointerEvent): void => {
+    if (!isMobileCommandLayout() || e.pointerType !== 'touch' || !this.touch.enabled) return;
+    if (e.target !== this.canvas && !this.touch.active) return;
+    if (e.target === this.canvas) { e.preventDefault(); this.canvas.setPointerCapture?.(e.pointerId); }
+    this.updateCursor(e);
+    this.touch.down(e.pointerId, this.mx, this.my, performance.now());
+  };
+  private onTouchMove = (e: PointerEvent): void => {
+    if (!isMobileCommandLayout() || e.pointerType !== 'touch' || !this.touch.active) return;
+    e.preventDefault(); this.updateCursor(e);
+    this.touch.move(e.pointerId, this.mx, this.my);
+  };
+  private onTouchUp = (e: PointerEvent): void => {
+    if (!isMobileCommandLayout() || e.pointerType !== 'touch' || !this.touch.active) return;
+    e.preventDefault(); this.updateCursor(e);
+    this.touch.up(e.pointerId, this.mx, this.my);
+  };
+  private onTouchCancel = (): void => { this.touch.cancel(); };
+
   private onMouseMove = (e: MouseEvent): void => {
+    if (isMobileCommandLayout()) return;
     if (this.locked || this.lockUnavailable) {
       if (Math.abs(e.movementX) < MAX_MOVE_EVENT && Math.abs(e.movementY) < MAX_MOVE_EVENT) {
         this.dx += e.movementX;
@@ -405,6 +441,7 @@ export class Input {
   };
 
   private onMouseDown = (e: MouseEvent): void => {
+    if (isMobileCommandLayout()) return;
     if (e.button > 2) return;
     if (!this.locked) this.updateCursor(e);
     if (e.button === MMB) e.preventDefault(); // no autoscroll

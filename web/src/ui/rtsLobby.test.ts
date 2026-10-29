@@ -29,11 +29,11 @@ class Node {
   find(cls: string): Node | undefined { return this.classList.contains(cls) ? this : this.children.map(child => child.find(cls)).find(Boolean); }
 }
 
-function setup(online = false) {
+function setup(online = false, mobile = false) {
   const root = new Node();
   vi.stubGlobal('HTMLElement', Node);
   vi.stubGlobal('window', { addEventListener() {}, removeEventListener() {} });
-  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag), activeElement: null });
+  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag), activeElement: null, documentElement: { dataset: { deviceLayout: mobile ? 'mobile' : 'desktop' } } });
   const session = new Session(); session.screen = 'lobby';
   const net: any = online ? {
     status: 'lobby', version: 1, playerId: 'me', serverName: 'test', seat: 0, isLeader: true,
@@ -49,7 +49,19 @@ function setup(online = false) {
   return { ui, app, net, controls: ui as any };
 }
 afterEach(() => vi.unstubAllGlobals());
-describe('RTS lobby selection', () => {
+describe('Regular / Degen lobby selection', () => {
+  it('defaults mobile local games to Degen, retains Regular desktop and explicit mobile choice', () => {
+    const m = setup(false, true);
+    expect(m.controls.controlMode.value).toBe('rts');
+    expect(m.controls.controlMode.children.map((x: Node) => x.textContent)).toEqual(['Regular · action + command', 'Degen · command only']);
+    m.controls.controlMode.value = 'avatar'; m.controls.controlMode.handlers.get('change')(); m.ui.update(null, 1);
+    expect(m.controls.controlMode.value).toBe('avatar'); m.ui.dispose();
+    const d = setup(); expect(d.controls.controlMode.value).toBe('avatar'); d.ui.dispose();
+  });
+  it('does not overwrite an existing online Regular seat on mobile', () => {
+    const m = setup(true, true); expect(m.controls.controlMode.value).toBe('avatar');
+    expect(m.net.setControlMode).not.toHaveBeenCalled(); m.ui.dispose();
+  });
   it('starts local matches with only the selected RTS faction, preserves choice through updates, and permits switching back', () => {
     const { ui, app, controls } = setup();
     controls.controlMode.value = 'rts'; controls.controlMode.handlers.get('change')(); ui.update(null, 1);

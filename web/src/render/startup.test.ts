@@ -60,3 +60,15 @@ describe('renderer first-frame readiness', () => {
     expect(renderer.render(0)).toBe(false);
   });
 });
+
+it('mobile direct rendering compiles for the canvas and draws without a post-processing pass', async () => {
+  const f = fixture();
+  (f.renderer as any).post = null;
+  (f.gpu as any).render = vi.fn();
+  expect(f.renderer.render(0)).toBe(false);
+  expect(f.gpu.setRenderTarget).toHaveBeenNthCalledWith(1, null);
+  f.resolve(); await Promise.resolve();
+  expect(f.renderer.render(0)).toBe(true);
+  expect((f.gpu as any).render).toHaveBeenCalledOnce();
+  expect(f.post.render).not.toHaveBeenCalled();
+});

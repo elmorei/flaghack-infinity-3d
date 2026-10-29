@@ -71,6 +71,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false playwright@1.56.1
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-browser.cjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Upload startup browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -79,6 +80,7 @@ jobs:
           path: |
             web/host-release/startup-smoke/
             web/host-release/mobile-smoke/
+            web/host-release/mobile-command-smoke/
           if-no-files-found: warn
           retention-days: 14
 

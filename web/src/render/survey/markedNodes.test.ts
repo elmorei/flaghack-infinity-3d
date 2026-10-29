@@ -174,3 +174,18 @@ describe('post-grade marker overlay routing', () => {
     expect(() => renderCommandOverlay(renderer, camera, scene)).toThrow('context lost'); expect(renderer.autoClear).toBe(true); expect(renderer.getRenderTarget()).toBe(target); target.dispose();
   });
 });
+
+it('mobile hides targeting markers in Units and restores Build markers without post-process warp', () => {
+  vi.stubGlobal('document', { documentElement: { dataset: { deviceLayout: 'mobile' } } });
+  const f = fixture();
+  f.mark([f.n]); f.session.mobileMode = 'units'; f.update();
+  expect(f.layer.scene.visible).toBe(false);
+  expect(f.mesh.geometry.instanceCount).toBe(0);
+  f.session.mobileMode = 'build'; f.fx.acid = 1; f.fx.instability = 1; f.update();
+  expect(f.layer.scene.visible).toBe(true);
+  expect(f.mesh.geometry.instanceCount).toBe(1);
+  expect(f.mesh.material.uniforms.uMarkWarp.value.toArray()).toEqual([0, 0]);
+  f.session.mobileMode = 'units'; f.update();
+  expect(f.layer.scene.visible).toBe(false);
+  f.cleanup();
+});

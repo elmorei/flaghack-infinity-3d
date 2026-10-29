@@ -9,7 +9,7 @@ import { iconSvg } from './icons';
 const OPTIONAL_RULES = [
   { key: 'buildingCapture', label: 'Building Capture', hint: 'Capture non-altar camp buildings, modular pieces and neutral scenery by enclosure. Altar capture stays active.' },
   { key: 'crystalFlagProtection', label: 'Crystal Flag Protection', hint: 'Grown Crystals double the time needed to pull their sustaining Flags. Ward protection is unchanged.' },
-  { key: 'crystalAttacks', label: 'Defense Lightning', hint: 'Grown Crystals and seated RTS rulers warn, then shock one hostile unit within 16 m. Solid cover blocks attacks; overlapping defenses share a damage limit.' },
+  { key: 'crystalAttacks', label: 'Defense Lightning', hint: 'Grown Crystals and seated Degen rulers warn, then shock one hostile unit within 16 m. Solid cover blocks attacks; overlapping defenses share a damage limit.' },
 ] as const;
 type OptionalRuleKey = typeof OPTIONAL_RULES[number]['key'];
 type NumericKey = Exclude<keyof typeof MATCH_RANGES, 'bossHp'>;

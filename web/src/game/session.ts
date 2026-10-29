@@ -125,6 +125,13 @@ export class Session {
   buildingKind: BuildingKind = 'workshop';
   planTool: PlanTool = 'select';
   recruitTargeting = false;
+  mobileMode: 'units' | 'build' = 'units';
+  mobileMenu: null | 'main' | 'units' | 'plan' | 'build' | 'settings' = null;
+  mobileBuildFacet = -1;
+  mobileBuildConfirm = false;
+  mobileCancelSerial = 0;
+  mobileAbility: import('../sim/types').AbilityId | null = null;
+  mobileBoxSelect = false;
   selection = new Set<EntityId>();
   hover: HoverInfo = { point: null, node: -1, facet: -1, edge: -1, entity: -1 };
   aim: AimInfo = { active: false, arc: [], landing: null, node: -1 };

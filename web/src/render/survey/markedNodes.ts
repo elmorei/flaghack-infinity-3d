@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from '../../game/mobileTouch';
 /**
  * Persistent Command View marks for the player's Survey plan. The plan survives planting:
  * unheld = black dot, held by the player = their dot, held by a rival = that rival's X.
@@ -123,8 +124,9 @@ export class MarkedNodeLayer {
 
   update(): void {
     const s = this.session;
-    this.warp.value.set(this.fx?.acid ?? 0, postInstability(this.fx?.instability ?? 0));
-    this.scene.visible = s.view === 'command' && (s.screen === 'playing' || s.screen === 'paused');
+    const mobile = isMobileCommandLayout();
+    this.warp.value.set(mobile ? 0 : this.fx?.acid ?? 0, mobile ? 0 : postInstability(this.fx?.instability ?? 0));
+    this.scene.visible = (!mobile || s.mobileMode === 'build') && s.view === 'command' && (s.screen === 'playing' || s.screen === 'paused');
     let count = 0;
     if (this.scene.visible) {
       // Only the player's marked intent belongs here. Never inspect unrevealed rival plans.

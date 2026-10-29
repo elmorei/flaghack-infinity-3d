@@ -4262,3 +4262,68 @@ html[data-device-layout='mobile'] .end-buttons .btn { min-width: 0; }
 html[data-device-layout='mobile'] .seat-row { grid-template-columns: 44px minmax(0, 1fr); gap: 8px; }
 html[data-device-layout='mobile'] .sr-face { width: 44px; height: 44px; }
 html[data-device-layout='mobile'] .scoreboard { width: calc(100% - 20px); max-height: calc(100% - 40px); top: 20px; overflow: auto; }
+
+/* Mobile command field: only two top buttons, context, and the mode toggle stay on-map. */
+html[data-device-layout='mobile'] .scr-playing:not(.spectator) .fh-hud { display: none; }
+.mobile-command, .mc-field { position: absolute; inset: 0; }
+.mc-top { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); display: flex; justify-content: space-between; }
+.mc-top .btn { min-width: 64px; }
+.mc-modes { position: absolute; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #17120de8; border: 1px solid var(--brass); }
+.mc-modes .btn { min-width: 100px; }
+.mc-modes [aria-pressed='true'], .mc-tabs [aria-pressed='true'] { background: var(--flag); color: #17120d; border-color: var(--flag); }
+.mobile-command .btn { font-size: 14px; letter-spacing: .01em; min-height: 44px; }
+.mc-selected { position: absolute; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 62px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: calc(100% - 16px); background: #17120de8; border-radius: 6px; white-space: nowrap; font-size: 13px; }
+.mc-selected .btn { padding: 8px; }
+.mc-placement { position: absolute; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 62px); max-width: 480px; margin: auto; padding: 8px; background: #17120df5; border: 1px solid var(--brass); border-radius: 6px; }
+.mc-placement-label { font-size: 14px; line-height: 1.3; margin-bottom: 6px; }
+.mc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mc-actions .btn { flex: 1; }
+.mc-alert { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 54px); left: 12px; right: 12px; margin: auto; max-width: 500px; padding: 8px 12px; background: #17120de8; border-left: 3px solid var(--flag); font-size: 13px; line-height: 1.35; }
+.mc-menu { position: absolute; inset: 0; display: flex; flex-direction: column; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); background: #19140f; color: var(--cream); touch-action: pan-y; overscroll-behavior: contain; }
+.mc-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+.mc-menu-head h2 { font: 700 20px var(--font-display); margin: 4px; }
+.mc-tabs { display: flex; gap: 4px; overflow-x: auto; flex: none; padding: 8px 0; }
+.mc-tabs .btn { flex: 1 0 auto; padding: 8px 12px; }
+.mc-page { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 4px 2px 20px; }
+.mc-page > * { margin-bottom: 12px; }
+.mc-page :is(.panel, .res, .rail, .clock, .cmi, .abar) { position: relative; inset: auto; width: 100%; max-width: none; min-width: 0; transform: none; opacity: 1; flex: none; }
+.mc-page :is(.panel-sel, .panel-build, .panel-labs, .panel-prio, .roster) { width: 100%; max-width: none; }
+.mc-page .panel-title { font-size: 16px; }
+.mc-page :is(.panel-hint, .panel-meta, .build-status, .sel-info, .job-name, .bb-name, .pb-name) { font-size: 14px; line-height: 1.35; }
+.mc-page :is(kbd, .slot-key, .tool-key, .roster .panel-x, .abar .tools, .abar .ab, .abar .slot-sep) { display: none !important; }
+.mc-page .build-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mc-page :is(.build-btn, .plan-btn, .brew-btn) { min-height: 64px; padding: 8px; }
+.mc-page .plan-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mc-page .job { grid-template-columns: 24px minmax(0,1fr) 30px; gap: 8px; margin: 12px 0; }
+.mc-page .notches { grid-column: 1 / -1; grid-row: 2; }
+.mc-page .notch { min-height: 44px; font-size: 16px; }
+.mc-page .job-count { grid-column: 3; grid-row: 1; }
+.mc-page .sel-orders { display: flex; gap: 8px; flex-wrap: wrap; }
+.mc-page .sel-orders .btn { flex: 1 1 120px; white-space: normal; }
+.mc-page :is(.roster-groups, .labs) { max-height: none; overflow: visible; }
+.mc-page .rr { min-height: 44px; font-size: 14px; }
+.mc-page .lab-brew { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+.mc-page .clock { margin: 12px 0; }
+.mc-page .res { max-width: 440px; }
+.mc-page .rail { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.mc-page .rail-title { grid-column: 1 / -1; }
+.mc-page .cmi { padding: 12px; max-width: 440px; }
+.mc-page .abar { margin: 14px 0; }
+.mc-page .slots, .mc-page .slot-group { flex-wrap: wrap; }
+.mc-page .slot { width: 72px; height: 64px; }
+.mc-page .tip { display: none !important; }
+.mc-page .mc-hint { font-size: 14px; line-height: 1.5; }
+.mc-page[data-tab='settings'] > .btn { display: block; width: 100%; margin: 8px 0; }
+.mc-power-buttons { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.mc-power-buttons .btn { white-space: normal; }
+.mc-rts :is(.mc-avatar-only, .abar, .quiver) { display: none !important; }
+html[data-device-layout='mobile'] .scr-playing .banners { max-width: min(90vw, 500px); }
+@media(max-height: 450px) {
+  .mc-menu-head h2 { font-size: 17px; }
+  .mc-tabs { padding: 4px 0; }
+  .mc-selected { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 58px); }
+  .mc-placement { max-width: 400px; }
+}
+
+html[data-device-layout='mobile'] .fh-overlay > .reconnect-card { position: absolute; top: max(64px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); max-width: calc(100% - 24px); z-index: 5; }
+.mc-page .netpill { position: relative; inset: auto; max-width: 100%; white-space: normal; }

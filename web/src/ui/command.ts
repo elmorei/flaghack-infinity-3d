@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from '../game/mobileTouch';
 /**
  * Command View panels (the GCC table): Survey plan tools,
  * Camp Priorities, the selection panel with orders, the camp build menu with live placement
@@ -24,6 +25,7 @@ import { tutorialTarget } from './core';
 import type { UiHost, UiLayout, UiPart } from './core';
 import { button, el, escapeHtml, fmtCountdown, html, kbd, setAttr, setClass, setDisabled, setText, setVar, show } from './dom';
 import { iconSvg } from './icons';
+import { chooseMobileBuilding } from './mobileCommand';
 
 const MAX_CHIPS = 16;
 
@@ -98,6 +100,7 @@ export class CommandPanels implements UiPart {
             ss.planTool = info.tool;
             ss.planPreview = [];
           }
+          if (info.tool !== 'clear') this.mobileReturn(info.tool === 'select' ? 'units' : 'build');
         },
         // Clear is an action on the plan; the rest pick a tool.
         info.tool === 'clear' ? 'click' : 'pick',
@@ -110,10 +113,12 @@ export class CommandPanels implements UiPart {
     this.encloseTarget = button('plan-btn', this.encloseOptions, `<span class="pb-name">At target</span>${kbd('E')}`, () => {
       this.host.app.session.planTool = 'enclose';
       this.host.app.session.planPreview = [];
+      this.mobileReturn('build');
     }, 'pick');
     const expand = button('plan-btn', this.encloseOptions, `<span class="pb-name">Expand home</span>${kbd('R')}`, () => {
       this.host.app.session.planTool = 'ring';
       this.host.app.session.planPreview = [];
+      this.mobileReturn('build');
     }, 'pick');
     expand.title = 'Enclose a wider ring around your home Survey.';
     tutorialTarget(expand, 'plan-ring');
@@ -173,6 +178,7 @@ export class CommandPanels implements UiPart {
       const s = this.host.app.session;
       s.tool = 'flag'; s.planTool = 'select'; s.planPreview = [];
       s.recruitTargeting = true;
+      this.mobileReturn('units');
     });
     button('btn btn-small', this.selOrders, `${iconSvg('close')}Clear orders`, () => this.order('clear'));
 
@@ -188,6 +194,13 @@ export class CommandPanels implements UiPart {
         `<span class="bb-ic">${iconSvg(info.icon)}</span><span class="bb-name">${info.name}</span><span class="bb-cost num">${info.cost}${iconSvg('lumber', 'ic-cost')}</span>`,
         () => {
           const ss = this.host.app.session;
+          if (isMobileCommandLayout()) {
+            if (!chooseMobileBuilding(ss, kind)) {
+              ss.mobileMode = 'build'; ss.planTool = 'node'; this.mobileReturn('build');
+              this.host.post('Long-press the center of a buildable space to choose what goes there.', 'info');
+            }
+            return;
+          }
           if (ss.tool === 'building' && ss.buildingKind === kind) ss.tool = 'flag';
           else {
             ss.tool = 'building';
@@ -206,6 +219,12 @@ export class CommandPanels implements UiPart {
     el('div', 'panel-hint', this.labPanel,
       `Automatically brews random drugs, favoring low stock. Each dose uses ${BREW_COST} lumber. Queued orders go first after the current batch.`);
     this.labList = el('div', 'labs', this.labPanel);
+  }
+
+  private mobileReturn(mode: 'units' | 'build'): void {
+    if (!isMobileCommandLayout()) return;
+    const s = this.host.app.session;
+    s.mobileMode = mode; s.mobileMenu = null; s.mobileCancelSerial++;
   }
 
   private panel(parent: HTMLElement, title: string, key: string): HTMLElement {
@@ -243,6 +262,7 @@ export class CommandPanels implements UiPart {
     } else {
       this.host.app.submit({ t: 'order', faction: s.playerFaction, hippies: ids, order: null });
     }
+    this.mobileReturn('units');
   }
 
   update(world: World | null, _now: number): void {

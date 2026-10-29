@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from '../../game/mobileTouch';
 /**
  * Implied Flags and plan ghosts. Implied Flags (the implied Flag fractal) are holographic
  * yellow Flags with a halo in the implying faction's colour and a Roman order glyph (I–III).
@@ -84,13 +85,14 @@ export class ImpliedPlanFeature {
     const p = this.session.playerFaction;
     const pf = w.factions[p];
     // Which factions' plans the player can see right now (bit f).
-    let visible = 1 << p;
+    const hideTargets = isMobileCommandLayout() && this.session.mobileMode !== 'build';
+    let visible = hideTargets ? 0 : 1 << p;
     const acid = pf.drugActive.acidcop > w.time;
     for (let i = 0; i < FACTION_IDS.length; i++) {
       const f = FACTION_IDS[i];
       if (f === p) continue;
       const tap = pf.meshTap[f];
-      if (acid || (tap !== undefined && tap > w.time)) visible |= 1 << f;
+      if (!hideTargets && (acid || (tap !== undefined && tap > w.time))) visible |= 1 << f;
     }
     let planChanged = false;
     for (let f = 0; f < 4; f++) {
@@ -102,7 +104,7 @@ export class ImpliedPlanFeature {
       }
     }
     const command = this.session.view === 'command';
-    const preview = this.session.planPreview;
+    const preview = isMobileCommandLayout() && this.session.mobileMode !== 'build' ? [] : this.session.planPreview;
     this.hashAcc = preview.length * 31;
     for (let i = 0; i < preview.length; i++) this.hashNode(preview[i]);
     const previewHash = this.hashAcc;
@@ -158,7 +160,7 @@ export class ImpliedPlanFeature {
       fc.plan.forEach(this.emitPlanNode);
     }
 
-    const preview = this.session.planPreview;
+    const preview = isMobileCommandLayout() && this.session.mobileMode !== 'build' ? [] : this.session.planPreview;
     if (preview.length > 0) {
       this.color.setHex(w.factions[this.session.playerFaction].color).lerp(this.white, 0.3);
       for (let i = 0; i < preview.length; i++) {

@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import type { Session } from '../game/session';
+import { isMobileCommandLayout } from '../game/mobileTouch';
 import { FESTIVAL_BPM } from '../sim/constants';
 import type { GameEvent } from '../sim/events';
 import type { World } from '../sim/world';
@@ -36,6 +37,7 @@ export class GameRenderer {
   beatSource: (() => number | null) | null = null;
   private modules: RenderModule[] = [];
   private post: PostFx | null = null;
+  private readonly mobilePresentation = isMobileCommandLayout();
   /**
    * The previous match's modules, kept until the new scene's materials have acquired their
    * programs: three keeps a linked program while any material uses it, so identical materials
@@ -65,7 +67,7 @@ export class GameRenderer {
     // The link check reads the GL info logs, which waits for every compile to finish on the
     // main thread: development only.
     this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.mobilePresentation ? 1.5 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -92,7 +94,7 @@ export class GameRenderer {
       camera: this.camera,
       world,
       session,
-      quality: session.settings.quality,
+      quality: this.mobilePresentation ? 'low' : session.settings.quality,
       time: 0,
       sunDir: new THREE.Vector3(0.5, 0.8, 0.3).normalize(),
       daylight: 1,
@@ -108,7 +110,8 @@ export class GameRenderer {
       new ActorsRenderer(ctx),
       new VfxRenderer(ctx),
     ];
-    this.post = new PostFx(ctx);
+    // Mobile keeps the actual world/telegraphs but skips bloom, grain, parchment and drug grading.
+    if (!this.mobilePresentation) this.post = new PostFx(ctx);
     this.resize();
     this.needsWarm = true;
     this.warmUntil = 0;
@@ -146,7 +149,7 @@ export class GameRenderer {
   render(dt: number): boolean {
     const ctx = this.ctx;
     const post = this.post;
-    if (!ctx || !post) return false;
+    if (!ctx) return false;
     if (this.warmError) {
       const error = this.warmError;
       this.warmError = null;
@@ -163,7 +166,7 @@ export class GameRenderer {
       this.needsWarm = false;
       this.warmUntil = performance.now() + WARM_CAP_MS;
       const target = this.renderer.getRenderTarget();
-      this.renderer.setRenderTarget(this.warmTarget);
+      this.renderer.setRenderTarget(post ? this.warmTarget : null);
       try {
         void this.renderer.compileAsync(ctx.scene, this.camera).then(() => {
           if (this.ctx === ctx) this.warmUntil = 0;
@@ -178,7 +181,11 @@ export class GameRenderer {
       this.disposeRetired();
     }
     if (performance.now() < this.warmUntil) return false;
-    post.render(dt);
+    if (post) post.render(dt);
+    else {
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(ctx.scene, this.camera);
+    }
     renderCommandOverlay(this.renderer, this.camera, ctx.shared.commandOverlay);
     return true;
   }

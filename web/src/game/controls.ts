@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from './mobileTouch';
 import { matchSettings } from "../sim/matchSettings";
 /**
  * Player controls: keyboard/mouse → camera, Session presentation state and Commands. Only
@@ -14,7 +15,7 @@ import { angleDiff, clamp, wrapAngle } from '../sim/math';
 import type { V3 } from '../sim/math';
 import { isFlagProtected } from '../sim/systems/abilities';
 import { throwOrigin } from '../sim/systems/avatars';
-import { isCollapsed } from '../sim/systems/buildings';
+import { canPlaceBuilding, isCollapsed } from '../sim/systems/buildings';
 import { canRecruit, handFlagBlocker } from '../sim/systems/recruitment';
 import { canPlantAt, nearestPlantableNode } from '../sim/systems/flags';
 import { CHAKRA_ABILITY, CHAKRAS, DRUGS, FACTION_IDS } from '../sim/types';
@@ -158,7 +159,7 @@ const CONTEXT_PROMPT: Record<Exclude<ContextKind, 'pull'>, string> = {
 /** A panel that needs the cursor is open (pointer stays unlocked; Esc closes it). */
 function panelOpen(s: Session): boolean {
   const p = s.panels;
-  return p.chakras || p.codex || p.help || p.settings;
+  return s.mobileMenu !== null || p.chakras || p.codex || p.help || p.settings;
 }
 
 /** The local player commands a seat in this world (not the attract burn, not an online spectator). */
@@ -288,7 +289,7 @@ export class Controls {
     if (!world) return;
     const fresh = world !== this.world;
     if (fresh) this.attachWorld(world, s);
-    if (world.factions[s.playerFaction].controlMode === 'rts' && s.view !== 'command') {
+    if ((world.factions[s.playerFaction].controlMode === 'rts' || isMobileCommandLayout()) && s.view !== 'command') {
       s.view = 'command';
       s.viewBlend = 1;
     }
@@ -301,6 +302,16 @@ export class Controls {
     // A text field (chat) has the keyboard: keys held when it opened must not keep the vexillomancer running.
     this.input.controls = s.settings.controls;
     const typing = this.input.typing;
+    const mobile = isMobileCommandLayout();
+    const touchEnabled = mobile && inPlay && !watcher && !typing && !s.campChoiceOpen && !panelOpen(s);
+    this.input.touch.enabled = touchEnabled;
+    if (!touchEnabled) {
+      this.input.touch.cancel();
+      // A modal, resize interruption or screen transition must never defer a Confirm
+      // click until the player returns to the field.
+      if (mobile) s.mobileBuildConfirm = false;
+    }
+    else this.input.touch.poll(performance.now());
     this.input.pollGamepad(Math.min(dt,0.05),inPlay&&!typing&&!this.cursorWanted(s),s.view==='command');
     if (typing) this.input.clear();
     if (inPlay && av && this.freshWorld) this.beginMatch(s, av);
@@ -313,16 +324,16 @@ export class Controls {
       }
       if ((s.view === 'command' || watcher || typing || this.cursorWanted(s)) && this.input.locked) this.input.exitLock();
       s.pointerLocked = this.input.locked;
-      if (s.view === 'command' && !effigyCameraTarget(world)) this.command.controlCamera(s, dt);
+      if (s.view === 'command' && !effigyCameraTarget(world) && !(mobile && panelOpen(s))) this.command.controlCamera(s, dt);
       else if (!watcher) this.look(s);
       if (watcher) this.spectate(world, s, dt);
     }
     if (s.campChoiceOpen && this.input.locked) this.input.exitLock();
     this.animateBlend(s, dt);
     this.updateCamera(world, s, av, watcher, dt);
-    if (inPlay && av && !watcher && !typing && !s.campChoiceOpen) {
+    if (inPlay && av && !watcher && !typing && !s.campChoiceOpen && !(mobile && panelOpen(s))) {
       this.pick(world, s, av);
-      if (world.factions[f].controlMode !== 'rts') this.targetedKeys(s, av);
+      if (!mobile && world.factions[f].controlMode !== 'rts') this.targetedKeys(s, av);
       else if (this.input.wasPressed('KeyB')) { s.recruitTargeting = false; s.tool = s.tool === 'building' ? 'flag' : 'building'; }
       if (s.view === 'action') this.actionFrame(world, s, av, dt);
       else this.commandFrame(world, s, av);
@@ -538,7 +549,7 @@ export class Controls {
     s.camera.pitch = START_PITCH;
     this.aimYaw = av.yaw;
     this.view = s.view;
-    if (this.app.world?.factions[s.playerFaction].controlMode === 'rts') this.enterCommand(s, av.pos);
+    if (isMobileCommandLayout() || this.app.world?.factions[s.playerFaction].controlMode === 'rts') this.enterCommand(s, av.pos);
   }
 
   private screenChanged(s: Session): void {
@@ -567,6 +578,7 @@ export class Controls {
     const inp = this.input;
     const p = s.panels;
     if (inp.wasPressed('Escape') && panelOpen(s)) {
+      s.mobileMenu = null; s.mobileCancelSerial++;
       p.chakras = false;
       p.codex = false;
       p.help = false;
@@ -578,7 +590,7 @@ export class Controls {
     if (inp.wasPressed('F1')) p.help = !p.help;
     if (inp.wasPressed('KeyL')) s.showLattice = !s.showLattice;
     if (inp.wasPressed('Backquote')) s.debug = !s.debug;
-    if (inp.wasPressed('Tab') && world.factions[s.playerFaction].controlMode !== 'rts' && !effigyCameraTarget(world)) {
+    if (!isMobileCommandLayout() && inp.wasPressed('Tab') && world.factions[s.playerFaction].controlMode !== 'rts' && !effigyCameraTarget(world)) {
       if (s.view === 'action') {
         const target = watcher ? this.followed(world, s) : av;
         this.enterCommand(s, target ? target.pos : null);
@@ -611,7 +623,7 @@ export class Controls {
   }
 
   private exitCommand(s: Session): void {
-    if (this.app.world?.factions[s.playerFaction].controlMode === 'rts') { this.app.setPaused(true); return; }
+    if (isMobileCommandLayout() || this.app.world?.factions[s.playerFaction].controlMode === 'rts') { this.app.setPaused(true); return; }
     this.view = 'action';
     s.view = 'action';
     this.command.reset(s);
@@ -719,7 +731,7 @@ export class Controls {
     if (commandView) {
       // Metres per pixel at the cursor's depth: tiny Signifiers stay clickable from on high.
       const wpp = (2 * picker.dist * Math.tan((camera.fov * DEG) / 2)) / this.input.height;
-      minR = Math.min(6, CMD_PICK_PX * wpp);
+      minR = Math.min(6, (isMobileCommandLayout() ? 22 : CMD_PICK_PX) * wpp);
       nodeR = clamp(CMD_PICK_PX * wpp, NODE_PICK, matchSettings(world.options).gridScale / 2);
     }
     const lat = world.lattice;
@@ -1076,7 +1088,12 @@ export class Controls {
 
   private commandFrame(world: World, s: Session, av: Avatar): void {
     const f = s.playerFaction;
-    const ghost = s.tool === 'building' ? this.builder.building(world, f, s.buildingKind, s.hover.point) : null;
+    let ghost = s.tool === 'building' ? this.builder.building(world, f, s.buildingKind, s.hover.point) : null;
+    if (isMobileCommandLayout() && s.tool === 'building') {
+      const facet = s.mobileBuildFacet;
+      const check = canPlaceBuilding(world, f, s.buildingKind, facet);
+      ghost = { kind: s.buildingKind, facet, edge: -1, level: 0, rampEdge: -1, valid: check.ok, reason: check.reason };
+    }
     s.ghost = ghost;
     this.clearAim(s);
     const exit = this.command.frame(world, s, f, this.app.renderer.camera, ghost);

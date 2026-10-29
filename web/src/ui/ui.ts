@@ -34,6 +34,7 @@ import { HelpOverlay } from './help';
 import { HudPart, PerfOverlay } from './hud';
 import { LobbyScreen } from './lobby';
 import { Minimap } from './minimap';
+import { MobileCommandUI } from './mobileCommand';
 import { NetHud } from './netstatus';
 import { PauseMenu } from './pause';
 import { HearthRail } from './rail';
@@ -157,6 +158,9 @@ export class GameUI {
     // Last in the overlay: taking a camp is asked over the pause menu and the end cards alike.
     this.seats = new SeatChooser(host, layout.overlay);
     this.parts.push(this.seats);
+    if (document.documentElement.dataset.deviceLayout === 'mobile') {
+      this.parts.push(new MobileCommandUI(host, layout, this.rootEl));
+    }
 
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onKey);

@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from '../../game/mobileTouch';
 /**
  * Survey layer: Ley Lattice lines + node markers (near the player in action mode, full map in
  * Command View with the 2017 cyan/red noise ground tint), Ley Lines (glowing faction beams),
@@ -188,6 +189,7 @@ export class SurveyRenderer implements RenderModule {
     );
 
     this.data.update(now);
+    this.lattice.setTargetingVisible(!isMobileCommandLayout() || s.mobileMode === 'build');
     this.lattice.update();
     this.ley.update();
     this.facets.update();

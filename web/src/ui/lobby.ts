@@ -1,3 +1,4 @@
+import { isMobileCommandLayout } from '../game/mobileTouch';
 import { MatchSetup } from './matchSetup';
 import { normalizeMatch } from '../sim/matchSettings';
 import { saveSettings } from './settings';
@@ -57,7 +58,7 @@ export class LobbyScreen implements UiPart {
   private talk: HTMLElement;
   private localSeed: string | null = null;
   private localSeat: FactionId = 0;
-  private localControlMode: 'avatar' | 'rts' = 'avatar';
+  private localControlMode: 'avatar' | 'rts' = isMobileCommandLayout() ? 'rts' : 'avatar';
   private controlMode: HTMLSelectElement;
   private start: HTMLButtonElement;
   private startHint: HTMLElement;
@@ -130,10 +131,10 @@ export class LobbyScreen implements UiPart {
     const modeRow = el('label', 'setup-field', rules);
     el('span', '', modeRow, 'Your play style');
     this.controlMode = el('select', 'field-in', modeRow);
-    el('option', '', this.controlMode, 'Avatar · action + command').value = 'avatar';
-    el('option', '', this.controlMode, 'RTS · command only').value = 'rts';
+    el('option', '', this.controlMode, 'Regular · action + command').value = 'avatar';
+    el('option', '', this.controlMode, 'Degen · command only').value = 'rts';
     this.controlMode.setAttribute('aria-label', 'Your play style');
-    el('small', 'setup-hint', modeRow, 'RTS rulers remain on their altar throne. Signifiers recruit, build and fight for you. Choose before the match.');
+    el('small', 'setup-hint', modeRow, 'Degen rulers remain on their altar throne. Signifiers recruit, build and fight for you. Choose before the match.');
     this.controlMode.addEventListener('change', () => {
       const mode = this.controlMode.value === 'rts' ? 'rts' : 'avatar';
       if (this.net) this.net.setControlMode(mode);
@@ -394,7 +395,7 @@ export class LobbyScreen implements UiPart {
       const mine = net.seat === f;
       const active=normalizeMatch(lobby.settings.match).active.includes(f);
       this.renderSeatEnabled(f, active, !!holder);
-      setText(card.occupant, holder ? `${holder.name}${holder.controlMode === 'rts' ? ' · RTS' : ''}` : ai);
+      setText(card.occupant, holder ? `${holder.name}${holder.controlMode === 'rts' ? ' · Degen' : ''}` : ai);
       setDisabled(card.action,!active);
       // A Signifier who dropped keeps the seat; the AI plays it until they return (or someone takes it).
       setText(card.state, holder ? (holder.connected ? (holder.ready ? 'ready' : 'not ready') : 'away · the AI holds the camp') : '');

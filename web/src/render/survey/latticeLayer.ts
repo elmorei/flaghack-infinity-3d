@@ -245,6 +245,12 @@ export class LatticeLayer {
     this.ends.needsUpdate = true;
   }
 
+  /** Bare planning grid only; ownership/borders live in independent layers. */
+  setTargetingVisible(visible: boolean): void {
+    this.lines.visible = visible;
+    this.markers.visible = visible;
+  }
+
   update(): void {
     if (this.builtTopology === this.data.topology) return;
     this.builtTopology = this.data.topology;
