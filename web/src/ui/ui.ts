@@ -255,7 +255,9 @@ export class GameUI {
 
   private onResize = (): void => {
     const z = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
-    this.zoomed.style.setProperty('zoom', Math.max(0.72, Math.min(1.6, z)).toFixed(3));
+    const zoom = Math.max(0.72, Math.min(1.6, z)).toFixed(3);
+    this.zoomed.style.setProperty('zoom', zoom);
+    this.zoomed.style.setProperty('--desktop-ui-zoom', zoom);
   };
 
   /**

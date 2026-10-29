@@ -8,12 +8,12 @@ function deferred<T>() {
 }
 const captured = vi.hoisted(() => ({ cache: vi.fn(), remember: vi.fn(), boot: vi.fn(), overlay: null as any }));
 vi.mock('./startup/cache', () => ({ verifyStartupCache: captured.cache, rememberStartupCache: captured.remember }));
-vi.mock('./startup/media', () => ({ INTRO_VIDEO_URL: '/test-only.mp4', INTRO_VIDEO_HAS_AUDIO: true }));
+vi.mock('./startup/media', () => ({ INTRO_VIDEO_URL: '/test-only.mp4', MOBILE_INTRO_VIDEO_URL: '/test-mobile.mp4', INTRO_VIDEO_HAS_AUDIO: true }));
 vi.mock('./main', () => ({ boot: captured.boot, GAME_MODULE_URL: 'https://example.github.io/game/assets/main-test.js' }));
 vi.mock('./startup/overlay', () => ({ StartupOverlay: class { constructor() { return captured.overlay; } } }));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-async function fixture(cached: boolean) {
+async function fixture(cached: boolean, mobile = false) {
   vi.resetModules(); captured.cache.mockReset(); captured.remember.mockReset(); captured.boot.mockReset();
   const readiness = deferred<void>(), intro = deferred<void>(), fontReady = deferred<void>(), cache = deferred<boolean>();
   const app = { ready: readiness.promise, finishStartup: vi.fn() };
@@ -22,6 +22,9 @@ async function fixture(cached: boolean) {
   const root = { inert: false, querySelectorAll: () => [] }, html = { dataset: {} as Record<string, string> }, entries: PerformanceEntry[] = [];
   vi.stubGlobal('document', { getElementById: (id: string) => id === 'app' ? root : {}, documentElement: html, querySelectorAll: () => [], fonts: Object.assign([], { ready: fontReady.promise }) });
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1; });
+  vi.stubGlobal('navigator', { userAgent: mobile ? 'iPhone' : 'Windows NT', maxTouchPoints: mobile ? 5 : 0 });
+  vi.stubGlobal('innerWidth', mobile ? 390 : 1280);
+  vi.stubGlobal('innerHeight', mobile ? 844 : 720);
   vi.stubGlobal('location', { href: 'https://example.github.io/game/' });
   vi.stubGlobal('performance', { now: () => Date.now(), getEntriesByType: () => entries });
   await import('./startup');
@@ -59,4 +62,14 @@ it('game startup failures keep the safe reload UI instead of exposing an unready
   const f = await fixture(false); f.readiness.reject(new Error('GPU failed'));
   await vi.waitFor(() => expect(f.overlay.fail).toHaveBeenCalledOnce());
   expect(f.app.finishStartup).not.toHaveBeenCalled(); expect(f.root.inert).toBe(true); expect(log).toHaveBeenCalledOnce();
+});
+
+it('selects only the portrait intro on mobile without changing readiness gates', async () => {
+  const f = await fixture(false, true);
+  expect(f.html.dataset.deviceLayout).toBe('mobile');
+  expect(f.overlay.play).toHaveBeenCalledExactlyOnceWith('/test-mobile.mp4', true);
+  expect(f.root.inert).toBe(true);
+  f.readiness.resolve(); f.intro.resolve();
+  await vi.waitFor(() => expect(f.app.finishStartup).toHaveBeenCalledOnce());
+  expect(f.root.inert).toBe(false);
 });

@@ -1,0 +1,62 @@
+{
+  "sourceFile": "flaghack-gameplay-intro-25s.mp4",
+  "sourceSha256": "5530dbc4d407d51005d1becb8b45da80cd647a8052d1b2dd0746d0af64e515e2",
+  "sourceProvenance": "gameplay-intro-provenance.json",
+  "provenance": "Portrait reframe of the existing staged actual gameplay montage. No new imagery, no boss footage, no time changes. Existing 1.2x montage speed preserved.",
+  "crop": {
+    "sourceRectangle": {
+      "width": 405,
+      "height": 720,
+      "y": 0
+    },
+    "xExpression": "if(lt(t,10),437.5,if(lt(t,15),197.5+50*(t-10),if(lt(t,20),237.5+10*(t-15),437.5)))",
+    "framing": "Opening and player-action shots centered; recruitment shot tracks the approaching group; sunset shot follows the altar; final nighttime contested altar centered."
+  },
+  "delivery": {
+    "file": "flaghack-gameplay-intro-mobile-25s.mp4",
+    "sha256": "564f137fd3c63c8d4a06c1b500fbcfc066f524b06881ba9d580b3b50c5a4feb5",
+    "bytes": 3902830,
+    "durationSeconds": 25,
+    "frames": 750,
+    "fps": 30,
+    "width": 432,
+    "height": 768,
+    "aspectRatio": "9:16",
+    "codec": "h264",
+    "profile": "Main",
+    "level": "3.1",
+    "pixelFormat": "yuv420p",
+    "colorRange": "limited",
+    "audioStreams": 0,
+    "fastStart": true,
+    "mp4Boxes": [
+      [
+        "ftyp",
+        0,
+        32
+      ],
+      [
+        "moov",
+        32,
+        10292
+      ],
+      [
+        "free",
+        10324,
+        8
+      ],
+      [
+        "mdat",
+        10332,
+        3892498
+      ]
+    ]
+  },
+  "validation": [
+    "Original source SHA256 unchanged",
+    "Source and output frame contact sheets inspected",
+    "Shot-aware crop preserves focal gameplay and final nighttime contested altar",
+    "25.000000 seconds and 750 frames verified with ffprobe",
+    "Full video decode completed without errors"
+  ]
+}

@@ -26,8 +26,8 @@ const all = (node: Node): Node[] => [node, ...node.children.flatMap(all)];
 const text = (node: Node): string => [node.textContent, node.innerHTML.replace(/<[^>]*>/g, ''), ...node.children.map(text)].join(' ').trim();
 const visible = (node: Node): boolean => !node.classList.contains('is-off') && (!node.parentElement || visible(node.parentElement));
 function setup(invite = false, hosted = false, remote = true) {
-  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag) });
-  vi.stubGlobal('location', { protocol: 'https:', origin: 'https://pages.example', reload: vi.fn() });
+  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag), documentElement: { dataset: { deviceLayout: 'mobile' } } });
+  vi.stubGlobal('location', { protocol: 'https:', origin: 'https://pages.example', href: 'https://pages.example/game/?other=1#host=invite', reload: vi.fn() });
   const store = { getItem: vi.fn(() => ''), setItem: vi.fn() }; vi.stubGlobal('localStorage', store);
   const root = new Node(), session = new Session(); session.screen = 'title';
   const app: any = { session, remoteHostsAvailable: remote, hostInfo: hosted ? { serverName: 'Our burn', protocol: PROTOCOL_VERSION, build: BUILD_ID, instanceId: 'abc', phase: 'lobby', players: 0, seated: 0 } : null, inviteHost: invite ? 'https://remote.example' : null, invitePassword: invite ? 'invite-secret' : null, joiningHost: false, joinError: null, net: null };
@@ -64,8 +64,10 @@ describe('Pages Join screen', () => {
     expect(visible(button('Join the burn'))).toBe(true); expect(visible(button('Begin the Survey'))).toBe(true);
     expect(fields.map(f => f.value)).toEqual(['https://remote.example', '', 'invite-secret']);
     expect(fields[2].type).toBe('password'); expect(app.joinHost).not.toHaveBeenCalled();
-    const link = all(root).find(node => node.tagName === 'a')!;
-    expect(link.href).toBe('https://github.com/elmorei/flaghack-infinity-3d/releases'); expect(link.rel).toBe('noopener noreferrer');
+    const links = all(root).filter(node => node.tagName === 'a');
+    expect(links.map(link => link.href)).toEqual(['https://pages.example/game/?other=1&view=mobile#host=invite', 'https://pages.example/game/?other=1&view=desktop#host=invite']);
+    expect(links[0].getAttribute('aria-current')).toBe('page');
+    expect(text(root)).not.toMatch(/Windows|launcher|standalone.*app/i);
   });
   it('requires handle/target, and never joins as a side effect of typing or pasting', () => {
     const { app, fields, button, status } = setup();

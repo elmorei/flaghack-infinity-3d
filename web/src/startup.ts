@@ -1,11 +1,17 @@
 import { BUILD_ID } from './net/build';
 import { verifyStartupCache } from './startup/cache';
 import { rememberReadyAssets } from './startup/remember';
-import { INTRO_VIDEO_URL, INTRO_VIDEO_HAS_AUDIO } from './startup/media';
+import { INTRO_VIDEO_URL, MOBILE_INTRO_VIDEO_URL, INTRO_VIDEO_HAS_AUDIO } from './startup/media';
 import { StartupOverlay } from './startup/overlay';
+
+import { browserDeviceLayout, usePortraitIntro } from './startup/device';
 
 /** Small entry point: paints before the game bundle, fonts, world and GPU are prepared. */
 async function start(): Promise<void> {
+  const layout = browserDeviceLayout();
+  document.documentElement.dataset.deviceLayout = layout;
+  const introUrl = usePortraitIntro(layout, globalThis.innerWidth, globalThis.innerHeight)
+    ? MOBILE_INTRO_VIDEO_URL : INTRO_VIDEO_URL;
   const root = document.getElementById('app')!;
   const overlay = new StartupOverlay(document.getElementById('startup')!);
   root.inert = true;
@@ -14,7 +20,7 @@ async function start(): Promise<void> {
     // Cache availability is not readiness: even warm bytes need CPU/GPU initialization.
     const cached = await verifyStartupCache(BUILD_ID, location.href);
     document.documentElement.dataset.startupCache = cached ? 'hit' : 'miss';
-    if (!cached && INTRO_VIDEO_URL) overlay.play(INTRO_VIDEO_URL, INTRO_VIDEO_HAS_AUDIO);
+    if (!cached && introUrl) overlay.play(introUrl, INTRO_VIDEO_HAS_AUDIO);
     overlay.setStatus('Loading game code…');
     const { boot, GAME_MODULE_URL } = await import('./main');
     const { app, cacheable } = await boot((message) => overlay.setStatus(message));

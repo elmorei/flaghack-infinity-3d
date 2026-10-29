@@ -6,7 +6,6 @@
  * Both static Pages and host-served clients offer explicit remote Join alongside solo play.
  * Invites prefill the address/password but never initiate a request. Only the handle is saved.
  */
-import { BUILD_ID } from '../net/build';
 import { MAX_NAME_LENGTH } from '../net/protocol';
 import { parseHostAddress } from '../net/endpoint';
 import type { HostInfo } from '../net/protocol';
@@ -179,18 +178,22 @@ export class TitleScreen implements UiPart {
       'div',
       'mp-card panel',
       host.app.remoteHostsAvailable
-        ? '<div class="panel-title">Multiplayer</div><p>A friend runs the standalone FLAGHACK Host app and shares its HTTPS invite. Paste it above, then choose Join. Solo play needs no host.</p>'
-        : '<div class="panel-title">Offline edition</div><p>Solo play and the Training Burn work here without a host. For multiplayer, open FLAGHACK in your web browser outside this launcher.</p>',
+        ? '<div class="panel-title">Multiplayer</div><p>Have an invite? Paste your host’s HTTPS address above, then choose Join. Solo play needs no host.</p>'
+        : '<div class="panel-title">Offline edition</div><p>Solo play and the Training Burn work here without a host. For multiplayer, open the online page in your web browser.</p>',
       col,
     );
 
+    // Explicit overrides also recover from unusual tablets or desktop-mode user agents.
     if (host.app.remoteHostsAvailable) {
-      const download = el('a', 'btn btn-tiny', this.join, 'Download Windows host');
-      download.href = BUILD_ID === 'development'
-        ? 'https://github.com/elmorei/flaghack-infinity-3d/releases'
-        : `https://github.com/elmorei/flaghack-infinity-3d/releases/download/host-${encodeURIComponent(BUILD_ID)}/Flaghack-Host-Windows-x64.exe`;
-      download.target = '_blank';
-      download.rel = 'noopener noreferrer';
+      const versions = el('nav', 'version-switch', col);
+      versions.setAttribute('aria-label', 'Page layout');
+      for (const [view, label] of [['mobile', 'Mobile version'], ['desktop', 'PC version']] as const) {
+        const link = el('a', 'btn btn-tiny', versions, label);
+        const target = new URL(location.href);
+        target.searchParams.set('view', view);
+        link.href = target.href;
+        if (document.documentElement.dataset.deviceLayout === view) link.setAttribute('aria-current', 'page');
+      }
     }
 
     const foot = el('footer', 'title-foot', this.root);

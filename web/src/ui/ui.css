@@ -4151,3 +4151,114 @@
 
 /* Enclose keeps its home-expansion preset together with target enclosure. */
 .enclose-options { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 6px; padding-left: 8px; border-left: 2px solid rgba(255, 226, 122, .35); }
+
+/* Device layout is resolved before boot. Keep desktop's virtual HUD sizing, but never
+   shrink a phone menu: its controls, scrolling and safe areas use actual CSS pixels. */
+.version-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.version-switch a { text-decoration: none; }
+.version-switch [aria-current='page'] { border-color: var(--flag); color: var(--flag); }
+html[data-device-layout='mobile'] .fh-ui { zoom: 1 !important; }
+html[data-device-layout='mobile'] .fh-hud { zoom: var(--desktop-ui-zoom, .72); }
+html[data-device-layout='mobile'] .fh-overlay {
+  --mobile-inset-top: max(10px, env(safe-area-inset-top));
+  --mobile-inset-right: max(10px, env(safe-area-inset-right));
+  --mobile-inset-bottom: max(10px, env(safe-area-inset-bottom));
+  --mobile-inset-left: max(10px, env(safe-area-inset-left));
+}
+html[data-device-layout='mobile'] .fh-overlay :is(button, .btn, summary, select, input:not([type='checkbox'])) {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+html[data-device-layout='mobile'] .fh-overlay :is(.panel-x, .toggle) { min-width: 44px; flex-shrink: 0; }
+html[data-device-layout='mobile'] .fh-overlay :is(input, select) { font-size: 16px; max-width: 100%; }
+html[data-device-layout='mobile'] .fh-overlay input[type='checkbox'] { width: 28px; height: 28px; flex: none; }
+html[data-device-layout='mobile'] .fh-overlay :is(.setup-field, .field) { min-height: 44px; }
+html[data-device-layout='mobile'] .title {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--mobile-inset-top) var(--mobile-inset-right) var(--mobile-inset-bottom) var(--mobile-inset-left);
+}
+html[data-device-layout='mobile'] .title-shade { position: fixed; background: rgba(8,5,2,.72); }
+html[data-device-layout='mobile'] :is(.title-edition, .title-sigil, .title .quote) { display: none; }
+html[data-device-layout='mobile'] .title-col {
+  position: relative; left: auto; top: auto; transform: none;
+  width: 100%; max-width: 600px; max-height: none; overflow: visible;
+  margin: 0 auto; gap: 12px; align-items: stretch;
+}
+html[data-device-layout='mobile'] .logo { margin: -12px auto -10px; max-width: 420px; }
+html[data-device-layout='mobile'] .title :is(.menu, .mp-card) { width: 100%; margin: 0; }
+html[data-device-layout='mobile'] .title .solo { order: 1; }
+html[data-device-layout='mobile'] .title .join { order: 2; }
+html[data-device-layout='mobile'] .title .mp-card { order: 3; }
+html[data-device-layout='mobile'] .title .version-switch { order: 4; }
+html[data-device-layout='mobile'] .title :is(.solo-row, .join-fields) { display: grid; grid-template-columns: 1fr; }
+html[data-device-layout='mobile'] .title .btn-begin { font-size: 18px; letter-spacing: .04em; white-space: normal; }
+html[data-device-layout='mobile'] .title .solo-row .btn-train { min-width: 0; width: 100%; }
+html[data-device-layout='mobile'] .title-foot { position: relative; inset: auto; margin: 20px auto 0; max-width: 600px; flex-direction: column; align-items: stretch; gap: 12px; }
+html[data-device-layout='mobile'] .title-foot .warning-label { max-width: none; }
+html[data-device-layout='mobile'] :is(.modal, .lobby, .help) {
+  padding: var(--mobile-inset-top) var(--mobile-inset-right) var(--mobile-inset-bottom) var(--mobile-inset-left);
+  align-items: stretch;
+}
+html[data-device-layout='mobile'] :is(.modal-box, .lobby-box, .help-box) {
+  width: 100%; min-width: 0; max-width: 760px; max-height: 100%;
+  overflow: auto; overscroll-behavior: contain; padding: 10px;
+}
+html[data-device-layout='mobile'] .modal-head { gap: 8px; }
+html[data-device-layout='mobile'] .modal-head h2 { font-size: 18px; letter-spacing: .04em; overflow-wrap: anywhere; }
+html[data-device-layout='mobile'] .modal-foot { flex-wrap: wrap; gap: 8px; }
+html[data-device-layout='mobile'] .advanced-box { height: 100%; }
+html[data-device-layout='mobile'] .advanced-scroll { padding-right: 4px; }
+html[data-device-layout='mobile'] .lobby-head { flex-wrap: wrap; gap: 8px; }
+html[data-device-layout='mobile'] .lobby-sigil { width: 44px; height: 44px; }
+html[data-device-layout='mobile'] .lobby-server { font-size: 24px; }
+html[data-device-layout='mobile'] .lobby-tools { width: 100%; display: flex; flex-wrap: wrap; }
+html[data-device-layout='mobile'] .lobby-tools .btn { flex: 1; white-space: normal; }
+html[data-device-layout='mobile'] .lobby-seats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-device-layout='mobile'] :is(.lobby-lower, .local-lobby .lobby-rules) { grid-template-columns: 1fr; }
+html[data-device-layout='mobile'] .seat-card { min-width: 0; padding: 8px 6px; }
+html[data-device-layout='mobile'] .seat-top { flex-wrap: wrap; }
+html[data-device-layout='mobile'] .seat-action { max-width: 100%; white-space: normal; }
+html[data-device-layout='mobile'] .lobby-go { flex-wrap: wrap; }
+html[data-device-layout='mobile'] .lobby-start { width: 100%; }
+html[data-device-layout='mobile'] .setup-field { flex-wrap: wrap; gap: 8px; }
+html[data-device-layout='mobile'] .setup-field > span { flex-basis: 100%; }
+html[data-device-layout='mobile'] .setup-field .field-in { width: 100%; }
+html[data-device-layout='mobile'] .lobby-row { flex-wrap: wrap; }
+html[data-device-layout='mobile'] .lobby-row .seg { flex-wrap: wrap; }
+html[data-device-layout='mobile'] .set-grid { grid-template-columns: minmax(0, 1fr) 60px; gap: 8px; }
+html[data-device-layout='mobile'] .set-grid .set-l { grid-column: 1 / -1; margin-top: 8px; }
+html[data-device-layout='mobile'] .set-grid .seg { flex-wrap: wrap; }
+html[data-device-layout='mobile'] .control-table { min-width: 560px; }
+html[data-device-layout='mobile'] .control-settings { overscroll-behavior-x: contain; }
+html[data-device-layout='mobile'] .pause-body { flex-direction: column; }
+html[data-device-layout='mobile'] .pause.online .pause-box { width: 100%; }
+html[data-device-layout='mobile'] .pause.online .pause-menu { width: 100%; flex-basis: auto; }
+html[data-device-layout='mobile'] .help-grid { grid-template-columns: 1fr; }
+html[data-device-layout='mobile'] .codex-book { width: 100%; max-width: 850px; height: 100%; max-height: 100%; grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+html[data-device-layout='mobile'] .codex-tabs { flex-direction: row; overflow-x: auto; padding: 8px; }
+html[data-device-layout='mobile'] .codex-tabs :is(.codex-mark, .codex-markSub, .codex-foot) { display: none; }
+html[data-device-layout='mobile'] .codex-tab { flex: none; white-space: nowrap; }
+html[data-device-layout='mobile'] .codex-tab.on { margin-right: 0; }
+html[data-device-layout='mobile'] .codex-page { padding: 64px 16px 20px; }
+html[data-device-layout='mobile'] .codex-article h2 { font-size: 25px; }
+html[data-device-layout='mobile'] .chakra-body { grid-template-columns: 1fr; }
+html[data-device-layout='mobile'] .ck-svg { width: 100%; height: auto; max-height: 350px; }
+@media (min-width: 700px) {
+  html[data-device-layout='mobile'] .lobby-seats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  html[data-device-layout='mobile'] .title :is(.solo-row, .join-fields) { grid-template-columns: 1fr 1fr; }
+  html[data-device-layout='mobile'] .help-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+html[data-device-layout='mobile'] .seat-action { min-width: 0; width: 100%; }
+html[data-device-layout='mobile'] .seat-name { overflow-wrap: anywhere; }
+html[data-device-layout='mobile'] .lp-row { grid-template-columns: 16px minmax(0, 1fr) auto; }
+html[data-device-layout='mobile'] .lp-row > :nth-child(n+4) { grid-column: auto; }
+html[data-device-layout='mobile'] .end-title,
+html[data-device-layout='mobile'] .endscreen .end-title { font-size: 32px; overflow-wrap: anywhere; }
+html[data-device-layout='mobile'] .end-box > * { flex-shrink: 0; max-width: 100%; }
+html[data-device-layout='mobile'] :is(.end-stats, .standings) { max-width: 100%; overflow-x: auto; }
+html[data-device-layout='mobile'] .end-buttons { flex-wrap: wrap; justify-content: center; }
+html[data-device-layout='mobile'] .end-buttons .btn { min-width: 0; }
+html[data-device-layout='mobile'] .seat-row { grid-template-columns: 44px minmax(0, 1fr); gap: 8px; }
+html[data-device-layout='mobile'] .sr-face { width: 44px; height: 44px; }
+html[data-device-layout='mobile'] .scoreboard { width: calc(100% - 20px); max-height: calc(100% - 40px); top: 20px; overflow: auto; }

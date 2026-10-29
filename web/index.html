@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>FLAGHACK ∞ — Survey Flags</title>
     <meta name="description" content="A vexillomantic 1v1v1v1 action-strategy game on an aperiodic Ley Lattice." />
     <link
@@ -23,7 +23,9 @@
       #startup button:focus-visible{outline:3px solid #ffd400;outline-offset:3px}
       #startup button:disabled{cursor:default;opacity:.7}
       #startup-skip:not(:disabled){color:#111;background:#ffd400;border-color:#ffd400}
-      @media(max-width:520px){.startup-bottom{flex-wrap:wrap;padding:16px}#startup-status{flex-basis:100%}}
+      @media(max-width:520px){.startup-bottom{flex-wrap:wrap;padding:16px max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}#startup-status{flex-basis:100%}}
+      html[data-device-layout="mobile"] .startup-brand{max-width:90vw;overflow-wrap:anywhere}
+      @media(max-height:450px){.startup-bottom{padding:8px max(16px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}#startup-status{font-size:12px}}
     </style>
   </head>
   <body>
