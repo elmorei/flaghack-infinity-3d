@@ -82,16 +82,17 @@ async function main(){
           for(const other of w.hippies.values())if(other.id!==h.id&&Math.hypot(other.pos.x-at.x,other.pos.z-at.z)<10){other.pos.x+=40;other.pos.z+=40;}
           for(const id of av.carried){const fl=w.flags.get(id);if(fl)fl.pos={...av.pos};}
           if(!av.carried.length)window.fh.give({flags:1});
-          a.session.camera.yaw=0;a.session.camera.pitch=0;a.session.camera.dist=4.5;a.session.view='action';a.session.viewBlend=0;
+          a.session.camera.yaw=0;a.session.camera.pitch=-.12;a.session.camera.dist=4.5;a.session.view='action';a.session.viewBlend=0;
+          a.controls.rig.resetFollow();
           window.__frickQa.giftCount=av.carried.length;
         });
-        await page.waitForTimeout(500);
+        // Let the normal title-to-play camera transition finish before using its ray.
+        await page.waitForTimeout(2500);
         // Resolve the actual production camera shoulder offset, rather than assuming its sign.
         await page.evaluate(()=>{
-          const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),cam=a.renderer.camera;
-          cam.updateMatrixWorld();const e=cam.matrixWorld.elements,dx=-e[8],dz=-e[10];
-          const depth=((av.pos.x-cam.position.x)*dx+(av.pos.z-cam.position.z)*dz)/(dx*dx+dz*dz)+1.8;
-          h.pos={x:cam.position.x+dx*depth,z:cam.position.z+dz*depth};h.vel={x:0,z:0};
+          const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),o=a.controls.rig.origin,d=a.controls.rig.dir;
+          const depth=((av.pos.x-o.x)*d.x+(av.pos.z-o.z)*d.z)/(d.x*d.x+d.z*d.z)+1.8;
+          h.pos={x:o.x+d.x*depth,z:o.z+d.z*depth};h.vel={x:0,z:0};
           if(h.brain.mind){h.brain.mind.task='wander';h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
         });
         await page.waitForTimeout(150);
