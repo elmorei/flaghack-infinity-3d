@@ -5,6 +5,7 @@ const options={seed:'frick-host',mode:'standard' as const,difficulty:'normal' as
 const listener={frame:(_text:string)=>{},ended:()=>{},resync:()=>{},broken:()=>{}};
 function open(match:Match) {
  const w=match.world, wizard=w.hippies.get(w.frickFrack.wizardId)!, av=w.avatarOf(0);
+ const spot=w.nav.nearestWalkable(50,50); Object.assign(av.pos,{...spot,y:w.collision.groundHeight(spot.x,spot.z)});wizard.pos={x:spot.x,z:spot.z+1};
  expect(offerFrickFrackFlag(w,wizard,0,av.carried[0])).toBe(true);
  for(let i=0;i<3;i++) { const s=w.frickFrack.sessions[0]!;w.time=s.readyAt;
  cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:i===2?'play':'next'}); }

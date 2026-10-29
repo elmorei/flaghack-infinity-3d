@@ -9,13 +9,38 @@ import type { World } from '../sim/world';
 import type { UiHost, UiPart } from './core';
 import { button, el, setText, show } from './dom';
 import './frickFrack.css';
+import './frickFrackTarot.css';
+import { tarotCardLabel, renderFrickFrackCard } from './frickFrackTarot';
+import './frickFrackParody.css';
+import { parodyCardLabel, renderParodyCard } from './frickFrackParody';
+import { majorArcanaLabel, renderMajorArcanaCard } from './frickFrackArcana';
+import { FRICK_FRACK_ARCANA } from '../sim/frickFrackArcana';
+import { getFrickFrackPrivateView } from '../sim/frickFrackPrivate';
+import './frickFrackArcana.css';
 
-type TableAction = Extract<Command, { t: 'frickFrack' }>['action'];
+type TableCommand = Extract<Command, { t: 'frickFrack' }>;
+type TableAction = TableCommand['action'];
+type TableExtras = Pick<TableCommand, 'wager' | 'cardId' | 'targetCardIds' | 'value' | 'confirmCost' | 'choiceIndex'>;
+/** Player-facing rules, kept outside the table layout for readable collapsed help. */
+export const FRICK_FRACK_TABLE_RULES = [
+  '136 cards: 52 standard, 56 Rider–Waite minor arcana, and 28 original CCG/sports cards. Major Arcana are one-use sideboard effects, never dealer draws.',
+  'Closest to 21 without going over. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. Wizard stands on all 17s. Base wins pay 1:1, including blackjack; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
+  'On reveal, CCG cards fight opponent CCG cards only. Friendly cards coexist; ordinary and tarot cards do not fight. The lower value is removed; equal values both die.',
+  'At hand end, your strongest pair, three of a kind, or four of a kind multiplies base win profit by 2, 3, or 4. These prizes do not stack. Your returned stake is not multiplied; The World’s extra stake is added separately.',
+  'A non-bust five-card straight at hand end copies its highest printed card into your sleeve, even on a blackjack loss or push. No straight prize for a bust, and no mid-hand award.',
+  'Poker uses printed ranks, never effect-modified values. Standard straights include A–2–3–4–5 or 10–J–Q–K–A, with no wraparound. Tarot Page counts as J; Queen and King keep their ranks. Tarot Knight is a distinct kind rank and cannot join a straight. CCG printed ranks are 1–7; printed 1 is an Ace for poker only.',
+] as const;
 const SUITS = ['♠', '♥', '♦', '♣'];
 export function cardLabel(card: FrickFrackCard | null): string {
   if (card === null) return 'Hidden card';
+  const major = majorArcanaLabel(card);
+  if (major) return major;
+  const parody = parodyCardLabel(card);
+  if (parody) return parody;
+  const tarot = tarotCardLabel(card);
+  if (tarot) return tarot;
   const rank = card.rank === 1 ? 'A' : card.rank === 11 ? 'J' : card.rank === 12 ? 'Q' : card.rank === 13 ? 'K' : String(card.rank);
-  return `${rank}${SUITS[card.suit] ?? '?'}`;
+  return `${rank}${SUITS[card.suit] ?? '?'}${card.value !== undefined ? ` → ${card.value}` : ''}${card.temporary ? ' · temporary' : ''}`;
 }
 export function revealedDialogue(text: string, elapsed: number): string {
   return text.slice(0, Math.max(0, Math.floor(elapsed / FRICK_FRACK_LETTER_SECONDS)));
@@ -25,6 +50,29 @@ export function clampWager(value: number, available: number): number {
   if (cap === 0) return 0;
   return Math.max(1, Math.min(cap, Number.isFinite(value) ? Math.floor(value) : 1));
 }
+/** UI guard only; the host repeats every validation before consuming a card or stake. */
+export function canConfirmMajor(arcana: number, targets: readonly number[], hand: readonly FrickFrackCard[], value: number, wager: number, available: number): boolean {
+  const spec = FRICK_FRACK_ARCANA[arcana];
+  if (!spec) return false;
+  const count = spec.target === 'two' ? 2 : spec.target === 'one' || spec.target === 'confirmOne' ? 1 : 0;
+  if (targets.length !== count || new Set(targets).size !== count || targets.some(id => !hand.some(c => c.id === id))) return false;
+  if (spec.target === 'value' && (!Number.isInteger(value) || value < 1 || value > 7)) return false;
+  if (spec.target === 'confirmOne' && (!(wager > 0) || available < wager)) return false;
+  if ((arcana === 0 || arcana === 10) && !hand.length) return false;
+  return true;
+}
+
+export function majorPublicBlocker(arcana: number, s: FrickFrackSession): string | null {
+  if (s.phase !== 'playing') return 'Major Arcana are played during a hand.';
+  if (s.arcana?.choices?.length) return 'Finish the current choice first.';
+  if ([2,18,19].includes(arcana) && !s.dealer.includes(null)) return 'There is no hidden dealer card to affect.';
+  if ((arcana === 0 || arcana === 10) && !s.player.length) return 'There is no card in your hand to replace.';
+  if ((arcana === 8 && s.arcana?.strength) || (arcana === 11 && s.arcana?.justice) || (arcana === 21 && s.arcana?.world)) return 'This effect is already active for this hand.';
+  if (arcana === 20 && (s.arcana?.judgement || s.arcana?.judgementUsed)) return 'Judgement is already armed or has been used this hand.';
+  if (arcana === 17 && s.arcana?.starUsed) return 'The Star can recover a card only once per hand.';
+  return null;
+}
+
 /** Public state only: no local card draws or optimistic settlement. */
 export function activeFrickFrack(app: Pick<AppApi, 'world' | 'session'>): FrickFrackSession | null {
   const w = app.world, s = app.session;
@@ -50,6 +98,10 @@ export class FrickFrackUI implements UiPart {
   private wagerInput: HTMLInputElement | null = null;
   private wagerAvailable = 0;
   private focusBefore: HTMLElement | null = null;
+  private sideboardOpen = false;
+  private selectedMajor: number | null = null;
+  private majorTargets: number[] = [];
+  private majorValue = 1;
 
   constructor(host: UiHost, parent: HTMLElement) {
     this.host = host;
@@ -86,8 +138,10 @@ export class FrickFrackUI implements UiPart {
       && !handFlagBlocker(world, local.playerFaction, world.frickFrack.wizardId));
     this.active = session;
     show(this.root, session !== null);
+    this.root.classList.toggle('ff-in-world', session?.phase === 'dialogue' || session?.phase === 'empty');
+    document.documentElement.classList.toggle('ff-conversation-active', session !== null);
     if (!session || !world) {
-      this.key = ''; this.pending = ''; this.text = null; this.next = null;
+      this.key = ''; this.pending = ''; this.text = null; this.next = null; this.selectedMajor = null; this.majorTargets = [];
       if (wasOpen) { this.focusBefore?.blur(); this.focusBefore = null; }
       return;
     }
@@ -97,7 +151,8 @@ export class FrickFrackUI implements UiPart {
       if (document.pointerLockElement) document.exitPointerLock?.();
     }
     const available = world.avatarOf(session.faction)?.carried.length ?? 0;
-    const signature = `${session.id}:${session.revision}:${session.phase}:${available}:${world.frickFrack.sideboards[session.faction].map(c => c.id).join(',')}`;
+    const privateView = getFrickFrackPrivateView(world, session.faction);
+    const signature = `${session.id}:${session.revision}:${session.phase}:${available}:${world.frickFrack.sideboards[session.faction].map(c => c.id).join(',')}:${privateView?.expiresAt ?? 0}`;
     if (this.pending && (this.pending !== `${session.id}:${session.revision}` || now - this.pendingAt > 2500)) { this.pending = ''; this.key = ''; }
     if (signature !== this.key) {
       this.key = signature; this.render(session, available, world);
@@ -135,6 +190,7 @@ export class FrickFrackUI implements UiPart {
       const cards = el('div', 'ff-hands', this.body);
       this.hand(cards, 'Wizard', s.dealer);
       this.hand(cards, 'You', s.player);
+      if (s.remark) { const remark = el('p', 'ff-wizard-remark', this.body, s.remark); remark.setAttribute('role', 'status'); }
       if (s.message) el('p', `ff-result ff-${s.result ?? 'waiting'}`, this.body, s.message);
       if (s.phase === 'betting') {
         const field = el('label', 'ff-wager', this.body);
@@ -149,25 +205,51 @@ export class FrickFrackUI implements UiPart {
         this.wagerInput.addEventListener('change', () => this.setWager(Number(this.wagerInput?.value)));
         button('ff-button', row, '+', () => this.setWager(this.wager + 1)).setAttribute('aria-label', 'Wager one more Flag');
         button('ff-button', row, 'All', () => this.setWager(available));
-        const actions = el('div', 'ff-actions', this.body);
+        const actions = el('div', 'ff-actions ff-main-actions', this.body);
         this.action(actions, 'Deal hand', 'bet', () => ({ wager: clampWager(Number(this.wagerInput?.value ?? this.wager), available) })).disabled = available < 1;
         this.action(actions, 'Leave table', 'exit');
       } else if (s.phase === 'playing') {
-        const actions = el('div', 'ff-actions', this.body);
-        this.action(actions, 'Hit', 'hit'); this.action(actions, 'Stand', 'stand');
+        const actions = el('div', 'ff-actions ff-main-actions', this.body);
+        const choosing = !!s.arcana?.choices?.length;
+        this.action(actions, 'Hit', 'hit').disabled = choosing; this.action(actions, 'Stand', 'stand').disabled = choosing;
         this.action(actions, 'Exit · forfeit wager', 'exit');
-        const board = el('section', 'ff-sideboard', this.body);
-        el('h3', '', board, 'Cards up your sleeve');
-        el('p', 'ff-small', board, 'Play a known card instead of a random Hit. Each card is used once.');
+        if (choosing) this.renderChoices(s);
+        this.renderActiveEffects(s);
+        this.renderPrivatePeek(world, s);
+        const board = el('details', 'ff-sideboard', this.body);
+        board.open = this.sideboardOpen;
+        board.addEventListener('toggle', () => { this.sideboardOpen = board.open; });
+        const count = world.frickFrack.sideboards[s.faction].length;
+        el('summary', '', board, `Cards up your sleeve · ${count}`);
+        el('p', 'ff-small', board, 'Number cards add their value to your hand. Major Arcana bend the rules. Every card is used once.');
         const picks = el('div', 'ff-cheats', board);
         const sideboard = world.frickFrack.sideboards[s.faction];
         if (!sideboard.length) el('span', 'ff-small', picks, 'Find rare cards dropped by downed hippies.');
-        for (const card of sideboard) this.action(picks, cardLabel(card), 'cheat', () => ({ cardId: card.id })).setAttribute('aria-label', `Play ${cardLabel(card)} once`);
+        for (const card of sideboard) {
+          if (card.arcana !== undefined) {
+            const option = el('div', 'ff-cheat-option', picks);
+            const spec = FRICK_FRACK_ARCANA[card.arcana];
+            const pick = button('ff-button', option, '', () => {
+              this.selectedMajor = card.id; this.majorTargets = []; this.majorValue = 1; this.sideboardOpen = true;
+              this.render(s, available, world);
+            });
+            renderMajorArcanaCard(pick, card);
+            pick.setAttribute('aria-label', `Inspect ${spec.name}`); pick.disabled = choosing;
+            el('span', 'ff-cheat-name', option, spec.name);
+          } else {
+            const pick = this.action(picks, cardLabel(card), 'cheat', () => ({ cardId: card.id }));
+            renderParodyCard(pick, card); renderFrickFrackCard(pick, card);
+            pick.setAttribute('aria-label', `Play ${cardLabel(card)} once`); pick.disabled = choosing;
+          }
+        }
+        if (!choosing) this.renderMajorPicker(board, s, available, world);
       } else if (s.phase === 'result') {
-        const actions = el('div', 'ff-actions', this.body);
+        const actions = el('div', 'ff-actions ff-main-actions', this.body);
         this.action(actions, 'Another hand', 'again'); this.action(actions, 'Leave table', 'exit');
       }
-      el('p', 'ff-rules', this.body, 'Closest to 21 without going over. Aces count as 1 or 11. Wizard stands on all 17s. Wins pay 1:1, including blackjack; ties return your wager. Extra winnings go to your altar stock.');
+      const rules = el('details', 'ff-rules', this.body);
+      el('summary', '', rules, 'Rules · combat & poker prizes');
+      for (const rule of FRICK_FRACK_TABLE_RULES) el('p', '', rules, rule);
     }
     this.frame();
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-ready-gate]')) b.disabled = world.time < s.readyAt;
@@ -175,23 +257,110 @@ export class FrickFrackUI implements UiPart {
   }
 
   private hand(parent: HTMLElement, name: string, cards: readonly (FrickFrackCard | null)[]): void {
-    const hand = el('section', 'ff-hand', parent);
+    const hand = el('section', `ff-hand ff-hand-${name === 'Wizard' ? 'dealer' : 'player'}`, parent);
     const known = cards.filter((c): c is FrickFrackCard => c !== null);
     const total = known.length && !cards.includes(null) ? ` · ${frickFrackTotal(known)}` : '';
-    el('h3', '', hand, `${name}${total}`);
+    const heading = el('h3', '', hand);
+    el('span', '', heading, name === 'Wizard' ? 'The Wizard' : 'Your hand');
+    if (total) el('span', 'ff-total', heading, total.slice(3));
     const row = el('div', 'ff-card-row', hand);
     if (!cards.length) el('span', 'ff-small', row, 'Waiting for the deal');
     for (const card of cards) {
       const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, row, card === null ? '✦' : cardLabel(card));
       tile.setAttribute('aria-label', cardLabel(card));
+      renderFrickFrackCard(tile, card);
+      renderParodyCard(tile, card);
+      if (card?.value !== undefined && !card.tarot && card.parody === undefined) el('span', 'ff-card-override', tile, String(card.value));
     }
   }
 
+  private renderChoices(s: FrickFrackSession): void {
+    const panel = el('section', 'ff-choice-panel', this.body);
+    el('h3', '', panel, 'Choose one card');
+    el('p', 'ff-small', panel, 'Keep one. The other is discarded.');
+    const options = el('div', 'ff-choice-options', panel);
+    for (const [index, card] of (s.arcana?.choices ?? []).entries()) {
+      const option = el('div', 'ff-choice-option', options);
+      const face = el('div', 'ff-card', option, cardLabel(card));
+      renderFrickFrackCard(face, card); renderParodyCard(face, card);
+      this.action(option, `Keep ${cardLabel(card)}`, 'choose', () => ({ choiceIndex: index as 0 | 1 }));
+    }
+  }
+
+  private renderPrivatePeek(world: World, s: FrickFrackSession): void {
+    const peek = getFrickFrackPrivateView(world, s.faction);
+    if (!peek) return;
+    const panel = el('section', 'ff-private-peek', this.body);
+    panel.setAttribute('role', 'status');
+    queueMicrotask(() => { if (panel.isConnected) panel.scrollIntoView({ block: 'nearest' }); });
+    el('h3', '', panel, peek.kind === 'dealer' ? 'Private glance · hidden card' : 'Private glance · next three cards');
+    el('p', 'ff-small', panel, 'Only you can see this glimpse. It closes shortly and does not reveal or play these cards.');
+    const row = el('div', 'ff-card-row', panel);
+    for (const card of peek.cards) {
+      const face = el('div', 'ff-card', row, cardLabel(card));
+      renderFrickFrackCard(face, card); renderParodyCard(face, card);
+    }
+  }
+
+  private renderActiveEffects(s: FrickFrackSession): void {
+    const a = s.arcana;
+    if (!a) return;
+    const labels = [a.strength && 'Strength · next bust protected', a.justice && 'Justice · ties win',
+      a.world && 'World · exact 21 pays 2:1', a.judgement && !a.judgementUsed && 'Judgement · replay armed',
+      a.softDealer !== undefined && `Wizard hand is ${a.softDealer ? 'soft' : 'hard'}`].filter(Boolean) as string[];
+    if (labels.length) el('p', 'ff-active-effects', this.body, labels.join(' • '));
+  }
+
+  private renderMajorPicker(parent: HTMLElement, s: FrickFrackSession, available: number, world: World): void {
+    const card = world.frickFrack.sideboards[s.faction].find(c => c.id === this.selectedMajor);
+    if (!card || card.arcana === undefined) { this.selectedMajor = null; return; }
+    const spec = FRICK_FRACK_ARCANA[card.arcana];
+    const panel = el('section', 'ff-major-picker', parent);
+    panel.setAttribute('aria-label', `${spec.name} effect`);
+    queueMicrotask(() => { if (panel.isConnected) panel.scrollIntoView({ block: 'nearest' }); });
+    el('h3', '', panel, spec.name);
+    el('p', '', panel, spec.description);
+    const needsOne = spec.target === 'one' || spec.target === 'confirmOne';
+    const count = spec.target === 'two' ? 2 : needsOne ? 1 : 0;
+    this.majorTargets = this.majorTargets.filter(id => s.player.some(c => c.id === id)).slice(0, count);
+    if (count) {
+      el('p', 'ff-small', panel, `Choose ${count === 1 ? 'a card' : 'two different cards'} in your hand.`);
+      const targets = el('div', 'ff-target-options', panel);
+      for (const [index, target] of s.player.entries()) {
+        const selected = this.majorTargets.includes(target.id);
+        const pick = button(`ff-button${selected ? ' ff-target-selected' : ''}`, targets, `Card ${index + 1}: ${cardLabel(target)}`, () => {
+          this.majorTargets = selected ? this.majorTargets.filter(id => id !== target.id)
+            : [...this.majorTargets.slice(-(count - 1 || this.majorTargets.length)), target.id].slice(-count);
+          this.render(s, available, world);
+        });
+        pick.setAttribute('aria-pressed', String(selected));
+      }
+    }
+    if (spec.target === 'value') {
+      const field = el('label', 'ff-value-choice', panel, 'Value for the next draw');
+      const select = el('select', '', field); select.setAttribute('aria-label', 'Next draw value');
+      for (let value = 1; value <= 7; value++) { const option = el('option', '', select, String(value)); option.value = String(value); }
+      select.value = String(this.majorValue); select.addEventListener('change', () => { this.majorValue = Number(select.value); });
+    }
+    const costly = spec.target === 'confirmOne';
+    if (costly) el('p', 'ff-cost-warning', panel, `The Devil costs ${s.wager} more Flags. Your wager becomes ${s.wager * 2}. This payment cannot be undone.`);
+    const actions = el('div', 'ff-actions', panel);
+    const confirm = this.action(actions, costly ? `Pay ${s.wager} Flags & use The Devil` : `Use ${spec.name}`, 'cheat', () => ({
+      cardId: card.id, ...(count ? { targetCardIds: [...this.majorTargets] } : {}),
+      ...(spec.target === 'value' ? { value: this.majorValue } : {}), ...(costly ? { confirmCost: true } : {}),
+    }));
+    const blocker = majorPublicBlocker(card.arcana, s);
+    confirm.disabled = !!blocker || !canConfirmMajor(card.arcana, this.majorTargets, s.player, this.majorValue, s.wager, available);
+    if (blocker) el('p', 'ff-small', panel, blocker);
+    if (costly && available < s.wager) el('p', 'ff-small', panel, 'You do not have enough held Flags to double this wager.');
+    button('ff-button', actions, 'Cancel', () => { this.selectedMajor = null; this.majorTargets = []; this.render(s, available, world); });
+  }
+
   private setWager(value: number): void { this.wager = clampWager(value, this.wagerAvailable); if (this.wagerInput) this.wagerInput.value = String(this.wager); }
-  private action(parent: HTMLElement, text: string, action: TableAction, extra?: () => { wager?: number; cardId?: number }): HTMLButtonElement {
+  private action(parent: HTMLElement, text: string, action: TableAction, extra?: () => TableExtras): HTMLButtonElement {
     return button('ff-button', parent, text, () => this.send(action, extra?.()), 'confirm');
   }
-  private send(action: TableAction, extra?: { wager?: number; cardId?: number }): void {
+  private send(action: TableAction, extra?: TableExtras): void {
     const s = activeFrickFrack(this.host.app), w = this.host.app.world;
     if (!s || !w || this.pending === `${s.id}:${s.revision}`) return;
     if ((action === 'next' || action === 'play' || action === 'decline') && w.time < s.readyAt) return;
@@ -206,12 +375,12 @@ export class FrickFrackUI implements UiPart {
     // Other game shortcuts must not fire through this modal. Tab retains native focus traversal.
     if (ev.key !== 'Tab' && !(ev.target instanceof Node && this.root.contains(ev.target))) ev.stopPropagation();
     if (ev.key === 'Tab') {
-      const buttons = [...this.root.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)')];
+      const buttons = [...this.root.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')];
       const first = buttons[0], last = buttons[buttons.length - 1];
       if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last?.focus(); }
       else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first?.focus(); }
       ev.stopPropagation();
     }
   };
-  dispose(): void { window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); this.root.remove(); this.offer.remove(); }
+  dispose(): void { window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); document.documentElement.classList.remove('ff-conversation-active'); this.root.remove(); this.offer.remove(); }
 }

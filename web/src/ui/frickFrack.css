@@ -28,3 +28,103 @@
 @media (max-height: 500px) { .ff-overlay { place-items: start center; }.ff-panel { max-height: none; }.ff-dialogue { min-height: 4em; }.ff-hands { grid-template-columns: 1fr 1fr; } }
 
 .ff-offer { position: fixed; right: 12px; bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px)); z-index: 80; max-width: calc(100vw - 24px); pointer-events: auto; }
+
+/* Dialogue is a lower window over the actual encounter, never a fullscreen table. */
+.ff-overlay.ff-in-world { background: transparent; align-items: end; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.ff-in-world .ff-panel { width: min(940px,100%); max-height: 42dvh; padding: 16px 22px; background: rgba(12,16,25,.94); border-color: #b8b2a1; border-radius: 12px; }
+.ff-in-world .ff-header h2 { font-size: 19px; margin: 0 0 6px; }
+.ff-in-world .ff-eyebrow, .ff-in-world .ff-status, .ff-in-world .ff-wizard-seal, .ff-in-world .ff-small { display: none; }
+.ff-in-world .ff-body { padding-top: 0; }
+.ff-in-world .ff-page-number { font-size: 10px; }
+.ff-in-world .ff-dialogue { min-height: 3.5em; margin: 8px 0; font-size: clamp(16px,2vw,20px); line-height: 1.4; }
+.ff-in-world .ff-actions { margin-top: 8px; justify-content: end; }
+@media (max-width: 540px) {
+  .ff-overlay.ff-in-world { padding-left: 8px; padding-right: 8px; }
+  .ff-in-world .ff-panel { max-height: 46dvh; padding: 12px; }
+  .ff-in-world .ff-header h2 { font-size: 16px; }
+  .ff-in-world .ff-dialogue { font-size: 16px; line-height: 1.35; }
+  .ff-in-world .ff-actions { gap: 6px; }
+  .ff-in-world .ff-button { padding: 8px 10px; }
+}
+@media (max-height: 500px) and (min-width: 541px) {
+  .ff-overlay.ff-in-world { place-items: end center; padding-bottom: max(6px,env(safe-area-inset-bottom)); }
+  .ff-in-world .ff-panel { max-height: 44dvh; padding: 9px 16px; }
+  .ff-in-world .ff-header h2 { font-size: 16px; }
+  .ff-in-world .ff-page-number { display: none; }
+  .ff-in-world .ff-dialogue { min-height: 0; font-size: 16px; margin: 5px 0; }
+  .ff-in-world .ff-actions { margin-top: 5px; }
+}
+/* Hide the ordinary HUD and command chrome, while this raw-layer dialogue stays visible. */
+.ff-conversation-active .fh-ui { visibility: hidden; }
+
+/* The accepted game becomes a warm, legible card table; world dialogue above remains untouched. */
+.ff-overlay:not(.ff-in-world) { background: radial-gradient(ellipse at 50% 30%, #26322c, #0b1014 76%); padding: max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+.ff-overlay:not(.ff-in-world) .ff-panel { width: min(1040px,100%); padding: 24px 28px; border: 1px solid #c2a96d; border-radius: 18px; background: linear-gradient(145deg,#122d29,#10231f 56%,#14241f); box-shadow: inset 0 0 0 5px #0b1b17, inset 0 0 0 6px #b69a663b, 0 18px 70px #000a; }
+.ff-overlay:not(.ff-in-world) .ff-header { text-align: center; }
+.ff-overlay:not(.ff-in-world) .ff-header h2 { margin: 3px 0 12px; color: #f6e8bb; letter-spacing: .035em; text-shadow: 0 2px 1px #000; }
+.ff-overlay:not(.ff-in-world) .ff-eyebrow { font-size: 10px; letter-spacing: .2em; }
+.ff-overlay:not(.ff-in-world) .ff-status { text-align: center; padding: 10px; border-top: 1px solid #d8b76d42; border-bottom: 1px solid #d8b76d42; background: #0002; color: #e6d6ab; }
+.ff-overlay:not(.ff-in-world) .ff-hands { position: relative; display: grid; grid-template-columns: 1fr; gap: 18px; padding: 18px; border: 1px solid #cfb26e40; border-radius: 48px 48px 24px 24px; background: radial-gradient(ellipse at 50% 50%, #28524780, #0d2b2470); box-shadow: inset 0 0 40px #05110d66; }
+.ff-hand h3 { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #dbc795; font: 600 13px Rubik,sans-serif; letter-spacing: .06em; }
+.ff-hand-dealer { border-bottom: 1px dashed #ceb67b48; padding-bottom: 16px; }
+.ff-hand-player h3 { color: #fff0bd; }
+.ff-total { display: inline-grid; place-items: center; min-width: 30px; padding: 4px 8px; border: 1px solid #c9ae71; border-radius: 20px; background: #0b1713; color: #fff1bb; font-weight: bold; font-size: 16px; letter-spacing: 0; }
+.ff-card-row { justify-content: center; gap: 10px; padding: 2px 0; }
+.ff-card { width: 72px; height: 108px; border: 1px solid #d7cba8; border-radius: 7px; box-shadow: 0 5px 10px #0006; }
+.ff-card-back { background: repeating-linear-gradient(45deg,#513154 0,#513154 4px,#322039 4px,#322039 8px); box-shadow: inset 0 0 0 4px #edd5a0,inset 0 0 0 6px #5c3955,0 5px 10px #0006; color: #e8cf92; }
+.ff-main-actions { justify-content: center; padding: 10px 0; gap: 12px; }
+.ff-main-actions .ff-button { min-width: 110px; font-weight: 600; box-shadow: 0 3px 0 #0007; }
+.ff-main-actions .ff-button:last-child { background: #152a25; color: #e7d9b6; border-color: #d0b57970; }
+.ff-wager { text-align: center; margin-top: 16px; }
+.ff-wager > span { color: #e1c98c; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+.ff-wager-row { justify-content: center; }
+.ff-result { text-align: center; border: 1px solid #d1b77738; }
+.ff-sideboard { padding: 0; margin-top: 10px; border: 1px solid #c3aa6f66; border-radius: 9px; background: #080f0c44; }
+.ff-sideboard summary { padding: 14px 16px; cursor: pointer; color: #ecdba8; font-weight: 600; touch-action: manipulation; }
+.ff-sideboard summary:focus-visible { outline: 3px solid #93e4e0; outline-offset: -3px; }
+.ff-sideboard > .ff-small, .ff-sideboard > .ff-cheats { margin: 6px 16px 14px; }
+.ff-cheats { align-items: stretch; }
+.ff-rules { color: #b4c4b6; }
+@media (max-width: 540px) {
+  .ff-overlay:not(.ff-in-world) { padding: max(7px,env(safe-area-inset-top)) 7px max(7px,env(safe-area-inset-bottom)); }
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding: 15px 12px; border-radius: 12px; }
+  .ff-overlay:not(.ff-in-world) .ff-header h2 { font-size: 25px; margin: 3px 0 8px; }
+  .ff-overlay:not(.ff-in-world) .ff-status { font-size: 11px; padding: 8px 3px; }
+  .ff-overlay:not(.ff-in-world) .ff-hands { padding: 12px 9px; border-radius: 26px 26px 16px 16px; gap: 12px; }
+  .ff-card { width: 52px; height: 78px; font-size: 20px; }
+  .ff-card-row { gap: 6px; }
+  .ff-main-actions { gap: 7px; }
+  .ff-main-actions .ff-button { min-width: 70px; padding: 10px; font-size: 13px; }
+  .ff-sideboard summary { padding: 13px; font-size: 14px; }
+}
+@media (max-height: 500px) and (min-width: 541px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { max-height: none; padding: 16px 20px; }
+  .ff-overlay:not(.ff-in-world) .ff-hands { grid-template-columns: 1fr 1fr; align-items: start; }
+  .ff-hand-dealer { border-bottom: 0; padding-bottom: 0; border-right: 1px dashed #ceb67b48; padding-right: 14px; }
+}
+@keyframes ff-public-remark { from { background-color: #d1b77755; box-shadow: 0 0 0 2px #e2c78277; } to { background-color: #d1b77714; box-shadow: none; } }
+.ff-wizard-remark { animation: ff-public-remark .8s ease-out; }
+@media (prefers-reduced-motion: reduce) { .ff-wizard-remark { animation: none; } }
+.ff-cheat-option { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 90px; }
+.ff-cheat-name { color: #e5d1a4; font-size: 11px; line-height: 1.25; text-align: center; }
+.ff-major-picker,.ff-choice-panel { margin: 14px; padding: 16px; border: 1px solid #bc93d5; border-radius: 10px; background: linear-gradient(140deg,#2a2038,#17272a); }
+.ff-major-picker h3,.ff-choice-panel h3 { margin: 0 0 8px; font: 600 18px Cinzel,serif; color: #ead9fa; }
+.ff-major-picker p { line-height: 1.45; }
+.ff-target-options,.ff-choice-options { display: flex; flex-wrap: wrap; gap: 10px; }
+.ff-target-selected { outline: 3px solid #c9a7f2; outline-offset: 2px; }
+.ff-value-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ff-value-choice select { min-height: 44px; min-width: 80px; padding: 8px; color: #161424; background: #fff0cf; font: inherit; border-radius: 5px; }
+.ff-cost-warning { border-left: 3px solid #e7a16c; padding: 10px 12px; background: #5a211c55; color: #ffd6af; font-weight: 600; }
+.ff-active-effects { padding: 10px 14px; border-radius: 8px; background: #593f6933; color: #d9bee9; font-size: 13px; line-height: 1.5; text-align: center; }
+.ff-choice-options { justify-content: center; }
+.ff-choice-option { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 45%; }
+.ff-choice-option .ff-button { padding: 8px 10px; font-size: 13px; }
+.ff-card { position: relative; }
+.ff-card-override { position: absolute; right: 2px; top: 2px; padding: 3px 5px; background: #ebd3fc; border: 1px solid #603986; color: #30113f; border-radius: 4px; font: bold 14px Rubik,sans-serif; }
+@media (max-width: 540px) { .ff-major-picker,.ff-choice-panel { margin: 8px; padding: 12px; }.ff-major-picker h3 { font-size: 16px; }.ff-major-picker p { font-size: 14px; }.ff-cheat-option { width: 70px; } }
+.ff-private-peek { margin: 12px 0; padding: 14px; border: 1px dashed #bda2e8; border-radius: 10px; background: #211b3466; }
+.ff-private-peek h3 { margin: 0 0 8px; color: #dfc9ff; font-size: 15px; }
+
+.ff-rules summary { cursor: pointer; padding: 8px 0; color: #ecdba8; font-weight: 600; }
+.ff-rules summary:focus-visible { outline: 2px solid #93e4e0; outline-offset: 3px; }
+.ff-rules p { margin: 10px 0; max-width: 80ch; }

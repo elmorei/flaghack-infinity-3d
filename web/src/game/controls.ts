@@ -392,7 +392,8 @@ export class Controls {
     }
     this.jumpLatch = false;
     // Face where the camera looks; a throw tick turns to the crosshair point with the solved arc.
-    if (s.view === 'action') {
+    if (frickFrackInputLocked(world, s)) { out.yaw = av.yaw; out.pitch = av.pitch; }
+    else if (s.view === 'action') {
       out.yaw = this.throwQueued ? this.aimYaw : s.camera.yaw;
       out.pitch = this.throwQueued ? this.throwPitch : -s.camera.pitch;
     }
@@ -664,7 +665,12 @@ export class Controls {
   private updateCamera(world: World, s: Session, av: Avatar | undefined, watcher: boolean, dt: number): void {
     const rig = this.rig;
     const f = s.playerFaction;
-    if (s.screen === 'title' || s.screen === 'lobby' || !av || !(seated(world, s) || s.spectator)) {
+    const conversation = frickFrackInputLocked(world, s) ? world.frickFrack.sessions[f] : null;
+    const wizard = conversation ? world.hippies.get(world.frickFrack.wizardId) : undefined;
+    if (conversation && wizard && av) {
+      rig.setMode('dialogue', .7);
+      rig.updateDialogue(world, av, wizard, this.app.renderer.camera.aspect, dt);
+    } else if (s.screen === 'title' || s.screen === 'lobby' || !av || !(seated(world, s) || s.spectator)) {
       rig.setMode('title', 1.6);
       rig.updateTitle(world, f, dt);
     } else if (s.screen === 'ended') {
@@ -684,7 +690,7 @@ export class Controls {
       trauma = shared.shake ?? 0;
       shared.shake = Math.max(0, trauma - dt * 1.5);
     }
-    rig.apply(this.app.renderer.camera, Math.min(1, trauma) * (1 - s.viewBlend), dt);
+    rig.apply(this.app.renderer.camera, conversation ? 0 : Math.min(1, trauma) * (1 - s.viewBlend), dt);
   }
 
   // ── Picking ────────────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@ function lobby(phase: LobbyPhase, seat: FactionId | null = 2): LobbyState {
 
 const OPTIONS: MatchOptions = { seed: 'net-client', difficulty: 'normal', humans: [2], mode: 'standard' };
 
-function setup(token: string | null = null) {
+function setup(token: string | null = null, privateHook?: NetClientHooks['frickFrackPrivate']) {
   FakeSocket.made = [];
   const calls: string[] = [];
   let saved: string | null = token;
@@ -71,6 +71,7 @@ function setup(token: string | null = null) {
     },
   };
   const hooks: NetClientHooks = {
+    frickFrackPrivate: privateHook,
     lobby: (l) => calls.push(`lobby:${l.phase}`),
     matchStart: (_o, seat) => calls.push(`match:${seat}`),
     state: () => calls.push('state'),
@@ -110,6 +111,21 @@ describe('NetClient', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('isolates private knowledge by seat and connection epoch, clearing on resnapshot and drop', () => {
+    const peek = vi.fn(); const { client } = setup(null, peek);
+    socket(0).open();
+    socket(0).receive({ t:'welcome', protocol:PROTOCOL_VERSION, build:'development', playerId:'p1', token:'tok', lobby:lobby('lobby') });
+    const message={t:'frickFrackPrivate',seat:2,inputEpoch:1,view:{sessionId:7,revision:3,kind:'dealer',cards:[{id:99,rank:7,suit:0}],expiresAt:20}};
+    socket(0).receive(message);expect(peek).not.toHaveBeenCalled();
+    socket(0).receive({t:'matchStart',inputEpoch:1,options:OPTIONS,seat:2,snapshot:{}});peek.mockClear();
+    socket(0).receive({...message,seat:1});socket(0).receive({...message,inputEpoch:0});expect(peek).not.toHaveBeenCalled();
+    socket(0).receive(message);expect(peek).toHaveBeenLastCalledWith(message.view);
+    socket(0).receive({t:'matchStart',inputEpoch:2,options:OPTIONS,seat:2,snapshot:{}});expect(peek).toHaveBeenLastCalledWith(null);peek.mockClear();
+    socket(0).receive(message);expect(peek).not.toHaveBeenCalled();
+    socket(0).receive({...message,inputEpoch:2});expect(peek).toHaveBeenLastCalledWith(message.view);
+    socket(0).drop();expect(peek).toHaveBeenLastCalledWith(null);client.leave();
   });
 
   it('says hello with the stored token and keeps the new one', () => {

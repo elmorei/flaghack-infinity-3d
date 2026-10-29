@@ -132,7 +132,36 @@ export function commandGroundPoint(cam: CameraState, nx: number, ny: number, asp
   return true;
 }
 
-export type RigMode = 'title' | 'play' | 'ended';
+export type RigMode = 'title' | 'play' | 'ended' | 'dialogue';
+
+/** Stable two-shot with both heads above the lower dialogue box and a cover-aware side. */
+export function dialoguePose(world: Pick<World, 'collision'>, player: { x: number; y: number; z: number }, npc: { x: number; y: number; z: number }, aspect: number, out: RigPose = newPose()): RigPose {
+  const dx = npc.x - player.x, dz = npc.z - player.z;
+  const span = Math.hypot(dx, dz);
+  const axis = span > .05 ? Math.atan2(dx, dz) : 0;
+  const safeAspect = Math.max(.35, Math.min(3, aspect || 1));
+  out.tx = (player.x + npc.x) / 2; out.tz = (player.z + npc.z) / 2;
+  out.ty = Math.min(player.y, npc.y) + .25; out.fov = 50;
+  const distance = Math.max(6.8, (span + 1.8) / (2 * Math.tan(25 * DEG) * safeAspect * .78));
+  let bestScore = -Infinity;
+  for (const turn of [1.12, -1.12, 1.7, -1.7, .65, -.65]) {
+    const yaw = axis + turn, cp = Math.cos(-.2);
+    const cx = out.tx - Math.sin(yaw) * cp * distance, cz = out.tz - Math.cos(yaw) * cp * distance;
+    const cy = Math.max(out.ty + Math.sin(.2) * distance, world.collision.groundHeight(cx, cz) + 1.1);
+    let score = 0;
+    for (const subject of [player, npc]) {
+      const vx = subject.x - cx, vy = subject.y + 1.6 - cy, vz = subject.z - cz, length = Math.hypot(vx, vy, vz);
+      const hit = world.collision.raycast(cx, cy, cz, vx / length, vy / length, vz / length, Math.max(0, length - .6));
+      score += hit ? hit.dist / length : 2;
+    }
+    if (score > bestScore) {
+      bestScore = score; out.yaw = yaw;
+      out.pitch = Math.atan2(out.ty - cy, distance * cp); out.dist = Math.hypot(distance * cp, cy - out.ty);
+    }
+    if (score >= 4) break;
+  }
+  return out;
+}
 
 export class CameraRig {
   /** Final pose of the last frame (before trauma shake). */
@@ -141,6 +170,9 @@ export class CameraRig {
   readonly origin = new THREE.Vector3();
   readonly dir = new THREE.Vector3();
 
+  private dialogueReady = false;
+  private dialogueAspect = 0;
+  private dialogueShot = newPose();
   private effigyLocked = false;
   private effigyTurn = 0;
   private effigyYaw = 0;
@@ -183,12 +215,14 @@ export class CameraRig {
   setMode(mode: RigMode, dur: number): void {
     if (mode === this.mode) return;
     this.mode = mode;
+    this.dialogueReady = false;
     this.effigyLocked = false;
     this.startTransition(dur);
   }
 
   /** New world: drop smoothing state that refers to the old one (the on-screen pose is kept). */
   resetFollow(): void {
+    this.dialogueReady = false;
     this.effigyLocked = false;
     this.pivotReady = false;
     this.focusReady = false;
@@ -242,6 +276,16 @@ export class CameraRig {
     lx += Math.cos(vy) * TITLE_SIDE;
     lz -= Math.sin(vy) * TITLE_SIDE;
     this.lookFrom(cx, cy, cz, lx, 1.7, lz, FOV_TITLE, this.base);
+    this.finish(dt);
+  }
+
+  /** Two-shot leaves Session camera intact so dismissal restores the player's view. */
+  updateDialogue(world: World, player: Avatar, npc: { pos: { x: number; z: number } }, aspect: number, dt: number): void {
+    if (!this.dialogueReady || Math.abs(this.dialogueAspect - aspect) > .001) {
+      dialoguePose(world, player.pos, { ...npc.pos, y: world.collision.groundHeight(npc.pos.x, npc.pos.z) }, aspect, this.dialogueShot);
+      this.dialogueReady = true; this.dialogueAspect = aspect;
+    }
+    copyPose(this.dialogueShot, this.base);
     this.finish(dt);
   }
 

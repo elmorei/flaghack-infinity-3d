@@ -21,7 +21,7 @@ import type {
 } from './types';
 
 export type Command =
-  | { t: 'frickFrack'; faction: FactionId; sessionId: number; revision: number; action: 'next' | 'play' | 'decline' | 'bet' | 'hit' | 'stand' | 'cheat' | 'again' | 'exit'; wager?: number; cardId?: number }
+  | { t: 'frickFrack'; faction: FactionId; sessionId: number; revision: number; action: 'next' | 'play' | 'decline' | 'bet' | 'hit' | 'stand' | 'cheat' | 'again' | 'exit' | 'choose'; wager?: number; cardId?: number; targetCardIds?: number[]; value?: number; confirmCost?: boolean; choiceIndex?: number }
   /** Continuous avatar control; latest one per tick wins. */
   | { t: 'avatarInput'; faction: FactionId; input: AvatarInput }
   /** Plant a carried Flag on a node within reach. */

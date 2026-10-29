@@ -12,7 +12,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(HERE, '../dist');
 const OUT = resolve(HERE, '../host-release/frick-frack-smoke');
 const PROJECT = '/flaghack-infinity-3d/';
-const types = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.mp4':'video/mp4', '.woff2':'font/woff2', '.woff':'font/woff', '.svg':'image/svg+xml', '.json':'application/json' };
+const types = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.mp4':'video/mp4', '.woff2':'font/woff2', '.woff':'font/woff', '.svg':'image/svg+xml', '.webp':'image/webp', '.png':'image/png', '.json':'application/json' };
 const server=createServer((req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
   if(!path.startsWith(PROJECT)){res.writeHead(404);res.end();return;}
@@ -62,7 +62,7 @@ async function main(){
       const tap=async locator=>{await locator.scrollIntoViewIfNeeded();if(spec.touch)await locator.tap({noWaitAfter:true});else await locator.click({noWaitAfter:true});};
       const dialog=page.locator('.ff-overlay');
       const button=name=>dialog.getByRole('button',{name,exact:true});
-      async function stageGift(){
+      async function stageGift(throwChase=false){
         const beforeGift=await state();
         await page.waitForFunction(t=>window.flaghack.world.time>=t+1.05,beforeGift.time,{timeout:15_000});
         await page.evaluate(()=>{
@@ -71,9 +71,9 @@ async function main(){
           // Find ordinary clear ground away from auto-restocking structures and other units.
           let at;
           for(let x=-35;x<35&&!at;x+=5)for(let z=-35;z<35&&!at;z+=5){
-            if(!w.nav.isWalkable(x,z)||!w.nav.isWalkable(x,z+2))continue;
+            if(![-4,-2,0,2,4,6,8].every(d=>w.nav.isWalkable(x,z+d)))continue;
             if([...w.buildings.values()].some(b=>Math.hypot(b.pos.x-x,b.pos.z-z)<18))continue;
-            if(w.collision.raycast(x,w.collision.groundHeight(x,z)+1,z,0,0,1,3))continue;
+            if(w.collision.raycast(x,w.collision.groundHeight(x,z)+1,z-3,0,0,1,12))continue;
             at={x,z};
           }
           if(!at)throw Error('No clear staging point');
@@ -89,17 +89,31 @@ async function main(){
         // Let the normal title-to-play camera transition finish before using its ray.
         await page.waitForTimeout(2500);
         // Resolve the actual production camera shoulder offset, rather than assuming its sign.
-        await page.evaluate(touch=>{
+        await page.evaluate(({touch,throwChase})=>{
           const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),o=a.controls.rig.origin,d=a.controls.rig.dir;
           // Phone presentation intentionally keeps the tactical camera; its offer button
           // uses physical reach, not the distant command-camera centre ray.
-          const depth=((av.pos.x-o.x)*d.x+(av.pos.z-o.z)*d.z)/(d.x*d.x+d.z*d.z)+1.8;
+          const depth=((av.pos.x-o.x)*d.x+(av.pos.z-o.z)*d.z)/(d.x*d.x+d.z*d.z)+(throwChase?7:1.8);
           h.pos=touch?{x:av.pos.x+.6,z:av.pos.z+1.8}:{x:o.x+d.x*depth,z:o.z+d.z*depth};h.vel={x:0,z:0};
           if(h.brain.mind){h.brain.mind.task='wander';h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
-        },spec.touch);
+        },{touch:spec.touch,throwChase});
         await page.waitForTimeout(150);
+        await page.evaluate(()=>{const a=window.flaghack;window.__frickQa.cameraBefore={...a.session.camera};window.__frickQa.viewBefore=a.session.view;});
         await holdForDemo('wizard-before-gift',2200);
-        if(spec.touch){
+        if(throwChase){
+          const before=await state();
+          mark('throw-to-wizard');
+          await page.keyboard.press('KeyQ');
+          await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='chasing',null,{timeout:10000});
+          assert.equal(await dialog.isVisible(),false,'Thrown gift does not remotely open dialogue');
+          mark('wizard-chasing');
+          await page.keyboard.down('KeyS');await page.waitForTimeout(650);await page.keyboard.up('KeyS');
+          const following=await state();
+          assert.ok(Math.hypot(following.position.x-before.position.x,following.position.z-before.position.z)>.2,'Player remains mobile while wizard follows');
+          await shot('desktop-wizard-chasing');
+          await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='dialogue',null,{timeout:20000});
+          check('desktop: real thrown flag starts visible pursuit; movement remains free until arrival');
+        }else if(spec.touch){
           await tap(page.getByRole('button',{name:'Give Flag to wizard',exact:true}));
         }else{
           await page.waitForFunction(()=>window.flaghack.session.hover.entity===window.flaghack.world.frickFrack.wizardId,null,{timeout:5000});
@@ -108,10 +122,34 @@ async function main(){
         await dialog.waitFor();mark('dialogue-start');
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='dialogue');
       }
+      async function verifyRestoredCamera(){
+        await page.waitForTimeout(850);
+        const restored=await page.evaluate(()=>({camera:{...window.flaghack.session.camera},before:window.__frickQa.cameraBefore,view:window.flaghack.session.view,beforeView:window.__frickQa.viewBefore}));
+        assert.deepEqual(restored.camera,restored.before,'Conversation preserves the user camera state');
+        assert.equal(restored.view,restored.beforeView,'Conversation restores the prior view');
+      }
       async function dialogueToChoice(){
         for(let index=0;index<3;index++){
           await page.waitForFunction(i=>window.flaghack.world.frickFrack.sessions[0]?.dialogueIndex===i,index);
           if(index===0){
+            await page.waitForTimeout(850);
+            assert.equal(await dialog.evaluate(e=>e.classList.contains('ff-in-world')),true,'Dialogue is an in-world scene, not the card overlay');
+            const framing=await page.evaluate(()=>{
+              const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId),camera=a.renderer.camera;
+              const project=(x,y,z)=>{const p=camera.position.clone().set(x,y,z).project(camera);return{x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2,z:p.z};};
+              return {player:project(av.pos.x,av.pos.y+1.3,av.pos.z),wizard:project(h.pos.x,w.collision.groundHeight(h.pos.x,h.pos.z)+1.3,h.pos.z),panelTop:document.querySelector('.ff-panel').getBoundingClientRect().top,width:innerWidth};
+            });
+            for(const [who,p] of [['player',framing.player],['wizard',framing.wizard]]){
+              assert.ok(p.z>-1&&p.z<1&&p.x>8&&p.x<framing.width-8&&p.y>8&&p.y<framing.panelTop-5,`${who} visibly framed above dialogue panel`);
+            }
+            assert.ok(Math.abs(framing.player.x-framing.wizard.x)>20,'Two actors have distinct screen positions');
+            const lockedPose=await page.evaluate(()=>({...window.flaghack.controls.rig.pose}));
+            await page.mouse.move(spec.width*.2,spec.height*.2);
+            await page.mouse.move(spec.width*.7,spec.height*.3);
+            await page.mouse.wheel(0,120);
+            await page.waitForTimeout(100);
+            const afterLook=await page.evaluate(()=>({...window.flaghack.controls.rig.pose}));
+            assert.ok(Math.abs(afterLook.yaw-lockedPose.yaw)<.001&&Math.abs(afterLook.pitch-lockedPose.pitch)<.001&&Math.abs(afterLook.dist-lockedPose.dist)<.001,'Conversation camera remains locked against look and zoom');
             const before=await state();
             const lettersBefore=await dialog.locator('.ff-dialogue').textContent();
             assert.equal(await button('Continue').isDisabled(),true,'Cannot advance before wizard finishes');
@@ -130,11 +168,12 @@ async function main(){
         }
         await shot(spec.name+'-dialogue-invitation');
       }
-      await stageGift();await dialogueToChoice();
+      await stageGift(spec.full);await dialogueToChoice();
       if(spec.name==='phone-landscape'){
         const beforeDecline=(await state()).carried.length;
         await tap(button('No, thank you'));await dialog.waitFor({state:'hidden'});
         assert.equal((await state()).session,null);assert.equal((await state()).carried.length,beforeDecline);
+        await verifyRestoredCamera();
         check('phone-landscape: declining invitation restores field without consuming gifted flag');
         await stageGift();await dialogueToChoice();
       }
@@ -143,6 +182,7 @@ async function main(){
       const held=await page.evaluate(()=>window.__frickQa.giftCount);
       assert.equal((await state()).carried.length,held,'Gift remains available for wagering');
       await button('Deal hand').waitFor({state:'visible'});
+      assert.equal(await dialog.evaluate(e=>e.classList.contains('ff-in-world')),false,'Only accepted game opens fullscreen card table');
       await shot(spec.name+'-table');await holdForDemo('table-ready',2200);
       check(`${spec.name}: real flag gift, three typed screens, locked avatar/live world, gift retained and blackjack table`);
       const box=await dialog.boundingBox();assert.ok(box&&box.x>=-1&&box.x+box.width<=spec.width+1,'Overlay fits viewport horizontally');
@@ -150,6 +190,7 @@ async function main(){
       await dialog.waitFor({state:'hidden'});
       assert.equal((await state()).session,null);
       assert.equal((await state()).carried.length,held,'Immediate exit costs no flags');
+      await verifyRestoredCamera();
       check(`${spec.name}: immediate exit restores field without flag charge`);
       if(spec.full){
         // Re-enter via the actual gift action; fixture only resets deterministic RNG/resources.
@@ -171,44 +212,78 @@ async function main(){
           await tap(button('Deal hand'));
           await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase!=='betting');
         }
-        await seedAndQuiver('frick-browser-107',10);
+        await seedAndQuiver('frick-136-25',10);
         // A physically present known card is picked up by the normal simulation before use.
         // This collection fixture is staged directly because the KO drop itself is deliberately rare.
         await tap(button('Leave table'));await dialog.waitFor({state:'hidden'});
         const card=await page.evaluate(()=>{
-          const w=window.flaghack.world,av=w.avatarOf(0),id=w.newId();
+          const w=window.flaghack.world,av=w.avatarOf(0),id=w.newId(),sunId=w.newId();
           w.frickFrack.drops.push({id,card:{id,rank:1,suit:0},pos:{x:av.pos.x+4,z:av.pos.z},createdAt:w.time});
-          window.__frickQa.cardId=id;return{id,x:av.pos.x+4,z:av.pos.z};
+          w.frickFrack.drops.push({id:sunId,card:{id:sunId,rank:0,suit:0,arcana:19},pos:{x:av.pos.x+4,z:av.pos.z},createdAt:w.time});
+          window.__frickQa.cardId=id;return{id,sunId,x:av.pos.x+4,z:av.pos.z};
         });
         await shot('desktop-dropped-card');
         await page.evaluate(p=>{const w=window.flaghack.world,av=w.avatarOf(0);av.pos.x=p.x;av.pos.z=p.z;av.pos.y=w.collision.groundHeight(p.x,p.z);},card);
         await page.waitForFunction(id=>window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
+        await page.waitForFunction(id=>window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.sunId);
         assert.equal(await page.evaluate(id=>window.flaghack.world.frickFrack.drops.some(d=>d.id===id),card.id),false);
         await page.waitForTimeout(1100);await stageGift();await dialogueToChoice();await tap(button('Yes, play Frick-frack'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-        await seedAndQuiver('frick-browser-107',10);await deal(1);
+        await seedAndQuiver('frick-136-25',10);await deal(1);
         assert.equal((await state()).session.phase,'playing');
-        assert.equal((await state()).session.player.reduce((n,c)=>n+Math.min(c.rank,10),0),6);
+        assert.equal((await state()).session.player.reduce((n,c)=>n+Math.min(c.rank,10),0),11);
+        assert.ok((await state()).session.player.some(c=>c.tarot),'Full 136-card deck deals a genuine Minor Arcana card');
         assert.equal((await state()).session.dealer[1],null,'Hole card remains concealed during play');
         await shot('desktop-hand-and-sideboard');await holdForDemo('dealt-hand',2200);
+        const beforeHitRevision=(await state()).session.revision;
         await tap(button('Hit'));
-        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0].player.length===3);await holdForDemo('random-hit',1800);
+        await page.waitForFunction(rev=>window.flaghack.world.frickFrack.sessions[0].revision>rev,beforeHitRevision);
+        assert.equal((await state()).session.player.length,2,'Weaker drawn CCG dies instead of remaining as a numeric card');
+        await page.waitForFunction(()=>document.querySelector('.ff-wizard-remark')?.textContent?.includes('The 4 defeats the 3'));
+        await shot('desktop-ccg-battle');await holdForDemo('ccg-battle-on-hit',2800);
+        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        await holdForDemo('sideboard-open',1800);
         await tap(button('Play A♠ once'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
         assert.ok((await state()).session.player.some(c=>c.id===card.id),'Known card added to hand');
         await button('Play A♠ once').waitFor({state:'detached'});
         assert.equal(await button('Play A♠ once').count(),0,'Consumed card is unavailable for replay');
         await shot('desktop-cheat-played');await holdForDemo('cheat-played',2200);
+        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        await tap(button('Inspect The Sun'));
+        await button('Use The Sun').waitFor({state:'visible'});
+        await shot('desktop-sun-effect-inspection');await holdForDemo('sun-effect-inspection',2500);
+        await tap(button('Use The Sun'));
+        await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.sunId);
+        assert.equal((await state()).session.dealer.includes(null),false,'The Sun permanently reveals the actual dealer hole card');
+        assert.equal((await state()).session.player.some(c=>c.arcana!==undefined),false,'Major Arcana is an effect, not a numeric hand card');
+        await dialog.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();
+        await shot('desktop-sun-revealed');await holdForDemo('sun-revealed',2500);
         await tap(button('Stand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         assert.equal((await state()).session.result,'win');
         assert.equal((await state()).session.dealer.includes(null),false,'Dealer revealed after settlement');
         await shot('desktop-winning-hand');await holdForDemo('winning-hand',2500);
-        check('desktop: physical card pickup, random Hit, one-use known card, Stand and settled win');
+        check('desktop: physical numeric/Major pickups, random Hit, one-use Ace, inspect/confirm Sun reveal, Stand and settled win');
 
         await tap(button('Another hand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-        await seedAndQuiver('frick-browser-29',10);
+        await seedAndQuiver('frick-136-57',5);await deal(2);
+        assert.equal((await state()).session.phase,'playing');
+        assert.deepEqual((await state()).session.player.map(c=>c.rank),[10,10],'Authentic shuffled pair, not an injected outcome');
+        await shot('desktop-pair-hand');await holdForDemo('pair-hand',2000);
+        await tap(button('Stand'));
+        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
+        const pairWin=await state();
+        assert.equal(pairWin.session.result,'win');
+        assert.match(pairWin.session.message,/You win 4 Flags.*Pair/i);
+        assert.equal(pairWin.carried.length,9,'Two-Flag stake returned once plus four-Flag pair profit');
+        await shot('desktop-pair-profit');await holdForDemo('pair-profit',3000);
+        check('desktop: pair doubles only winning profit, not returned stake');
+
+        await tap(button('Another hand'));
+        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await seedAndQuiver('frick-136-1',10);
         const stockBefore=(await state()).altarStock;
         await deal(10);
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
@@ -218,7 +293,7 @@ async function main(){
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 
         await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-        await seedAndQuiver('frick-browser-0',3);await deal(3);
+        await seedAndQuiver('frick-136-9',3);await deal(3);
         await tap(button('Hit'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='empty');
         assert.equal((await state()).carried.length,0);
@@ -231,7 +306,7 @@ async function main(){
 
         await page.waitForTimeout(1100);await stageGift();await dialogueToChoice();await tap(button('Yes, play Frick-frack'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-        await seedAndQuiver('frick-browser-0',5);await deal(2);
+        await seedAndQuiver('frick-136-9',5);await deal(2);
         await tap(button('Exit · forfeit wager'));await dialog.waitFor({state:'hidden'});
         assert.equal((await state()).carried.length,3,'Mid-hand exit forfeits committed wager once');
         await page.keyboard.press('Escape');await page.waitForTimeout(150);
@@ -242,6 +317,8 @@ async function main(){
         await page.evaluate(()=>{const w=window.flaghack.world,av=w.avatarOf(0);av.hp=0;av.koUntil=w.time+6;});
         await dialog.waitFor({state:'hidden'});
         assert.equal((await state()).session,null,'KO cancels modal and releases session lock');
+        // KO selects its own death camera, but the saved user camera state must not be lost.
+        assert.deepEqual((await state()).camera,await page.evaluate(()=>window.__frickQa.cameraBefore));
         check('desktop: active-hand exit cannot refund wager; KO cleans up locked dialogue');
       }
       assert.deepEqual(entry.pageErrors,[],spec.name+' has no browser page errors');

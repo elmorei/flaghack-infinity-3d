@@ -18,7 +18,10 @@ describe('Frick-frack control boundary', () => {
       inputCmd: {t: 'avatarInput', faction: 0, input: {moveX: 1, moveZ: 1, jump: true, sprint: true, yaw: 0, pitch: 0}},
       queue: [{t: 'throw', faction: 0}, {t: 'swing', faction: 0}], throwQueued: true, jumpLatch: true,
     });
+    world.avatarOf(0).yaw = 1.75; session.camera.yaw = -1;
     controls.tick();
+    expect((sent[0] as Extract<Command,{t:'avatarInput'}>).input.yaw).toBe(1.75);
+    expect(session.camera.yaw).toBe(-1);
     expect(sent).toHaveLength(1); expect(sent[0].t).toBe('avatarInput');
     expect((sent[0] as Extract<Command,{t:'avatarInput'}>).input).toMatchObject({moveX:0,moveZ:0,jump:false,sprint:false,throwMode:false});
     expect(controls.queue).toEqual([]); expect(controls.throwQueued).toBe(false);

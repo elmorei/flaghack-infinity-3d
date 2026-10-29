@@ -1,3 +1,4 @@
+import { stepFrickFrackWizard } from './frickFrack';
 /**
  * Hippies (Signifiers): job assignment from faction job weights, direct orders, nav-grid
  * movement with separation steering, Survey/Gather/Defend/Raid/Ritual behaviours, attention
@@ -310,7 +311,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
     b.moving = false;
     return;
   }
-  if (h.wizard && Object.keys(world.frickFrack.sessions).length > 0) { h.vel.x = 0; h.vel.z = 0; h.status = 'idle'; h.statusTarget = null; return; }
+  if (stepFrickFrackWizard(world, sys, h, b, dt)) return;
   if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
   if (f === NEUTRAL) {

@@ -13,6 +13,7 @@ import type { FullSnapshot } from './codec';
 import { LOBBY_CHANGE_COOLDOWN_MS, MAX_CHAT_LENGTH, MAX_SEED_LENGTH, MAX_NAME_LENGTH, PROTOCOL_VERSION, SEAT_COUNT, WS_PATH } from './protocol';
 import type { ChatLine, ClientMessage, DenyReason, HostInfo, LobbySettings, LobbyState, ServerMessage, StateFrame } from './protocol';
 import type { NetSession, NetStatus } from './session';
+import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 
 /** What the App does with match traffic. Only called for the client that owns the hooks. */
 export interface NetClientHooks {
@@ -21,6 +22,8 @@ export interface NetClientHooks {
   /** A match began, or this client (re)joined one: build a fresh mirror and restart input seq at 1. */
   matchStart(options: MatchOptions, seat: FactionId | null, snapshot: FullSnapshot): void;
   state(frame: StateFrame): void;
+  /** Private knowledge for the currently authenticated seat, or null to clear it. */
+  frickFrackPrivate?(view: FrickFrackPrivateView | null): void;
   /** The session ended for good: `error` is null for a voluntary leave. */
   closed(error: string | null): void;
 }
@@ -101,6 +104,7 @@ const SERVER_KINDS: Record<ServerMessage['t'], true> = {
   matchStart: true,
   bossTakeoverResult: true,
   state: true,
+  frickFrackPrivate: true,
   pong: true,
   notice: true,
 };
@@ -443,6 +447,7 @@ export class NetClient implements NetSession {
         this.changed();
         return;
       case 'matchStart':
+        this.hooks.frickFrackPrivate?.(null);
         this.cancelSettings();
         this.inMatch = true;
         this.matchSeat = msg.seat;
@@ -465,6 +470,10 @@ export class NetClient implements NetSession {
       case 'state':
         if (this.inMatch) this.hooks.state(msg.frame);
         return;
+      case 'frickFrackPrivate':
+        if (this.inMatch && this.matchSeat !== null && msg.seat === this.matchSeat && msg.inputEpoch === this.inputEpoch)
+          this.hooks.frickFrackPrivate?.(msg.view);
+        return;
       case 'pong': {
         const rtt = performance.now() - msg.clientTime;
         if (rtt < 0 || !Number.isFinite(rtt)) return;
@@ -481,6 +490,7 @@ export class NetClient implements NetSession {
   }
 
   private socketClosed(code: number): void {
+    this.hooks.frickFrackPrivate?.(null);
     this.clearHandshakeTimer();
     if (this.settingsPending || this.startPending) this.cancelSettings('Connection interrupted. Unconfirmed setup changes and Start were canceled; check the host choices after reconnecting.');
     if (this.finished) return;
@@ -524,6 +534,7 @@ export class NetClient implements NetSession {
   }
 
   private finish(error: string | null): void {
+    this.hooks.frickFrackPrivate?.(null);
     if (this.finished) return;
     this.finished = true;
     this.clearHandshakeTimer();

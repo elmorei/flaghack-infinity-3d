@@ -11,6 +11,7 @@ import { DEFAULT_MATCH, normalizeMatch } from "../src/sim/matchSettings";
  * nothing a client sends can take the host down.
  */
 import { randomBytes } from 'node:crypto';
+import { getFrickFrackPrivateView } from '../src/sim/frickFrackPrivate';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 import type { RawData } from 'ws';
@@ -171,6 +172,7 @@ export class Room {
   private lastSweepAt = 0;
   private abandonAt = 0;
   private closing = false;
+  private readonly privateKnowledgeSent = new WeakMap<Player, string>();
 
   private readonly listener: MatchListener = {
     beforeFrame: () => this.settleBossTakeovers(),
@@ -670,6 +672,23 @@ export class Room {
       // Hands the seat back from the NPC (or restarts the input sequence) as matchStart goes out.
       if (p.seat !== null) match.driveHuman(p.seat, p.id, p.inputEpoch);
       this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
+    }
+    this.sendPrivateKnowledge();
+  }
+
+  /** Shared snapshots never carry peeks; send only to the authenticated seat holder. */
+  private sendPrivateKnowledge(): void {
+    const match = this.match;
+    if (!match) return;
+    for (const p of this.players.values()) {
+      if (!p.inMatch || !p.conn || p.seat === null) continue;
+      const view = getFrickFrackPrivateView(match.world, p.seat);
+      const previous = this.privateKnowledgeSent.get(p);
+      if (view === null && previous === undefined) continue;
+      const signature = JSON.stringify([p.inputEpoch, p.seat, view]);
+      if (signature === previous) continue;
+      this.privateKnowledgeSent.set(p, signature);
+      this.send(p.conn, { t: 'frickFrackPrivate', seat: p.seat, inputEpoch: p.inputEpoch, view });
     }
   }
 

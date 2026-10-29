@@ -9,6 +9,7 @@ import { frickFrackInputLocked } from './frickFrackControls';
 import { createAi, type AiController } from '../ai';
 import { GameAudio } from '../audio/audio';
 import { NetClient, tabTokens } from '../net/client';
+import { clearFrickFrackPrivateViews, setFrickFrackPrivateView } from '../sim/frickFrackPrivate';
 import { browserAllowsRemoteHosts, parseHostAddress, probeHost } from '../net/endpoint';
 import type { NetClientHooks } from '../net/client';
 import type { FullSnapshot } from '../net/codec';
@@ -293,6 +294,10 @@ export class App implements AppApi {
       state: (frame) => {
         if (mine()) this.mirror?.push(frame);
       },
+      frickFrackPrivate: (view) => {
+        if (mine() && this.mirror && !this.session.spectator)
+          setFrickFrackPrivateView(this.mirror.world, this.session.playerFaction, view);
+      },
       closed: (error) => {
         if (mine()) this.onClosed(error);
       },
@@ -431,6 +436,7 @@ export class App implements AppApi {
 
   /** Tear down the online match replica (the caller loads whatever comes next). */
   private leaveOnline(): void {
+    if (this.mirror) clearFrickFrackPrivateViews(this.mirror.world);
     this.mirror = null;
     this.predictor = null;
     this.seq = 0;

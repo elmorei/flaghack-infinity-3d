@@ -20,6 +20,7 @@ import type { AvatarInput, Difficulty, FactionId, MatchOptions } from '../sim/ty
 import type { Command } from '../sim/commands';
 import type { GameEvent } from '../sim/events';
 import type { DeltaSnapshot, FullSnapshot } from './codec';
+import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
 // v20: Frick-frack wizard, public card state, and revision-checked minigame commands.
@@ -162,6 +163,8 @@ export type ServerMessage =
   /** Successful claims take effect with the following matchStart, never by client prediction. */
   | { t: 'bossTakeoverResult'; seat: FactionId; ok: boolean; reason: string | null }
   | { t: 'state'; frame: StateFrame }
+  /** Authenticated seat-only knowledge; never included in a shared state frame. */
+  | { t: 'frickFrackPrivate'; seat: FactionId; inputEpoch: number; view: FrickFrackPrivateView | null }
   | { t: 'pong'; id: number; clientTime: number; serverTime: number }
   /** Host notices shown as a banner (e.g. "The host is shutting down"). */
   | { t: 'notice'; text: string };

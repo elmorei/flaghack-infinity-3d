@@ -114,7 +114,7 @@ describe('Frick-frack authoritative minigame', () => {
     expect(w.frickFrack.sideboards[0].filter(c => c.id === drop.id)).toHaveLength(1); expect(w.frickFrack.drops.some(d => d.id === drop.id)).toBe(false);
   });
   it('pays a real natural at even money and overflows the real quiver limit', () => {
-    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'qa-28');
+    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'frick-136-1');
     const altar = w.hearthOf(0)!, before = [...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id).length;
     command(w, 'bet', { wager: AVATAR.quiver });
     expect(w.frickFrack.sessions[0]!.result).toBe('win'); expect(av.carried).toHaveLength(AVATAR.quiver);
@@ -122,15 +122,16 @@ describe('Frick-frack authoritative minigame', () => {
     expect(new Set(av.carried).size).toBe(AVATAR.quiver);
   });
   it('leaves overflow as real loose Flags if no owned altar remains', () => {
-    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'qa-28');
+    const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'frick-136-1');
     w.factions[0].hearthIds = []; const before = [...w.flags.values()].filter(f => f.state === 'loose').length;
     command(w, 'bet', { wager: AVATAR.quiver }); expect(av.carried).toHaveLength(AVATAR.quiver);
     expect([...w.flags.values()].filter(f => f.state === 'loose')).toHaveLength(before + AVATAR.quiver);
   });
-  it('isolates concurrent wizard sessions, wagers, revisions and cheat sideboards', () => {
+  it('queues direct gifts behind active conversations and isolates revisions and sideboards', () => {
     const { w, av, wizard } = arena(); w.factions[1].isPlayer = true;
     const other = w.avatarOf(1), initial0 = av.carried.length, initial1 = other.carried.length;
     start(w);
+    Object.assign(other.pos, { ...av.pos });
     expect(offerFrickFrackFlag(w, wizard, 1, other.carried[0])).toBe(true);
     const s0 = w.frickFrack.sessions[0]!, s1 = w.frickFrack.sessions[1]!;
     expect(s0.id).not.toBe(s1.id);
@@ -143,8 +144,8 @@ describe('Frick-frack authoritative minigame', () => {
     expect(JSON.stringify(s1)).toBe(untouched); expect(other.carried).toHaveLength(initial1);
     resetFrickFrackEntropy(w, 'normal');
     cmdFrickFrack(w, { t: 'frickFrack', faction: 1, sessionId: s1.id, revision: s1.revision, action: 'bet', wager: 2 });
-    expect(av.carried).toHaveLength(initial0 - 1); expect(other.carried).toHaveLength(initial1 - 2);
-    expect(s0.wager).toBe(1); expect(s1.wager).toBe(2);
+    expect(av.carried).toHaveLength(initial0 - 1); expect(other.carried).toHaveLength(initial1);
+    expect(s0.wager).toBe(1); expect(s1.wager).toBe(0); expect(s1.phase).toBe('chasing');
     const before0 = JSON.stringify(s0), before1 = JSON.stringify(s1);
     cmdFrickFrack(w, { t: 'frickFrack', faction: 0, sessionId: s1.id, revision: s1.revision, action: 'exit' });
     cmdFrickFrack(w, { t: 'frickFrack', faction: 1, sessionId: s0.id, revision: s0.revision, action: 'hit' });
@@ -160,6 +161,7 @@ describe('Frick-frack authoritative minigame', () => {
   it.each(['exit', 'ko'] as const)('one player %s leaves another wizard conversation active', cause => {
     const { w, av, wizard } = arena(); w.factions[1].isPlayer = true; start(w);
     const other = w.avatarOf(1);
+    Object.assign(other.pos, { ...av.pos });
     expect(offerFrickFrackFlag(w, wizard, 1, other.carried[0])).toBe(true);
     const before = JSON.stringify(w.frickFrack.sessions[1]), otherFlags = [...other.carried];
     if (cause === 'exit') command(w, 'exit'); else { av.koUntil = w.time + 10; updateFrickFrack(w); }
