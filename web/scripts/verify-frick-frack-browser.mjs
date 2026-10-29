@@ -38,7 +38,7 @@ async function main(){
   const shot=name=>page.screenshot({path:join(OUT,name+'.png'),animations:'disabled'});
   const state=()=>page.evaluate(()=>{
     const a=window.flaghack,w=a.world,f=a.session.playerFaction,av=w.avatarOf(f),g=w.frickFrack;
-    return {time:w.time,session:g.sessions[f]??null,carried:[...av.carried],sideboard:g.sideboards[f].map(c=>({...c})),drops:g.drops.length,position:{...av.pos},alive:w.factions[f].alive,hover:a.session.hover.entity,wizardId:g.wizardId,wizardPosition:w.hippies.get(g.wizardId)?.pos,camera:{...a.session.camera},screen:a.session.screen,pointerLocked:!!document.pointerLockElement,altarStock:[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(f)?.id).length};
+    return {time:w.time,session:g.sessions[f]??null,carried:[...av.carried],sideboard:g.sideboards[f].map(c=>({...c})),drops:g.drops.length,position:{...av.pos},alive:w.factions[f].alive,hover:a.session.hover.entity,wizardId:g.wizardId,wizardPosition:w.hippies.get(g.wizardId)?.pos,camera:{...a.session.camera},screen:a.session.screen,pointerLocked:!!document.pointerLockElement,throwStage:window.__frickQa?.throwStage,altarStock:[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(f)?.id).length};
   });
   try{
     for(const spec of specs){
@@ -102,16 +102,21 @@ async function main(){
           // ballistic predictor. Hovering a wizard's hat alone aims at the ground behind him.
           await page.mouse.click(spec.width/2,spec.height/2);
           await page.waitForFunction(()=>window.flaghack.controls.input.locked||window.flaghack.controls.input.lockUnavailable);
-          await page.evaluate(()=>{const a=window.flaghack;a.session.camera.pitch=-.28;a.controls.rig.resetFollow();});
+          await page.evaluate(()=>{const a=window.flaghack;a.session.camera.pitch=.18;a.controls.rig.resetFollow();});
           await page.waitForTimeout(900);
           await page.mouse.down({button:'right'});
           await page.waitForFunction(()=>window.flaghack.session.aim.active&&window.flaghack.session.aim.arc.length>3);
+          // Positive session pitch looks DOWN (actionPose negates it). 1.62m pivot /
+          // tan(.18) places the ground crosshair about 9m ahead on level ground.
+          // Let the normal RMB shoulder boom/FOV finish before sampling its arc.
+          await page.waitForTimeout(1200);
           await page.evaluate(()=>{
             const a=window.flaghack,w=a.world,av=w.avatarOf(0),h=w.hippies.get(w.frickFrack.wizardId);
+            window.__frickQa.throwStage={arc:a.session.aim.arc.map(p=>({...p,distance:Math.hypot(p.x-av.pos.x,p.z-av.pos.z),height:p.y-w.collision.groundHeight(p.x,p.z),walkable:w.nav.isWalkable(p.x,p.z)})),hover:a.session.hover.point?{...a.session.hover.point}:null,rigOrigin:{...a.controls.rig.origin},rigDir:{...a.controls.rig.dir}};
             const candidates=a.session.aim.arc.filter(p=>{const distance=Math.hypot(p.x-av.pos.x,p.z-av.pos.z),height=p.y-w.collision.groundHeight(p.x,p.z);return distance>=5&&distance<=14&&height>.35&&height<1.5&&w.nav.isWalkable(p.x,p.z);});
-            const p=candidates.at(-1);if(!p)throw Error('No reachable wizard point on the normal throw trajectory');
+            const p=candidates.at(-1);if(!p)throw Error('No reachable wizard point on the normal throw trajectory: '+JSON.stringify(window.__frickQa.throwStage));
             h.pos={x:p.x,z:p.z};h.vel={x:0,z:0};if(h.brain.mind){h.brain.mind.waitUntil=w.time+30;h.brain.mind.moving=false;}
-            window.__frickQa.throwStage={point:{...p},arc:a.session.aim.arc.map(p=>({...p})),hover:{...a.session.hover.point}};
+            window.__frickQa.throwStage.point={...p};
           });
         }
         await page.waitForTimeout(150);
