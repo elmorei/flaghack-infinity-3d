@@ -91,7 +91,9 @@ async function main() {
   const mediaRequests = () => requests.filter((path) => path.endsWith('.mp4')).length;
   const ready = () => page.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
   const leave = async () => {
-    await page.getByRole('button', { name: 'Skip', exact: true }).click();
+    // Skip changes local UI, never navigates. Verify its real completion below instead
+    // of Playwright's unrelated post-click navigation wait on busy native renderers.
+    await page.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true });
     await page.locator('#startup').waitFor({ state: 'detached' });
   };
   const readState = () => page.evaluate(() => ({
@@ -166,7 +168,9 @@ async function main() {
     const partialContext = await browser.newContext(); const partial = await makePlaybackPage(partialContext); activePage = partial;
     await partial.goto(url, { waitUntil: 'domcontentloaded' });
     await partial.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
-    await partial.getByRole('button', { name: 'Skip', exact: true }).click();
+    await partial.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true });
+    await partial.locator('#startup').waitFor({ state: 'detached' });
+    assert.equal(await partial.evaluate(() => window.flaghack.startupPending), false);
     await partial.waitForFunction((prefix) => Object.keys(localStorage).some((key) => key.startsWith(prefix)), CACHE_PREFIX);
     await partial.reload({ waitUntil: 'domcontentloaded' });
     await partial.waitForFunction(() => document.documentElement.dataset.startupCache === 'miss');
