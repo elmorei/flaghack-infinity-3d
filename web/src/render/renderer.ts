@@ -151,7 +151,7 @@ export class GameRenderer {
   }
 
   /** True only when the scene was drawn to the canvas (shader warmup alone is not ready). */
-  render(dt: number): boolean {
+  render(dt: number, occluded = false): boolean {
     const ctx = this.ctx;
     const post = this.post;
     if (!ctx) return false;
@@ -164,6 +164,9 @@ export class GameRenderer {
     ctx.beat = this.beatSource?.() ?? (ctx.time * FESTIVAL_BPM) / 60;
     this.updateFx(dt);
     for (const m of this.modules) m.update(dt);
+    // Hidden by a fully opaque DOM table: presentation/effect lifetimes still
+    // advance, but shader warmup and GPU draws can wait until the world is visible.
+    if (occluded) return false;
     if (this.needsWarm) {
       // After one update, so materials the modules create lazily are included. compileAsync
       // starts every link at once (KHR_parallel_shader_compile) and resolves when all are

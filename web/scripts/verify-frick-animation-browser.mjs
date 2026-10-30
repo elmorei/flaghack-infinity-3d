@@ -47,15 +47,15 @@ async function main(){
       await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
       await page.evaluate(()=>{
         const renderer=window.flaghack.renderer, original=renderer.render.bind(renderer);
-        window.__ffRenderProbe={calls:0};
-        renderer.render=(...args)=>{window.__ffRenderProbe.calls++;return original(...args);};
+        window.__ffRenderProbe={calls:0,updates:0};
+        renderer.render=(...args)=>{window.__ffRenderProbe.updates++;const drew=original(...args);if(drew===true)window.__ffRenderProbe.calls++;return drew;};
       });
       // rAF reports actual main-thread presentation opportunities, not the video's
       // nominal FPS. Do not take screenshots during these windows: capture itself
       // can perturb pacing. Long-task/DOM counts expose work rather than assuming
       // that any repeated video frames come from the recorder.
       const startPacing=async label=>page.evaluate(label=>{
-        const began=performance.now(), frames=[], longTasks=[], initialDraws=window.__ffRenderProbe.calls, initialWorldTime=window.flaghack.world.time;
+        const began=performance.now(), frames=[], longTasks=[], initialDraws=window.__ffRenderProbe.calls, initialUpdates=window.__ffRenderProbe.updates, initialWorldTime=window.flaghack.world.time, initialRenderTime=window.flaghack.renderer.ctx?.time;
         let raf=0, bodyReplacements=0, mutations=0, finished=false;
         const body=document.querySelector('.ff-body');
         const observer=new MutationObserver(records=>{
@@ -77,7 +77,7 @@ async function main(){
             const percentile=p=>ordered.length?ordered[Math.min(ordered.length-1,Math.ceil(ordered.length*p)-1)]:null;
             return {windowMs:limit,frames:subset.length,meanMs:intervals.length?intervals.reduce((a,b)=>a+b,0)/intervals.length:null,p50Ms:percentile(.5),p95Ms:percentile(.95),maxMs:ordered.at(-1)??null,over25Ms:intervals.filter(n=>n>25).length,over50Ms:intervals.filter(n=>n>50).length};
           };
-          resolve({label,elapsedMs:performance.now()-began,renderCalls:window.__ffRenderProbe.calls-initialDraws,simulationAdvancedSeconds:window.flaghack.world.time-initialWorldTime,activeWindow:summarize(650),fullWindow:summarize(1200),frames,longTasks,bodyReplacements,mutationRecords:mutations,markers:window.__ffPacing.markers});
+          resolve({label,elapsedMs:performance.now()-began,renderCalls:window.__ffRenderProbe.calls-initialDraws,renderUpdateCalls:window.__ffRenderProbe.updates-initialUpdates,renderClockAdvancedSeconds:initialRenderTime==null?null:window.flaghack.renderer.ctx.time-initialRenderTime,simulationAdvancedSeconds:window.flaghack.world.time-initialWorldTime,activeWindow:summarize(650),fullWindow:summarize(1200),frames,longTasks,bodyReplacements,mutationRecords:mutations,markers:window.__ffPacing.markers});
         },1200))};
       },label);
       const finishPacing=async()=>{const metric=await page.evaluate(()=>window.__ffPacing.done);entry.pacing.push(metric);console.log('PACING '+spec.name+' '+JSON.stringify(metric));};
@@ -122,6 +122,8 @@ async function main(){
       await finishPacing();check('only new hit animates');
       const hitPacing=entry.pacing.at(-1);
       assert(hitPacing.simulationAdvancedSeconds>0,'opaque table must not pause simulation');
+      assert(hitPacing.renderUpdateCalls>0,'opaque table must keep renderer effects/modules updating');
+      if(hitPacing.renderClockAdvancedSeconds!==null)assert(hitPacing.renderClockAdvancedSeconds>0,'opaque table must keep renderer clock advancing');
       if(!BASELINE)assert.equal(hitPacing.renderCalls,0,'fully opaque stable table should skip invisible world drawing');
       check(BASELINE?'simulation advances under table (baseline draw count recorded)':'simulation advances while invisible world drawing is suppressed');
       await stage('reveal');

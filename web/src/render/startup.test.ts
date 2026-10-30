@@ -72,3 +72,18 @@ it('mobile direct rendering compiles for the canvas and draws without a post-pro
   expect((f.gpu as any).render).toHaveBeenCalledOnce();
   expect(f.post.render).not.toHaveBeenCalled();
 });
+
+it('opaque DOM table skips GPU work but keeps presentation and effects advancing', () => {
+  const f = fixture(), renderer = f.renderer as any, update = vi.fn();
+  renderer.modules = [{ update }];
+  expect(f.renderer.render(.1, true)).toBe(false);
+  expect(renderer.ctx.time).toBe(.1);
+  expect(renderer.updateFx).toHaveBeenCalledWith(.1);
+  expect(update).toHaveBeenCalledWith(.1);
+  expect(f.gpu.compileAsync).not.toHaveBeenCalled();
+  expect(f.post.render).not.toHaveBeenCalled();
+  renderer.needsWarm = false;
+  expect(f.renderer.render(.1)).toBe(true);
+  expect(renderer.ctx.time).toBe(.2);
+  expect(f.post.render).toHaveBeenCalledOnce();
+});

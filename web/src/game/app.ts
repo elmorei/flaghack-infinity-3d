@@ -576,10 +576,10 @@ export class App implements AppApi {
     // ticking, but don't spend GPU time drawing a world nobody can see. Require
     // the actual opaque overlay too, so opening/closing/KO transitions redraw
     // immediately and the transparent wizard conversation remains animated.
-    if (this.readySettled && frickFrackTableOccludesWorld(this.world, this.session)
-      && document.querySelector('.ff-overlay:not(.is-off):not(.ff-in-world)')) return;
+    const occluded = this.readySettled && frickFrackTableOccludesWorld(this.world, this.session)
+      && !!document.querySelector('.ff-overlay:not(.is-off):not(.ff-in-world)');
     try {
-      if (this.renderer.render(dt) && !this.readySettled) {
+      if (this.renderer.render(dt, occluded) && !this.readySettled) {
         this.readySettled = true;
         this.resolveReady();
       }
