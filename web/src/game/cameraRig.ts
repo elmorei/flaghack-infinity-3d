@@ -29,11 +29,6 @@ export const CMD_HEIGHT_MAX = 260;
 export const FOV_COMMAND = 50;
 /** Fixed diagonal tactical view on phones. No user-controlled zoom or rotation. */
 export const MOBILE_COMMAND_PITCH = -60 * DEG;
-/** Preview-only comparison hook; ignores unsupported values rather than accepting free rotation. */
-export function mobileCommandPitch(): number {
-  const value = typeof document === 'undefined' ? NaN : Number(document.documentElement?.dataset?.mobileCameraElevation);
-  return [45, 60, 75].includes(value) ? -value * DEG : MOBILE_COMMAND_PITCH;
-}
 export const MOBILE_COMMAND_WORLD_PER_PIXEL = .035;
 export function mobileCommandExtent(viewportHeight: number): number {
   return Math.max(1, Number.isFinite(viewportHeight) ? viewportHeight : 720) * MOBILE_COMMAND_WORLD_PER_PIXEL;
@@ -124,7 +119,7 @@ export function blendPose(a: RigPose, b: RigPose, t: number, out: RigPose): void
  */
 export function commandGroundPoint(cam: CameraState, nx: number, ny: number, aspect: number, out: V2): boolean {
   const mobile = isMobileCommandLayout();
-  const pitch = mobile ? mobileCommandPitch() : CMD_PITCH;
+  const pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
   const yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
   const sp = Math.sin(pitch), cp = Math.cos(pitch);
   const sy = Math.sin(yaw), cy = Math.cos(yaw);
@@ -528,7 +523,7 @@ export class CameraRig {
     out.ty = world.collision.groundHeight(this.cmdX, this.cmdZ);
     out.tz = this.cmdZ;
     out.yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
-    out.pitch = mobile ? mobileCommandPitch() : CMD_PITCH;
+    out.pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
     out.dist = this.cmdH / -Math.sin(out.pitch);
     out.fov = FOV_COMMAND;
   }

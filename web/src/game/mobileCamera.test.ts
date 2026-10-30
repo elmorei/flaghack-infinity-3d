@@ -1,16 +1,16 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CameraRig, CMD_PITCH, FOV_COMMAND, MOBILE_COMMAND_PITCH, MOBILE_COMMAND_YAW, commandGroundPoint, mobileCommandHeight, mobileCommandExtent, mobileCommandPitch, newPose } from './cameraRig';
+import { CameraRig, CMD_PITCH, FOV_COMMAND, MOBILE_COMMAND_PITCH, MOBILE_COMMAND_YAW, commandGroundPoint, mobileCommandHeight, mobileCommandExtent, newPose } from './cameraRig';
 import { cameraPointerRay, worldUnitsPerPixel } from '../render/cameraProjection';
 import { GameRenderer } from '../render/renderer';
 import { ActorView, PLACE } from '../render/actors/lod';
 import { Session } from './session';
 const mobile = (angle = 60) => vi.stubGlobal('document', { documentElement: { dataset: { deviceLayout: 'mobile', mobileCameraElevation: String(angle) } } });
 afterEach(() => vi.unstubAllGlobals());
-function camera(height: number, viewportHeight: number, width: number) {
+function camera(height: number, viewportHeight: number, width: number, angle = 60) {
   const half = mobileCommandExtent(viewportHeight) / 2;
   const c = new THREE.OrthographicCamera(-half*width/viewportHeight, half*width/viewportHeight, half, -half, .1, 1200);
-  const pitch = mobileCommandPitch(), dist = height / -Math.sin(pitch);
+  const pitch = -angle * Math.PI / 180, dist = height / -Math.sin(pitch);
   c.position.set(-Math.sin(MOBILE_COMMAND_YAW) * Math.cos(pitch) * dist,
     height, -Math.cos(MOBILE_COMMAND_YAW) * Math.cos(pitch) * dist);
   c.lookAt(0, 0, 0); c.updateMatrixWorld(); return c;
@@ -26,8 +26,9 @@ describe('parallel mobile command camera', () => {
       expect(worldUnitsPerPixel(c, height, 100)).toBeCloseTo(.035);
     }
   });
-  it('matches orthographic rendering, touch-pan ground points, and parallel picking at all options', () => {
+  it('matches orthographic rendering, touch-pan ground points, and parallel picking at the fixed 60-degree angle', () => {
     for (const angle of [45,60,75]) {
+      // Stale preview attributes cannot change the selected production angle.
       mobile(angle); const s = new Session(); s.camera.cmdHeight = mobileCommandHeight(844);
       s.camera.cmdX = 0; s.camera.cmdZ = 0;
       const c = camera(s.camera.cmdHeight,844,390);
@@ -58,7 +59,10 @@ describe('parallel mobile command camera', () => {
     s.camera.cmdHeight = mobileCommandHeight(390);
     (rig as any).commandPose(world,s.camera,.016,pose);
     expect(pose.dist * -Math.sin(pose.pitch)).toBeCloseTo(s.camera.cmdHeight,10);
-    mobile(42); expect(mobileCommandPitch()).toBe(MOBILE_COMMAND_PITCH);
+    for (const angle of [42,45,75]) {
+      mobile(angle); (rig as any).commandPose(world,s.camera,.016,pose);
+      expect(pose.pitch).toBe(MOBILE_COMMAND_PITCH);
+    }
   });
   it('limits orthographic use to settled mobile command view, not dialogue/action/title or emergence', () => {
     mobile(); const rig = new CameraRig();
@@ -79,7 +83,7 @@ describe('parallel mobile command camera', () => {
   });
   it('holds actor detail constant between all angles and orientations at the same pixel scale', () => {
     for (const [width,height] of [[390,844],[844,390]]) for (const angle of [45,60,75]) {
-      mobile(angle); const c = camera(mobileCommandHeight(height),height,width); c.userData.cssHeight = height;
+      mobile(angle); const c = camera(mobileCommandHeight(height),height,width,angle); c.userData.cssHeight = height;
       const view = new ActorView(false); view.update(c);
       expect(view.place(0,0,0,2,40,false)).toBe(PLACE.detailed);
       expect(view.place(1000,0,1000,2,40,false)).toBe(PLACE.skip);
