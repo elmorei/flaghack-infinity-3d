@@ -40,7 +40,8 @@ function poses(world: World) {
   return [...world.hippies.values()].map(h => ({ id: h.id, pos: { ...h.pos }, facing: h.facing, status: h.status, target: h.statusTarget && { ...h.statusTarget } }));
 }
 function expectWatching(world: World): void {
-  for (const h of neutrals(world)) {
+  // The unique wizard now keeps his own central circuit instead of joining the seated audience.
+  for (const h of neutrals(world).filter(h => !h.wizard)) {
     expect(brainOf(h).task).toBe('watchBurn');
     expect(brainOf(h).moving, `hippie ${h.id} at ${JSON.stringify(h.pos)}`).toBe(false);
     expect(h.status).toBe('idle');
@@ -204,7 +205,7 @@ describe('neutral effigy audience', () => {
 
   it('gives newly neutral attendees free slots without reshuffling the crowd', () => {
     const w = match({ days: 0 });
-    const existing = poses(w);
+    const existing = poses(w).filter(p => !w.hippies.get(p.id)?.wizard);
     const newcomer = spawnHippie(w, NEUTRAL, { x: 40, z: 0 });
     tick(w, 25);
     expect(brainOf(newcomer).task).toBe('watchBurn'); expect(brainOf(newcomer).moving).toBe(false);

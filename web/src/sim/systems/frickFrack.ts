@@ -18,6 +18,7 @@ import type { FrickFrackHand } from '../frickFrackArcana';
 import { resolveFrickFrackBattle } from '../frickFrackBattle';
 import { setFrickFrackPrivateView } from '../frickFrackPrivate';
 import { evaluateFrickFrackPoker } from '../frickFrackPoker';
+import { resetWizardCircuit, wanderFrickFrackWizard } from './frickFrackWander';
 
 type PrivateHand = FrickFrackHand;
 interface PrivateState { rng: Rng; hands: Map<FactionId, PrivateHand>; nextSession: number; cooldown: Map<FactionId, number> }
@@ -327,7 +328,8 @@ export function updateFrickFrack(w: World): void {
 export function stepFrickFrackWizard(w: World, sys: UnitsState, h: Hippie, b: Brain, dt: number): boolean {
   if (!h.wizard || h.id !== w.frickFrack.wizardId) return false;
   const sessions = Object.values(w.frickFrack.sessions).filter((s): s is FrickFrackSession => !!s && canPlay(w, s.faction)).sort((a, c) => a.id - c.id);
-  if (!sessions.length) return false;
+  if (!sessions.length) { wanderFrickFrackWizard(w, sys, h, b, dt); return true; }
+  resetWizardCircuit(w);
   const active = sessions.find(s => s.phase !== 'chasing');
   const s = active ?? sessions[0], av = w.avatarOf(s.faction);
   if (active) {
