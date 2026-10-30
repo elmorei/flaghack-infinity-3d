@@ -52,7 +52,7 @@ async function main() {
         a.renderer.render=dt=>{ if(a.renderer.ctx) a.renderer.ctx.time=12-dt; return render(dt); };
         const altar=[...w.buildings.values()].find(b=>b.faction===0 && b.kind==='gcc') || [...w.buildings.values()].find(b=>b.faction===0);
         const x=altar?.pos?.x ?? -90,z=altar?.pos?.z ?? 90;
-        s.camera.cmdX=x+3;s.camera.cmdZ=z+3;s.mobileMode='build';
+        s.camera.cmdX=x+3;s.camera.cmdZ=z+3;s.mobileMode='units';
         for(const [i,dx,dz] of [[0,4,5],[1,7,3],[2,2,8],[3,-2,5]]) {
           const h=window.fh.factory.spawnHippie(w,0,{x:x+dx,z:z+dz});
           h.order={kind:'defend',at:{x:x+dx,z:z+dz}};
