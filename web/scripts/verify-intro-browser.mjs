@@ -153,9 +153,10 @@ async function main() {
       assert.equal((await movieState()).paused, false, 'Ready does not end the movie');
       assert.deepEqual(await page.evaluate(() => window.__introQa.earlySkip), []);
       if (spec.mobile) {
-        // Let local transfer finish before comparing request counts; byte-range fetches
-        // are retained in the report rather than being confused with different URLs.
-        await page.waitForLoadState('networkidle');
+        // The 193-second media range can stay open while Chrome buffers playback.
+        // Wait for the real game/font readiness proof, not whole-page network silence.
+        // Keep the rotation request-count and source/decoder assertions below intact.
+        entry.rotationReadyRecord = await remember();
         const before = await movieState();
         const count = entry.videoRequests.length;
         const observation = await page.evaluate(() => ({...window.__introQa}));

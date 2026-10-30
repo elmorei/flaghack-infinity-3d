@@ -8,6 +8,7 @@ const { chromium } = require('playwright');
 const DIST = resolve(__dirname, '../dist');
 const OUT = resolve(__dirname, '../host-release/mobile-smoke');
 const PROJECT = '/flaghack-infinity-3d/';
+const INTRO_SECONDS = JSON.parse(readFileSync(resolve(__dirname, '../src/startup/assets/improved-intro-provenance.json'), 'utf8')).outputs[0].durationSeconds;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.mp4': 'video/mp4', '.woff2': 'font/woff2', '.woff': 'font/woff', '.svg': 'image/svg+xml', '.json': 'application/json' };
 const server = createServer((req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname;
@@ -87,10 +88,10 @@ async function main() {
       if (spec.routingOnly) { await context.close(); continue; }
       await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.1, null, { timeout: 180_000 });
       entry.media = await page.locator('video').evaluate(v => ({ src: v.currentSrc, duration: v.duration, width: v.videoWidth, height: v.videoHeight }));
-      assert.equal(entry.media.duration, 25);
+      assert.ok(Math.abs(entry.media.duration - INTRO_SECONDS) < 0.05, 'Complete improved intro duration is preserved');
       assert.equal(new Set(entry.mediaRequests.map(value => new URL(value).pathname)).size, 1, 'Only the selected intro should download');
-      if (spec.mobile && spec.width < spec.height) assert.ok(entry.media.width < entry.media.height && /mobile/.test(entry.media.src), 'portrait device decodes cropped mobile video');
-      else assert.ok(entry.media.width > entry.media.height, 'landscape/desktop decodes widescreen original');
+      if (spec.mobile) assert.ok(entry.media.width === 720 && entry.media.height === 720 && /mobile/.test(entry.media.src), 'mobile device decodes square video in either orientation');
+      else assert.ok(entry.media.width === 1280 && entry.media.height === 720, 'desktop decodes widescreen original');
       await page.locator('#startup[data-ready="true"]').waitFor({ timeout: 180_000 });
       const skip = page.getByRole('button', { name: 'Skip', exact: true });
       await fits(skip, `${spec.name} Skip`);

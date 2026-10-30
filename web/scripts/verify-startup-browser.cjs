@@ -10,7 +10,7 @@ const DIST = resolve(__dirname, '../dist');
 const OUT = resolve(__dirname, '../host-release/startup-smoke');
 const PROJECT = '/flaghack-infinity-3d/';
 const CACHE_PREFIX = 'flaghack.startup-cache.v1:';
-const INTRO_SECONDS = JSON.parse(readFileSync(resolve(__dirname, '../src/startup/assets/gameplay-intro-provenance.json'), 'utf8')).delivery.durationSeconds;
+const INTRO_SECONDS = JSON.parse(readFileSync(resolve(__dirname, '../src/startup/assets/improved-intro-provenance.json'), 'utf8')).outputs[0].durationSeconds;
 const requests = [];
 let failMedia = false;
 let failGame = false;
@@ -78,7 +78,7 @@ async function main() {
       const play = HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play = function () {
         // Test-only loop keeps the ready state observable on slow CI GPUs. The actual
-        // 25 s MP4 still decodes normally; the natural-ending case explicitly turns this off.
+        // The full MP4 still decodes normally; the natural-ending case explicitly turns this off.
         if (this.id === 'startup-video') { this.loop = true; window.__introMedia.plays++; }
         return play.call(this);
       };
