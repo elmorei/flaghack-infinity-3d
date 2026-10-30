@@ -1,0 +1,36 @@
+name: Assemble approved intro assets
+on:
+  push:
+    branches: ['qa/frick-frack-defeated-20261030']
+    paths: ['.intro-transfer/manifest.json']
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+      - name: Reassemble exact approved videos and verify hashes
+        run: |
+          node <<'JS'
+          const fs=require('fs'),crypto=require('crypto');
+          const manifest=JSON.parse(fs.readFileSync('.intro-transfer/manifest.json','utf8'));
+          for(const item of manifest.files){
+            const bytes=Buffer.concat(item.parts.map(part=>fs.readFileSync('.intro-transfer/'+part)));
+            const sha=crypto.createHash('sha256').update(bytes).digest('hex');
+            if(bytes.length!==item.bytes||sha!==item.sha256)throw Error('Asset hash mismatch: '+item.path);
+            fs.writeFileSync(item.path,bytes);console.log(item.path,bytes.length,sha);
+          }
+          fs.rmSync('.intro-transfer',{recursive:true});
+          fs.rmSync('.github/workflows/assemble-intro.yml');
+          JS
+      - name: Commit only verified final assets and remove transfer scaffolding
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'Finalize verified desktop and square mobile intro assets'
+          git push origin HEAD:refs/heads/qa/frick-frack-defeated-20261030
