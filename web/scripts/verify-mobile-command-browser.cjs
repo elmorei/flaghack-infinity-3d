@@ -53,11 +53,10 @@ async function main() {
       page = await context.newPage();
       const entry = { name: spec.name, errors: [] }; results.scenarios.push(entry);
       page.on('pageerror', error => entry.errors.push(error.message));
-      // Skip only once genuinely ready; retain ordinary startup logic.
+      // Retain ordinary startup; let the intro finish without racing its animated Skip button.
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => document.querySelector('#startup[data-ready="true"]') || window.flaghack && !window.flaghack.startupPending, null, { timeout: 180_000 });
-      if (await page.locator('#startup').count()) await page.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true, timeout: 2000 }).catch(async error => { if (await page.locator('#startup').count()) throw error; });
-      await page.locator('#startup').waitFor({ state: 'detached' });
+      await page.locator('#startup').waitFor({ state: 'detached', timeout: 90_000 });
       // A deterministic real local match, with the usual production setup, simulation and renderer.
       await page.evaluate(() => {
         const a = window.flaghack;

@@ -24,8 +24,8 @@ async function main() {
   try {
     await page.goto(`http://127.0.0.1:${server.address().port}${PROJECT}`,{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('#startup[data-ready="true"]')||window.flaghack&&!window.flaghack.startupPending,null,{timeout:180000});
-    if(await page.locator('#startup').count()) await page.getByRole('button',{name:'Skip',exact:true}).click({noWaitAfter:true,timeout:2000}).catch(async error=>{if(await page.locator('#startup').count())throw error;});
-    await page.locator('#startup').waitFor({state:'detached'});
+    // Let the ordinary intro finish; capture QA does not test Skip interaction.
+    await page.locator('#startup').waitFor({state:'detached',timeout:90000});
     await page.evaluate(()=>{ const a=window.flaghack; a.startMatch({seed:'native-capture-faction-colors',humans:[0,1,2,3],rtsFactions:[0,1,2,3],match:{...a.session.settings.match,active:[0,1,2,3],bossMode:false,days:3}}); });
     await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.session.view==='command');
     await page.waitForTimeout(1500);
