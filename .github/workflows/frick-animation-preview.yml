@@ -32,12 +32,12 @@ jobs:
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
       - name: Measure original preview pacing on the same runner
         run: |
-          for file in src/render/renderer.ts src/render/startup.test.ts src/game/app.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts; do
+          for file in src/render/renderer.ts src/render/startup.test.ts src/game/app.ts src/game/startup.test.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts; do
             git show 438202e8d8557b7173f23b6895e4e7f486b04f1e:web/$file > "$file"
           done
           npm run build:pages
           FRICK_PACING_BASELINE=1 FRICK_ANIMATION_OUT=host-release/frick-animation-baseline NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-animation-browser.mjs
-          git restore src/render/renderer.ts src/render/startup.test.ts src/game/app.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts
+          git restore src/render/renderer.ts src/render/startup.test.ts src/game/app.ts src/game/startup.test.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts
       - name: Build and measure optimized actual UI
         run: |
           npm run build:pages

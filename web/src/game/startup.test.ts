@@ -53,7 +53,7 @@ describe('App intro readiness', () => {
     frame(); frame(1000);
     await Promise.resolve();
     expect(ready).not.toHaveBeenCalled();
-    expect(calls.render.mock.calls).toEqual([[0], [0]]);
+    expect(calls.render.mock.calls).toEqual([[0, false], [0, false]]);
     expect(calls.titleCamera).toHaveBeenCalledOnce();
     expect(calls.applyCamera).toHaveBeenCalledOnce();
     expect(calls.uiUpdate).toHaveBeenCalledExactlyOnceWith(0);

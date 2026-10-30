@@ -112,13 +112,15 @@ async function main(){
       await page.waitForTimeout(160);
       await stage('refresh');
       await finishPacing();
-      assert.equal(await page.locator('.ff-hands').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length),0);
+      const remainingAnimations=await page.locator('.ff-hands').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length);
+      entry.remainingAnimationsAfterOpening=remainingAnimations;
+      if(!BASELINE)assert.equal(remainingAnimations,0);
       check('revision rerender does not restart deal');
       await page.screenshot({path:join(OUT,spec.name+'-settled.png'),animations:'allow'});
       await startPacing('new-hit');
       await stage('hit');
       await page.waitForFunction(()=>document.querySelectorAll('.ff-card-slot').length===5);
-      if(!spec.reduced){assert(await page.locator('[data-card-id="9104"]').evaluate(el=>el.getAnimations().length)>0);assert.equal(await page.locator('[data-card-id="9101"]').evaluate(el=>el.getAnimations().length),0);}
+      if(!spec.reduced&&!BASELINE){assert(await page.locator('[data-card-id="9104"]').evaluate(el=>el.getAnimations().length)>0);assert.equal(await page.locator('[data-card-id="9101"]').evaluate(el=>el.getAnimations().length),0);}
       await finishPacing();check('only new hit animates');
       const hitPacing=entry.pacing.at(-1);
       assert(hitPacing.simulationAdvancedSeconds>0,'opaque table must not pause simulation');
@@ -128,7 +130,7 @@ async function main(){
       check(BASELINE?'simulation advances under table (baseline draw count recorded)':'simulation advances while invisible world drawing is suppressed');
       await stage('reveal');
       await page.waitForFunction(()=>document.querySelector('[data-card-id="9105"]'));
-      if(!spec.reduced)assert(await page.locator('[data-card-id="9105"]').evaluate(el=>el.getAnimations().length)>0);
+      if(!spec.reduced&&!BASELINE)assert(await page.locator('[data-card-id="9105"]').evaluate(el=>el.getAnimations().length)>0);
       await page.waitForTimeout(450);check('authoritative hole-card reveal flips');
       await stage('defeat');
       await page.waitForFunction(()=>document.querySelector('.ff-card-defeated'));
