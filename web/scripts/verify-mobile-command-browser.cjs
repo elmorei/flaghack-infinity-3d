@@ -56,7 +56,7 @@ async function main() {
       // Skip only once genuinely ready; retain ordinary startup logic.
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => document.querySelector('#startup[data-ready="true"]') || window.flaghack && !window.flaghack.startupPending, null, { timeout: 180_000 });
-      if (await page.locator('#startup').count()) await page.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true });
+      if (await page.locator('#startup').count()) await page.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true, timeout: 2000 }).catch(async error => { if (await page.locator('#startup').count()) throw error; });
       await page.locator('#startup').waitFor({ state: 'detached' });
       // A deterministic real local match, with the usual production setup, simulation and renderer.
       await page.evaluate(() => {

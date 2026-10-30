@@ -31,8 +31,10 @@ jobs:
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-capture-colors-browser.cjs
       - name: Render natural neutral circulation
+        if: ${{ !cancelled() }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-neutral-social-browser.cjs
       - name: Verify mobile touch interaction at the current camera scale
+        if: ${{ !cancelled() }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Upload native browser screenshots and results
         if: always()
