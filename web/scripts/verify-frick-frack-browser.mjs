@@ -266,6 +266,10 @@ async function main(){
         await page.waitForFunction(rev=>window.flaghack.world.frickFrack.sessions[0].revision>rev,beforeHitRevision);
         assert.equal((await state()).session.player.length,2,'Weaker drawn CCG dies instead of remaining as a numeric card');
         await page.waitForFunction(()=>document.querySelector('.ff-wizard-remark')?.textContent?.includes('The 4 defeats the 3'));
+        await page.waitForFunction(()=>document.querySelectorAll('.ff-hand-player .ff-card-defeated .ff-defeated-cross').length===1);
+        assert.equal(await dialog.locator('.ff-hand-player .ff-card').count(),3,'Defeated card stays visible beside two active cards');
+        assert.match(await dialog.locator('.ff-hand-player .ff-card-defeated').getAttribute('aria-label'),/defeated, does not count/);
+        assert.equal((await state()).session.defeated[0].card.rank,3);
         await shot('desktop-ccg-battle');await holdForDemo('ccg-battle-on-hit',2800);
         if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
         await holdForDemo('sideboard-open',1800);
@@ -299,6 +303,26 @@ async function main(){
 
         await tap(button('Another hand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        // A known sideboard card still goes through the real Play button and combat resolver.
+        await seedAndQuiver('frick-136-25',10);await deal(1);
+        await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0];w.frickFrack.sideboards[0]=[{id:w.newId(),rank:4,suit:0,parody:3}];s.revision++;});
+        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        await tap(dialog.getByRole('button',{name:/^Play .* once$/}));
+        await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===2);
+        assert.equal((await state()).session.player.length,2);
+        assert.equal((await state()).session.dealer[0],null,'Tied visible dealer card dies without revealing hole');
+        assert.equal(await dialog.locator('.ff-hand-player .ff-total').textContent(),'11');
+        await shot('desktop-ccg-tie');await holdForDemo('both-cards-marked-defeated',2400);
+        for(const viewport of [{width:320,height:568},{width:844,height:390}]) {
+          await page.setViewportSize(viewport);await page.waitForTimeout(200);
+          assert.equal(await dialog.locator('.ff-defeated-cross').count(),2);
+          await shot(`ccg-tie-${viewport.width}x${viewport.height}`);
+        }
+        await page.setViewportSize({width:spec.width,height:spec.height});
+        await tap(button('Stand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
+        await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        assert.equal(await dialog.locator('.ff-defeated-cross').count(),0,'Next hand clears combat history');
+        check('desktop and narrow layouts: tied CCG cards keep visible X marks, excluded from total; next hand clears history');
         await seedAndQuiver('frick-136-57',5);await deal(2);
         assert.equal((await state()).session.phase,'playing');
         assert.deepEqual((await state()).session.player.map(c=>c.rank),[10,10],'Authentic shuffled pair, not an injected outcome');

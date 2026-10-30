@@ -46,6 +46,27 @@ describe('Frick-frack public wire and commands', () => {
     expect(mirror.world.frickFrack.sessions[0]).toBeUndefined();
     expect(NetMirror.create(world.options,wire(encoder.full())).world.frickFrack.drops).toEqual([]);
   });
+  it('replicates defeated table slots on full, delta and late join without exposing the hole card', () => {
+    const world=createMatch(options), state=world.frickFrack;
+    const dead={id:301,rank:3,suit:0,parody:0 as const};
+    state.sessions[0]={id:92,revision:1,faction:0,phase:'playing',dialogueIndex:2,dialogueStartedAt:0,readyAt:3,wager:1,
+      player:[{id:302,rank:5,suit:0}],dealer:[{id:303,rank:4,suit:0,parody:1},{id:8675309,rank:7,suit:0}],result:null,message:'',
+      defeated:[{side:'player',card:dead}],revealedCardOrder:[302,303,301]};
+    const encoder=new SnapshotEncoder(world), full=wire(encoder.full());
+    expect(JSON.stringify(full)).not.toContain('8675309');
+    const mirror=NetMirror.create(world.options,full);
+    expect(mirror.world.frickFrack.sessions[0]?.defeated).toEqual(state.sessions[0].defeated);
+    state.sessions[0].defeated!.push({side:'dealer',card:{id:304,rank:2,suit:0,parody:3}});
+    state.sessions[0].revealedCardOrder!.push(304);state.sessions[0].revision++;world.tick++;world.time+=1/60;
+    const delta=wire({tick:world.tick,time:world.time,acks:{},delta:encoder.delta([]),events:[]});
+    expect(JSON.stringify(delta)).not.toContain('8675309');mirror.push(delta);mirror.catchUp();
+    for(const replica of [mirror,NetMirror.create(world.options,wire(encoder.full()))]) {
+      expect(replica.world.frickFrack.sessions[0]?.defeated).toEqual(state.sessions[0].defeated);
+      expect(replica.world.frickFrack.sessions[0]?.revealedCardOrder).toEqual([302,303,301,304]);
+      expect(replica.world.frickFrack.sessions[0]?.player).toEqual(state.sessions[0].player);
+      expect(replica.world.frickFrack.sessions[0]?.dealer[1]).toBeNull();
+    }
+  });
   it('decodes only valid bounded public fields and ignores unexpected private properties', () => {
     const world=createMatch(options);
     const value=frickFrackWire(world.frickFrack);

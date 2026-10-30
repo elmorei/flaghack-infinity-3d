@@ -1,8 +1,9 @@
+import { frickFrackTableCards } from '../sim/frickFrackTable';
 import { handFlagBlocker } from '../sim/systems/recruitment';
 import { frickFrackInputLocked } from '../game/frickFrackControls';
 /** Regular-mode wizard dialogue and card table. Simulation owns every wager and card. */
 import type { AppApi } from '../game/app';
-import { FRICK_FRACK_DIALOGUE, FRICK_FRACK_LETTER_SECONDS, frickFrackTotal } from '../sim/frickFrack';
+import { frickFrackDialogue, FRICK_FRACK_LETTER_SECONDS, frickFrackTotal } from '../sim/frickFrack';
 import type { FrickFrackCard, FrickFrackSession } from '../sim/frickFrack';
 import type { Command } from '../sim/commands';
 import type { World } from '../sim/world';
@@ -25,7 +26,7 @@ type TableExtras = Pick<TableCommand, 'wager' | 'cardId' | 'targetCardIds' | 'va
 export const FRICK_FRACK_TABLE_RULES = [
   '136 cards: 52 standard, 56 Rider–Waite minor arcana, and 28 original CCG/sports cards. Major Arcana are one-use sideboard effects, never dealer draws.',
   'Closest to 21 without going over. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. Wizard stands on all 17s. Base wins pay 1:1, including blackjack; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
-  'On reveal, CCG cards fight opponent CCG cards only. Friendly cards coexist; ordinary and tarot cards do not fight. The lower value is removed; equal values both die.',
+  'On reveal, CCG cards fight opponent CCG cards only. Friendly cards coexist; ordinary and tarot cards do not fight. The lower value is defeated; equal values both die. Defeated cards stay visible with an X, but do not count toward totals, poker prizes, effects or further fights.',
   'At hand end, your strongest pair, three of a kind, or four of a kind multiplies base win profit by 2, 3, or 4. These prizes do not stack. Your returned stake is not multiplied; The World’s extra stake is added separately.',
   'A non-bust five-card straight at hand end copies its highest printed card into your sleeve, even on a blackjack loss or push. No straight prize for a bust, and no mid-hand award.',
   'Poker uses printed ranks, never effect-modified values. Standard straights include A–2–3–4–5 or 10–J–Q–K–A, with no wraparound. Tarot Page counts as J; Queen and King keep their ranks. Tarot Knight is a distinct kind rank and cannot join a straight. CCG printed ranks are 1–7; printed 1 is an Ace for poker only.',
@@ -174,12 +175,12 @@ export class FrickFrackUI implements UiPart {
     setText(this.status, `Holding ${available} Flag${available === 1 ? '' : 's'}${s.wager > 0 ? ` · Wager ${s.wager}` : ''} · The burn continues outside.`);
     if (s.phase === 'dialogue' || s.phase === 'empty') {
       el('div', 'ff-wizard-seal', this.body, '✦');
-      el('div', 'ff-page-number', this.body, s.phase === 'dialogue' ? `A brief word · ${s.dialogueIndex + 1} / ${FRICK_FRACK_DIALOGUE.length}` : 'An unfortunate arithmetic');
-      this.textSource = s.phase === 'empty' ? s.message : FRICK_FRACK_DIALOGUE[s.dialogueIndex] ?? '';
+      el('div', 'ff-page-number', this.body, s.phase === 'dialogue' ? `A brief word · ${s.dialogueIndex + 1} / ${frickFrackDialogue(s.dialogueVariant).length}` : 'An unfortunate arithmetic');
+      this.textSource = s.phase === 'empty' ? s.message : frickFrackDialogue(s.dialogueVariant)[s.dialogueIndex] ?? '';
       this.text = el('p', 'ff-dialogue', this.body);
       const actions = el('div', 'ff-actions', this.body);
       if (s.phase === 'empty') this.action(actions, 'Return to the burn', 'exit');
-      else if (s.dialogueIndex < FRICK_FRACK_DIALOGUE.length - 1) this.next = this.action(actions, 'Continue', 'next');
+      else if (s.dialogueIndex < frickFrackDialogue(s.dialogueVariant).length - 1) this.next = this.action(actions, 'Continue', 'next');
       else {
         this.next = this.action(actions, 'Yes, play Frick-frack', 'play');
         const decline = this.action(actions, 'No, thank you', 'decline');
@@ -188,8 +189,8 @@ export class FrickFrackUI implements UiPart {
       el('p', 'ff-small', this.body, 'Let the wizard finish his thought.');
     } else {
       const cards = el('div', 'ff-hands', this.body);
-      this.hand(cards, 'Wizard', s.dealer);
-      this.hand(cards, 'You', s.player);
+      this.hand(cards, 'Wizard', s.dealer, s);
+      this.hand(cards, 'You', s.player, s);
       if (s.remark) { const remark = el('p', 'ff-wizard-remark', this.body, s.remark); remark.setAttribute('role', 'status'); }
       if (s.message) el('p', `ff-result ff-${s.result ?? 'waiting'}`, this.body, s.message);
       if (s.phase === 'betting') {
@@ -256,20 +257,27 @@ export class FrickFrackUI implements UiPart {
     this.body.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 
-  private hand(parent: HTMLElement, name: string, cards: readonly (FrickFrackCard | null)[]): void {
+  private hand(parent: HTMLElement, name: string, cards: readonly (FrickFrackCard | null)[], session: FrickFrackSession): void {
     const hand = el('section', `ff-hand ff-hand-${name === 'Wizard' ? 'dealer' : 'player'}`, parent);
     const known = cards.filter((c): c is FrickFrackCard => c !== null);
-    const total = known.length && !cards.includes(null) ? ` · ${frickFrackTotal(known)}` : '';
+    const displayed = frickFrackTableCards(session, name === 'Wizard' ? 'dealer' : 'player');
+    const total = displayed.length && !cards.includes(null) ? ` · ${frickFrackTotal(known)}` : '';
     const heading = el('h3', '', hand);
     el('span', '', heading, name === 'Wizard' ? 'The Wizard' : 'Your hand');
     if (total) el('span', 'ff-total', heading, total.slice(3));
     const row = el('div', 'ff-card-row', hand);
-    if (!cards.length) el('span', 'ff-small', row, 'Waiting for the deal');
-    for (const card of cards) {
+    if (!displayed.length) el('span', 'ff-small', row, 'Waiting for the deal');
+    for (const {card, defeated} of displayed) {
       const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, row, card === null ? '✦' : cardLabel(card));
-      tile.setAttribute('aria-label', cardLabel(card));
+      tile.setAttribute('aria-label', `${cardLabel(card)}${defeated ? ' — defeated, does not count' : ''}`);
+      if (card) tile.dataset.cardId = String(card.id);
       renderFrickFrackCard(tile, card);
       renderParodyCard(tile, card);
+      if (defeated) {
+        tile.classList.add('ff-card-defeated');
+        const cross = el('span', 'ff-defeated-cross', tile, 'X'); cross.setAttribute('aria-hidden', 'true');
+        el('span', 'ff-defeated-label', tile, 'DEFEATED');
+      }
       if (card?.value !== undefined && !card.tarot && card.parody === undefined) el('span', 'ff-card-override', tile, String(card.value));
     }
   }

@@ -33,11 +33,11 @@ export function resolveFrickFrackBattle(player: CombatCard[], dealerVisible: Com
     }
     if (attack < defense) {
       remove(incoming.id);
-      remarks.push(`The ${defense} defeats the ${attack}. Remove the weaker card.`);
+      remarks.push(`The ${defense} defeats the ${attack}. Mark the weaker card with an X.`);
       break;
     }
     remove(defender.id);
-    remarks.push(`The ${attack} defeats the ${defense}. Remove the weaker card.`);
+    remarks.push(`The ${attack} defeats the ${defense}. Mark the weaker card with an X.`);
   }
   return { removedIds, remark: remarks.join(' ') };
 }

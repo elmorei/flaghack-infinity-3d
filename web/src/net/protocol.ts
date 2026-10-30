@@ -25,7 +25,7 @@ import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
 // v20: Frick-frack wizard, public card state, and revision-checked minigame commands.
 // Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */

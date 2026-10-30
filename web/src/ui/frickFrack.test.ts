@@ -20,6 +20,9 @@ describe('Frick-frack presentation model', () => {
     expect(rules).toContain('opponent CCG cards only');
     expect(rules).toContain('Friendly cards coexist');
     expect(rules).toContain('equal values both die');
+    expect(rules).toContain('Defeated cards stay visible with an X');
+    expect(css).toContain('.ff-defeated-cross');
+    expect(css).toContain('.ff-defeated-label');
     expect(rules).toContain('base win profit by 2, 3, or 4');
     expect(rules).toContain('returned stake is not multiplied');
     expect(rules).toContain('extra stake is added separately');

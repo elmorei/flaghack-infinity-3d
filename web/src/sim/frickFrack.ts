@@ -46,15 +46,23 @@ export interface FrickFrackDrop { id: number; card: FrickFrackCard; pos: V2; cre
 export interface FrickFrackSession {
   id: number; revision: number; faction: FactionId;
   phase: 'chasing' | 'dialogue' | 'betting' | 'playing' | 'result' | 'empty';
+  /** Host-selected encounter script; never changes between hands in the same visit. */
+  dialogueVariant?: number;
   dialogueIndex: number; dialogueStartedAt: number; readyAt: number;
   wager: number; player: FrickFrackCard[]; dealer: (FrickFrackCard | null)[];
   result: 'win' | 'lose' | 'push' | null; message: string;
   /** Last public player-card remark, independent of outcome text and hidden dealer cards. */
   remark?: string;
   arcana?: FrickFrackArcanaState;
+  /** Public combat tombstones only. Never included in active hands or scoring. */
+  defeated?: { card: FrickFrackCard; side: 'player' | 'dealer' }[];
+  /** Order of public reveals only; hidden dealer IDs must never enter this list. */
+  revealedCardOrder?: number[];
 }
 export interface FrickFrackState {
   wizardId: number;
+  /** Completed conversation starts per faction, retained after leaving/disconnecting. */
+  visits?: Partial<Record<FactionId, number>>;
   sessions: Partial<Record<FactionId, FrickFrackSession>>;
   sideboards: Record<FactionId, FrickFrackCard[]>;
   drops: FrickFrackDrop[];
@@ -65,9 +73,50 @@ export const FRICK_FRACK_DIALOGUE = [
   'Now, where was I? Cards, yes. Each card has a number, except the cards that have people, who also have a number. I have prepared a very short explanation. That was most of it.',
   'Your flag is still yours to wager, naturally. The cards are shuffled, the table is metaphorical, and I have finished explaining the hat. Would you like to play Frick-frack?',
 ] as const;
+/** Return visits cycle deterministically through six scripts, independently per faction. */
+export const FRICK_FRACK_RETURN_DIALOGUES = [
+  [
+    'Ah, you have returned. I was just reconciling the accounts. There is one flag in the column marked flags, and a drawing of a flag in the column marked concerns.',
+    'You may notice the table is in precisely the same place. This is not a lack of ambition. Moving a metaphorical table requires an exceptionally practical permit.',
+    'The accounts are now approximately reconciled. Your flag remains available to wager. Would you like to play Frick-frack?',
+  ],
+  [
+    'Welcome back. Before we begin, an announcement: the hat has passed its annual inspection. I conducted the inspection myself, but stood on the other side of it for impartiality.',
+    'There was one advisory note about the brim. Nothing serious. Merely that it was behaving rather more like a brim than the original application suggested.',
+    'With that important matter settled, we can turn to cards. Your flag is still yours to wager. Would you like to play Frick-frack?',
+  ],
+  [
+    'A familiar face. Excellent. I have introduced a loyalty scheme. Every visit earns you one visit, and after several visits you will have visited several times.',
+    'Please do not confuse this with the rewards programme. That is a separate piece of paper, currently underneath the loyalty scheme to stop it blowing away.',
+    'Your visit has been recorded with considerable satisfaction. The flag is available to wager as usual. Would you like to play Frick-frack?',
+  ],
+  [
+    'There you are. I was making tea. Unfortunately, I had the kettle but not the water, and the water but not in a form the kettle was prepared to discuss.',
+    'I considered offering biscuits instead. Then I remembered that the biscuit tin contains spare buttons. A regrettable but surprisingly common administrative overlap.',
+    'We shall have to make do with cards, which are neither tea nor biscuits but are at least present. Would you like to play Frick-frack?',
+  ],
+  [
+    'Welcome, returning participant. I have been asked to clarify the distinction between luck and probability. Luck is what happens to you. Probability has a smaller handwriting.',
+    'I wrote the full explanation on the back of a card. Naturally, I can no longer find that card without compromising the solemn mystery of the shuffle.',
+    'So we shall proceed with the usual amount of uncertainty. Your flag is ready to wager. Would you like to play Frick-frack?',
+  ],
+  [
+    'Ah, another appointment. You did not need an appointment, of course, but I have written one down now, so it would be a shame not to have arrived for it.',
+    'The schedule says cards, followed by a brief discussion of cards, followed by a discretionary period in which cards may also occur. We are comfortably on time.',
+    'That concludes the introductory portion of your appointment. Your flag has not been charged as an admission fee. Would you like to play Frick-frack?',
+  ],
+] as const;
+export function frickFrackDialogue(variant = 0): readonly string[] {
+  return Number.isInteger(variant) && variant >= 1 && variant <= FRICK_FRACK_RETURN_DIALOGUES.length
+    ? FRICK_FRACK_RETURN_DIALOGUES[variant - 1] : FRICK_FRACK_DIALOGUE;
+}
+export function frickFrackDialogueVariant(previousVisits: number): number {
+  return Number.isSafeInteger(previousVisits) && previousVisits > 0
+    ? 1 + (previousVisits - 1) % FRICK_FRACK_RETURN_DIALOGUES.length : 0;
+}
 export const FRICK_FRACK_EMPTY = 'You have no Flags left to bet. Come back when you have some more. I will be here, attending to the hat.';
 export function frickFrackTextDuration(text: string): number { return text.length * FRICK_FRACK_LETTER_SECONDS + .25; }
-export function createFrickFrackState(): FrickFrackState { return { wizardId: -1, sessions: {}, sideboards: { 0: [], 1: [], 2: [], 3: [] }, drops: [] }; }
+export function createFrickFrackState(): FrickFrackState { return { wizardId: -1, visits: {}, sessions: {}, sideboards: { 0: [], 1: [], 2: [], 3: [] }, drops: [] }; }
 export function frickFrackTotal(cards: readonly (FrickFrackCard | null)[]): number {
   let total = 0, aces = 0;
   for (const c of cards) if (c) {

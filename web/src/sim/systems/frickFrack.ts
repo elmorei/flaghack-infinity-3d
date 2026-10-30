@@ -11,7 +11,7 @@ import { beginTask, setStatusAt } from './units/brain';
 import type { Brain } from './units/brain';
 import { locomote, moveTo } from './units/move';
 import type { UnitsState } from './units/state';
-import { FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_DROP_CHANCE, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
+import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_DROP_CHANCE, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
 import type { FrickFrackCard, FrickFrackSession } from '../frickFrack';
 import { applyFrickFrackArcana } from '../frickFrackArcana';
 import type { FrickFrackHand } from '../frickFrackArcana';
@@ -62,8 +62,14 @@ function withinConversationReach(w: World, h: Hippie, f: FactionId, reach = 2.3)
     (distance < .01 || !w.collision.raycast(h.pos.x, ground + 1, h.pos.z, dx, dy, dz, distance));
 }
 function startConversation(w: World, h: Hippie, s: FrickFrackSession): void {
+  if (s.dialogueVariant === undefined) {
+    const visits = w.frickFrack.visits ??= {};
+    const count = visits[s.faction] ?? 0;
+    s.dialogueVariant = frickFrackDialogueVariant(count);
+    visits[s.faction] = count + 1;
+  }
   s.phase = 'dialogue'; s.dialogueStartedAt = w.time;
-  s.readyAt = w.time + frickFrackTextDuration(FRICK_FRACK_DIALOGUE[0]);
+  s.readyAt = w.time + frickFrackTextDuration(frickFrackDialogue(s.dialogueVariant)[0]);
   s.revision++;
   h.vel.x = 0; h.vel.z = 0;
   h.facing = Math.atan2(w.avatarOf(s.faction).pos.x - h.pos.x, w.avatarOf(s.faction).pos.z - h.pos.z);
@@ -134,8 +140,15 @@ function revealCard(s: FrickFrackSession, hand: PrivateHand, id: number): void {
   const dealer = hand.dealer.filter(c => allowed.has(c.id) && (hand.revealDealer || c.id !== hand.holeId));
   const battle = resolveFrickFrackBattle(player, dealer, id, hand.revealedIds);
   hand.revealedIds.push(id);
+  s.revealedCardOrder = [...hand.revealedIds];
   if (battle.removedIds.length) {
     const removed = new Set(battle.removedIds);
+    const defeated = s.defeated ?? (s.defeated = []);
+    for (const side of ['player', 'dealer'] as const) {
+      for (const card of side === 'player' ? s.player : hand.dealer) {
+        if (removed.has(card.id) && !defeated.some(d => d.card.id === card.id)) defeated.push({ side, card: { ...card } });
+      }
+    }
     if (hand.dealer.some(c=>removed.has(c.id)) && s.arcana) delete s.arcana.softDealer;
     s.player = s.player.filter(c => !removed.has(c.id)); hand.dealer = hand.dealer.filter(c => !removed.has(c.id));
     s.remark = battle.remark;
@@ -159,6 +172,7 @@ function revealDealer(s: FrickFrackSession, hand: PrivateHand): void {
 function dealFresh(w: World, s: FrickFrackSession, hand: PrivateHand): void {
   const deck=createFrickFrackDeck(()=>w.newId()); privateState(w).rng.shuffle(deck);
   hand.deck=deck;hand.dealer=[];hand.revealedIds=[];hand.revealDealer=false;
+  delete s.defeated; delete s.revealedCardOrder;
   if (s.arcana) { delete s.arcana.sun; delete s.arcana.choices; delete s.arcana.softDealer; }
   const p1=draw(hand),d1=draw(hand),p2=draw(hand),d2=draw(hand);
   s.player=[p1];hand.dealer=[d1,d2];hand.holeId=d2.id;
@@ -217,18 +231,19 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
   if (s.phase === 'chasing') return;
   const av = w.avatarOf(c.faction);
   if (s.phase === 'dialogue') {
+    const dialogue = frickFrackDialogue(s.dialogueVariant);
     if (w.time < s.readyAt) return;
-    if (c.action === 'next' && s.dialogueIndex < FRICK_FRACK_DIALOGUE.length - 1) {
-      s.dialogueIndex++; s.dialogueStartedAt = w.time; s.readyAt = w.time + frickFrackTextDuration(FRICK_FRACK_DIALOGUE[s.dialogueIndex]); s.revision++; return;
+    if (c.action === 'next' && s.dialogueIndex < dialogue.length - 1) {
+      s.dialogueIndex++; s.dialogueStartedAt = w.time; s.readyAt = w.time + frickFrackTextDuration(dialogue[s.dialogueIndex]); s.revision++; return;
     }
-    if (s.dialogueIndex !== FRICK_FRACK_DIALOGUE.length - 1) return;
+    if (s.dialogueIndex !== dialogue.length - 1) return;
     if (c.action === 'decline' || c.action === 'exit') { closeFrickFrackSession(w, c.faction); return; }
     if (c.action === 'play') { s.phase = 'betting'; if (!av.carried.length) empty(w, s); s.revision++; } return;
   }
   if (c.action === 'exit' || c.action === 'decline') { closeFrickFrackSession(w, c.faction); return; }
   if (s.phase === 'empty') return;
   if (s.phase === 'result' && c.action === 'again') {
-    s.phase='betting';s.player=[];s.dealer=[];s.wager=0;s.result=null;s.message='';delete s.remark;delete s.arcana;s.revision++;
+    s.phase='betting';s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;s.wager=0;s.result=null;s.message='';delete s.remark;delete s.arcana;s.revision++;
     if (!av.carried.length) empty(w,s);return;
   }
   if (s.phase === 'betting' && c.action === 'bet') {

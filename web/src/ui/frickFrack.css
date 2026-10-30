@@ -128,3 +128,8 @@
 .ff-rules summary { cursor: pointer; padding: 8px 0; color: #ecdba8; font-weight: 600; }
 .ff-rules summary:focus-visible { outline: 2px solid #93e4e0; outline-offset: 3px; }
 .ff-rules p { margin: 10px 0; max-width: 80ch; }
+
+/* Combat tombstones remain in their table order, but never act as playable cards. */
+.ff-card.ff-card-defeated { position: relative; filter: saturate(.2); opacity: .8; }
+.ff-card-defeated .ff-defeated-cross { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; font: 900 clamp(48px, 8vw, 90px)/1 sans-serif; color: #ff5d57; text-shadow: -2px -2px 0 #210908, 2px 2px 0 #210908, 0 0 4px #fff; pointer-events: none; }
+.ff-card-defeated .ff-defeated-label { position: absolute; bottom: 4px; left: 2px; right: 2px; z-index: 4; padding: 2px 0; background: #210908; color: #fff; font: 700 9px/1.2 sans-serif; text-align: center; letter-spacing: .06em; }

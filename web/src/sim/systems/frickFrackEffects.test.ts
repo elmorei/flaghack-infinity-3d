@@ -29,6 +29,21 @@ describe('authoritative effects, privacy and reveal pipeline',()=>{
   const {s,command}=table();const ids=s.player.map(c=>c.id);command('hit');
   expect(s.player.map(c=>c.id)).toEqual(ids);expect(s.remark).toContain('defeats');expect(s.phase).toBe('playing');
   expect(s.dealer[0]?.parody).toBe(2);expect(s.dealer[0]?.rank).toBe(4);
+  expect(s.defeated).toHaveLength(1);expect(s.defeated![0].side).toBe('player');expect(s.defeated![0].card.rank).toBe(3);
+  expect(s.revealedCardOrder).toContain(s.defeated![0].card.id);
+ });
+
+ it('keeps tied CCG cards as public tombstones, excludes them from future combat and effect targets',()=>{
+  const {w,s,command,major}=table();
+  const active=s.dealer[0]!;expect(active.parody).not.toBeUndefined();
+  const tie={id:w.newId(),rank:active.rank,suit:0,parody:1 as const};w.frickFrack.sideboards[0].push(tie);
+  command('cheat',{cardId:tie.id});
+  expect(s.defeated?.map(d=>d.card.id)).toEqual(expect.arrayContaining([tie.id,active.id]));
+  expect(s.player.some(c=>c.id===tie.id)).toBe(false);expect(s.dealer.some(c=>c?.id===active.id)).toBe(false);
+  const deadCount=s.defeated!.length, next={id:w.newId(),rank:1,suit:0,parody:3 as const};w.frickFrack.sideboards[0].push(next);
+  command('cheat',{cardId:next.id});expect(s.defeated).toHaveLength(deadCount);expect(s.player.some(c=>c.id===next.id)).toBe(true);
+  const emperor=major(4,{targetCardIds:[tie.id]});expect(w.frickFrack.sideboards[0]).toContainEqual(emperor);
+  expect(frickFrackFromWire(frickFrackWire(w.frickFrack)).sessions[0]?.defeated).toEqual(s.defeated);
  });
  it('rejects inapplicable Star without consumption and advances feedback revision',()=>{
   const {w,s,major}=table(),before=s.revision;const c=major(17);
