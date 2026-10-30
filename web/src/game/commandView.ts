@@ -243,7 +243,7 @@ export class CommandView {
    * Selection, orders, plan tools and building placement after picking. `ghost` is the building
    * ghost when the building tool is active. Returns true when Esc asks to leave the view.
    */
-  frame(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera, ghost: GhostInfo | null): boolean {
+  frame(world: World, s: Session, f: FactionId, camera: THREE.Camera, ghost: GhostInfo | null): boolean {
     const inp = this.input;
     this.pruneSelection(world, s);
     if (isMobileCommandLayout()) return this.mobileFrame(world, s, f, camera, ghost);
@@ -322,7 +322,7 @@ export class CommandView {
   }
 
   /** Touch never shares desktop mouse edges: each release produces at most one command. */
-  private mobileFrame(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera, ghost: GhostInfo | null): boolean {
+  private mobileFrame(world: World, s: Session, f: FactionId, camera: THREE.Camera, ghost: GhostInfo | null): boolean {
     const touch = this.input.touch;
     if (s.mobileMenu !== null) { touch.cancel(); s.mobileBuildConfirm = false; return false; }
     if (s.mobileBuildConfirm) {
@@ -560,7 +560,7 @@ export class CommandView {
     if (he >= 0) s.selection.add(he);
   }
 
-  private boxSelect(world: World, s: Session, f: FactionId, camera: THREE.PerspectiveCamera): void {
+  private boxSelect(world: World, s: Session, f: FactionId, camera: THREE.Camera): void {
     const b = this.box;
     const x0 = Math.min(b.x0, b.x1);
     const x1 = Math.max(b.x0, b.x1);
@@ -574,7 +574,7 @@ export class CommandView {
   }
 
   /** World → canvas CSS px into (sx, sy); false when behind the camera. */
-  private project(camera: THREE.PerspectiveCamera, x: number, y: number, z: number): boolean {
+  private project(camera: THREE.Camera, x: number, y: number, z: number): boolean {
     this.v.set(x, y, z).project(camera);
     if (this.v.z > 1) return false;
     this.sx = ((this.v.x + 1) / 2) * this.input.width;

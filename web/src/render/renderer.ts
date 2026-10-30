@@ -6,6 +6,8 @@
 import * as THREE from 'three';
 import type { Session } from '../game/session';
 import { isMobileCommandLayout } from '../game/mobileTouch';
+import { mobileCommandExtent } from '../game/cameraRig';
+import type { WorldCamera } from './cameraProjection';
 import { FESTIVAL_BPM } from '../sim/constants';
 import type { GameEvent } from '../sim/events';
 import type { World } from '../sim/world';
@@ -28,7 +30,9 @@ const WARM_CAP_MS = 300;
 
 export class GameRenderer {
   readonly renderer: THREE.WebGLRenderer;
-  readonly camera: THREE.PerspectiveCamera;
+  camera: WorldCamera;
+  private readonly perspective = new THREE.PerspectiveCamera(70, 1, .1, 1200);
+  private readonly orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 1200);
   ctx: RenderContext | null = null;
   /**
    * Audible beat position of the music (beats), or null while audio is not running. Set by
@@ -73,7 +77,7 @@ export class GameRenderer {
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 1200);
+    this.camera = this.perspective;
     window.addEventListener('resize', () => this.resize());
     this.resize();
   }
@@ -83,6 +87,7 @@ export class GameRenderer {
    * are disposed on the new scene's first render, once its programs are requested.
    */
   attach(world: World, session: Session): void {
+    this.setMobileOrthographic(false);
     this.disposeRetired();
     this.retired = { modules: this.modules, post: this.post };
     this.modules = [];
@@ -208,12 +213,25 @@ export class GameRenderer {
     this.fx.instability = ease(this.fx.instability, facet >= 0 ? w.survey.facetInstability[facet] : 0, 3);
   }
 
+  /** Controls selects before writing the pose, so every module and picker uses the same camera. */
+  setMobileOrthographic(enabled: boolean): void {
+    const next = enabled ? this.orthographic : this.perspective;
+    if (next === this.camera) return;
+    this.camera = next;
+    if (this.ctx) this.ctx.camera = next;
+  }
+
   private resize(): void {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    this.perspective.aspect = w / h;
+    this.perspective.updateProjectionMatrix();
+    const half = mobileCommandExtent(h) / 2;
+    this.orthographic.left = -half * w / h; this.orthographic.right = half * w / h;
+    this.orthographic.top = half; this.orthographic.bottom = -half;
+    this.orthographic.userData.cssHeight = h;
+    this.orthographic.updateProjectionMatrix();
     this.post?.setSize(w, h);
   }
 }

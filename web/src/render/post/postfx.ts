@@ -159,7 +159,7 @@ export class PostFx {
     const y = ndc.y * 0.5 + 0.5;
     const smoothstep = THREE.MathUtils.smoothstep;
     const gate = smoothstep(Math.min(x, 1 - x, y, 1 - y), -0.02, 0.05) * smoothstep(disc.y, -0.03, 0.02);
-    const radius = (0.5 * Math.tan(SUN_CORE_RADIUS)) / Math.tan(THREE.MathUtils.degToRad(cam.fov) * 0.5);
+    const radius = (0.5 * Math.tan(SUN_CORE_RADIUS)) / (1 / cam.projectionMatrix.elements[5]);
     sun.set(x, y, gate, radius);
   }
 }

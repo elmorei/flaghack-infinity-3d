@@ -23,7 +23,7 @@ varying float vWhite;
 
 void main() {
   vec4 mv = viewMatrix * vec4(b0.xyz, 1.0);
-  float depth = max(-mv.z, 0.05);
+  float depth = projectionMatrix[2][3] == -1.0 ? max(-mv.z, 0.05) : 1.0;
   float pxPerUnit = max(projectionMatrix[1][1] * 0.5 * uViewportH / depth, 0.0001);
   float h = max(b0.w, b3.y / pxPerUnit);
   vec2 q = position.xy * vec2(h * b3.x, h) * 0.5;

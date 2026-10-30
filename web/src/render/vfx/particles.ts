@@ -242,7 +242,7 @@ void main() {
   float growth = a5.x > 7.5 ? 1.0 - exp(-7.0 * t) : t;
   float size = mix(a2.x, a2.y, growth);
   vec4 mv = viewMatrix * vec4(p, 1.0);
-  float depth = max(-mv.z, 0.05);
+  float depth = projectionMatrix[2][3] == -1.0 ? max(-mv.z, 0.05) : 1.0;
   // Keep far particles >= ~1.6 px, trading area for brightness so they do not shimmer away.
   float pxPerUnit = max(projectionMatrix[1][1] * 0.5 * uViewportH / depth, 0.0001);
   float minSize = 1.6 / pxPerUnit;

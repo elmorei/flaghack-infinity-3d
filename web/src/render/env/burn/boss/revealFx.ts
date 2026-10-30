@@ -66,7 +66,7 @@ void main() {
  float t = max(0.0, uAge); vec3 p = position + aVelocity * t; p.y -= 4.8 * t * t; p.y = max(0.06, p.y);
  vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
  vHeat = (1.0 - smoothstep(1.2, 4.0 + aSeed * 2.0, t));
- gl_PointSize = clamp((0.045 + aSeed * 0.1) * uPointScale * uBossFxScale / max(-mv.z, 0.1), 1.1, 14.0 * uBossFxScale);
+ gl_PointSize = clamp((0.045 + aSeed * 0.1) * uPointScale * uBossFxScale / (projectionMatrix[2][3] == -1.0 ? max(-mv.z, 0.1) : 1.0), 1.1, 14.0 * uBossFxScale);
 }`;
 const EMBER_FRAGMENT = `uniform float uAge; varying float vHeat; void main() {
  float a = 1.0 - smoothstep(0.0, 0.5, length(gl_PointCoord - 0.5));
@@ -240,7 +240,7 @@ export class RevealFx {
     this.embers.visible = age < 6;
     this.debris.visible = age < 10;
     this.env.ctx.renderer.getDrawingBufferSize(this.size);
-    this.uPointScale.value = this.size.y / (2 * Math.tan(THREE.MathUtils.degToRad(this.env.ctx.camera.fov) / 2));
+    this.uPointScale.value = this.size.y / (2 / this.env.ctx.camera.projectionMatrix.elements[5]);
     if (this.env.ctx.shared?.fx) this.env.ctx.shared.fx.flash = Math.max(this.env.ctx.shared.fx.flash, bossFlash(age) * 0.12);
   }
 

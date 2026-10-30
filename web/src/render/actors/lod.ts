@@ -32,6 +32,7 @@ export class ActorView {
   private readonly viewProjection = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
   private readonly point = new THREE.Vector3();
+  private parallelDetailDistance2: number | null = null;
 
   constructor(shadows: boolean) {
     this.shadows = shadows;
@@ -41,6 +42,13 @@ export class ActorView {
   update(camera: THREE.Camera): void {
     camera.updateMatrixWorld();
     this.eye.setFromMatrixPosition(camera.matrixWorld);
+    // Parallel actors do not shrink with depth. Use a 720px/50deg reference view's
+    // equivalent distance at this pixel scale, rather than changing detail with pitch.
+    if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
+      const cssHeight = Number(camera.userData.cssHeight) || 720;
+      const equivalent = 720 / (camera.projectionMatrix.elements[5] * cssHeight * Math.tan(25 * Math.PI / 180));
+      this.parallelDetailDistance2 = equivalent * equivalent;
+    } else this.parallelDetailDistance2 = null;
     this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.viewProjection);
   }
@@ -61,7 +69,7 @@ export class ActorView {
     const d2 = this.eye.distanceToSquared(center);
     const visible = this.frustum.intersectsSphere(this.sphere);
     const near = wasDetailed ? detailRange * HYSTERESIS : detailRange;
-    if (visible && d2 < near * near) return PLACE.detailed;
+    if (visible && (this.parallelDetailDistance2 ?? d2) < near * near) return PLACE.detailed;
     if (this.shadows && d2 < ACTOR_SHADOW_RANGE * ACTOR_SHADOW_RANGE) return PLACE.coarseCaster;
     return visible ? PLACE.coarse : PLACE.skip;
   }

@@ -1,3 +1,5 @@
+import { cameraAspect, cameraPointerRay, worldUnitsPerPixel } from '../render/cameraProjection';
+import { Ray } from 'three';
 import { frickFrackInputLocked } from './frickFrackControls';
 import { isMobileCommandLayout } from './mobileTouch';
 import { matchSettings } from "../sim/matchSettings";
@@ -32,7 +34,6 @@ import { Input, LMB, MMB, RMB } from './input';
 import { Picker } from './picking';
 import type { GhostInfo, Screen, Session, ToolKind, ViewMode } from './session';
 
-const DEG = Math.PI / 180;
 /** View blend duration (s) for the global Command View toggle. */
 const BLEND_TIME = 0.6;
 /** Hold E this long at your GCC to start pushing it. */
@@ -241,7 +242,7 @@ export class Controls {
   // Picking scratch.
   private hoverPoint: V3 = { x: 0, y: 0, z: 0 };
   private hand: V3 = { x: 0, y: 0, z: 0 };
-  private ray = new Vector3();
+  private pointerRay = new Ray();
 
   // Prompt caches (strings rebuilt only when their inputs change).
   private joinA: string | null = null;
@@ -669,7 +670,7 @@ export class Controls {
     const wizard = conversation ? world.hippies.get(world.frickFrack.wizardId) : undefined;
     if (conversation && wizard && av) {
       rig.setMode('dialogue', .7);
-      rig.updateDialogue(world, av, wizard, this.app.renderer.camera.aspect, dt);
+      rig.updateDialogue(world, av, wizard, cameraAspect(this.app.renderer.camera), dt);
     } else if (s.screen === 'title' || s.screen === 'lobby' || !av || !(seated(world, s) || s.spectator)) {
       rig.setMode('title', 1.6);
       rig.updateTitle(world, f, dt);
@@ -690,6 +691,7 @@ export class Controls {
       trauma = shared.shake ?? 0;
       shared.shake = Math.max(0, trauma - dt * 1.5);
     }
+    this.app.renderer.setMobileOrthographic(rig.useMobileOrthographic(s.viewBlend));
     rig.apply(this.app.renderer.camera, conversation ? 0 : Math.min(1, trauma) * (1 - s.viewBlend), dt);
   }
 
@@ -709,13 +711,9 @@ export class Controls {
     if (commandView) {
       const w = this.input.width;
       const h = this.input.height;
-      this.ray.set((this.input.mx / w) * 2 - 1, 1 - (this.input.my / h) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
-      ox = camera.position.x;
-      oy = camera.position.y;
-      oz = camera.position.z;
-      dx = this.ray.x;
-      dy = this.ray.y;
-      dz = this.ray.z;
+      const ray = cameraPointerRay(camera, (this.input.mx / w) * 2 - 1, 1 - (this.input.my / h) * 2, this.pointerRay);
+      ox = ray.origin.x; oy = ray.origin.y; oz = ray.origin.z;
+      dx = ray.direction.x; dy = ray.direction.y; dz = ray.direction.z;
     } else {
       // Crosshair ray, started at the avatar's depth so nothing behind you is picked.
       const o = this.rig.origin;
@@ -746,7 +744,7 @@ export class Controls {
     let nodeR = NODE_PICK;
     if (commandView) {
       // Metres per pixel at the cursor's depth: tiny Signifiers stay clickable from on high.
-      const wpp = (2 * picker.dist * Math.tan((camera.fov * DEG) / 2)) / this.input.height;
+      const wpp = worldUnitsPerPixel(camera, this.input.height, picker.dist);
       minR = Math.min(6, (isMobileCommandLayout() ? 22 : CMD_PICK_PX) * wpp);
       nodeR = clamp(CMD_PICK_PX * wpp, NODE_PICK, matchSettings(world.options).gridScale / 2);
     }

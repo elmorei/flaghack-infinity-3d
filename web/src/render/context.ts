@@ -3,6 +3,7 @@
  * own their three.js objects; they never mutate simulation state.
  */
 import type * as THREE from 'three';
+import type { WorldCamera } from './cameraProjection';
 import type { Session } from '../game/session';
 import type { GameEvent } from '../sim/events';
 import type { World } from '../sim/world';
@@ -10,7 +11,7 @@ import type { World } from '../sim/world';
 export interface RenderContext {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
+  camera: WorldCamera;
   world: World;
   session: Session;
   quality: 'low' | 'medium' | 'high';

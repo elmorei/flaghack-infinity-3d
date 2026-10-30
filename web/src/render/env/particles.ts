@@ -74,7 +74,7 @@ void main() {
   alpha *= rim * smoothstep(1.5, 4.0, dist);
   vColor = col;
   vAlpha = alpha;
-  gl_PointSize = clamp(size * uPxScale / max(dist, 0.1), 1.0, 14.0);
+  gl_PointSize = clamp(size * uPxScale / (projectionMatrix[2][3] == -1.0 ? max(dist, 0.1) : 1.0), 1.0, 14.0);
   gl_Position = projectionMatrix * mv;
   if (alpha < 0.002) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }
@@ -154,7 +154,7 @@ export class AmbientParticles implements EnvPart {
     this.day.value = day.daylight * (1 - day.night) * near;
     this.fireflies.value = day.night * near;
     ctx.renderer.getDrawingBufferSize(this.size);
-    this.pxScale.value = this.size.y / (2 * Math.tan((cam.fov * Math.PI) / 360));
+    this.pxScale.value = this.size.y * cam.projectionMatrix.elements[5] / 2;
     this.points.visible = this.day.value > 0.01 || this.fireflies.value > 0.01;
   }
 

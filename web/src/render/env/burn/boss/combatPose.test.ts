@@ -310,7 +310,7 @@ describe('approved-rig combat presentation', () => {
     const survey = { version: 0, edgeLey: new Int8Array([0, 0, 0, 0]) };
     const e = { root: new THREE.Group(), day: createDayState(), fireLight: new THREE.PointLight(), noise: new THREE.DataTexture(new Uint8Array([127,127,127,255]),1,1),
       ctx: { world: { lattice, survey, map: { effigy: { x: 0, z: 0 }, seed: 'combat-test' }, time: 112, boss: b, effigyRevealedAt: 100, factions: [{ color: 0x12bd45 }] },
-        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: { fov: 60 } }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
+        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: new THREE.PerspectiveCamera(60) }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
     const r = new BossReveal(e, model); await r.ready; expect(r.loadError).toBeNull(); r.update(102);
     const body = e.root.getObjectByName('boss-model-32m')!;
     expect(body.position.toArray()).toEqual([12,groundHeight(12,-7,MAP_HALF),-7]); expect(body.rotation.y).toBe(.7);

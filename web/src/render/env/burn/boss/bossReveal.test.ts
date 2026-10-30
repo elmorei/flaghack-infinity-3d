@@ -20,7 +20,7 @@ function env(bossMode = true, tutorial = false): EnvContext {
   return {
     ctx: {
       world: { options: { mode: tutorial ? 'tutorial' : 'standard', match: normalizeMatch({ bossMode }) }, time: 500, effigyRevealedAt: null,
-        map: { half: 150, seed: 'boss-reveal-test', effigy: { x: 0, z: 0 } } }, quality: 'low', time: 0, session: { viewBlend: 0, screen: 'playing' }, camera: { fov: 60 },
+        map: { half: 150, seed: 'boss-reveal-test', effigy: { x: 0, z: 0 } } }, quality: 'low', time: 0, session: { viewBlend: 0, screen: 'playing' }, camera: new THREE.PerspectiveCamera(60),
       renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280, 720) },
     } as unknown as EnvContext['ctx'],
     root: new THREE.Group(), day: createDayState(), burn: { active: true, startedAt: 500, elapsed: 0, progress: 0 },

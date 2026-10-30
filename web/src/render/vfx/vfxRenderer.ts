@@ -131,7 +131,7 @@ export class VfxRenderer implements RenderModule {
     this.barrierShatter = new BarrierShatter(this.shared, ORDER.light, density);
     this.meleeImpacts = new ImpactFireworks(ctx, true);
     ctx.scene.add(this.meleeImpacts.group);
-    this.fireworks = new Fireworks(this.light, this.rng, ctx.camera, density);
+    this.fireworks = new Fireworks(this.light, this.rng, () => ctx.camera, density);
     this.fx = new Bursts(this.light, this.grime, this.ground, this.walls, this.rng, density);
     for (let i = 0; i < BANNERS; i++) {
       this.banners.push({ active: false, key: 'overwritten', x: 0, y: 0, z: 0, born: 0, life: 1, height: 1, minPx: 0, rise: 0, color: new THREE.Color() });

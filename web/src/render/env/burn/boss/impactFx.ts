@@ -12,7 +12,7 @@ void main(){float t=max(0.0,uAge-aSeed.y*.045);float life=.8+aSeed.x*.6;
   vec3 p=aVelocity*(1.0-exp(-t*1.7))/1.7*uPower;p.y-=2.7*t*t;
   vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;
   vFade=(1.0-smoothstep(life*.35,life,uAge))*step(aSeed.y*.045,uAge);vHue=aSeed.x;vTrail=aSeed.y;
-  gl_PointSize=clamp((.1+.11*(1.0-aSeed.y))*uPower*uPointScale/max(-mv.z,.1),1.6,15.0);}`;
+  gl_PointSize=clamp((.1+.11*(1.0-aSeed.y))*uPower*uPointScale/(projectionMatrix[2][3] == -1.0 ? max(-mv.z,.1) : 1.0),1.6,15.0);}`;
 const FRAGMENT = `uniform vec3 uColor;varying float vFade;varying float vHue;varying float vTrail;
 void main(){float r=length(gl_PointCoord-.5);float a=(1.0-smoothstep(.06,.5,r))*vFade*(1.0-vTrail*.6);if(a<.005)discard;
   vec3 rainbow=.5+.5*cos(6.2831853*(vHue+vec3(0.0,.33,.67)));
@@ -67,7 +67,7 @@ export class ImpactFireworks {
 
   update(now: number): void {
     this.ctx.renderer.getDrawingBufferSize(this.size);
-    this.uPointScale.value = this.size.y / (2 * Math.tan(THREE.MathUtils.degToRad(this.ctx.camera.fov) / 2));
+    this.uPointScale.value = this.size.y / (2 / this.ctx.camera.projectionMatrix.elements[5]);
     for (const b of this.pool) { b.uAge.value = Math.max(0, now - b.born); b.points.visible = now >= b.born && now - b.born < 1.4; }
   }
   dispose(): void {

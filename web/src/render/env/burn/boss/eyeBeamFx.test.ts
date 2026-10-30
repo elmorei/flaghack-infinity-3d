@@ -178,7 +178,7 @@ describe('original hat eye and five-second sweeping beam presentation', () => {
     b.eye.origin = { x: 12, y: 17, z: -7 }; b.eye.direction = { x: 0, y: -1, z: 0 }; b.eye.impact = { x: 12, y: 0, z: -7 };
     const e = { root: new THREE.Group(), day: createDayState(), fireLight: new THREE.PointLight(), noise: new THREE.DataTexture(new Uint8Array([127,127,127,255]),1,1),
       ctx: { world: { lattice: { version: 0, nodes: [], edges: [] }, survey: { version: 0, edgeLey: new Int8Array() }, map: { half: 150, effigy: { x: 0, z: 0 }, seed: 'eye-end-test' }, time: 130.2, phase: 'playing', boss: b, effigyRevealedAt: 100, factions: [{ color: 0x12bd45 }] },
-        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: { fov: 60 } }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
+        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: new THREE.PerspectiveCamera(60) }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
     const r = new BossReveal(e, model); await r.ready; expect(r.loadError).toBeNull(); r.update(120.2);
     expect(e.root.getObjectByName('boss-eye-beam')!.visible).toBe(true);
     const state = JSON.stringify(b); e.ctx.world.phase = 'ended'; r.update(120.2);
@@ -193,7 +193,7 @@ describe('original hat eye and five-second sweeping beam presentation', () => {
     const b = boss(); b.eye.chargeAt = 127; b.eye.target = { x: 28, y: 0, z: 40 };
     const e = { root: new THREE.Group(), day: createDayState(), fireLight: new THREE.PointLight(), noise: new THREE.DataTexture(new Uint8Array([127,127,127,255]),1,1),
       ctx: { world: { lattice: { version: 0, nodes: [], edges: [] }, survey: { version: 0, edgeLey: new Int8Array() }, map: { half: 150, effigy: { x: 0, z: 0 }, seed: 'eye-test' }, time: 129, boss: b, effigyRevealedAt: 100, factions: [{ color: 0x12bd45 }] },
-        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: { fov: 60 } }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
+        quality: 'low', session: { screen: 'playing' }, renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280,720) }, camera: new THREE.PerspectiveCamera(60) }, uniforms: { uFogColor: { value: new THREE.Color() } } } as unknown as EnvContext;
     const r = new BossReveal(e, model); await r.ready; expect(r.loadError).toBeNull(); r.update(119);
     const head = e.root.getObjectByName('head') as THREE.Bone, initial = head.quaternion.toArray();
     for (let i = 0; i < 5; i++) r.update(119);

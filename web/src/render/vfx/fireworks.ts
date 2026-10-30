@@ -46,7 +46,8 @@ interface Rocket {
 export class Fireworks {
   private readonly pool: ParticlePool;
   private readonly rng: Prng;
-  private readonly camera: THREE.Camera;
+  private readonly cameraSource: THREE.Camera | (() => THREE.Camera);
+  private get camera(): THREE.Camera { return typeof this.cameraSource === 'function' ? this.cameraSource() : this.cameraSource; }
   private readonly density: number;
   private readonly s = new ParticleSpec();
   private readonly dir = new THREE.Vector3();
@@ -61,10 +62,10 @@ export class Fireworks {
   private cz = 0;
   private groundY: (x: number, z: number) => number = () => 0;
 
-  constructor(pool: ParticlePool, rng: Prng, camera: THREE.Camera, density: number) {
+  constructor(pool: ParticlePool, rng: Prng, camera: THREE.Camera | (() => THREE.Camera), density: number) {
     this.pool = pool;
     this.rng = rng;
-    this.camera = camera;
+    this.cameraSource = camera;
     this.density = density;
     for (let i = 0; i < MAX_ROCKETS; i++) {
       this.rockets.push({

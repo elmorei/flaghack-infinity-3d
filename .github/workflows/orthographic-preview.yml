@@ -1,0 +1,40 @@
+name: Compare orthographic mobile camera
+on:
+  push:
+    branches: ['qa/orthographic-*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-browser:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build:pages
+      - name: Capture actual orthographic angle options
+        run: |
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/capture-orthographic-options.cjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
+      - name: Upload native comparisons
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: orthographic-camera-options
+          path: |
+            web/host-release/orthographic-comparison/
+            web/host-release/mobile-command-smoke/
+          if-no-files-found: warn
+          retention-days: 14

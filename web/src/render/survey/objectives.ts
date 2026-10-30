@@ -589,7 +589,7 @@ export class ObjectiveFeature {
         this.curtains.push(v.x, v.y, v.z, v.radius, AREA_CURTAIN_HEIGHT, appear, leave, v.seed, v.color, fade * (1 - 0.7 * command));
       } else {
         const base = kind === 'entity' ? v.footprint : RING_RADIUS[kind];
-        const minR = (RING_MIN_PX[kind] * pxRatio * dist) / Math.max(projScale, 1e-3);
+        const minR = (RING_MIN_PX[kind] * pxRatio * ((camera as THREE.OrthographicCamera).isOrthographicCamera ? 1 : dist)) / Math.max(projScale, 1e-3);
         const ring = Math.min(base * MAX_RING_GROWTH, Math.max(base, minR));
         this.ground.push(v.x, v.y, v.z, ring, id, appear, leave, v.seed, v.color, fade);
         const col = COLUMN[kind];

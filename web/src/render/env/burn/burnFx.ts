@@ -255,7 +255,7 @@ void main() {
   vAlpha = on * smoothstep(0.0, 0.05, age) * (1.0 - age) * (0.7 + 0.3 * sin(uTime * mix(9.0, 21.0, aSeed.x) + aSeed.y * 31.0));
   vAlpha *= 1.0 - 0.7 * smoothstep(uFogNear, uFogFar, -mv.z);
   float size = mix(0.05, 0.13, aSeed.w) * (1.0 - 0.45 * age);
-  gl_PointSize = on * clamp(size * uPointScale / max(-mv.z, 0.1), 1.2, 18.0);
+  gl_PointSize = on * clamp(size * uPointScale / (projectionMatrix[2][3] == -1.0 ? max(-mv.z, 0.1) : 1.0), 1.2, 18.0);
 }
 `;
 
@@ -518,7 +518,7 @@ export class BurnFx {
     this.uViewFade.value = 1 - 0.75 * ctx.session.viewBlend;
     this.uAmbient.value.copy(day.hemiSky).multiplyScalar(day.hemiIntensity * 0.9);
     ctx.renderer.getDrawingBufferSize(this.drawSize);
-    this.uPointScale.value = this.drawSize.y / (2 * Math.tan(THREE.MathUtils.degToRad(ctx.camera.fov) / 2));
+    this.uPointScale.value = this.drawSize.y / (2 / ctx.camera.projectionMatrix.elements[5]);
 
     // Fire light: sits in the flames, flickers, warms as it swells.
     const t = ctx.time;

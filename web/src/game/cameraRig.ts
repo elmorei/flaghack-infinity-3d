@@ -15,6 +15,7 @@ import type { World } from '../sim/world';
 import { effigyCameraTarget } from './effigyCamera';
 import type { CameraState } from './session';
 import { isMobileCommandLayout } from './mobileTouch';
+import { isOrthographic, type WorldCamera } from '../render/cameraProjection';
 
 const DEG = Math.PI / 180;
 
@@ -27,12 +28,21 @@ export const CMD_HEIGHT_MIN = 30;
 export const CMD_HEIGHT_MAX = 260;
 export const FOV_COMMAND = 50;
 /** Fixed diagonal tactical view on phones. No user-controlled zoom or rotation. */
-export const MOBILE_COMMAND_PITCH = -Math.atan(1 / Math.sqrt(2));
+export const MOBILE_COMMAND_PITCH = -60 * DEG;
+/** Preview-only comparison hook; ignores unsupported values rather than accepting free rotation. */
+export function mobileCommandPitch(): number {
+  const value = typeof document === 'undefined' ? NaN : Number(document.documentElement?.dataset?.mobileCameraElevation);
+  return [45, 60, 75].includes(value) ? -value * DEG : MOBILE_COMMAND_PITCH;
+}
+export const MOBILE_COMMAND_WORLD_PER_PIXEL = .035;
+export function mobileCommandExtent(viewportHeight: number): number {
+  return Math.max(1, Number.isFinite(viewportHeight) ? viewportHeight : 720) * MOBILE_COMMAND_WORLD_PER_PIXEL;
+}
 export const MOBILE_COMMAND_YAW = Math.PI * 1.25;
 /** Keep actors approximately 28 CSS pixels tall at the centre in either orientation.
  * This changes only the window extent on resize, not the user's zoom level. */
 export function mobileCommandHeight(viewportHeight: number): number {
-  return Math.max(1, Number.isFinite(viewportHeight) ? viewportHeight : 720) * 0.035;
+  return mobileCommandExtent(viewportHeight);
 }
 /** Fraction of the GCC dive spent descending onto the tabletop before the cut to world scale. */
 export const DIVE_CUT = 0.4;
@@ -114,11 +124,19 @@ export function blendPose(a: RigPose, b: RigPose, t: number, out: RigPose): void
  */
 export function commandGroundPoint(cam: CameraState, nx: number, ny: number, aspect: number, out: V2): boolean {
   const mobile = isMobileCommandLayout();
-  const pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
+  const pitch = mobile ? mobileCommandPitch() : CMD_PITCH;
   const yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
   const sp = Math.sin(pitch), cp = Math.cos(pitch);
   const sy = Math.sin(yaw), cy = Math.cos(yaw);
   const dist = cam.cmdHeight / -sp;
+  if (mobile) {
+    // cmdHeight encodes the window extent at the fixed CSS-pixel scale, not perspective zoom.
+    const half = cam.cmdHeight / 2;
+    const rx = nx * half * aspect, uy = ny * half;
+    out.x = cam.cmdX - cy * rx - sy * uy / sp;
+    out.z = cam.cmdZ + sy * rx - cy * uy / sp;
+    return true;
+  }
   const tanH = Math.tan((FOV_COMMAND * DEG) / 2);
   const rx = nx * tanH * aspect, uy = ny * tanH;
   // Forward (sy*cp,sp,cy*cp), right (-cy,0,sy), up (-sy*sp,cp,-cy*sp).
@@ -384,8 +402,13 @@ export class CameraRig {
     }
   }
 
+  /** Parallel projection is confined to the settled mobile battlefield view. */
+  useMobileOrthographic(commandBlend: number): boolean {
+    return isMobileCommandLayout() && this.mode === 'play' && !this.effigyLocked && commandBlend >= 1 && this.transT >= this.transDur;
+  }
+
   /** Write the pose (plus trauma shake) into the three.js camera. */
-  apply(camera: THREE.PerspectiveCamera, trauma: number, dt: number): void {
+  apply(camera: WorldCamera, trauma: number, dt: number): void {
     const p = this.pose;
     const cp = Math.cos(p.pitch);
     this.dir.set(Math.sin(p.yaw) * cp, Math.sin(p.pitch), Math.cos(p.yaw) * cp);
@@ -401,7 +424,7 @@ export class CameraRig {
     const sz = k * 0.06 * Math.sin(s * 27.3 + 4.1);
     this.euler.set(p.pitch + sx, p.yaw + Math.PI + sy, sz, 'YXZ');
     camera.quaternion.setFromEuler(this.euler);
-    if (Math.abs(camera.fov - p.fov) > 0.01) {
+    if (!isOrthographic(camera) && Math.abs(camera.fov - p.fov) > 0.01) {
       camera.fov = p.fov;
       camera.updateProjectionMatrix();
     }
@@ -505,7 +528,7 @@ export class CameraRig {
     out.ty = world.collision.groundHeight(this.cmdX, this.cmdZ);
     out.tz = this.cmdZ;
     out.yaw = mobile ? MOBILE_COMMAND_YAW : Math.PI;
-    out.pitch = mobile ? MOBILE_COMMAND_PITCH : CMD_PITCH;
+    out.pitch = mobile ? mobileCommandPitch() : CMD_PITCH;
     out.dist = this.cmdH / -Math.sin(out.pitch);
     out.fov = FOV_COMMAND;
   }

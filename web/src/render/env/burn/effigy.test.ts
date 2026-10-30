@@ -15,7 +15,7 @@ function environment(tutorial = false): EnvContext {
   return {
     ctx: {
       world: { options: { mode: tutorial ? 'tutorial' : 'skirmish', match: { bossMode: false } }, map: { half: 150, seed: 'effigy-test', effigy: { x: 0, z: 0 } } },
-      quality: 'low', time: 0, session: { viewBlend: 0 }, camera: { fov: 60 },
+      quality: 'low', time: 0, session: { viewBlend: 0 }, camera: new THREE.PerspectiveCamera(60),
       renderer: { getDrawingBufferSize: (v: THREE.Vector2) => v.set(1280, 720) },
     } as unknown as EnvContext['ctx'],
     root: new THREE.Group(), day,
