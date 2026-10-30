@@ -378,11 +378,14 @@ async function main(){
         await seedAndQuiver('frick-136-9',5);await deal(2);
         await tap(button('Exit · forfeit wager'));await dialog.waitFor({state:'hidden'});
         assert.equal((await state()).carried.length,3,'Mid-hand exit forfeits committed wager once');
-        await page.keyboard.press('Escape');await page.waitForTimeout(150);
+        await page.keyboard.press('Escape');
+        // Native Chrome may deliver its pointer-unlock event after the key event.
+        // Await the actual pause menu instead of sampling visibility while it is still opening.
+        await page.waitForFunction(()=>window.flaghack.session.screen==='paused'&&!document.pointerLockElement);
         assert.equal((await state()).session,null,'Repeated Escape does not restore hand or wager');
-        // Resume from ordinary pause if Escape opened it, then stage the lifecycle interruption.
+        // Resume through the real menu, then stage the lifecycle interruption.
         const resume = page.getByRole('button',{name:'Resume',exact:true});
-        if(await resume.isVisible())await tap(resume);
+        await resume.waitFor({state:'visible'});await tap(resume);
         await page.waitForFunction(()=>window.flaghack.session.screen==='playing');
         await page.waitForTimeout(1100);await stageGift();
         await page.evaluate(()=>{const w=window.flaghack.world,av=w.avatarOf(0);av.hp=0;av.koUntil=w.time+6;});

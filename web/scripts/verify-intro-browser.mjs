@@ -192,9 +192,16 @@ async function main() {
       await page.reload({ waitUntil:'domcontentloaded' });
       await page.waitForFunction(() => { const v = document.querySelector('#startup-video'); return v?.videoWidth > 0 && !v.paused && v.currentTime > .15; }, null, {timeout:30_000});
       assert.equal(await page.locator('html').getAttribute('data-startup-cache'), 'miss');
-      assert.ok(entry.videoRequests.some(r => r.phase === phase), 'Missing HTTP bodies require the intro again');
       entry.evicted = await movieState();
       assert.equal(entry.evicted.width, spec.mobile?720:1280);
+      // Clearing the HTTP cache can leave Chrome's separate media memory cache alive.
+      // Replay must be proved by the real source/decoder/playback, not a new network
+      // request: cached movie bytes are fine when the game-asset probes miss.
+      entry.evictedObservation = await page.evaluate(() => ({...window.__introQa}));
+      assert.deepEqual(entry.evictedObservation.sources, [entry.evicted.src], 'Missing game bodies assign the real intro source again');
+      assert.equal(entry.evictedObservation.loadstarts, 1, 'Missing game bodies start the intro decoder again');
+      assert.deepEqual(entry.evictedObservation.earlySkip, []);
+      await page.waitForFunction(t => document.querySelector('#startup-video')?.currentTime > t + .5, entry.evicted.time);
       await shot(spec.name + '-evicted-cold');
       await page.locator('#startup[data-ready="true"]').waitFor({timeout:180_000});
       await page.getByRole('button', {name:'Skip',exact:true}).click();
