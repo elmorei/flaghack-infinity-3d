@@ -118,7 +118,8 @@ async function main() {
     assert.equal(state.audio, 'locked'); assert.equal(state.inert, true);
     await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.1);
     assert.equal((await readState()).time, state.time, 'Simulation must not advance behind the intro');
-    assert.equal(await page.locator('#startup-sound').isVisible(), false, 'Silent montage must not offer a dead sound toggle');
+    assert.equal(await page.locator('#startup-sound').isVisible(), true, 'The improved film offers its audio toggle');
+    assert.equal(await page.locator('video').evaluate(video => video.muted), true, 'Autoplay starts muted');
     await page.screenshot({ path: join(OUT, 'cold-ready.png') });
     check('cold video plays while title prepares; ready enables Skip without cutting playback');
     await leave();
