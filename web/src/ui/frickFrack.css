@@ -57,24 +57,51 @@
 /* Hide the ordinary HUD and command chrome, while this raw-layer dialogue stays visible. */
 .ff-conversation-active .fh-ui { visibility: hidden; }
 
-/* The accepted game becomes a warm, legible card table; world dialogue above remains untouched. */
-.ff-overlay:not(.ff-in-world) { background: radial-gradient(ellipse at 50% 30%, #26322c, #0b1014 76%); padding: max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
-.ff-overlay:not(.ff-in-world) .ff-panel { width: min(1040px,100%); padding: 24px 28px; border: 1px solid #c2a96d; border-radius: 18px; background: linear-gradient(145deg,#122d29,#10231f 56%,#14241f); box-shadow: inset 0 0 0 5px #0b1b17, inset 0 0 0 6px #b69a663b, 0 18px 70px #000a; }
+/* The accepted game unfolds on a woven picnic blanket; world dialogue above stays untouched. */
+.ff-overlay:not(.ff-in-world) { background: radial-gradient(ellipse at 50% 30%, #494537, #171c20 76%); padding: max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+.ff-overlay:not(.ff-in-world) .ff-panel { width: min(1040px,100%); padding: 24px 28px; border: 1px solid #ad9472; border-radius: 18px; background: linear-gradient(145deg,#353b3b,#262d30 56%,#303638); box-shadow: inset 0 0 0 5px #202629, inset 0 0 0 6px #c5ab7c30, 0 18px 70px #0009; }
 .ff-overlay:not(.ff-in-world) .ff-header { text-align: center; }
 .ff-overlay:not(.ff-in-world) .ff-header h2 { margin: 3px 0 12px; color: #f6e8bb; letter-spacing: .035em; text-shadow: 0 2px 1px #000; }
 .ff-overlay:not(.ff-in-world) .ff-eyebrow { font-size: 10px; letter-spacing: .2em; }
 .ff-overlay:not(.ff-in-world) .ff-status { text-align: center; padding: 10px; border-top: 1px solid #d8b76d42; border-bottom: 1px solid #d8b76d42; background: #0002; color: #e6d6ab; }
-.ff-overlay:not(.ff-in-world) .ff-hands { position: relative; display: grid; grid-template-columns: 1fr; gap: 18px; padding: 18px; border: 1px solid #cfb26e40; border-radius: 48px 48px 24px 24px; background: radial-gradient(ellipse at 50% 50%, #28524780, #0d2b2470); box-shadow: inset 0 0 40px #05110d66; }
+.ff-overlay:not(.ff-in-world) .ff-hands {
+  position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr; gap: 18px;
+  padding: 24px; border: 1px solid #d8c5a8; border-radius: 12px 16px 10px 14px;
+  background-color: #eddfc6;
+  background-image:
+    repeating-linear-gradient(0deg, #fff5 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, #49372b16 0 1px, transparent 1px 3px),
+    linear-gradient(115deg, transparent 20%, #fff4 21%, transparent 23%, transparent 73%, #61453118 75%, transparent 78%),
+    repeating-linear-gradient(0deg, #b75d5052 0 28px, transparent 28px 56px),
+    repeating-linear-gradient(90deg, #b75d5052 0 28px, transparent 28px 56px);
+  box-shadow: inset 0 2px 3px #fff6, inset 0 -4px 12px #79583c24, 0 7px 18px #0004;
+}
+.ff-overlay:not(.ff-in-world) .ff-hands::before { content: ""; position: absolute; inset: 7px; z-index: -1; border: 1px dashed #80574280; border-radius: 7px 11px 6px 9px; pointer-events: none; }
+.ff-hands .ff-hand { min-width: 0; }
+.ff-hands .ff-hand h3 { width: fit-content; max-width: 100%; box-sizing: border-box; margin: 0 0 12px; padding: 5px 7px 5px 11px; border: 1px solid #c6b595; border-radius: 7px; background: #fff4df; color: #453d35; box-shadow: 0 2px 3px #79583c20; letter-spacing: .035em; }
+.ff-hands .ff-hand-dealer { border-color: #80574255; }
+.ff-hands .ff-total { border-color: #536d79; background: #334c59; color: #fff3d9; }
+.ff-table-topline { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 17px; min-width: 0; padding: 0 0 4px; }
+.ff-table-note { margin: 0; max-width: 24ch; padding: 6px 10px; border-radius: 5px; background: #fff4dfe8; color: #514537; font-size: 11px; line-height: 1.5; letter-spacing: .035em; }
+.ff-deck { position: relative; flex: 0 0 48px; width: 48px; height: 68px; margin: 4px 5px 5px; transform: rotate(-7deg); }
+.ff-deck > span { position: absolute; inset: 0; border: 1px solid #baa88c; border-radius: 5px; background: #f3e7ce; box-shadow: 0 2px 3px #50362335; }
+.ff-deck > span:first-child { transform: translate(4px, 5px) rotate(3deg); }
+.ff-deck > span:nth-child(2) { transform: translate(2px, 2px) rotate(1deg); }
+.ff-deck .ff-deck-card { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border-radius: 5px; font-size: 20px; }
+.ff-hands .ff-card:not(.ff-card-back) { box-shadow: 1px 3px 3px #4a302b26, 3px 7px 11px #4a302b33; }
+.ff-card-slot { flex: 0 0 auto; width: 72px; height: 108px; }
+.ff-card-slot > .ff-card { width: 100%; height: 100%; box-sizing: border-box; }
+
 .ff-hand h3 { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #dbc795; font: 600 13px Rubik,sans-serif; letter-spacing: .06em; }
 .ff-hand-dealer { border-bottom: 1px dashed #ceb67b48; padding-bottom: 16px; }
 .ff-hand-player h3 { color: #fff0bd; }
 .ff-total { display: inline-grid; place-items: center; min-width: 30px; padding: 4px 8px; border: 1px solid #c9ae71; border-radius: 20px; background: #0b1713; color: #fff1bb; font-weight: bold; font-size: 16px; letter-spacing: 0; }
 .ff-card-row { justify-content: center; gap: 10px; padding: 2px 0; }
 .ff-card { width: 72px; height: 108px; border: 1px solid #d7cba8; border-radius: 7px; box-shadow: 0 5px 10px #0006; }
-.ff-card-back { background: repeating-linear-gradient(45deg,#513154 0,#513154 4px,#322039 4px,#322039 8px); box-shadow: inset 0 0 0 4px #edd5a0,inset 0 0 0 6px #5c3955,0 5px 10px #0006; color: #e8cf92; }
+.ff-card-back { background: repeating-linear-gradient(45deg,#39586a 0,#39586a 3px,#2c4758 3px,#2c4758 6px); box-shadow: inset 0 0 0 4px #f0dfbc,inset 0 0 0 6px #667f89,0 5px 10px #0004; color: #f0dfbc; }
 .ff-main-actions { justify-content: center; padding: 10px 0; gap: 12px; }
 .ff-main-actions .ff-button { min-width: 110px; font-weight: 600; box-shadow: 0 3px 0 #0007; }
-.ff-main-actions .ff-button:last-child { background: #152a25; color: #e7d9b6; border-color: #d0b57970; }
+.ff-main-actions .ff-button:last-child { background: #303f48; color: #e7d9b6; border-color: #d0b57970; }
 .ff-wager { text-align: center; margin-top: 16px; }
 .ff-wager > span { color: #e1c98c; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
 .ff-wager-row { justify-content: center; }
@@ -90,8 +117,13 @@
   .ff-overlay:not(.ff-in-world) .ff-panel { padding: 15px 12px; border-radius: 12px; }
   .ff-overlay:not(.ff-in-world) .ff-header h2 { font-size: 25px; margin: 3px 0 8px; }
   .ff-overlay:not(.ff-in-world) .ff-status { font-size: 11px; padding: 8px 3px; }
-  .ff-overlay:not(.ff-in-world) .ff-hands { padding: 12px 9px; border-radius: 26px 26px 16px 16px; gap: 12px; }
+  .ff-overlay:not(.ff-in-world) .ff-hands { padding: 16px 12px; border-radius: 9px 12px 8px 10px; gap: 12px; }
   .ff-card { width: 52px; height: 78px; font-size: 20px; }
+  .ff-card-slot { width: 52px; height: 78px; }
+  .ff-deck { flex-basis: 38px; width: 38px; height: 54px; }
+  .ff-table-topline { gap: 12px; }
+  .ff-table-note { font-size: 10px; }
+  .ff-hands .ff-hand h3 { font-size: 11px; gap: 8px; }
   .ff-card-row { gap: 6px; }
   .ff-main-actions { gap: 7px; }
   .ff-main-actions .ff-button { min-width: 70px; padding: 10px; font-size: 13px; }

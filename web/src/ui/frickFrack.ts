@@ -10,6 +10,9 @@ import type { World } from '../sim/world';
 import type { UiHost, UiPart } from './core';
 import { button, el, setText, show } from './dom';
 import './frickFrack.css';
+import './frickFrackMotion.css';
+import { tableSnapshot, planCardMotion, motionDuration, DEAL_MS, FLIP_MS } from './frickFrackMotion';
+import type { TableSnapshot, CardMotion } from './frickFrackMotion';
 import './frickFrackTarot.css';
 import { tarotCardLabel, renderFrickFrackCard } from './frickFrackTarot';
 import './frickFrackParody.css';
@@ -103,6 +106,9 @@ export class FrickFrackUI implements UiPart {
   private selectedMajor: number | null = null;
   private majorTargets: number[] = [];
   private majorValue = 1;
+  private tableState: TableSnapshot | null = null;
+  private motions = new Map<string, CardMotion & { startedAt: number }>();
+  private animations: Animation[] = [];
 
   constructor(host: UiHost, parent: HTMLElement) {
     this.host = host;
@@ -142,6 +148,7 @@ export class FrickFrackUI implements UiPart {
     this.root.classList.toggle('ff-in-world', session?.phase === 'dialogue' || session?.phase === 'empty');
     document.documentElement.classList.toggle('ff-conversation-active', session !== null);
     if (!session || !world) {
+      this.clearCardMotion(); this.tableState = null;
       this.key = ''; this.pending = ''; this.text = null; this.next = null; this.selectedMajor = null; this.majorTargets = [];
       if (wasOpen) { this.focusBefore?.blur(); this.focusBefore = null; }
       return;
@@ -170,6 +177,8 @@ export class FrickFrackUI implements UiPart {
   }
 
   private render(s: FrickFrackSession, available: number, world: World): void {
+    this.rememberCardMotion(s);
+    this.cancelAnimations();
     this.body.replaceChildren(); this.text = null; this.next = null; this.wagerInput = null;
     setText(this.title, s.phase === 'dialogue' || s.phase === 'empty' ? 'The Frick-frack Wizard' : 'Frick-frack');
     setText(this.status, `Holding ${available} Flag${available === 1 ? '' : 's'}${s.wager > 0 ? ` · Wager ${s.wager}` : ''} · The burn continues outside.`);
@@ -189,6 +198,11 @@ export class FrickFrackUI implements UiPart {
       el('p', 'ff-small', this.body, 'Let the wizard finish his thought.');
     } else {
       const cards = el('div', 'ff-hands', this.body);
+      const top = el('div', 'ff-table-topline', cards);
+      const deck = el('div', 'ff-deck', top); deck.setAttribute('aria-hidden', 'true');
+      el('span', '', deck); el('span', '', deck);
+      el('div', 'ff-deck-card', deck, '✦');
+      el('p', 'ff-table-note', top, 'The wizard’s picnic blanket');
       this.hand(cards, 'Wizard', s.dealer, s);
       this.hand(cards, 'You', s.player, s);
       if (s.remark) { const remark = el('p', 'ff-wizard-remark', this.body, s.remark); remark.setAttribute('role', 'status'); }
@@ -252,6 +266,7 @@ export class FrickFrackUI implements UiPart {
       el('summary', '', rules, 'Rules · combat & poker prizes');
       for (const rule of FRICK_FRACK_TABLE_RULES) el('p', '', rules, rule);
     }
+    this.animateCards();
     this.frame();
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-ready-gate]')) b.disabled = world.time < s.readyAt;
     this.body.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
@@ -267,8 +282,11 @@ export class FrickFrackUI implements UiPart {
     if (total) el('span', 'ff-total', heading, total.slice(3));
     const row = el('div', 'ff-card-row', hand);
     if (!displayed.length) el('span', 'ff-small', row, 'Waiting for the deal');
+    let hiddenIndex = 0;
     for (const {card, defeated} of displayed) {
-      const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, row, card === null ? '✦' : cardLabel(card));
+      const slot = el('div', 'ff-card-slot', row);
+      slot.dataset.motionKey = card ? `card:${card.id}` : `${name === 'Wizard' ? 'dealer' : 'player'}:hidden:${hiddenIndex++}`;
+      const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, slot, card === null ? '✦' : cardLabel(card));
       if (card) tile.dataset.cardId = String(card.id);
       renderFrickFrackCard(tile, card);
       renderParodyCard(tile, card);
@@ -364,6 +382,62 @@ export class FrickFrackUI implements UiPart {
     button('ff-button', actions, 'Cancel', () => { this.selectedMajor = null; this.majorTargets = []; this.render(s, available, world); });
   }
 
+
+  /** Revisions and UI rerenders may replace DOM during a deal. Keep the original
+   * wall-clock start, so resource updates never redeal or prolong a card. */
+  private rememberCardMotion(s: FrickFrackSession): void {
+    const next = tableSnapshot(s), now = performance.now();
+    if (this.tableState?.sessionId !== next.sessionId || !next.cards.length) this.clearCardMotion();
+    const keys = new Set(next.cards.map(c => c.key));
+    for (const [key, motion] of this.motions) {
+      if (!keys.has(key) || now >= motion.startedAt + motionDuration(motion)) this.motions.delete(key);
+    }
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) this.clearCardMotion();
+    else for (const motion of planCardMotion(this.tableState, next)) {
+      this.motions.set(motion.key, { ...motion, startedAt: now + motion.delay });
+    }
+    this.tableState = next;
+  }
+
+  private animateCards(): void {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { this.clearCardMotion(); return; }
+    const deck = this.body.querySelector<HTMLElement>('.ff-deck-card');
+    if (!deck || typeof deck.animate !== 'function') return;
+    const origin = deck.getBoundingClientRect(), now = performance.now();
+    for (const slot of this.body.querySelectorAll<HTMLElement>('.ff-card-slot')) {
+      const motion = this.motions.get(slot.dataset.motionKey ?? '');
+      const face = slot.querySelector<HTMLElement>('.ff-card');
+      if (!motion || !face || now >= motion.startedAt + motionDuration(motion)) continue;
+      const target = slot.getBoundingClientRect();
+      if (!target.width || !target.height) continue;
+      const dx = origin.left + origin.width / 2 - (target.left + target.width / 2);
+      const dy = origin.top + origin.height / 2 - (target.top + target.height / 2);
+      const delay = motion.startedAt - now;
+      const animate = (node: HTMLElement, frames: Keyframe[], duration: number, start: number) => {
+        this.animations.push(node.animate(frames, { duration, delay: start, fill: 'backwards', easing: 'cubic-bezier(.2,.75,.25,1)' }));
+      };
+      if (motion.kind === 'deal') {
+        animate(slot, [
+          { transform: `translate(${dx}px,${dy}px) rotate(-13deg) scale(.74)`, opacity: 0 },
+          { transform: `translate(${dx * .7}px,${dy * .7}px) rotate(-8deg) scale(.94)`, opacity: 1, offset: .16 },
+          { transform: 'translate(0,-3px) rotate(1.5deg) scale(1.025)', opacity: 1, offset: .82 },
+          { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
+        ], DEAL_MS, delay);
+      }
+      if (!motion.hidden) {
+        // Opaque decorative back covers the face until the midpoint. The face
+        // itself only exists once the public session has authoritatively revealed it.
+        const back = el('div', 'ff-motion-back', face, '✦'); back.setAttribute('aria-hidden', 'true');
+        const flipDelay = delay + (motion.kind === 'deal' ? DEAL_MS : 0);
+        animate(face, [{ transform: 'rotateY(-180deg)' }, { transform: 'rotateY(0)' }], FLIP_MS, flipDelay);
+        animate(back, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: .49 }, { opacity: 0, offset: .5 }, { opacity: 0, offset: 1 }], FLIP_MS, flipDelay);
+      }
+    }
+  }
+  private cancelAnimations(): void { for (const animation of this.animations) animation.cancel(); this.animations = []; }
+  private clearCardMotion(): void { this.cancelAnimations(); this.motions.clear(); }
+
   private setWager(value: number): void { this.wager = clampWager(value, this.wagerAvailable); if (this.wagerInput) this.wagerInput.value = String(this.wager); }
   private action(parent: HTMLElement, text: string, action: TableAction, extra?: () => TableExtras): HTMLButtonElement {
     return button('ff-button', parent, text, () => this.send(action, extra?.()), 'confirm');
@@ -390,5 +464,5 @@ export class FrickFrackUI implements UiPart {
       ev.stopPropagation();
     }
   };
-  dispose(): void { window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); document.documentElement.classList.remove('ff-conversation-active'); this.root.remove(); this.offer.remove(); }
+  dispose(): void { this.clearCardMotion(); this.tableState = null; window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); document.documentElement.classList.remove('ff-conversation-active'); this.root.remove(); this.offer.remove(); }
 }

@@ -1,0 +1,8 @@
+/* Slots own travel; card faces own reveal. Nothing here changes play/input timing. */
+.ff-card-slot { position: relative; perspective: 800px; flex: 0 0 auto; isolation: isolate; }
+.ff-card-slot .ff-card { transform-origin: center; }
+.ff-motion-back { position: absolute; inset: -1px; z-index: 8; display: grid; place-items: center; border: 1px solid #e3cf9c; border-radius: inherit; color: #e8cf92; font: 28px Georgia,serif; background: repeating-linear-gradient(45deg,#24394f 0,#24394f 4px,#1b2d40 4px,#1b2d40 8px); box-shadow: inset 0 0 0 4px #e6d6ad,inset 0 0 0 6px #314a62; pointer-events: none; opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ff-card-slot, .ff-card-slot .ff-card { animation: none !important; transition: none !important; transform: none !important; }
+  .ff-motion-back { display: none; }
+}
