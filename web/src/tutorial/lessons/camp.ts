@@ -195,7 +195,7 @@ export const crystal: LessonScript = {
   briefing: [
     saint('Five-fold **focus points** hide in the lattice: nodes where five fat rhombi meet. Hold all five neighbours, the pentacle, and a **Crystal** manifests.'),
     saint('Your Command Center reveals focus points near it. I have marked one. A Crystal gives Ritual, watches the ground around it and adds to your C.M.I.'),
-    saint('Ritual buys **chakra alignments** at your Hearth, and each chakra wakes an ability.'),
+    saint('Ritual buys **chakra alignments** from anywhere, and each chakra wakes an ability.'),
   ],
   briefingHighlights: ['cmi'],
   objectives: [
@@ -214,8 +214,8 @@ export const crystal: LessonScript = {
     },
     {
       id: 'align',
-      text: 'Align a chakra at your Hearth: open the chakras ({key:K}) and Align',
-      hint: 'Stand within 8 m of your Hearth. Alignment takes 4 seconds and breaks if you are hit.',
+      text: 'Align a chakra: open the chakras ({key:K}) and Align',
+      hint: 'You can align anywhere. Hold still for 4 seconds; getting hit interrupts alignment.',
       highlights: ['chakras-panel', 'align-button', 'hud-ritual'],
     },
     {
@@ -259,8 +259,7 @@ export const crystal: LessonScript = {
             fac.ritual = cheapest + RITUAL_MARGIN;
             ctx.say('Drummers earn Ritual slowly, a tenth a second each. I have lent you enough for one alignment.');
           }
-          const hearth = world.hearthOf(f);
-          if (hearth) ctx.mark([{ id: 'hearth', kind: 'entity', entity: hearth.id, label: 'Align here' }]);
+          ctx.mark([]);
         } else if (i === 3) ctx.mark([]);
       },
       event(e) {

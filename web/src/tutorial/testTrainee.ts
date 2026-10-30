@@ -169,7 +169,7 @@ export class Trainee {
         this.placeBuilding('drumcircle');
         return;
       case 'crystal/align':
-        if (hearth && this.walkTo(hearth.pos.x, hearth.pos.z, BUILDINGS.hearth.radius + 3) && av.action.kind !== 'align') {
+        if (av.action.kind !== 'align') {
           this.act({ t: 'align', faction: this.f, chakra: 'canton' });
         }
         return;

@@ -2,9 +2,9 @@
  * Chakra screen (session.panels.chakras, K): the five Flag chakras on a pentagon around a
  * Flag, each wired to its place in Flag anatomy (Finial, Fly, Field, Hoist, Canton). Selecting
  * one shows its ability, per-level effects, current level and the align button (Ritual cost,
- * 4 s channel within reach of your Hearth), with live Hearth distance and channel progress.
+ * 4 s channel anywhere), with channel progress.
  */
-import { ALIGN_COST, ALIGN_RADIUS } from '../sim/constants';
+import { ALIGN_COST } from '../sim/constants';
 import { alignBlocker } from '../sim/systems/abilities';
 import type { GameEvent } from '../sim/events';
 import { CHAKRAS } from '../sim/types';
@@ -198,8 +198,6 @@ export class ChakraScreen implements UiPart {
     setText(this.dMeta, level === 0 ? 'Not yet aligned.' : `Aligned to level ${level} of ${ALIGN_COST.length}.`);
 
     const av = world.avatars.get(fac.avatarId);
-    const hearth = world.hearthOf(fac.id);
-    const dist = av && hearth ? Math.hypot(av.pos.x - hearth.pos.x, av.pos.z - hearth.pos.z) : Infinity;
     const aligning = av?.action.kind === 'align' ? av.action : null;
     const maxed = level >= ALIGN_COST.length;
     const blocker = alignBlocker(world, fac.id, c);
@@ -213,8 +211,8 @@ export class ChakraScreen implements UiPart {
     let where: string;
     if (aligning) where = `Aligning the ${CHAKRA_INFO[aligning.chakra].name}… hold still.`;
     else if (this.lastReject) where = this.lastReject;
-    else if (blocker) where = dist > ALIGN_RADIUS && Number.isFinite(dist) ? `${blocker} Your Hearth is ${Math.round(dist)} m away.` : blocker;
-    else where = 'You stand at your Hearth. The Flag is listening.';
+    else if (blocker) where = blocker;
+    else where = 'Align from anywhere. Hold still while the Flag listens.';
     setText(this.where, where);
     setClass(this.where, 'ok', !aligning && !this.lastReject && blocker === '');
     setClass(this.where, 'bad', !aligning && (this.lastReject !== '' || blocker !== ''));

@@ -677,6 +677,7 @@ export function attractToRecruiter(world: World, sys: UnitsState, h: Hippie, b: 
     for (const recruiter of world.buildings.values()) {
       if (!isRecruiter(world, recruiter) || (b.avoidBuildings.get(recruiter.id) ?? 0) > world.time) continue;
       const d = (recruiter.pos.x - h.pos.x) ** 2 + (recruiter.pos.z - h.pos.z) ** 2;
+      if (recruiter.kind === 'workshop' && d > RECRUIT_RADIUS ** 2) continue;
       if (d < distance || (d === distance && nearest && recruiter.id < nearest.id)) {
         nearest = recruiter;
         distance = d;

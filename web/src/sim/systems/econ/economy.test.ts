@@ -30,16 +30,16 @@ describe('economy', () => {
     expect(eventsOf(h, 'flagCrafted').filter((e) => e.faction === 0)).toHaveLength(3);
   });
 
-  it.each(['drumcircle', 'gcc'] as const)('%s recruits existing neutrals repeatedly without spawning or resource costs', (kind) => {
+  it.each(['drumcircle', 'gcc', 'workshop'] as const)('%s recruits existing neutrals repeatedly without spawning or resource costs', (kind) => {
     const h = newMatch();
     const { world } = h;
     world.hippies.clear();
     for (const f of world.factions) f.lumber = 0;
     const hearth = world.hearthOf(0)!;
     const recruiter = kind === 'gcc' ? world.gccOf(0)!
-      : spawnBuilding(world, 'drumcircle', 0, freeThickFacet(world, hearth.pos.x, hearth.pos.z, 12, 'drumcircle'), 1);
+      : spawnBuilding(world, kind, 0, freeThickFacet(world, hearth.pos.x, hearth.pos.z, 12, kind), 1);
     for (const b of world.buildings.values()) if (b.kind === 'gcc' && b !== recruiter) b.disabled = true;
-    if (kind === 'drumcircle') registerBuildingShape(world, recruiter);
+    if (kind !== 'gcc') registerBuildingShape(world, recruiter);
     const a = spawnHippie(world, -1, { x: recruiter.pos.x + 8, z: recruiter.pos.z });
     const b = spawnHippie(world, -1, { x: recruiter.pos.x - 8, z: recruiter.pos.z });
     // Freeze their wandering; recruitment itself is not a movement operation.

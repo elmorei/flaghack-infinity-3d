@@ -6,7 +6,7 @@
  * chakras and work the Command Table. Every command is pre-checked so none is rejected.
  * Owner: AI agent.
  */
-import { ALIGN_RADIUS, AVATAR, BUILDINGS, HIPPIE, IMPLIED_MAX_ORDER, LIGHTNING_PULL_MULT, SIM_DT } from '../sim/constants';
+import { AVATAR, BUILDINGS, HIPPIE, IMPLIED_MAX_ORDER, LIGHTNING_PULL_MULT, SIM_DT } from '../sim/constants';
 import { criticalNodes } from '../sim/lattice/geometry';
 import { pieceCaptureAnchor } from '../sim/systems/structureEnclosure';
 import { geometryOwners } from '../sim/systems/survey';
@@ -513,11 +513,7 @@ function run(b: Brain, av: Avatar): void {
         b.alignWanted = null;
         return;
       }
-      if (Math.hypot(v.hx - av.pos.x, v.hz - av.pos.z) > ALIGN_RADIUS + BUILDINGS.hearth.radius - 1.5) {
-        moveTo(b, av, v.hx, v.hz, ALIGN_RADIUS);
-        return;
-      }
-      // At home and still blocked (Ritual spent, channel busy): give up this time.
+      // Still blocked (Ritual spent, channel busy): give up this time.
       b.alignWanted = null;
       return done(b);
     }

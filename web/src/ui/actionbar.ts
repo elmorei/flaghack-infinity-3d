@@ -211,7 +211,7 @@ export class ActionBar implements UiPart {
         .map((txt, i) => `<li class="${i + 1 === level ? 'cur' : i < level ? 'had' : ''}"><b>L${i + 1}</b> ${escapeHtml(txt)}</li>`)
         .join('');
       let status: string;
-      if (level === 0) status = `<p class="tip-bad">Locked. Align the ${info.name} chakra at your Hearth (K): ${ALIGN_COST[0]} Ritual.</p>`;
+      if (level === 0) status = `<p class="tip-bad">Locked. Align the ${info.name} chakra (K): ${ALIGN_COST[0]} Ritual.</p>`;
       else if (remaining > 0) status = `<p class="tip-wait">Recharging: ${fmtCountdown(remaining)}</p>`;
       else if (blocker) status = `<p class="tip-bad">${escapeHtml(blocker)}</p>`;
       else status = '<p class="tip-good">Ready. Cast at the crosshair or cursor.</p>';

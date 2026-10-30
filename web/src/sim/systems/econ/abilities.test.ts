@@ -3,7 +3,7 @@ import { ABILITY, ALIGN_COST, ALIGN_TIME } from '../../constants';
 import { spawnFlag, spawnHippie } from '../../factory';
 import type { FactionId } from '../../types';
 import type { World } from '../../world';
-import { abilityBlocker, inStabilizeZone } from '../abilities';
+import { abilityBlocker, alignBlocker, inStabilizeZone } from '../abilities';
 import { hasEffect } from '../effects';
 import { canPlantAt, isBuildingCorner, plantFlag } from '../flags';
 import { eventsOf, newMatch, placeAvatar, run } from './testkit';
@@ -73,7 +73,7 @@ describe('abilities', () => {
     expect(abilityBlocker(world, 0, 'phason')).toBe('');
   });
 
-  it('an interrupted alignment costs nothing; aligning away from the Hearth is refused', () => {
+  it('an interrupted alignment costs nothing; it can be restarted away from the Hearth', () => {
     const h = newMatch();
     const { world } = h;
     const fac = world.factions[0];
@@ -89,7 +89,65 @@ describe('abilities', () => {
     placeAvatar(world, 0, hearth.pos.x * 0.5, hearth.pos.z * 0.5);
     world.submit({ t: 'align', faction: 0, chakra: 'hoist' });
     run(h, 1 / 60);
-    expect(eventsOf(h, 'rejected').at(-1)?.reason).toMatch(/Align at your Hearth/);
+    expect(eventsOf(h, 'rejected')).toHaveLength(0);
+    expect(world.avatarOf(0).action.kind).toBe('align');
+    run(h, ALIGN_TIME);
+    expect(fac.chakras.hoist).toBe(1);
+    expect(fac.ritual).toBeCloseTo(100 - ALIGN_COST[0], 5);
+  });
+
+  it.each([0, 1, 2, 3] as const)('faction %i can align far from its Hearth without spending Flags', (f) => {
+    const h = newMatch();
+    const { world } = h;
+    const fac = world.factions[f];
+    openGround(world, f, 45);
+    const av = world.avatarOf(f);
+    const hearth = world.hearthOf(f)!;
+    expect(Math.hypot(av.pos.x - hearth.pos.x, av.pos.z - hearth.pos.z)).toBeGreaterThan(30);
+    fac.ritual = ALIGN_COST[0];
+    const flags = [...av.carried];
+    expect(alignBlocker(world, f, 'field')).toBe('');
+    world.submit({ t: 'align', faction: f, chakra: 'field' });
+    run(h, ALIGN_TIME + 0.1);
+    expect(fac.chakras.field).toBe(1);
+    expect(fac.ritual).toBeCloseTo(0, 5);
+    expect(av.carried).toEqual(flags);
+  });
+
+  it('remote alignment still enforces Ritual, maximum level, life and channel prerequisites', () => {
+    const { world } = newMatch();
+    const fac = world.factions[0];
+    openGround(world, 0, 45);
+    const av = world.avatarOf(0);
+    fac.ritual = 0;
+    expect(alignBlocker(world, 0, 'field')).toMatch(/Needs .* Ritual/);
+    fac.ritual = 1000;
+    fac.chakras.field = 3;
+    expect(alignBlocker(world, 0, 'field')).toMatch(/fully aligned/);
+    fac.chakras.field = 0;
+    av.koUntil = world.time + 5;
+    expect(alignBlocker(world, 0, 'field')).toMatch(/Flagless/);
+    av.koUntil = 0;
+    av.action = { kind: 'align', chakra: 'hoist', t: world.time };
+    expect(alignBlocker(world, 0, 'field')).toMatch(/Already aligning/);
+    fac.alive = false;
+    expect(alignBlocker(world, 0, 'field')).toMatch(/camp has fallen/);
+  });
+
+  it('Degen factions still require a roaming avatar and cannot spend Ritual through alignment', () => {
+    const h = newMatch();
+    const { world } = h;
+    const fac = world.factions[0];
+    fac.controlMode = 'rts';
+    world.avatars.delete(fac.avatarId);
+    fac.avatarId = -1;
+    fac.ritual = 100;
+    expect(alignBlocker(world, 0, 'field')).toMatch(/requires a roaming/);
+    world.submit({ t: 'align', faction: 0, chakra: 'field' });
+    run(h, 1 / 60);
+    expect(eventsOf(h, 'rejected').at(-1)?.reason).toMatch(/requires a roaming/);
+    expect(fac.ritual).toBe(100);
+    expect(fac.chakras.field).toBe(0);
   });
 
   it('Phason Shift turns the targeted node and starts its cooldown', () => {

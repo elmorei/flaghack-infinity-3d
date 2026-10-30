@@ -36,7 +36,8 @@ interface Aggregate {
   render: (count: number) => string;
 }
 
-const VIA_TEXT: Record<'drumcircle' | 'gcc' | 'hand' | 'throw' | 'dialectics', string> = {
+const VIA_TEXT: Record<'workshop' | 'drumcircle' | 'gcc' | 'hand' | 'throw' | 'dialectics', string> = {
+  workshop: 'at a Flag Workshop',
   drumcircle: 'at the Drum Circle',
   gcc: 'at the Geomantic Command Center',
   hand: 'for a handed Flag',

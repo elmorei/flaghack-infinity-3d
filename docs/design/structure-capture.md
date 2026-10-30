@@ -13,3 +13,5 @@ Neutral scenery gains ownership/capture markers and the support benefits describ
 Capture rings, pressure arcs, enclosing beams and critical-flag reticles show the same pressure stages as Hearths. Ownership and capture state replicate to existing clients and late joiners. Multiplayer protocol 17 requires matching hosts and clients. AI avatars defend visible structure sieges by pulling critical loop flags, while Hearth defense retains priority.
 
 The boss alliance cancels pending captures and prevents allied theft during the encounter. Existing Hearth camp conversion and elimination rules remain unchanged.
+
+Capture progress rings and incoming enclosure beams use the leading capturing faction's actual palette colour, including on neutral scenery and modular pieces. Safe rings use the owner; contested rings retain the owner/attacker alternation. Generic red is reserved for defender-only critical-flag warning reticles, not ownership/progress. This is identical for every local seat and replicated/late-join view.

@@ -18,8 +18,12 @@ export function canRecruit(h: Hippie): boolean {
 }
 
 export function isRecruiter(world: World, b: Building): boolean {
-  return (b.kind === 'drumcircle' || b.kind === 'gcc') && b.faction !== NEUTRAL &&
-    world.factions[b.faction].alive && b.built >= 1 && !b.disabled && !isCollapsed(b);
+  const capture = b.capture;
+  const workshopContested = b.kind === 'workshop' && capture && capture.attacker !== null &&
+    capture.attacker !== b.faction && (capture.stage === 'contained' || capture.stage === 'contested' || capture.stage === 'overwritten');
+  return (b.kind === 'drumcircle' || b.kind === 'gcc' || b.kind === 'workshop') && b.faction !== NEUTRAL &&
+    world.factions[b.faction].alive && b.built >= 1 && !b.disabled && !isCollapsed(b) &&
+    (b.kind !== 'workshop' || (world.buildings.get(b.id) === b && b.hp > 0 && !workshopContested));
 }
 
 /** Also used by Dialectics: a new allegiance gets a new place in the soft-cap queue. */
@@ -122,7 +126,7 @@ export function recruitNear(world: World, b: Building): boolean {
     bestD = d;
   }
   if (!best) return false;
-  enlist(world, best, b.faction, b.kind === 'gcc' ? 'gcc' : 'drumcircle');
+  enlist(world, best, b.faction, b.kind === 'gcc' ? 'gcc' : b.kind === 'workshop' ? 'workshop' : 'drumcircle');
   return true;
 }
 
@@ -143,7 +147,7 @@ export function updateRecoveryCalls(world: World): void {
   const eligible = recruiters.filter(b => b.kind === 'gcc' && !occupied.has(b.faction));
   const ordered = new Set([...world.hippies.values()].flatMap(h => h.order?.kind === 'recruit' ? [h.order.target] : []));
   const locallyClaimed = (h: Hippie, own: number) => recruiters.some(b => b.id !== own &&
-    (h.pos.x - b.pos.x) ** 2 + (h.pos.z - b.pos.z) ** 2 <= RECRUIT_ATTRACT_RADIUS ** 2 &&
+    (h.pos.x - b.pos.x) ** 2 + (h.pos.z - b.pos.z) ** 2 <= (b.kind === 'workshop' ? RECRUIT_RADIUS : RECRUIT_ATTRACT_RADIUS) ** 2 &&
     (recruitmentLineClear(world, b, h) || (h.statusTarget?.x === b.pos.x && h.statusTarget.z === b.pos.z)));
   for (const [id, target] of state.claims) {
     const b = eligible.find(b => b.id === id), h = world.hippies.get(target);

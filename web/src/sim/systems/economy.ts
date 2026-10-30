@@ -139,14 +139,14 @@ function craftAtHearth(world: World, b: Building, f: FactionId, dt: number): voi
   hs.craftProgress -= HEARTH_FLAG_INTERVAL;
 }
 
-/** Workshops fill their pickup rack, then send overflow to the nearest own Hearth. */
+/** Workshop bonus production stops at a full pickup rack; base Hearth crafting is independent. */
 function craftAtWorkshop(world: World, b: Building, f: FactionId, dt: number): void {
+  if (stockAt(world, b.id) >= WORKSHOP_FLAG_CAPACITY) return;
   b.progress = Math.min(WORKSHOP_FLAG_INTERVAL, b.progress + dt);
   if (b.progress < WORKSHOP_FLAG_INTERVAL) return;
   const fac = world.factions[f];
   if (fac.lumber < WORKSHOP_FLAG_COST) return;
-  const destination = stockAt(world, b.id) < WORKSHOP_FLAG_CAPACITY ? b : nearestHearth(world, f, b.pos);
-  if (!destination || !craftFlag(world, destination.id)) return;
+  if (!craftFlag(world, b.id)) return;
   fac.lumber -= WORKSHOP_FLAG_COST;
   b.progress -= WORKSHOP_FLAG_INTERVAL;
 }
@@ -154,8 +154,16 @@ function craftAtWorkshop(world: World, b: Building, f: FactionId, dt: number): v
 /** Every recruiter periodically enlists an existing nearby neutral, without creating units. */
 function recruitAtBuilding(world: World, b: Building, dt: number): void {
   if (!isRecruiter(world, b)) return;
-  b.progress = Math.min(RECRUIT_INTERVAL, b.progress + dt);
-  if (b.progress >= RECRUIT_INTERVAL && recruitNear(world, b)) b.progress -= RECRUIT_INTERVAL;
+  // Workshops craft and recruit independently; sharing b.progress would accelerate both.
+  if (b.kind === 'workshop') {
+    const timers = econ(world).workshopRecruitProgress;
+    let progress = Math.min(RECRUIT_INTERVAL, (timers.get(b.id) ?? 0) + dt);
+    if (progress >= RECRUIT_INTERVAL && recruitNear(world, b)) progress -= RECRUIT_INTERVAL;
+    timers.set(b.id, progress);
+  } else {
+    b.progress = Math.min(RECRUIT_INTERVAL, b.progress + dt);
+    if (b.progress >= RECRUIT_INTERVAL && recruitNear(world, b)) b.progress -= RECRUIT_INTERVAL;
+  }
 }
 
 /** Ritual: DRUM_RITUAL_PER_SEC per drumming hippie at a working own circle (≤ DRUMMERS_PER_CIRCLE each), plus Saffron. */
@@ -238,13 +246,14 @@ function tendPiles(world: World, st: EconState, dt: number): void {
 export function updateEconomy(world: World, dt: number): void {
   const st = econ(world);
   tallyStock(world, st);
+  for (const id of st.workshopRecruitProgress.keys()) if (!world.buildings.has(id)) st.workshopRecruitProgress.delete(id);
 
   for (const b of world.buildings.values()) {
     const f = b.faction;
     if (f === -1) continue;
     if (b.kind === 'hearth') craftAtHearth(world, b, f, dt);
     else if (b.built >= 1 && !b.disabled) {
-      if (b.kind === 'workshop') craftAtWorkshop(world, b, f, dt);
+      if (b.kind === 'workshop') { craftAtWorkshop(world, b, f, dt); recruitAtBuilding(world, b, dt); }
       else if (b.kind === 'drumcircle' || b.kind === 'gcc') recruitAtBuilding(world, b, dt);
     }
   }

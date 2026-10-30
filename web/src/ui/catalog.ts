@@ -7,7 +7,6 @@
 import type { PlanTool, ToolKind } from '../game/session';
 import {
   ABILITY,
-  ALIGN_RADIUS,
   ALIGN_TIME,
   AVATAR,
   BREW_COST,
@@ -142,7 +141,7 @@ export const CHAKRA_INFO: Record<ChakraId, ChakraInfo> = {
   },
 };
 
-export const ALIGN_NOTE = `Channel ${ALIGN_TIME} s within ${ALIGN_RADIUS} m of your Hearth. The channel can be interrupted.`;
+export const ALIGN_NOTE = `Channel ${ALIGN_TIME} s from anywhere. The channel can be interrupted.`;
 
 export interface DrugInfo {
   key: string;
@@ -199,7 +198,7 @@ export const BUILD_INFO: Record<CampBuildingKind, BuildInfo> = {
   workshop: {
     name: BUILDING_NAMES.workshop,
     cost: BUILDINGS.workshop.cost,
-    effect: `Crafts +1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber each. Holds 10 for pickup here; overflow goes to the altar. Adds 10 to the camp hoarding threshold.`,
+    effect: `Crafts +1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber each. Holds 10 for pickup here; production pauses while full. Adds 10 to the camp hoarding threshold. Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`,
     icon: 'workshop',
   },
   drumcircle: {

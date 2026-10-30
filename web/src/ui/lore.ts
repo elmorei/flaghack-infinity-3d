@@ -8,7 +8,6 @@
 import {
   ABILITY,
   ALIGN_COST,
-  ALIGN_RADIUS,
   ALIGN_TIME,
   AVATAR,
   BREW_COST,
@@ -477,7 +476,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
     head: ['Building', 'Lumber', 'Effect'],
     rows: [
       ['**Flag Hearth**', '—', `${BUILDINGS.hearth.hp} HP. Crafts 1 Flag every ${HEARTH_FLAG_INTERVAL} s for ${HEARTH_FLAG_COST} lumber and keeps your stock. Cannot be destroyed, only overwritten.`],
-      ['**Flag Workshop**', `${BUILDINGS.workshop.cost}`, `+1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber. Holds 10 for local pickup; overflow goes to the altar. +10 camp hoarding threshold.`],
+      ['**Flag Workshop**', `${BUILDINGS.workshop.cost}`, `+1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber. Holds 10 for local pickup; production pauses while full. +10 camp hoarding threshold. Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`],
       [
         '**Drum Circle**',
         `${BUILDINGS.drumcircle.cost}`,
@@ -553,7 +552,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
   { kind: 'h', text: 'Chakras' },
   {
     kind: 'p',
-    text: `Five **Flag chakras**, one per Ley direction, named for the anatomy of a Flag: **Hoist** (Priority Beacon), **Fly** (Forced March), **Canton** (Stabilize Zone), **Field** (Phason Shift) and **Finial** (Omega Pulse). Align them with Ritual within ${ALIGN_RADIUS} m of your Hearth in a ${ALIGN_TIME} s channel: ${ALIGN_COST[0]}, ${ALIGN_COST[1]} and ${ALIGN_COST[2]} Ritual for levels 1, 2 and 3. Ritual comes from drumming, Crystals and Saffron, never from the size of your Survey.`,
+    text: `Five **Flag chakras**, one per Ley direction, named for the anatomy of a Flag: **Hoist** (Priority Beacon), **Fly** (Forced March), **Canton** (Stabilize Zone), **Field** (Phason Shift) and **Finial** (Omega Pulse). Align them with Ritual from anywhere in a ${ALIGN_TIME} s channel: ${ALIGN_COST[0]}, ${ALIGN_COST[1]} and ${ALIGN_COST[2]} Ritual for levels 1, 2 and 3. Ritual comes from drumming, Crystals and Saffron, never from the size of your Survey.`,
   },
 ];
 

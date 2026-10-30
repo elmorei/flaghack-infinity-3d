@@ -1,12 +1,12 @@
 /**
- * Chakra alignment (ritual economy, 4 s channel at own Hearth) and the five point-and-click
+ * Chakra alignment (ritual economy, 4 s channel from anywhere) and the five point-and-click
  * abilities: Priority Beacon, Forced March, Stabilize Zone, Phason Shift, Omega Pulse.
  * Zones live in world.zones; Phason Shift routes through tides.applyFlip(…, 'ability').
  * Owner: Economy agent.
  */
 import type { CommandOf } from '../commands';
 import { BOSS_OMEGA_DAMAGE } from '../boss';
-import { ABILITY, ALIGN_COST, ALIGN_RADIUS, ALIGN_TIME, BUILDINGS, MAP_HALF } from '../constants';
+import { ABILITY, ALIGN_COST, ALIGN_TIME, BUILDINGS, MAP_HALF } from '../constants';
 import { spawnZone } from '../factory';
 import { clamp, distToSegment } from '../math';
 import type { V2 } from '../math';
@@ -62,15 +62,6 @@ const SEG = [0, 0, 0, 0];
 
 // ── Alignment ────────────────────────────────────────────────────────────────
 
-function nearOwnHearth(world: World, f: FactionId, av: Avatar): boolean {
-  const reach = ALIGN_RADIUS + BUILDINGS.hearth.radius;
-  for (const id of world.factions[f].hearthIds) {
-    const h = world.buildings.get(id);
-    if (h && (h.pos.x - av.pos.x) ** 2 + (h.pos.z - av.pos.z) ** 2 <= reach * reach) return true;
-  }
-  return false;
-}
-
 /** Why the chakra can't be aligned right now ('' = it can). UI and AI use this. */
 export function alignBlocker(world: World, f: FactionId, chakra: ChakraId): string {
   const fac = world.factions[f];
@@ -82,7 +73,6 @@ export function alignBlocker(world: World, f: FactionId, chakra: ChakraId): stri
   if (level >= ALIGN_COST.length) return `The ${CHAKRA_NAMES[chakra]} chakra is fully aligned.`;
   if (av.action.kind === 'align') return 'Already aligning a chakra.';
   if (av.action.kind === 'channel') return 'Already channelling: finish it first.';
-  if (!nearOwnHearth(world, f, av)) return `Align at your Hearth (within ${ALIGN_RADIUS} m).`;
   const cost = ALIGN_COST[level];
   if (fac.ritual < cost) return `Needs ${cost} Ritual (you have ${Math.floor(fac.ritual)}).`;
   return '';
@@ -147,7 +137,7 @@ export function abilityBlocker(world: World, f: FactionId, a: AbilityId): string
   if (!fac.alive) return 'Your camp has fallen.';
   if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
   const chakra = ABILITY_CHAKRA[a];
-  if (fac.chakras[chakra] <= 0) return `Align the ${CHAKRA_NAMES[chakra]} chakra at your Hearth first.`;
+  if (fac.chakras[chakra] <= 0) return `Align the ${CHAKRA_NAMES[chakra]} chakra first.`;
   if (world.avatarOf(f).koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';
   const ready = fac.cooldowns[a];
   if (ready > world.time) return `${ABILITY_NAMES[a]} recharging (${Math.ceil(ready - world.time)} s).`;

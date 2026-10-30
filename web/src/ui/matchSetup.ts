@@ -19,7 +19,7 @@ const FIELDS: { key: NumericKey; label: string; hint: string; group: string }[] 
   { key: 'jumpHeight', label: 'Jump height multiplier', hint: '1.0 is the original height; 2.0 jumps twice as high.', group: 'Characters' },
   { key: 'maxSignifiers', label: 'Maximum Signifiers (whole world)', hint: 'Shared population, including neutral and knocked-out hippies. Camp capacity is a soft attention limit.', group: 'Characters' },
   { key: 'startingLumber', label: 'Starting lumber', hint: 'Lumber available to each active camp.', group: 'Starting camps' },
-  { key: 'hoardThreshold', label: 'Flag hoarding threshold', hint: 'Base camp stock limit before faster attention drain. Each completed, working Workshop adds 10 and stores up to 10 Flags for pickup; overflow goes to the altar.', group: 'Starting camps' },
+  { key: 'hoardThreshold', label: 'Flag hoarding threshold', hint: 'Base camp stock limit before faster attention drain. Each completed, working Workshop adds 10 and stores up to 10 Flags for pickup; production pauses while full.', group: 'Starting camps' },
   { key: 'startingFlags', label: 'Hearth Flags', hint: 'Stock Flags in each Hearth at the start.', group: 'Starting camps' },
   { key: 'startingSignifiers', label: 'Starting Signifiers', hint: 'Workers per camp, drawn from the shared population.', group: 'Starting camps' },
 ];

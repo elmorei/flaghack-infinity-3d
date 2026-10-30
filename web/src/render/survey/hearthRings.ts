@@ -1,6 +1,6 @@
 /**
  * Hearth stage rings: a ground ring + arc meter around every Hearth, styled by capture stage
- * (safe = owner colour and calm; threatened = amber pulse; contained = red, arc = leading
+ * (safe = owner colour and calm; threatened = amber pulse; contained = capturing faction colour, arc = leading
  * pressure, beams from the enclosing loop's Ley Lines converge on the Hearth; contested =
  * owner/attacker flicker; overwritten = white column). When the PLAYER's Hearth is contained
  * or contested, the critical enemy Flags (any one pulled breaks the loop) get pulsing red
@@ -106,7 +106,7 @@ export class HearthFeature {
         this.color.copy(AMBER);
         break;
       case 'contained':
-        this.color.copy(RED);
+        this.color.setHex(attacker === null ? owner : attackerColor);
         break;
       case 'contested':
         this.color.setHex(owner);
@@ -122,7 +122,9 @@ export class HearthFeature {
       const dispX = this.data.dispX;
       const dispZ = this.data.dispZ;
       const edges = this.data.lat.edges;
-      this.beamColor.copy(RED).lerp(this.color2.setHex(attackerColor), 0.35);
+      // Capture inflow identifies the enclosing faction, not generic danger red.
+      // Defender-only critical-flag reticles below retain their warning colour.
+      this.beamColor.setHex(attackerColor);
       if (h.stage === 'overwritten') this.beamColor.lerp(WHITE, 0.6);
       for (let i = 0; i < loop.edges.length; i++) {
         const e = edges[loop.edges[i]];

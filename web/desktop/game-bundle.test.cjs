@@ -26,6 +26,8 @@ const contents = () => ({
   'models/boss/asset-manifest.json': '{}',
   'models/boss/README.md': 'Model attribution',
   'models/boss/boss.glb': Buffer.from([0, 3, 6]),
+  'cards/rider-waite/Major15.webp': Buffer.from([1, 2, 3]),
+  'cards/parody/creature.webp': Buffer.from([3, 2, 1]),
 });
 function file(name, data) {
   const bytes = Buffer.from(data);
@@ -155,7 +157,7 @@ test('nonregular FIFO cache entries are rejected without opening them', async (t
 });
 
 test('unsafe, platform-ambiguous, duplicate, and conflicting archive paths are rejected', () => {
-  for (const name of ['/index.html', '../index.html', 'assets/../../escape', 'assets/./x', 'assets/../x', 'assets\\evil.js', 'assets/a:b.js', 'assets//x.js', 'assets/.hidden', 'assets/x.', 'assets/CON', 'assets/Lpt1.txt', 'assets/space name.js', 'assets/é.js', 'package.json', 'server.cjs', 'assets/']) {
+  for (const name of ['cards/../escape', 'cards/../../escape', 'cards/.hidden', 'cards/CON', 'cards//x', 'cards-evil/card.webp', '/index.html', '../index.html', 'assets/../../escape', 'assets/./x', 'assets/../x', 'assets\\evil.js', 'assets/a:b.js', 'assets//x.js', 'assets/.hidden', 'assets/x.', 'assets/CON', 'assets/Lpt1.txt', 'assets/space name.js', 'assets/é.js', 'package.json', 'server.cjs', 'assets/']) {
     const { bytes, expected } = fixture({ mutate: (bundle) => bundle.files.push(file(name, 'x')) });
     assert.throws(() => validateBundle(bytes, expected), /path/, name);
   }

@@ -37,6 +37,9 @@ export class EconState {
   readonly pieceInfo = new Map<EntityId, PieceInfo>();
   pieceLatticeVersion = 0;
 
+  /** Independent host-side passive recruitment clocks; workshop progress remains Flag crafting. */
+  readonly workshopRecruitProgress = new Map<EntityId, number>();
+
   pileTimer = 0;
   /** world.tick the stock/hoarding tally was taken at (-Infinity: never). */
   stockTick = -Infinity;

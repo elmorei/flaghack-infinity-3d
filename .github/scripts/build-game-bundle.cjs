@@ -15,8 +15,8 @@ async function build({ branch, commit, dist, out }) {
       const path = prefix + name, absolute = join(dir, name), info = await lstat(absolute);
       if (info.isSymbolicLink()) throw new Error('Symlink in build output');
       if (!/^[A-Za-z0-9_.-]+$/.test(name) || name.startsWith('.')) throw new Error('Unexpected build path');
-      if (info.isDirectory()) { if (!['assets', 'audio', 'models'].some(root => path === root || path.startsWith(root + '/'))) throw new Error('Unexpected output directory'); await walk(absolute, path + '/'); }
-      else if (info.isFile()) { if (path !== 'index.html' && !['assets/', 'audio/', 'models/'].some(root => path.startsWith(root))) throw new Error('Unexpected output file'); if (path.endsWith('.map')) continue; await add(path, await readFile(absolute)); }
+      if (info.isDirectory()) { if (!['assets', 'audio', 'models', 'cards'].some(root => path === root || path.startsWith(root + '/'))) throw new Error('Unexpected output directory'); await walk(absolute, path + '/'); }
+      else if (info.isFile()) { if (path !== 'index.html' && !['assets/', 'audio/', 'models/', 'cards/'].some(root => path.startsWith(root))) throw new Error('Unexpected output file'); if (path.endsWith('.map')) continue; await add(path, await readFile(absolute)); }
       else throw new Error('Non-regular build output');
     }
   }

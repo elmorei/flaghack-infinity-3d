@@ -57,7 +57,7 @@ function json(bytes, label) {
 }
 function safePath(value) {
   if (typeof value !== 'string' || value.length > 1024) fail('file path is invalid');
-  if (value !== 'index.html' && value !== 'LICENSES.txt' && !['assets/', 'audio/', 'models/'].some((prefix) => value.startsWith(prefix))) fail(`file path is not allowed: ${value}`);
+  if (value !== 'index.html' && value !== 'LICENSES.txt' && !['assets/', 'audio/', 'models/', 'cards/'].some((prefix) => value.startsWith(prefix))) fail(`file path is not allowed: ${value}`);
   const parts = value.split('/');
   if (parts.length > 16 || parts.some((part) => (
     !/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(part) || part.length > 255 || part.endsWith('.') ||

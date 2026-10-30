@@ -14,6 +14,10 @@ test('CI packer produces a compatible browser-only bundle with required credits'
   const web = join(root, 'web'), dist = join(web, 'dist'), out = join(root, 'out');
   await mkdir(join(dist, 'assets'), { recursive: true });
   await mkdir(join(dist, 'audio/boss'), { recursive: true });
+  for (const family of ['rider-waite', 'parody']) {
+    await mkdir(join(dist, 'cards', family), { recursive: true });
+    await writeFile(join(dist, 'cards', family, 'sample.webp'), Buffer.from([1, 2, 3]));
+  }
   await writeFile(join(dist, 'index.html'), '<!doctype html><html><head></head><body><script type="module" src="/assets/game.js"></script></body></html>');
   await writeFile(join(dist, 'assets/game.js'), 'window.flaghack = {};');
   await writeFile(join(dist, 'audio/boss/CREDITS.md'), 'Fixture audio attribution');
@@ -25,6 +29,10 @@ test('CI packer produces a compatible browser-only bundle with required credits'
   assert.equal(content.branch, 'main');
   assert.ok(content.files.some(file => file.path === 'LICENSES.txt'));
   assert.ok(content.files.some(file => file.path === 'audio/boss/CREDITS.md'));
+  for (const family of ['rider-waite', 'parody']) assert.ok(content.files.some(file => file.path === `cards/${family}/sample.webp`));
+  await mkdir(join(dist, 'cards-evil'));
+  await assert.rejects(build({ branch: 'main', commit: 'a'.repeat(40), dist, out }), /Unexpected output directory/);
+  await rm(join(dist, 'cards-evil'), { recursive: true });
   await writeFile(join(dist, 'run.exe'), 'not allowed');
   await assert.rejects(build({ branch: 'main', commit: 'a'.repeat(40), dist, out }), /Unexpected output/);
 });

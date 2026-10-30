@@ -336,8 +336,6 @@ export const DAWN_WARNING = 60;
 // ── Chakras / abilities ──────────────────────────────────────────────────────
 export const ALIGN_COST = [30, 70, 130] as const; // cost to reach level 1, 2, 3
 export const ALIGN_TIME = 4;
-/** Must stand within this of an own Hearth to align a chakra. */
-export const ALIGN_RADIUS = 8;
 /** Ability tuning (design §11). Arrays are indexed by chakra level - 1. */
 export const ABILITY = {
   beacon: { cooldown: 20, radius: [40, 70, MAP_SIZE * 1.5], duration: 12, targetReach: 2.5 },
