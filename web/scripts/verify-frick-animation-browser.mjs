@@ -59,7 +59,7 @@ async function main(){
       assert.equal(await page.locator('.ff-deck-card').count(),1);check('picnic blanket and visible deck');
       await stage('deal');
       await page.waitForFunction(()=>document.querySelectorAll('.ff-card-slot').length===4);
-      const start=await page.evaluate(()=>({animations:document.querySelector('.ff-hands').getAnimations({subtree:true}).length,hidden:document.querySelector('.ff-card-back')?.getAttribute('data-card-id'),hiddenArt:document.querySelector('.ff-card-back img')!==null}));
+      const start=await page.evaluate(()=>({animations:document.querySelector('.ff-hands').getAnimations({subtree:true}).length,hidden:document.querySelector('.ff-card-slot .ff-card-back')?.getAttribute('data-card-id'),hiddenArt:document.querySelector('.ff-card-slot .ff-card-back img')!==null}));
       assert.equal(start.hidden,null);assert.equal(start.hiddenArt,false);
       if(spec.reduced)assert.equal(start.animations,0);else assert(start.animations>0);
       check('opening deal and hidden-card privacy');

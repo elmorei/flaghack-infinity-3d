@@ -201,7 +201,7 @@ export class FrickFrackUI implements UiPart {
       const top = el('div', 'ff-table-topline', cards);
       const deck = el('div', 'ff-deck', top); deck.setAttribute('aria-hidden', 'true');
       el('span', '', deck); el('span', '', deck);
-      el('div', 'ff-deck-card', deck, '✦');
+      el('div', 'ff-deck-card ff-card-back', deck, '✦');
       el('p', 'ff-table-note', top, 'The wizard’s picnic blanket');
       this.hand(cards, 'Wizard', s.dealer, s);
       this.hand(cards, 'You', s.player, s);

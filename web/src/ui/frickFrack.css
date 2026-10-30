@@ -87,7 +87,7 @@
 .ff-deck > span { position: absolute; inset: 0; border: 1px solid #baa88c; border-radius: 5px; background: #f3e7ce; box-shadow: 0 2px 3px #50362335; }
 .ff-deck > span:first-child { transform: translate(4px, 5px) rotate(3deg); }
 .ff-deck > span:nth-child(2) { transform: translate(2px, 2px) rotate(1deg); }
-.ff-deck .ff-deck-card { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border-radius: 5px; font-size: 20px; }
+.ff-deck .ff-deck-card { display: grid; place-items: center; position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border-radius: 5px; font-size: 20px; }
 .ff-hands .ff-card:not(.ff-card-back) { box-shadow: 1px 3px 3px #4a302b26, 3px 7px 11px #4a302b33; }
 .ff-card-slot { flex: 0 0 auto; width: 72px; height: 108px; }
 .ff-card-slot > .ff-card { width: 100%; height: 100%; box-sizing: border-box; }
