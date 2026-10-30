@@ -45,6 +45,6 @@ export function browserDeviceLayout(): DeviceLayout {
 }
 
 /** Select once per visit: rotating never restarts a playing intro or downloads a second movie. */
-export function usePortraitIntro(layout: DeviceLayout, width: number, height: number): boolean {
-  return layout === 'mobile' && width < height;
+export function useMobileIntro(layout: DeviceLayout): boolean {
+  return layout === 'mobile';
 }

@@ -1,0 +1,38 @@
+{
+  "sourceFilename": "Unbabling Web.mp4",
+  "sourceBytes": 50813991,
+  "sourceSha256": "faf4609d838b01ffb0a802a9f9c69a1a0ea7bc4953ed13946ad5dffbb3e31f6f",
+  "sourceDurationSeconds": 193.002667,
+  "conversion": {
+    "video": "H264 x264 medium CRF 28 yuv420p",
+    "audio": "AAC 96 kbps",
+    "playbackSpeed": 1,
+    "frameRate": 24,
+    "fastStart": true
+  },
+  "outputs": [
+    {
+      "name": "flaghack-improved-intro.mp4",
+      "width": 1280,
+      "height": 720,
+      "crop": null,
+      "durationSeconds": 193.002,
+      "bytes": 34010702,
+      "sha256": "42e4f1850c9d65839466835f7ef7aa5d43feff41209577f33d9608cc0132f02f"
+    },
+    {
+      "name": "flaghack-improved-intro-mobile.mp4",
+      "width": 720,
+      "height": 720,
+      "crop": "centered 1080 x 1080 crop, then scale",
+      "durationSeconds": 193.002,
+      "bytes": 23748363,
+      "sha256": "57c73c017c25bd8fa847d90712c86cd46a13026a4d92bd9a7eaac27e046f25fa"
+    }
+  ],
+  "validation": {
+    "fullDecode": "Both completed without errors",
+    "visualReview": "Exact SHA256 matches outputs visually sampled and decoded earlier on October 30, 2026.",
+    "limits": "Sampled visual review, not exhaustive frame-by-frame review or audio listening."
+  }
+}

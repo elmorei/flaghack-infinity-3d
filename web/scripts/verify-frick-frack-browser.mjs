@@ -339,11 +339,22 @@ async function main(){
         await tap(button('Another hand'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-1',10);
-        const stockBefore=(await state()).altarStock;
+        // Observe settlement before the live world can consume stock again.
+        await page.evaluate(()=>{
+          const w=window.flaghack.world,s=w.frickFrack.sessions[0];
+          const stock=()=>[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(0)?.id).length;
+          let phase=s.phase;window.__frickQa.overflow={};
+          Object.defineProperty(s,'phase',{enumerable:true,configurable:true,get:()=>phase,set(value){
+            phase=value;
+            if(value==='playing')window.__frickQa.overflow.before=stock();
+            if(value==='result')window.__frickQa.overflow.after=stock();
+          }});
+        });
         await deal(10);
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         const overflow=await state();assert.equal(overflow.session.result,'win');assert.equal(overflow.carried.length,10);
-        assert.equal(overflow.altarStock-stockBefore,10,'Ten overflow winnings are real altar-stock flags');
+        const settlement=await page.evaluate(()=>window.__frickQa.overflow);
+        assert.equal(settlement.after-settlement.before,10,'Ten overflow winnings are real altar-stock flags at settlement');
         await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 

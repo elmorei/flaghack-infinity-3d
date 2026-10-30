@@ -13,7 +13,7 @@ vi.mock('./main', () => ({ boot: captured.boot, GAME_MODULE_URL: 'https://exampl
 vi.mock('./startup/overlay', () => ({ StartupOverlay: class { constructor() { return captured.overlay; } } }));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-async function fixture(cached: boolean, mobile = false) {
+async function fixture(cached: boolean, mobile = false, landscape = false) {
   vi.resetModules(); captured.cache.mockReset(); captured.remember.mockReset(); captured.boot.mockReset();
   const readiness = deferred<void>(), intro = deferred<void>(), fontReady = deferred<void>(), cache = deferred<boolean>();
   const app = { ready: readiness.promise, finishStartup: vi.fn() };
@@ -23,8 +23,8 @@ async function fixture(cached: boolean, mobile = false) {
   vi.stubGlobal('document', { getElementById: (id: string) => id === 'app' ? root : {}, documentElement: html, querySelectorAll: () => [], fonts: Object.assign([], { ready: fontReady.promise }) });
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1; });
   vi.stubGlobal('navigator', { userAgent: mobile ? 'iPhone' : 'Windows NT', maxTouchPoints: mobile ? 5 : 0 });
-  vi.stubGlobal('innerWidth', mobile ? 390 : 1280);
-  vi.stubGlobal('innerHeight', mobile ? 844 : 720);
+  vi.stubGlobal('innerWidth', mobile ? (landscape ? 844 : 390) : 1280);
+  vi.stubGlobal('innerHeight', mobile ? (landscape ? 390 : 844) : 720);
   vi.stubGlobal('location', { href: 'https://example.github.io/game/' });
   vi.stubGlobal('performance', { now: () => Date.now(), getEntriesByType: () => entries });
   await import('./startup');
@@ -64,8 +64,8 @@ it('game startup failures keep the safe reload UI instead of exposing an unready
   expect(f.app.finishStartup).not.toHaveBeenCalled(); expect(f.root.inert).toBe(true); expect(log).toHaveBeenCalledOnce();
 });
 
-it('selects only the portrait intro on mobile without changing readiness gates', async () => {
-  const f = await fixture(false, true);
+it.each([false, true])('selects only the square intro on mobile (landscape=%s) without changing readiness gates', async landscape => {
+  const f = await fixture(false, true, landscape);
   expect(f.html.dataset.deviceLayout).toBe('mobile');
   expect(f.overlay.play).toHaveBeenCalledExactlyOnceWith('/test-mobile.mp4', true);
   expect(f.root.inert).toBe(true);

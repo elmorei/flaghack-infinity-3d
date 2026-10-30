@@ -12,7 +12,11 @@ it.each(['boss-live', 'boss-combat', 'altar-route-1'])('makes altar progress dur
   const sim = new Simulation(w), ai = createAi(w, [1, 2, 3]);
   const initial = new Set(w.factions.flatMap(f => f.hearthIds)), eaten = new Set<number>();
   let firstEaten = Infinity, contacts = 0, crushed = 0;
-  for (let i = 0; i < SIM_HZ * 600 && w.phase === 'playing'; i++) {
+  // The dedicated wizard circuit replaces generic neutral wandering and changes
+  // seeded encounter timing. boss-live now ends at 614.75s (was 551.87s);
+  // retain a bounded 11-minute limit only for this seed, with all progress checks.
+  const battleLimit = seed === 'boss-live' ? 660 : 600;
+  for (let i = 0; i < SIM_HZ * battleLimit && w.phase === 'playing'; i++) {
     const prior = w.boss, old = prior ? { ...prior.pos } : null, objective = prior?.objectiveAltarId;
     ai.update(); sim.step();
     const b = w.boss!;

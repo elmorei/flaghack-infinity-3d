@@ -4,13 +4,13 @@ import { rememberReadyAssets } from './startup/remember';
 import { INTRO_VIDEO_URL, MOBILE_INTRO_VIDEO_URL, INTRO_VIDEO_HAS_AUDIO } from './startup/media';
 import { StartupOverlay } from './startup/overlay';
 
-import { browserDeviceLayout, usePortraitIntro } from './startup/device';
+import { browserDeviceLayout, useMobileIntro } from './startup/device';
 
 /** Small entry point: paints before the game bundle, fonts, world and GPU are prepared. */
 async function start(): Promise<void> {
   const layout = browserDeviceLayout();
   document.documentElement.dataset.deviceLayout = layout;
-  const introUrl = usePortraitIntro(layout, globalThis.innerWidth, globalThis.innerHeight)
+  const introUrl = useMobileIntro(layout)
     ? MOBILE_INTRO_VIDEO_URL : INTRO_VIDEO_URL;
   const root = document.getElementById('app')!;
   const overlay = new StartupOverlay(document.getElementById('startup')!);

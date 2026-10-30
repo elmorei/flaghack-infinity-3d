@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { newMatch } from './econ/testkit';
 import { initializeFrickFrack, stepFrickFrackWizard, offerFrickFrackFlag, closeFrickFrackSession, updateFrickFrack } from './frickFrack';
 import { wizardCircuitRadius } from './frickFrackWander';
@@ -17,6 +17,11 @@ function arena(seed = 'wizard-circuit') {
 function step(w:World,seconds:number){for(let i=0;i<Math.ceil(seconds*30);i++){w.time+=1/30;updateFrickFrack(w);updateHippies(w,1/30);}}
 const radius=(w:World,p:{x:number;z:number})=>Math.hypot(p.x-w.map.effigy.x,p.z-w.map.effigy.z);
 describe('wizard effigy circuit',()=>{
+ it('does not consume the shared world RNG while choosing circuit goals',()=>{
+  const {w,h,b}=arena();const random=vi.spyOn(w.rng,'next');
+  for(let i=0;i<300;i++){w.time+=1/30;stepFrickFrackWizard(w,unitsState(w),h,b,1/30);}
+  expect(random).not.toHaveBeenCalled();random.mockRestore();
+ });
  it.each(['wizard-circuit','wizard-second','wizard-third'])('returns from camp and circulates using real navigation: %s',seed=>{
   const {w,h,b}=arena(seed);step(w,100);
   expect(radius(w,h.pos)).toBeLessThan(wizardCircuitRadius(w)+6);

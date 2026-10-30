@@ -1,12 +1,7 @@
-import mobileGameplayIntroUrl from './assets/flaghack-gameplay-intro-mobile-25s.mp4?url';
-import gameplayIntroUrl from './assets/flaghack-gameplay-intro-25s.mp4?url';
-
-/** Self-hosted placeholder captured from the actual game; Vite fingerprints the MP4.
- * Replace this source with the owner's original intro when its playable file is supplied.
- * Never fall back to a video-provider iframe or make playback a prerequisite for the game.
- */
-export const INTRO_VIDEO_URL: string | null = gameplayIntroUrl;
-export const INTRO_VIDEO_HAS_AUDIO = false;
-
-/** Portrait crop of the same footage, duration and speed; never downloaded on desktop. */
-export const MOBILE_INTRO_VIDEO_URL: string | null = mobileGameplayIntroUrl;
+import mobileIntroUrl from './assets/flaghack-improved-intro-mobile.mp4?url';
+import desktopIntroUrl from './assets/flaghack-improved-intro.mp4?url';
+/** Owner-supplied film, original speed/duration and audio, fingerprinted by Vite. */
+export const INTRO_VIDEO_URL: string | null = desktopIntroUrl;
+export const INTRO_VIDEO_HAS_AUDIO = true;
+/** Square mobile crop, selected once per visit in either orientation. */
+export const MOBILE_INTRO_VIDEO_URL: string | null = mobileIntroUrl;

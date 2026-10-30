@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deviceLayout, usePortraitIntro } from './device';
+import { deviceLayout, useMobileIntro } from './device';
 const url = 'https://example.github.io/game/?host=wss%3A%2F%2Fexample.com#invite';
 describe('device presentation routing', () => {
   it.each(['Android', 'iPhone', 'iPad', 'iPod'])('uses mobile for %s without depending on orientation', userAgent => {
@@ -26,9 +26,8 @@ describe('device presentation routing', () => {
   it('ignores invalid overrides and malformed URLs safely', () => {
     expect(deviceLayout({ url: '?view=bogus', userAgent: 'iPhone' })).toBe('mobile');
   });
-  it('only crops the intro for a portrait mobile visit', () => {
-    expect(usePortraitIntro('mobile', 390, 844)).toBe(true);
-    expect(usePortraitIntro('mobile', 844, 390)).toBe(false);
-    expect(usePortraitIntro('desktop', 390, 844)).toBe(false);
+  it('uses the square intro for every mobile visit', () => {
+    expect(useMobileIntro('mobile')).toBe(true);
+    expect(useMobileIntro('desktop')).toBe(false);
   });
 });
