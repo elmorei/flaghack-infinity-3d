@@ -89,8 +89,9 @@
 .ff-deck > span:nth-child(2) { transform: translate(2px, 2px) rotate(1deg); }
 .ff-deck .ff-deck-card { display: grid; place-items: center; position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border-radius: 5px; font-size: 20px; }
 .ff-hands .ff-card:not(.ff-card-back) { box-shadow: 1px 3px 3px #4a302b26, 3px 7px 11px #4a302b33; }
-.ff-card-slot { flex: 0 0 auto; width: 72px; height: 108px; }
-.ff-card-slot > .ff-card { width: 100%; height: 100%; box-sizing: border-box; }
+.ff-card-slot { flex: 0 0 auto; }
+.ff-hands .ff-card-slot > .ff-card { box-sizing: border-box; }
+.ff-hands .ff-small { color: #514537; }
 
 .ff-hand h3 { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #dbc795; font: 600 13px Rubik,sans-serif; letter-spacing: .06em; }
 .ff-hand-dealer { border-bottom: 1px dashed #ceb67b48; padding-bottom: 16px; }
@@ -119,7 +120,6 @@
   .ff-overlay:not(.ff-in-world) .ff-status { font-size: 11px; padding: 8px 3px; }
   .ff-overlay:not(.ff-in-world) .ff-hands { padding: 16px 12px; border-radius: 9px 12px 8px 10px; gap: 12px; }
   .ff-card { width: 52px; height: 78px; font-size: 20px; }
-  .ff-card-slot { width: 52px; height: 78px; }
   .ff-deck { flex-basis: 38px; width: 38px; height: 54px; }
   .ff-table-topline { gap: 12px; }
   .ff-table-note { font-size: 10px; }

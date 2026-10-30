@@ -48,10 +48,10 @@ async function main(){
         if(mode==='empty')ff.sessions[0]={id:9100,revision:1,faction:0,phase:'betting',dialogueIndex:0,dialogueStartedAt:0,readyAt:0,wager:0,player:[],dealer:[],result:null,message:''};
         const s=ff.sessions[0];
         if(mode==='deal'){Object.assign(s,{revision:s.revision+1,phase:'playing',wager:1,player:[c(9101,4,1),{...c(9102,2,0),tarot:true}],dealer:[c(9103,5,3),null],revealedCardOrder:[9101,9103,9102]});}
-        if(mode==='hit'){s.revision++;s.player.push(c(9104,2,2));s.revealedCardOrder.push(9104);}
+        if(mode==='hit'){s.revision++;s.player.push({...c(9104,2,2),parody:0});s.revealedCardOrder.push(9104);}
         if(mode==='refresh')s.revision++;
         if(mode==='reveal'){s.revision++;s.dealer=[c(9103,5,3),c(9105,7,0)];s.revealedCardOrder.push(9105);}
-        if(mode==='defeat'){s.revision++;s.player=s.player.filter(c=>c.id!==9104);s.defeated=[{side:'player',card:c(9104,2,2)}];}
+        if(mode==='defeat'){s.revision++;s.player=s.player.filter(c=>c.id!==9104);s.defeated=[{side:'player',card:{...c(9104,2,2),parody:0}}];}
         if(mode==='close')delete ff.sessions[0];
       },mode);
       await stage('empty');
@@ -82,6 +82,8 @@ async function main(){
       await page.waitForFunction(()=>document.querySelector('.ff-card-defeated'));
       assert.equal(await page.locator('.ff-defeated-cross').innerText(),'X');check('defeated card stays visible and marked');
       await page.screenshot({path:join(OUT,spec.name+'-defeated.png'),animations:'allow'});
+      const slotSizes=await page.locator('.ff-card-slot').evaluateAll(slots=>slots.map(slot=>{const a=slot.getBoundingClientRect(),b=slot.querySelector('.ff-card').getBoundingClientRect();return{slotWidth:a.width,slotHeight:a.height,cardWidth:b.width,cardHeight:b.height};}));
+      assert(slotSizes.every(s=>s.cardWidth<=s.slotWidth+.5&&s.cardHeight<=s.slotHeight+.5));check('mixed card families fit their layout slots');
       const layout=await page.locator('.ff-hands').evaluate(el=>({width:el.getBoundingClientRect().width,viewport:innerWidth,scroll:document.documentElement.scrollWidth}));
       assert(layout.width<=layout.viewport);assert(layout.scroll<=layout.viewport+1);check('no horizontal viewport overflow');
       await stage('empty');await page.waitForFunction(()=>document.querySelectorAll('.ff-card-slot').length===0);
