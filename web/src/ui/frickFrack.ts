@@ -269,10 +269,10 @@ export class FrickFrackUI implements UiPart {
     if (!displayed.length) el('span', 'ff-small', row, 'Waiting for the deal');
     for (const {card, defeated} of displayed) {
       const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, row, card === null ? '✦' : cardLabel(card));
-      tile.setAttribute('aria-label', `${cardLabel(card)}${defeated ? ' — defeated, does not count' : ''}`);
       if (card) tile.dataset.cardId = String(card.id);
       renderFrickFrackCard(tile, card);
       renderParodyCard(tile, card);
+      tile.setAttribute('aria-label', `${cardLabel(card)}${defeated ? ' — defeated, does not count' : ''}`);
       if (defeated) {
         tile.classList.add('ff-card-defeated');
         const cross = el('span', 'ff-defeated-cross', tile, 'X'); cross.setAttribute('aria-hidden', 'true');
