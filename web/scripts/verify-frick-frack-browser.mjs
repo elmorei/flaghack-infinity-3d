@@ -367,7 +367,9 @@ async function main(){
         await page.keyboard.press('Escape');await page.waitForTimeout(150);
         assert.equal((await state()).session,null,'Repeated Escape does not restore hand or wager');
         // Resume from ordinary pause if Escape opened it, then stage the lifecycle interruption.
-        await page.evaluate(()=>{const a=window.flaghack;if(a.session.screen==='paused')a.setPaused(false);});
+        const resume = page.getByRole('button',{name:'Resume',exact:true});
+        if(await resume.isVisible())await tap(resume);
+        await page.waitForFunction(()=>window.flaghack.session.screen==='playing');
         await page.waitForTimeout(1100);await stageGift();
         await page.evaluate(()=>{const w=window.flaghack.world,av=w.avatarOf(0);av.hp=0;av.koUntil=w.time+6;});
         await dialog.waitFor({state:'hidden'});
