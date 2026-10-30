@@ -1,7 +1,7 @@
 import { offerFrickFrackFlag } from './frickFrack';
 /** Recruitment changes allegiance within the shared population; it never creates a hippie. */
 import type { CommandOf } from '../commands';
-import { AVATAR, BUILDINGS, RECRUIT_ATTRACT_RADIUS, RECRUIT_RADIUS } from '../constants';
+import { AVATAR, BUILDINGS, RECRUIT_RADIUS } from '../constants';
 import type { GameEvent } from '../events';
 import { NEUTRAL } from '../types';
 import type { Building, FactionId, Hippie } from '../types';
@@ -147,7 +147,7 @@ export function updateRecoveryCalls(world: World): void {
   const eligible = recruiters.filter(b => b.kind === 'gcc' && !occupied.has(b.faction));
   const ordered = new Set([...world.hippies.values()].flatMap(h => h.order?.kind === 'recruit' ? [h.order.target] : []));
   const locallyClaimed = (h: Hippie, own: number) => recruiters.some(b => b.id !== own &&
-    (h.pos.x - b.pos.x) ** 2 + (h.pos.z - b.pos.z) ** 2 <= (b.kind === 'workshop' ? RECRUIT_RADIUS : RECRUIT_ATTRACT_RADIUS) ** 2 &&
+    (h.pos.x - b.pos.x) ** 2 + (h.pos.z - b.pos.z) ** 2 <= RECRUIT_RADIUS ** 2 &&
     (recruitmentLineClear(world, b, h) || (h.statusTarget?.x === b.pos.x && h.statusTarget.z === b.pos.z)));
   for (const [id, target] of state.claims) {
     const b = eligible.find(b => b.id === id), h = world.hippies.get(target);

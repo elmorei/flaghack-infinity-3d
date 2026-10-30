@@ -30,11 +30,18 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-capture-colors-browser.cjs
+      - name: Render natural neutral circulation
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-neutral-social-browser.cjs
+      - name: Verify mobile touch interaction at the current camera scale
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Upload native browser screenshots and results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: capture-colors-native-smoke
-          path: web/host-release/capture-colors/
+          path: |
+            web/host-release/capture-colors/
+            web/host-release/mobile-command-smoke/
+            web/host-release/neutral-social/
           if-no-files-found: warn
           retention-days: 14

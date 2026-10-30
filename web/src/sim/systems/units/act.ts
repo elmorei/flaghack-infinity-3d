@@ -4,7 +4,7 @@
  * task (or the order) when it ends so the next tick decides afresh.
  */
 import { damageMelee, emitMeleeImpact } from '../meleeImpact';
-import { BUILDINGS, DRUMMERS_PER_CIRCLE, GCC, HIPPIE, HIPPIE_AI, RECRUIT_RADIUS, RECRUIT_ATTRACT_RADIUS } from '../../constants';
+import { BUILDINGS, DRUMMERS_PER_CIRCLE, GCC, HIPPIE, HIPPIE_AI, RECRUIT_RADIUS, MAP_HALF } from '../../constants';
 import { TAU } from '../../math';
 import type { V2 } from '../../math';
 import { NEUTRAL } from '../../types';
@@ -12,13 +12,14 @@ import type { Building, FactionId, Hippie } from '../../types';
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { aboveAttentionCap, nearestHearth } from '../economy';
-import { canRecruit, recruitWithFlag, recoveryRecruiter, recoveryApproach, failRecoveryCall, recruiterApproach, recruitmentLineClear, isRecruiter } from '../recruitment';
+import { canRecruit, recruitWithFlag, recoveryRecruiter, recoveryApproach, failRecoveryCall, recruiterApproach, recruitmentLineClear } from '../recruitment';
 import { speedMultiplier } from '../effects';
 import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock, defendedPullRate } from '../flags';
 import { neutralizeHippie } from '../victory';
 import { beginTask, releaseTask, setStatus, setStatusAt } from './brain';
 import type { Brain } from './brain';
 import { moveCart } from './cart';
+import { neutralSocialVisit, arriveNeutralSocial, leaveNeutralSocial } from './neutralSocial';
 import { finishOrder, IDLE_R0, IDLE_R1, pickSpotAround, setRim, startEngage, startPlant, startTear } from './decide';
 import { moveTo, routeExhausted } from './move';
 import { buildingClosest, pieceClosest, pieceSpan } from './reach';
@@ -66,7 +67,6 @@ const LINGER_MIN = 4;
 const LINGER_MAX = 12;
 const WANDER_R0 = 6;
 const WANDER_R1 = 20;
-const NEUTRAL_SPREAD = 6;
 const DANCE_ARRIVE = 2.5;
 
 const tmp: V2 = { x: 0, z: 0 };
@@ -649,47 +649,46 @@ function actPush(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
 
 /** Next wandering spot: neutrals drift between sound camps and spawns, others nearby. */
 export function pickWanderSpot(world: World, h: Hippie, b: Brain): void {
-  const map = world.map;
-  const n = h.faction === NEUTRAL ? map.soundCamps.length + map.neutralSpawns.length : 0;
-  if (n === 0) {
-    pickSpotAround(world, b, h.pos.x, h.pos.z, WANDER_R0, WANDER_R1);
-    return;
+  // Most trips explore the broader field; occasional music-camp visits preserve ambience.
+  if (h.faction === NEUTRAL && world.rng.next() < .75) {
+    for (let i = 0; i < 12; i++) {
+      const x = world.rng.range(-MAP_HALF + 5, MAP_HALF - 5);
+      const z = world.rng.range(-MAP_HALF + 5, MAP_HALF - 5);
+      if (world.nav.isWalkable(x, z)) { b.px = x; b.pz = z; return; }
+    }
   }
-  const i = world.rng.int(0, n - 1);
-  if (i < map.soundCamps.length) {
-    const c = map.soundCamps[i];
-    pickSpotAround(world, b, c.x, c.z, 0, c.radius * 0.7);
-  } else {
-    const s = map.neutralSpawns[i - map.soundCamps.length];
-    pickSpotAround(world, b, s.x, s.z, 0, NEUTRAL_SPREAD);
-  }
+  const camps = h.faction === NEUTRAL ? world.map.soundCamps : [];
+  if (camps.length) {
+    const c = camps[world.rng.int(0, camps.length - 1)];
+    pickSpotAround(world, b, c.x, c.z, 0, c.radius * .7);
+  } else pickSpotAround(world, b, h.pos.x, h.pos.z, WANDER_R0, WANDER_R1);
 }
 
 const recruiterRoutes = new WeakMap<Brain, { id: number; version: number; point: V2 }>();
 
 export function attractToRecruiter(world: World, sys: UnitsState, h: Hippie, b: Brain): boolean {
   b.pace = HIPPIE_AI.neutralPace;
-  // The music draws unaligned hippies toward working recruiters. They wait in recruitment
-  // range instead of endlessly wandering past the camp; the GCC can be pushed to meet them.
+  // Drum circles host bounded social visits. Other buildings recruit passing neutrals
+  // without capturing their movement, except one-person zero-worker recovery calls.
   if (h.faction === NEUTRAL && b.waitUntil !== Infinity) {
-    let nearest: Building | undefined;
-    let distance = RECRUIT_ATTRACT_RADIUS * RECRUIT_ATTRACT_RADIUS;
-    for (const recruiter of world.buildings.values()) {
-      if (!isRecruiter(world, recruiter) || (b.avoidBuildings.get(recruiter.id) ?? 0) > world.time) continue;
-      const d = (recruiter.pos.x - h.pos.x) ** 2 + (recruiter.pos.z - h.pos.z) ** 2;
-      if (recruiter.kind === 'workshop' && d > RECRUIT_RADIUS ** 2) continue;
-      if (d < distance || (d === distance && nearest && recruiter.id < nearest.id)) {
-        nearest = recruiter;
-        distance = d;
-      }
-    }
+    // Only the one-person wipe-recovery call may park a neutral at a GCC.
+    const nearest = recoveryRecruiter(world, h);
+    const distance = nearest ? (nearest.pos.x - h.pos.x) ** 2 + (nearest.pos.z - h.pos.z) ** 2 : Infinity;
     if (!nearest) {
-      const recovery = recoveryRecruiter(world, h);
-      if (recovery && (b.avoidBuildings.get(recovery.id) ?? 0) <= world.time) {
-        nearest = recovery;
-        distance = (nearest.pos.x - h.pos.x) ** 2 + (nearest.pos.z - h.pos.z) ** 2;
-      }
+      const visit = neutralSocialVisit(world, h, b);
+      if (!visit) return false;
+      if (b.task !== 'wander') beginTask(world, h, b, 'wander');
+      if (moveTo(world, sys, h, b, visit.x, visit.z, .6)) {
+        arriveNeutralSocial(world, visit);
+        setStatus(h, 'idle');
+      } else if (routeExhausted(h, b)) {
+        b.avoidBuildings.set(visit.building, world.time + AVOID_TIME);
+        leaveNeutralSocial(world, h);
+        return false;
+      } else setStatusAt(h, b, 'walking', visit.x, visit.z);
+      return true;
     }
+    leaveNeutralSocial(world, h);
     if (nearest) {
       if (b.task !== 'wander') beginTask(world, h, b, 'wander');
       if (distance <= (RECRUIT_RADIUS * 0.8) ** 2 && recruitmentLineClear(world, nearest, h)) {

@@ -29,12 +29,12 @@ export const CMD_HEIGHT_MAX = 260;
 export const FOV_COMMAND = 50;
 /** Fixed diagonal tactical view on phones. No user-controlled zoom or rotation. */
 export const MOBILE_COMMAND_PITCH = -60 * DEG;
-export const MOBILE_COMMAND_WORLD_PER_PIXEL = .035;
+export const MOBILE_COMMAND_WORLD_PER_PIXEL = .07;
 export function mobileCommandExtent(viewportHeight: number): number {
   return Math.max(1, Number.isFinite(viewportHeight) ? viewportHeight : 720) * MOBILE_COMMAND_WORLD_PER_PIXEL;
 }
 export const MOBILE_COMMAND_YAW = Math.PI * 1.25;
-/** Keep actors approximately 28 CSS pixels tall at the centre in either orientation.
+/** Keep actors approximately 14 CSS pixels tall (2× wider/taller battlefield window) at the centre in either orientation.
  * This changes only the window extent on resize, not the user's zoom level. */
 export function mobileCommandHeight(viewportHeight: number): number {
   return mobileCommandExtent(viewportHeight);

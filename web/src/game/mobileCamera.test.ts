@@ -16,14 +16,16 @@ function camera(height: number, viewportHeight: number, width: number, angle = 6
   c.lookAt(0, 0, 0); c.updateMatrixWorld(); return c;
 }
 describe('parallel mobile command camera', () => {
-  it('keeps a selectable character scale across portrait and landscape windows', () => {
+  it('doubles visible width and height at the fixed mobile scale across orientations', () => {
     mobile();
     for (const [width, height] of [[390,844],[844,390],[320,568],[820,1180]]) {
       const c = camera(mobileCommandHeight(height), height, width);
+      expect(c.right-c.left).toBeCloseTo(width*.035*2);
+      expect(c.top-c.bottom).toBeCloseTo(height*.035*2);
       const feet = new THREE.Vector3(0,0,0).project(c), head = new THREE.Vector3(0,2,0).project(c);
-      expect(Math.abs(head.y-feet.y)*height/2).toBeCloseTo(28.57142857, 6);
-      expect(worldUnitsPerPixel(c, height, 10)).toBeCloseTo(.035);
-      expect(worldUnitsPerPixel(c, height, 100)).toBeCloseTo(.035);
+      expect(Math.abs(head.y-feet.y)*height/2).toBeCloseTo(14.285714285, 6);
+      expect(worldUnitsPerPixel(c, height, 10)).toBeCloseTo(.07);
+      expect(worldUnitsPerPixel(c, height, 100)).toBeCloseTo(.07);
     }
   });
   it('matches orthographic rendering, touch-pan ground points, and parallel picking at the fixed 60-degree angle', () => {
@@ -85,8 +87,8 @@ describe('parallel mobile command camera', () => {
     for (const [width,height] of [[390,844],[844,390]]) for (const angle of [45,60,75]) {
       mobile(angle); const c = camera(mobileCommandHeight(height),height,width,angle); c.userData.cssHeight = height;
       const view = new ActorView(false); view.update(c);
-      expect(view.place(0,0,0,2,40,false)).toBe(PLACE.detailed);
-      expect(view.place(1000,0,1000,2,40,false)).toBe(PLACE.skip);
+      expect(view.place(0,0,0,2,80,false)).toBe(PLACE.detailed);
+      expect(view.place(1000,0,1000,2,80,false)).toBe(PLACE.skip);
     }
   });
   it('leaves desktop command orientation and perspective picking unchanged', () => {

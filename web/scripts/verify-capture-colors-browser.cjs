@@ -33,6 +33,9 @@ async function main() {
       const a=window.flaghack,w=a.world,s=a.session;
       // Freeze authoritative progression only; all production renderer modules keep running.
       a.sim=null; a.ai.clear();
+      // startMatch intentionally admits only one local human. This observer matrix
+      // seats all fixture observers so switching faction does not enter attract-camera mode.
+      w.options.humans=[0,1,2,3];
       const o=w.map.obstacles.filter(o=>o.kind==='tent').sort((x,y)=>Math.hypot(x.x,x.z)-Math.hypot(y.x,y.z))[0];
       if(!o) throw Error('No tent');
       const facet=w.lattice.facets.filter(f=>!f.boundary).sort((x,y)=>Math.hypot(x.cx-(o.x+12),x.cz-o.z)-Math.hypot(y.cx-(o.x+12),y.cz-o.z))[0];
@@ -51,6 +54,9 @@ async function main() {
         w.sceneryCapture.set(q.scenery,{...state(),faction:b.faction});
         // Changing observer must not change the marker's source faction colour.
         s.playerFaction=(faction+1)%4;
+        s.view='command';s.viewBlend=1;
+        a.controls.rig.setMode('play',0);
+        a.controls.rig.snapCommand(s.camera);
       },{faction,stage});
       await page.waitForTimeout(500);
       const colors=await page.evaluate(()=>{
