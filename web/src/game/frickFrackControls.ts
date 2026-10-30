@@ -10,3 +10,11 @@ export function frickFrackInputLocked(world: World | null, session: Session): bo
     && !!world.frickFrack?.sessions[session.playerFaction]
     && world.frickFrack.sessions[session.playerFaction]?.phase !== 'chasing';
 }
+
+/** Only the card table is fully opaque; the wizard's in-world dialogue is not.
+ * This is a draw-cost hint, never a simulation/input/audio pause. */
+export function frickFrackTableOccludesWorld(world: World | null, session: Session): boolean {
+  if (!frickFrackInputLocked(world, session)) return false;
+  const phase = world!.frickFrack.sessions[session.playerFaction]?.phase;
+  return phase === 'betting' || phase === 'playing' || phase === 'result';
+}

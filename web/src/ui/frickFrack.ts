@@ -11,7 +11,7 @@ import type { UiHost, UiPart } from './core';
 import { button, el, setText, show } from './dom';
 import './frickFrack.css';
 import './frickFrackMotion.css';
-import { tableSnapshot, planCardMotion, motionDuration, DEAL_MS, FLIP_MS } from './frickFrackMotion';
+import { tableSnapshot, planCardMotion, motionDuration, DEAL_MS, FLIP_MS, DEAL_FLIP_AT_MS } from './frickFrackMotion';
 import type { TableSnapshot, CardMotion } from './frickFrackMotion';
 import './frickFrackTarot.css';
 import { tarotCardLabel, renderFrickFrackCard } from './frickFrackTarot';
@@ -405,31 +405,37 @@ export class FrickFrackUI implements UiPart {
     const deck = this.body.querySelector<HTMLElement>('.ff-deck-card');
     if (!deck || typeof deck.animate !== 'function') return;
     const origin = deck.getBoundingClientRect(), now = performance.now();
-    for (const slot of this.body.querySelectorAll<HTMLElement>('.ff-card-slot')) {
+    // Measure the entire table before adding backs or starting animations. Interleaving
+    // reads and writes here made every next card force another style/layout pass.
+    const slots = [...this.body.querySelectorAll<HTMLElement>('.ff-card-slot')]
+      .map(slot => ({ slot, target: slot.getBoundingClientRect() }));
+    for (const { slot, target } of slots) {
       const motion = this.motions.get(slot.dataset.motionKey ?? '');
       const face = slot.querySelector<HTMLElement>('.ff-card');
       if (!motion || !face || now >= motion.startedAt + motionDuration(motion)) continue;
-      const target = slot.getBoundingClientRect();
       if (!target.width || !target.height) continue;
       const dx = origin.left + origin.width / 2 - (target.left + target.width / 2);
       const dy = origin.top + origin.height / 2 - (target.top + target.height / 2);
       const delay = motion.startedAt - now;
       const animate = (node: HTMLElement, frames: Keyframe[], duration: number, start: number) => {
-        this.animations.push(node.animate(frames, { duration, delay: start, fill: 'backwards', easing: 'cubic-bezier(.2,.75,.25,1)' }));
+        node.style.willChange = 'transform, opacity';
+        const animation = node.animate(frames, { duration, delay: start, fill: 'backwards', easing: 'cubic-bezier(.22,.65,.3,1)' });
+        this.animations.push(animation);
+        void animation.finished.then(() => { node.style.willChange = ''; }, () => { node.style.willChange = ''; });
       };
       if (motion.kind === 'deal') {
         animate(slot, [
-          { transform: `translate(${dx}px,${dy}px) rotate(-13deg) scale(.74)`, opacity: 0 },
-          { transform: `translate(${dx * .7}px,${dy * .7}px) rotate(-8deg) scale(.94)`, opacity: 1, offset: .16 },
-          { transform: 'translate(0,-3px) rotate(1.5deg) scale(1.025)', opacity: 1, offset: .82 },
-          { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
+          { transform: `translate3d(${dx}px,${dy}px,0) rotate(-13deg) scale(.74)`, opacity: 0 },
+          { transform: `translate3d(${dx * .7}px,${dy * .7}px,0) rotate(-8deg) scale(.94)`, opacity: 1, offset: .16 },
+          { transform: 'translate3d(0,-1px,0) rotate(.5deg) scale(1.01)', opacity: 1, offset: .82 },
+          { transform: 'translate3d(0,0,0) rotate(0) scale(1)', opacity: 1 },
         ], DEAL_MS, delay);
       }
       if (!motion.hidden) {
         // Opaque decorative back covers the face until the midpoint. The face
         // itself only exists once the public session has authoritatively revealed it.
         const back = el('div', 'ff-motion-back', face, '✦'); back.setAttribute('aria-hidden', 'true');
-        const flipDelay = delay + (motion.kind === 'deal' ? DEAL_MS : 0);
+        const flipDelay = delay + (motion.kind === 'deal' ? DEAL_FLIP_AT_MS : 0);
         animate(face, [{ transform: 'rotateY(-180deg)' }, { transform: 'rotateY(0)' }], FLIP_MS, flipDelay);
         animate(back, [{ opacity: 1, offset: 0 }, { opacity: 1, offset: .49 }, { opacity: 0, offset: .5 }, { opacity: 0, offset: 1 }], FLIP_MS, flipDelay);
       }

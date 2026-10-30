@@ -8,8 +8,10 @@ describe('public card choreography', () => {
     const snapshot=tableSnapshot(session()), plan=planCardMotion(null,snapshot);
     expect(snapshot.cards.find(c=>c.hidden)?.key).toBe('dealer:hidden:0');
     expect(plan.map(m=>m.key)).toEqual(['card:1','card:3','card:2','dealer:hidden:0']);
-    expect(plan.map(m=>m.delay)).toEqual([0,105,210,315]);
+    expect(plan.map(m=>m.delay)).toEqual([0,65,130,195]);
     expect(motionDuration(plan[3])).toBe(DEAL_MS);
+    expect(Math.max(...plan.map(m => m.delay + motionDuration(m)))).toBe(515);
+    expect(motionDuration(plan[0])).toBe(320);
   });
   it('does not redeal on revision, wager/resource change, or local picker rerender', () => {
     const s=session(), before=tableSnapshot(s);

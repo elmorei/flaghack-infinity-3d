@@ -19,17 +19,28 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm run build:pages
-      - name: Record actual UI with staged public hands in stock Chrome
+      - name: Install native browser driver
         run: |
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+      - name: Measure original preview pacing on the same runner
+        run: |
+          for file in src/game/app.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts; do
+            git show 438202e8d8557b7173f23b6895e4e7f486b04f1e:web/$file > "$file"
+          done
+          npm run build:pages
+          FRICK_PACING_BASELINE=1 FRICK_ANIMATION_OUT=host-release/frick-animation-baseline NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-animation-browser.mjs
+          git restore src/game/app.ts src/game/frickFrackControls.ts src/game/frickFrackControls.test.ts src/ui/frickFrack.ts src/ui/frickFrackMotion.ts
+      - name: Build and measure optimized actual UI
+        run: |
+          npm run build:pages
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-animation-browser.mjs
       - name: Verify authoritative card interactions
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
@@ -38,6 +49,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: frick-animation-smoke
-          path: web/host-release/frick-animation-smoke/
+          path: |
+            web/host-release/frick-animation-smoke/
+            web/host-release/frick-animation-baseline/
           if-no-files-found: warn
           retention-days: 14

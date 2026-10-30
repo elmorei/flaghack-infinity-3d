@@ -1,4 +1,4 @@
-import { frickFrackInputLocked } from './frickFrackControls';
+import { frickFrackInputLocked, frickFrackTableOccludesWorld } from './frickFrackControls';
 /**
  * App: owns the lifecycle and the frame loop. Local burns (title attract, single player, the
  * Training Burn) step the Simulation here. Online burns mirror the host's World (net/*): the
@@ -572,6 +572,12 @@ export class App implements AppApi {
   // ── Frame loop ─────────────────────────────────────────────────────────────
 
   private draw(dt: number): void {
+    // The picnic table covers the entire canvas. Keep the burn/network/audio/UI
+    // ticking, but don't spend GPU time drawing a world nobody can see. Require
+    // the actual opaque overlay too, so opening/closing/KO transitions redraw
+    // immediately and the transparent wizard conversation remains animated.
+    if (this.readySettled && frickFrackTableOccludesWorld(this.world, this.session)
+      && document.querySelector('.ff-overlay:not(.is-off):not(.ff-in-world)')) return;
     try {
       if (this.renderer.render(dt) && !this.readySettled) {
         this.readySettled = true;

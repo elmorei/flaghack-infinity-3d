@@ -5,9 +5,11 @@ export type TableSide = 'player' | 'dealer';
 export interface MotionCard { key: string; side: TableSide; index: number; hidden: boolean }
 export interface TableSnapshot { sessionId: number; cards: MotionCard[] }
 export interface CardMotion { key: string; kind: 'deal' | 'reveal'; delay: number; hidden: boolean }
-export const DEAL_MS = 430;
-export const FLIP_MS = 260;
-export const DEAL_STAGGER_MS = 105;
+export const DEAL_MS = 320;
+export const FLIP_MS = 180;
+export const DEAL_STAGGER_MS = 65;
+/** Turn the card during the last half of travel, not after a separate pause. */
+export const DEAL_FLIP_AT_MS = 140;
 export function tableSnapshot(s: FrickFrackSession): TableSnapshot {
   return { sessionId: s.id, cards: (['dealer', 'player'] as const).flatMap(side =>
     frickFrackTableCards(s, side).map(({card}, index, row) => ({
@@ -31,5 +33,5 @@ export function planCardMotion(previous: TableSnapshot | null, next: TableSnapsh
   });
 }
 export function motionDuration(motion: CardMotion): number {
-  return motion.kind === 'reveal' ? FLIP_MS : DEAL_MS + (motion.hidden ? 0 : FLIP_MS);
+  return motion.kind === 'reveal' ? FLIP_MS : Math.max(DEAL_MS, motion.hidden ? 0 : DEAL_FLIP_AT_MS + FLIP_MS);
 }

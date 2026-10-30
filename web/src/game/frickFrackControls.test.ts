@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { frickFrackTableOccludesWorld } from './frickFrackControls';
 import { Controls } from './controls';
 import { Session } from './session';
 import { newMatch } from '../sim/systems/econ/testkit';
@@ -28,5 +29,20 @@ describe('Frick-frack control boundary', () => {
     world.frickFrack.sessions[0]!.phase='playing'; controls.tick(); expect(sent).toHaveLength(2);
     delete world.frickFrack.sessions[0]; controls.tick();
     expect((sent[2] as Extract<Command,{t:'avatarInput'}>).input.moveX).not.toBe(0);
+  });
+});
+
+describe('opaque card-table render hint', () => {
+  it('excludes in-world dialogue and resumes for exit, KO, spectator, RTS and end', () => {
+    const {world} = newMatch('frick-occlusion'); const session = new Session();
+    session.screen = 'playing'; world.options.humans = [0];
+    const table = world.frickFrack.sessions[0] = {id: 1, revision: 0, faction: 0, phase: 'dialogue', dialogueIndex: 0, dialogueStartedAt: 0, readyAt: 0, wager: 0, player: [], dealer: [], result: null, message: ''} as NonNullable<typeof world.frickFrack.sessions[0]>;
+    for (const phase of ['dialogue', 'empty', 'chasing'] as const) { table.phase = phase; expect(frickFrackTableOccludesWorld(world, session)).toBe(false); }
+    for (const phase of ['betting', 'playing', 'result'] as const) { table.phase = phase; expect(frickFrackTableOccludesWorld(world, session)).toBe(true); }
+    world.avatarOf(0).koUntil = world.time + 5; expect(frickFrackTableOccludesWorld(world, session)).toBe(false); world.avatarOf(0).koUntil = 0;
+    session.spectator = true; expect(frickFrackTableOccludesWorld(world, session)).toBe(false); session.spectator = false;
+    world.factions[0].controlMode = 'rts'; expect(frickFrackTableOccludesWorld(world, session)).toBe(false); world.factions[0].controlMode = 'avatar';
+    session.screen = 'ended'; expect(frickFrackTableOccludesWorld(world, session)).toBe(false); session.screen = 'playing';
+    delete world.frickFrack.sessions[0]; expect(frickFrackTableOccludesWorld(world, session)).toBe(false);
   });
 });
