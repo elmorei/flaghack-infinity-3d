@@ -30,10 +30,11 @@ async function main(){
   await new Promise(done=>server.listen(0,'127.0.0.1',done));
   const browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true});
   const results={completed:false,stagedPublicCards:true,scenarios:[]};
+  let page;
   try {
     for(const spec of specs){
       const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},reducedMotion:spec.reduced?'reduce':'no-preference',recordVideo:spec.name==='desktop'?{dir:join(OUT,'video'),size:{width:1280,height:900}}:undefined});
-      const page=await context.newPage(), entry={name:spec.name,checks:[],errors:[]}; results.scenarios.push(entry);
+      page=await context.newPage(); const entry={name:spec.name,checks:[],errors:[]}; results.scenarios.push(entry);
       page.on('pageerror',error=>entry.errors.push(error.message));
       const check=label=>{entry.checks.push(label);console.log('PASS '+spec.name+' '+label);};
       await page.goto(`http://127.0.0.1:${server.address().port}${PROJECT}`,{waitUntil:'domcontentloaded'});
@@ -45,7 +46,11 @@ async function main(){
       const stage=async mode=>page.evaluate(mode=>{
         const w=window.flaghack.world, ff=w.frickFrack;
         const c=(id,rank=3,suit=0)=>({id,rank,suit});
-        if(mode==='empty')ff.sessions[0]={id:9100,revision:1,faction:0,phase:'betting',dialogueIndex:0,dialogueStartedAt:0,readyAt:0,wager:0,player:[],dealer:[],result:null,message:''};
+        if(mode==='empty'){
+          const av=w.avatarOf(0),wizard=w.hippies.get(ff.wizardId);
+          wizard.pos={x:av.pos.x,z:av.pos.z+1};wizard.vel={x:0,z:0};wizard.hp=100;wizard.koUntil=0;wizard.status='idle';delete wizard.airborne;
+          ff.sessions[0]={id:9100,revision:1,faction:0,phase:'betting',dialogueIndex:0,dialogueStartedAt:0,readyAt:0,wager:0,player:[],dealer:[],result:null,message:''};
+        }
         const s=ff.sessions[0];
         if(mode==='deal'){Object.assign(s,{revision:s.revision+1,phase:'playing',wager:1,player:[c(9101,4,1),{...c(9102,2,0),tarot:true}],dealer:[c(9103,5,3),null],revealedCardOrder:[9101,9103,9102]});}
         if(mode==='hit'){s.revision++;s.player.push({...c(9104,2,2),parody:0});s.revealedCardOrder.push(9104);}
@@ -94,6 +99,10 @@ async function main(){
       await context.close();
     }
     results.completed=true;
+  } catch(error) {
+    results.failure=String(error.stack||error);
+    if(page&&!page.isClosed()){await page.screenshot({path:join(OUT,'failure.png')}).catch(()=>{});results.failureState=await page.evaluate(()=>({screen:window.flaghack?.session.screen,table:window.flaghack?.world?.frickFrack.sessions[0]})).catch(()=>null);}
+    throw error;
   } finally {writeFileSync(join(OUT,'results.json'),JSON.stringify(results,null,2));await browser.close();server.close();}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;server.close();});
