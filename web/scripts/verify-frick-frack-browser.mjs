@@ -321,6 +321,9 @@ async function main(){
         await page.setViewportSize({width:spec.width,height:spec.height});
         await tap(button('Stand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        assert.equal((await state()).session.defeated?.length??0,0,'Authoritative next hand clears combat history');
+        // The simulation changes phase before the next UI render publishes that revision.
+        await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===0);
         assert.equal(await dialog.locator('.ff-defeated-cross').count(),0,'Next hand clears combat history');
         check('desktop and narrow layouts: tied CCG cards keep visible X marks, excluded from total; next hand clears history');
         await seedAndQuiver('frick-136-57',5);await deal(2);

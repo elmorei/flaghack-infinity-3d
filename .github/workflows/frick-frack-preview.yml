@@ -23,6 +23,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build:pages
+        id: build
       - name: Run actual match Frick-frack interactions in stock Chrome
         env:
           RECORD_VIDEO: '1'
@@ -31,6 +32,7 @@ jobs:
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
       - name: Verify desktop and square mobile intro in stock Chrome
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs
       - name: Upload intro browser screenshots and results
         if: always()
