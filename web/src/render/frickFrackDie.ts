@@ -3,15 +3,16 @@ import * as THREE from 'three';
 
 export const DIE_FACE_VALUES = [3, 4, 2, 5, 1, 6] as const; // BoxGeometry +X,-X,+Y,-Y,+Z,-Z
 const normals = [new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
-const presentation = new THREE.Quaternion().setFromEuler(new THREE.Euler(.24,-.22,.08));
+const presentation = new THREE.Quaternion().setFromEuler(new THREE.Euler(.68,-.35,0));
 export function dieRestQuaternion(result: number): THREE.Quaternion {
   const index = DIE_FACE_VALUES.indexOf(result as typeof DIE_FACE_VALUES[number]);
   if (index < 0) throw new RangeError('A die result must be 1–6');
-  return presentation.clone().multiply(new THREE.Quaternion().setFromUnitVectors(normals[index],new THREE.Vector3(0,0,1)));
+  return presentation.clone().multiply(new THREE.Quaternion().setFromUnitVectors(normals[index],new THREE.Vector3(0,1,0)));
 }
 export function visibleDieFace(rotation: THREE.Quaternion): number {
   let best=0, score=-Infinity;
-  normals.forEach((n,i)=>{ const z=n.clone().applyQuaternion(rotation).z; if(z>score){score=z;best=i;} });
+  // The rolled face is the visible UPPER face, not merely the face closest to the camera.
+  normals.forEach((n,i)=>{ const v=n.clone().applyQuaternion(rotation); if(v.z > 0 && v.y > score){score=v.y;best=i;} });
   return DIE_FACE_VALUES[best];
 }
 export function dieMotion(progress: number, result: number, reducedMotion = false) {

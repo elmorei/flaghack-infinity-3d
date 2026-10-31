@@ -87,6 +87,19 @@ describe('authoritative target die presentation', () => {
     click!({ stopPropagation() {}, detail: 0 });
     expect(send).toHaveBeenCalledWith('stand', undefined);
   });
+  it('excludes closed sleeve cards even when the browser retains their nonzero layout boxes', () => {
+    const s = session(), r = { x: 100, y: 200, width: 72, height: 108 };
+    const closed = { isConnected: true, closest: (): object | null => ({}), getClientRects: () => [r], getBoundingClientRect: () => r };
+    const open = { ...closed, closest: () => null };
+    const fixture = Object.assign(Object.create(FrickFrackUI.prototype), {
+      host: { app: { world: { time: 10.625 } } }, engineRound: 0,
+      engineCards: new Map([[closed, { key: 'sleeve:1', card: { id: 1, rank: 4, suit: 0 }, order: -1, defeated: false }],
+        [open, { key: 'You:0', card: { id: 2, rank: 7, suit: 1 }, order: 0, defeated: false }]]),
+      root: { querySelector: () => ({ getBoundingClientRect: () => ({ x: 0, y: 0, width: 320, height: 568 }) }) },
+    });
+    fixture.publishEngineView(s);
+    expect(getFrickFrackView()?.cards.map(c => c.key)).toEqual(['You:0']);
+  });
   it('explains six targets and preserves even-money base winnings', () => {
     const rules = FRICK_FRACK_TABLE_RULES.join(' ');
     expect(rules).toContain('20 + the roll (21–26)'); expect(rules).toContain('target minus 4');

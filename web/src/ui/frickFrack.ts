@@ -433,7 +433,8 @@ export class FrickFrackUI implements UiPart {
     const cards: CardView[] = [];
     // One read-only layout batch; there are no per-card writes or DOM animation tracks.
     for (const [tile, value] of this.engineCards) {
-      if (!tile.isConnected || !tile.getClientRects().length) continue;
+      // Closed <details> may retain layout boxes in Chromium; those cards must not become phantom meshes.
+      if (!tile.isConnected || tile.closest('details:not([open])') || !tile.getClientRects().length) continue;
       const r = tile.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) cards.push({ ...value, rect: rect(r) });
     }
