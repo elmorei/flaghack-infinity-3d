@@ -38,6 +38,13 @@ export function containedImageRect(sw: number, sh: number, width: number, height
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
+/** Cover the viewport with one uniform scale; never stretch the scene to content. */
+export function coveredImageRect(sw: number, sh: number, width: number, height: number): Rect {
+  const scale = Math.max(width / Math.max(1, sw), height / Math.max(1, sh));
+  const w = sw * scale, h = sh * scale;
+  return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
+}
+
 interface Face { texture: THREE.CanvasTexture; cancelled: boolean; image?: HTMLImageElement }
 interface CardNode {
   group: THREE.Group; front: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
@@ -158,6 +165,8 @@ export class FrickFrackScene {
   private sceneryImages: Partial<Record<'landscape' | 'portrait', HTMLImageElement>> = {};
   private sceneryKind: 'landscape' | 'portrait' = 'landscape';
   private sceneryReady = false;
+  private backdropRect: Rect = { x: 0, y: 0, width: 0, height: 0 };
+  private backdropAspect = 1;
   private readonly backMaterial = new THREE.MeshBasicMaterial({ map: this.backTexture, transparent: true, alphaTest: .02, toneMapped: false });
   private readonly blanketMaterial = new THREE.MeshBasicMaterial({ map: this.blanketTexture, toneMapped: false });
   private readonly blanket = new THREE.Mesh(this.plane, this.blanketMaterial);
@@ -204,6 +213,7 @@ export class FrickFrackScene {
   snapshot() {
     return { active: this.active, drawCount: this.drawCount, cardCount: this.cards.size, meshCount: 5 + this.cards.size * 3 + (this.dieState ? 2 : 0), sessionKey: this.key,
       die: this.dieState ? { ...this.dieState } : null, backdropReady: this.sceneryReady, backdropKind: this.sceneryKind,
+      panel: { ...this.panel }, backdropRect: { ...this.backdropRect }, backdropAspect: this.backdropAspect,
       cards: [...this.cards].map(([key, node]) => ({ key, hidden: node.hidden, defeated: node.view.defeated,
         x: node.group.position.x, y: this.height - node.group.position.y, width: node.view.rect.width, height: node.view.rect.height,
         rotationY: node.group.rotation.y, visible: node.group.visible, faceVisible: !node.hidden && Math.cos(node.group.rotation.y) > 0,
@@ -236,13 +246,20 @@ export class FrickFrackScene {
     this.active = true; this.width = width; this.height = height;
     this.camera.right = width; this.camera.top = height; this.camera.updateProjectionMatrix();
     const panel = view.panel; this.panel = { ...panel };
-    this.sceneryKind = panel.width / panel.height < .95 ? 'portrait' : 'landscape';
+    this.sceneryKind = width / height < .95 ? 'portrait' : 'landscape';
     this.loadScenery(this.sceneryKind);
     const scenery = this.sceneryTextures[this.sceneryKind]; this.sceneryReady = !!scenery;
     const backdrop = scenery ?? this.blanketTexture;
     if (this.blanketMaterial.map !== backdrop) { this.blanketMaterial.map = backdrop; this.blanketMaterial.needsUpdate = true; }
-    this.blanket.position.set(panel.x + panel.width / 2, height - panel.y - panel.height / 2, -20);
-    this.blanket.scale.set(panel.width, panel.height, 1); this.blanketTexture.repeat.set(panel.width / 180, panel.height / 180);
+    const source = this.sceneryImages[this.sceneryKind];
+    const backdropRect = scenery && source
+      ? coveredImageRect(source.naturalWidth, source.naturalHeight, width, height)
+      : { x: 0, y: 0, width, height };
+    this.backdropRect = backdropRect;
+    this.backdropAspect = scenery && source ? source.naturalWidth / source.naturalHeight : width / height;
+    this.blanket.position.set(backdropRect.x + backdropRect.width / 2, height - backdropRect.y - backdropRect.height / 2, -20);
+    this.blanket.scale.set(backdropRect.width, backdropRect.height, 1);
+    this.blanketTexture.repeat.set(width / 180, height / 180);
     const deckSize = view.deck ? Math.min(view.deck.width, view.deck.height / 1.5) : Math.max(28, Math.min(52, panel.width * .07));
     const deckX = view.deck ? view.deck.x + view.deck.width / 2 : panel.x + panel.width - deckSize * .8 - 18;
     const deckY = view.deck ? view.deck.y + view.deck.height / 2 : panel.y + 38;

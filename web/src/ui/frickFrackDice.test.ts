@@ -11,17 +11,18 @@ afterEach(() => { vi.unstubAllGlobals(); setFrickFrackView(null); });
 function renderFixture() {
   const created: { textContent: string; className?: string; attrs: Record<string, string> }[] = [];
   const node = () => {
-    const n = { textContent: '', attrs: {} as Record<string, string>, appendChild() {}, replaceChildren() {},
+    const n = { textContent: '', dataset: {}, disabled: false, addEventListener() {}, attrs: {} as Record<string, string>, appendChild() {}, replaceChildren() {},
       setAttribute(k: string, v: string) { this.attrs[k] = v; }, querySelectorAll: () => [], querySelector: () => null };
     created.push(n); return n;
   };
   vi.stubGlobal('document', { createElement: node });
   const actions: string[] = [];
+  const controls: Record<string, { disabled: boolean }> = {};
   const fixture = Object.assign(Object.create(FrickFrackUI.prototype), {
-    engineCards: new Map(), body: node(), title: node(), status: node(), frame() {}, hand() {},
-    action(_parent: unknown, label: string) { actions.push(label); return { disabled: false }; },
+    engineCards: new Map(), body: node(), title: node(), status: node(), frame() {}, hand() {}, renderPrivatePeek() {}, renderMajorPicker() {},
+    action(_parent: unknown, label: string) { actions.push(label); const control = node(); controls[label] = control; return control; },
   });
-  return { fixture, actions, created };
+  return { fixture, actions, created, controls };
 }
 describe('authoritative target die presentation', () => {
   it.each([1, 2, 3, 4, 5, 6])('shows rolled %s and its fixed target after the roll', die => {
@@ -49,15 +50,26 @@ describe('authoritative target die presentation', () => {
   it.each([undefined, 0, 7, NaN, 2.5])('omits nonexistent or invalid die data %s', dieResult => {
     expect(frickFrackDicePresentation({ ...session(), dieResult }, 20)).toBeNull();
   });
-  it('shows only Leave during rolling, with accessible live status and no wager input', () => {
+  it('keeps main actions and disabled wager input visible during rolling, with accessible live status', () => {
     const { fixture, actions, created } = renderFixture(); fixture.render(session(), 8, { time: 10.5 });
-    expect(actions).toEqual(['Leave table']);
+    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Again', 'Exit']);
     expect(created.some(n => n.className === 'ff-table-stage')).toBe(true);
     expect(created.some(n => n.className === 'ff-deck-stage' && n.attrs['aria-hidden'] === 'true')).toBe(true);
     expect(created.some(n => n.className === 'ff-target-title' && n.textContent === 'Rolling the target')).toBe(true);
     expect(created.some(n => n.attrs.role === 'status' && n.attrs['aria-live'] === 'polite')).toBe(true);
-    expect(created.some(n => n.attrs['aria-label'] === 'Flags to wager')).toBe(false);
+    expect(created.some(n => n.attrs['aria-label'] === 'Flags to wager')).toBe(true);
     expect(created.some(n => n.textContent === 'Deal hand')).toBe(false);
+  });
+  it.each(['rolling', 'betting', 'playing', 'result'] as const)('keeps actions in invariant order with phase-safe readiness in %s', phase => {
+    const { fixture, actions, controls } = renderFixture();
+    const s = { ...session(), phase }; fixture.active = s;
+    fixture.render(s, 8, { time: 12, frickFrack: { sideboards: { 0: [] } } });
+    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Again', 'Exit']);
+    expect(controls.Deal.disabled).toBe(phase !== 'betting');
+    expect(controls.Hit.disabled).toBe(phase !== 'playing');
+    expect(controls.Stand.disabled).toBe(phase !== 'playing');
+    expect(controls.Again.disabled).toBe(phase !== 'result');
+    expect(controls.Exit.disabled).toBe(false);
   });
   it('publishes die lane and unchanged authoritative progress in read-only phase', () => {
     const s = session(), rect = { x: 12, y: 20, width: 160, height: 82 };
@@ -75,7 +87,7 @@ describe('authoritative target die presentation', () => {
   });
   it('styles actions by semantic command without changing the live label or callback', () => {
     let click: ((ev: { stopPropagation(): void; detail: number }) => void) | undefined;
-    const control = { dataset: {}, attrs: {} as Record<string, string>, innerHTML: '',
+    const control = { dataset: {}, attrs: {} as Record<string, string>, innerHTML: '', disabled: false,
       setAttribute(key: string, value: string) { this.attrs[key] = value; },
       addEventListener(_event: string, callback: typeof click) { click = callback; }, blur() {} };
     vi.stubGlobal('document', { createElement: () => control });
@@ -86,6 +98,9 @@ describe('authoritative target die presentation', () => {
     expect(control.innerHTML).toBe('Stand');
     click!({ stopPropagation() {}, detail: 0 });
     expect(send).toHaveBeenCalledWith('stand', undefined);
+    control.disabled = true; send.mockClear();
+    click!({ stopPropagation() {}, detail: 0 });
+    expect(send).not.toHaveBeenCalled();
   });
   it('excludes closed sleeve cards even when the browser retains their nonzero layout boxes', () => {
     const s = session(), r = { x: 100, y: 200, width: 72, height: 108 };

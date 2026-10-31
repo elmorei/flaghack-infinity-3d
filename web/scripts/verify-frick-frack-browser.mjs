@@ -207,7 +207,7 @@ async function main(){
       await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
       const held=await page.evaluate(()=>window.__frickQa.giftCount);
       assert.equal((await state()).carried.length,held,'Gift remains available for wagering');
-      await button('Deal hand').waitFor({state:'visible'});
+      await button('Deal').waitFor({state:'visible'});
       assert.equal(await dialog.evaluate(e=>e.classList.contains('ff-in-world')),false,'Only accepted game opens fullscreen card table');
       await shot(spec.name+'-table');await holdForDemo('table-ready',2200);
       check(`${spec.name}: real flag gift, three typed screens, locked avatar/live world, gift retained and blackjack table`);
@@ -237,7 +237,7 @@ async function main(){
         async function deal(amount){
           const input=dialog.getByLabel('Flags to wager');
           await input.fill(String(amount));await input.dispatchEvent('change');
-          await tap(button('Deal hand'));
+          await tap(button('Deal'));
           await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase!=='betting');
         }
         await seedAndQuiver('frick-136-25',10);
@@ -273,7 +273,7 @@ async function main(){
         assert.match(await dialog.locator('.ff-hand-player .ff-card-defeated').getAttribute('aria-label'),/defeated, does not count/);
         assert.equal((await state()).session.defeated[0].card.rank,3);
         await shot('desktop-ccg-battle');await holdForDemo('ccg-battle-on-hit',2800);
-        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
         await holdForDemo('sideboard-open',1800);
         await tap(button('Play A♠ once'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
@@ -281,7 +281,7 @@ async function main(){
         await button('Play A♠ once').waitFor({state:'detached'});
         assert.equal(await button('Play A♠ once').count(),0,'Consumed card is unavailable for replay');
         await shot('desktop-cheat-played');await holdForDemo('cheat-played',2200);
-        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
         await tap(button('Inspect The Sun'));
         await button('Use The Sun').waitFor({state:'visible'});
         await shot('desktop-sun-effect-inspection');await holdForDemo('sun-effect-inspection',2500);
@@ -303,12 +303,12 @@ async function main(){
         await shot('desktop-winning-hand');await holdForDemo('winning-hand',2500);
         check('desktop: physical numeric/Major pickups, random Hit, one-use Ace, inspect/confirm Sun reveal, Stand and settled win');
 
-        await tap(button('Another hand'));
+        await tap(button('Again'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         // A known sideboard card still goes through the real Play button and combat resolver.
         await seedAndQuiver('frick-136-25',10);await deal(1);
         await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0];w.frickFrack.sideboards[0]=[{id:w.newId(),rank:4,suit:0,parody:3}];s.revision++;});
-        if(!await dialog.locator('.ff-sideboard').evaluate(e=>e.open))await tap(dialog.locator('.ff-sideboard summary'));
+        if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
         await tap(dialog.getByRole('button',{name:/^Play .* once$/}));
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===2);
         assert.equal((await state()).session.player.length,2);
@@ -322,7 +322,7 @@ async function main(){
         }
         await page.setViewportSize({width:spec.width,height:spec.height});
         await tap(button('Stand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
-        await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await tap(button('Again'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         assert.equal((await state()).session.defeated?.length??0,0,'Authoritative next hand clears combat history');
         // The simulation changes phase before the next UI render publishes that revision.
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===0);
@@ -341,7 +341,7 @@ async function main(){
         await shot('desktop-pair-profit');await holdForDemo('pair-profit',3000);
         check('desktop: pair doubles only winning profit, not returned stake');
 
-        await tap(button('Another hand'));
+        await tap(button('Again'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-1',10);
         // Observe settlement before the live world can consume stock again.
@@ -363,7 +363,7 @@ async function main(){
         await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 
-        await tap(button('Another hand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await tap(button('Again'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-9',3);await deal(3);
         await tap(button('Hit'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='empty');

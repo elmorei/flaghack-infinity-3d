@@ -1,3 +1,4 @@
+import { flagCounter } from './flagCounter';
 import { burnTime, endTime, matchSettings, UNLIMITED_DAYS } from "../sim/matchSettings";
 import { worldDayClock } from '../sim/dayCycle';
 /**
@@ -103,11 +104,9 @@ export class HudPart implements UiPart {
 
     // ── Resource frame (homage to the 2017 "20 FLAGS" frame) ──
     const frame = el('div', 'res frame', layout.colLeft);
-    const big = el('div', 'res-flags', frame);
+    const { root: big, value } = flagCounter(frame);
     tutorialTarget(big, 'hud-flags');
-    html('span', 'res-flag-ic', iconSvg('flag'), big);
-    this.flagsN = el('span', 'res-flags-n num', big, '0');
-    el('span', 'res-flags-l', big, 'FLAGS');
+    this.flagsN = value;
     const quiver = el('div', 'quiver', frame);
     for (let i = 0; i < AVATAR.quiver; i++) this.quiver.push(el('i', '', quiver));
     const rows = el('div', 'res-rows', frame);

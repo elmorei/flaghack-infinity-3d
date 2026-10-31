@@ -45,7 +45,7 @@ async function enter(context,spec,url){
   await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
   await page.waitForTimeout(1800);
   await stageBetting();
-  await page.getByRole('button',{name:'Deal hand',exact:true}).waitFor({state:'visible'});
+  await page.getByRole('button',{name:'Deal',exact:true}).waitFor({state:'visible'});
   await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().active && window.flaghack.renderer.frickScene.snapshot().backdropReady);
 }
 async function stageBetting(){
@@ -102,7 +102,7 @@ async function verify(spec,url){
     const initial=await state();
     assert.equal(initial.snapshot.active,true,'Actual engine table active');
     assert.ok(initial.gpuCalls>0,'Shared renderer issues real draw calls');
-    await armMetrics('opening-deal');await act('Deal hand',spec);
+    await armMetrics('opening-deal');await act('Deal',spec);
     await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing');
     entry.metrics.push(await metrics());await ensureSettled();
     const dealt=await state();entry.dealt=dealt;
@@ -129,7 +129,7 @@ async function verify(spec,url){
     assert.ok(hit.snapshot.cards.some(c=>c.defeated),'Engine retains defeated card with marker');
     await page.screenshot({path:join(OUT,spec.name+'-engine-defeated.png')});
     if(spec.name==='desktop'){
-      await page.locator('.ff-sideboard summary').click({noWaitAfter:true});
+      await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
       await act('Inspect The Sun',spec);await act('Use The Sun',spec);
       await page.waitForFunction(()=>!window.flaghack.world.frickFrack.sessions[0].dealer.includes(null));
       await ensureSettled();const revealed=await state();entry.revealed=revealed;
@@ -137,12 +137,12 @@ async function verify(spec,url){
       assert.ok(revealed.snapshot.cards.every(c=>c.faceUp),'Known settled cards are face up');
       await page.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();
       await page.screenshot({path:join(OUT,'desktop-engine-reveal.png')});
-      // Closing an expanded sleeve restores table layout before the remaining controls.
-      if(await page.locator('.ff-sideboard').evaluate(e=>e.open))await page.locator('.ff-sideboard summary').click({noWaitAfter:true});
+      // Closing the sleeve must not reposition the table or remaining controls.
+      if(await page.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
     }
     await act('Stand',spec);await page.waitForFunction(()=>['result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
     if((await state()).phase==='result'){
-      await act('Another hand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+      await act('Again',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
       await ensureSettled();assert.equal((await state()).snapshot.cards.length,0,'New hand clears previous meshes');
       await act('Leave table',spec);
     }else await act('Return to the burn',spec);
@@ -169,11 +169,11 @@ async function cleanDemo(url){
     // Use a separately staged public scene for clean demonstration, with no screenshots,
     // traces or frame-profiling observers running during the animation itself.
     mark('ready');await page.waitForTimeout(700);
-    mark('deal');await act('Deal hand',spec);await page.waitForTimeout(1700);
+    mark('deal');await act('Deal',spec);await page.waitForTimeout(1700);
     mark('hit');await act('Hit',spec);await page.waitForTimeout(1700);
-    mark('sun-inspect');await page.locator('.ff-sideboard summary').click({noWaitAfter:true});await act('Inspect The Sun',spec);await page.waitForTimeout(600);
+    mark('sun-inspect');await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});await act('Inspect The Sun',spec);await page.waitForTimeout(600);
     mark('sun-reveal');await act('Use The Sun',spec);await page.waitForTimeout(700);
-    if(await page.locator('.ff-sideboard').evaluate(e=>e.open))await page.locator('.ff-sideboard summary').click({noWaitAfter:true});
+    if(await page.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
     await page.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();await page.waitForTimeout(1700);
     mark('stand');await act('Stand',spec);await page.waitForTimeout(1600);mark('end');
     results.demo={marks,fixtureDisclosure:results.fixtureDisclosure,recordingSpeed:1,videoPath:await page.video().path()};
@@ -203,7 +203,7 @@ async function diagnosticRun(url){
           const descriptor=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
           if(descriptor?.set)Object.defineProperty(HTMLImageElement.prototype,'src',{...descriptor,set(value){const started=performance.now();this.addEventListener('load',()=>save('image.request-to-load',started,{url:String(value),width:this.naturalWidth,height:this.naturalHeight}),{once:true});return descriptor.set.call(this,value);}});
         });
-        await armMetrics('cold-opening-deal',true);await act('Deal hand',specs[0]);
+        await armMetrics('cold-opening-deal',true);await act('Deal',specs[0]);
         const sample={instrumented,metrics:await metrics()};
         sample.state=await state();
         assert.equal(sample.state.session.dealer[1],null,'Diagnostic does not reveal hole card');

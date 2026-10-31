@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { cardMotion, containedImageRect, faceSignature, FrickFrackScene, publicCardArtwork, type TableView } from './frickFrackScene';
+import { cardMotion, containedImageRect, coveredImageRect, faceSignature, FrickFrackScene, publicCardArtwork, type TableView } from './frickFrackScene';
 
 const known = { id: 123, rank: 7, suit: 1 };
 describe('engine card motion and public-only artwork', () => {
@@ -147,5 +147,16 @@ describe('clean yellow-flag scenery and live deck anchor', () => {
     expect((s as any).deck.position.y).toBe(305);
     expect((s as any).deck.scale.x).toBe(60);
     expect(s.snapshot().cards[0].faceUp).toBe(true); s.dispose();
+  });
+});
+
+describe('stable backdrop proportions', () => {
+  it.each([[1536, 1024, 1280, 800], [1024, 1536, 320, 568], [1536, 1024, 844, 390]])('uniformly covers source %s×%s in viewport %s×%s', (sw, sh, width, height) => {
+    const rect = coveredImageRect(sw, sh, width, height);
+    expect(rect.width / rect.height).toBeCloseTo(sw / sh);
+    expect(rect.width).toBeGreaterThanOrEqual(width);
+    expect(rect.height).toBeGreaterThanOrEqual(height);
+    expect(rect.x + rect.width / 2).toBeCloseTo(width / 2);
+    expect(rect.y + rect.height / 2).toBeCloseTo(height / 2);
   });
 });

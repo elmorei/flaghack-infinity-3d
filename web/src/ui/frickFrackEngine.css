@@ -136,3 +136,145 @@
   .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button,
   .ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; filter: none; text-shadow: none; }
 }
+
+/* Stable table frame: only the viewport may resize these zones. Phase changes,
+   longer notices and opening the sleeve must never resize the photographed scene. */
+.ff-overlay:not(.ff-in-world) {
+  overflow: hidden;
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  place-items: stretch center;
+}
+.ff-overlay:not(.ff-in-world) .ff-panel {
+  position: relative;
+  width: min(1400px, 100%);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 34px 20px minmax(0, 1fr);
+  padding: 6px clamp(4px, 5vw, 80px) 44px;
+}
+.ff-overlay:not(.ff-in-world) .ff-header h2 { margin: 0; font-size: 25px; }
+.ff-overlay:not(.ff-in-world) .ff-status { align-self: center; margin: 0 auto; padding: 1px 8px; }
+.ff-overlay:not(.ff-in-world) .ff-body {
+  min-height: 0;
+  padding-top: 4px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 42px 60px 64px 130px;
+  gap: 4px;
+}
+.ff-table-stage {
+  min-height: 0;
+  grid-template-columns: 1fr minmax(60px, 140px) 1fr;
+  grid-template-rows: 54px minmax(0, 1fr) minmax(30px, .55fr) minmax(0, 1fr);
+  gap: 2px 0;
+}
+.ff-target-panel { box-sizing: border-box; max-height: 54px; padding: 3px 10px; }
+.ff-target-title { font-size: 23px; }
+.ff-target-panel .ff-die-label { font-size: 11px; margin: 0; line-height: 1.2; }
+.ff-overlay:not(.ff-in-world) .ff-hand {
+  height: 100%; min-height: 0; width: 100%;
+  display: flex; flex-direction: column;
+}
+.ff-overlay:not(.ff-in-world) .ff-hand h3 { flex: 0 0 20px; box-sizing: border-box; margin: 0 auto; padding: 1px 8px; }
+.ff-table-stage .ff-card-row {
+  flex: 1; min-height: 0; width: 100%;
+  flex-wrap: nowrap; justify-content: safe center;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  padding: 0; gap: 5px;
+}
+.ff-table-stage .ff-card,
+.ff-table-stage .ff-hand-dealer .ff-card {
+  height: min(100%, 124px); width: auto; aspect-ratio: 2 / 3;
+  max-width: 83px; flex: 0 0 auto; min-height: 0;
+}
+.ff-deck-stage { height: min(100%, 76px); width: auto; aspect-ratio: 2 / 3; }
+.ff-table-notices,
+.ff-table-notices:empty { display: block; min-height: 0; overflow: auto; }
+.ff-table-notices p { margin: 0; padding: 3px 8px; font-size: 12px; line-height: 1.3; }
+.ff-overlay:not(.ff-in-world) .ff-wager { margin: 0; align-self: center; }
+.ff-overlay:not(.ff-in-world) .ff-wager > span { margin-bottom: 1px; font-size: 10px; }
+.ff-overlay:not(.ff-in-world) .ff-wager-row { flex-wrap: nowrap; gap: 4px; }
+.ff-overlay:not(.ff-in-world) .ff-wager-row .ff-button,
+.ff-overlay:not(.ff-in-world) .ff-wager input { min-height: 44px; padding: 5px 10px; }
+.ff-overlay:not(.ff-in-world) .ff-wager input { width: 62px; }
+.ff-overlay:not(.ff-in-world) .ff-main-actions {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px; margin: 0; padding: 0; min-width: 0; min-height: 0;
+}
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button {
+  min-width: 0; width: 100%; min-height: 44px; height: 100%;
+  padding: 12px 12px; font-size: clamp(12px, 1.4vw, 18px);
+  white-space: normal; overflow-wrap: anywhere;
+}
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button[data-action="sleeve"] { --ff-plaque: url('./assets/frick-plaque-navy.svg'); }
+.ff-overlay:not(.ff-in-world) .ff-button:disabled,
+.ff-overlay:not(.ff-in-world) .ff-wager input:disabled {
+  opacity: .65; filter: grayscale(1); cursor: not-allowed;
+}
+.ff-extras { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.ff-overlay:not(.ff-in-world) .ff-extras .ff-rules,
+.ff-overlay:not(.ff-in-world) .ff-extras .ff-sideboard { margin: 0 0 4px; }
+.ff-extras .ff-rules summary { padding: 8px 12px; min-height: 44px; }
+.ff-extras .ff-cheats { margin-top: 4px; }
+.ff-extras [hidden] { display: none !important; }
+.ff-flag-counter { position: absolute; left: max(8px, env(safe-area-inset-left)); bottom: 4px; }
+@media (max-width: 850px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding: 4px 2px 40px; grid-template-rows: 28px 18px minmax(0, 1fr); }
+  .ff-overlay:not(.ff-in-world) .ff-header h2 { font-size: 21px; }
+  .ff-overlay:not(.ff-in-world) .ff-body { grid-template-rows: minmax(0, 1fr) 36px 58px 96px 100px; gap: 3px; }
+  .ff-overlay:not(.ff-in-world) .ff-main-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(44px, 1fr)); }
+  .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button { padding: 10px 14px; font-size: 13px; }
+  .ff-table-stage { grid-template-rows: 48px minmax(0, 1fr) minmax(24px, .4fr) minmax(0, 1fr); }
+  .ff-target-panel { max-height: 48px; padding: 2px 8px; }
+  .ff-target-title { font-size: 21px; }
+  .ff-target-panel .ff-die-label { font-size: 10px; }
+  .ff-table-stage .ff-card-row { gap: 3px; }
+}
+@media (max-height: 540px) and (min-width: 541px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding: 0 2px 36px; grid-template-rows: 26px 18px minmax(0, 1fr); }
+  .ff-overlay:not(.ff-in-world) .ff-header h2 { font-size: 20px; }
+  .ff-overlay:not(.ff-in-world) .ff-body {
+    grid-template-columns: minmax(0, 1.25fr) minmax(270px, 1fr);
+    grid-template-rows: 58px 96px minmax(0, 1fr) 32px;
+    gap: 4px 10px;
+  }
+  .ff-table-stage { grid-column: 1; grid-row: 1 / 4; }
+  .ff-table-notices { grid-column: 1; grid-row: 4; }
+  .ff-wager { grid-column: 2; grid-row: 1; }
+  .ff-overlay:not(.ff-in-world) .ff-main-actions { grid-column: 2; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(44px, 1fr)); }
+  .ff-extras { grid-column: 2; grid-row: 3 / 5; }
+}
+@media (forced-colors: active) {
+  .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:disabled { color: GrayText; border-color: GrayText; opacity: 1; }
+}
+
+/* The reserved sleeve viewport fits a complete live card without moving controls. */
+.ff-extras .ff-engine-card.ff-button { width: 52px; height: 78px; min-height: 78px; }
+.ff-extras .ff-sideboard > .ff-small { margin: 2px 8px; font-size: 10px; }
+.ff-extras .ff-sideboard > .ff-cheats { margin: 2px 8px; }
+/* Small portrait phones keep both hands readable side by side instead of
+   squeezing two vertical rows between the permanently visible controls. */
+@media (max-width: 540px) and (max-height: 650px) {
+  .ff-table-stage { grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr); grid-template-rows: 48px minmax(0, 1fr); gap: 2px 4px; }
+  .ff-overlay:not(.ff-in-world) .ff-hand-dealer { grid-column: 1; grid-row: 2; }
+  .ff-overlay:not(.ff-in-world) .ff-hand-player { grid-column: 3; grid-row: 2; }
+  .ff-table-stage .ff-card, .ff-table-stage .ff-hand-dealer .ff-card { height: min(100%, 78px); max-width: 52px; }
+  .ff-die-stage { grid-column: 2; grid-row: 2; height: 52px; align-self: start; }
+  .ff-deck-stage { grid-column: 2; grid-row: 2; height: 40px; align-self: end; }
+  .ff-overlay:not(.ff-in-world) .ff-hand h3 { gap: 3px; font-size: 10px; padding: 1px 3px; }
+}
+/* Reuse the unmodified gameplay counter; scale its whole unit on small screens,
+   not its font/icon independently. Reserve the full resulting footer height. */
+.ff-overlay:not(.ff-in-world) .ff-panel { padding-bottom: 54px; }
+@media (max-width: 850px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding-bottom: 44px; }
+  .ff-flag-counter { transform: scale(.8); transform-origin: bottom left; }
+}
+@media (max-height: 540px) and (min-width: 541px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding-bottom: 40px; }
+  .ff-flag-counter { transform: scale(.75); transform-origin: bottom left; }
+}
+
+.ff-in-world .ff-flag-counter { display: none; }
