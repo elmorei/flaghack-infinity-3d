@@ -3,6 +3,11 @@ on:
   push:
     branches: ['qa/engine-picnic-20261031']
   workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: Only repeat cold desktop deals and attribute first-use costs
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -28,10 +33,14 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+      - name: Diagnose cold first-deal costs separately
+        if: ${{ inputs.diagnostic == true || contains(github.event.head_commit.message, '[engine-diagnostic]') }}
+        run: ENGINE_DIAGNOSTIC=1 NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
       - name: Verify actual engine table, privacy and active-motion pacing
+        if: ${{ inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
       - name: Verify authoritative Frick-frack gameplay controls
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
       - name: Upload engine-native demo and evidence
         if: always()

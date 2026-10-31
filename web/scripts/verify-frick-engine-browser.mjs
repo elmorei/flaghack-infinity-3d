@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url), {chromium}=require('playwright');
 const HERE=dirname(fileURLToPath(import.meta.url)), DIST=resolve(HERE,'../dist'), OUT=resolve(HERE,'../host-release/frick-engine-smoke');
 const PROJECT='/flaghack-infinity-3d/';
+const DIAGNOSTIC=process.env.ENGINE_DIAGNOSTIC==='1';
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.mp4':'video/mp4','.woff2':'font/woff2','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.json':'application/json'};
 const server=createServer((req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
@@ -72,20 +73,23 @@ async function stageBetting(){
 }
 const button=name=>page.locator('.ff-overlay').getByRole('button',{name,exact:true});
 const act=async(name,spec)=>{const b=button(name);if(spec.touch)await b.tap({noWaitAfter:true});else await b.click({noWaitAfter:true});};
-async function armMetrics(name){
-  await page.evaluate(name=>{
-    const q={name,start:null,last:null,gaps:[],longTasks:[],loaf:[],done:false};window.__enginePerf=q;
+async function armMetrics(name,diagnostic=false){
+  await page.evaluate(({name,diagnostic})=>{
+    const q={name,start:null,last:null,gaps:[],raw:[],visibility:[],longTasks:[],loaf:[],done:false};window.__enginePerf=q;
     let long,loaf;
     try{long=new PerformanceObserver(list=>{for(const e of list.getEntries())if(q.start!==null&&e.startTime>=q.start&&e.startTime<=q.start+650)q.longTasks.push({start:e.startTime-q.start,duration:e.duration});});long.observe({type:'longtask',buffered:false});}catch{}
-    try{loaf=new PerformanceObserver(list=>{for(const e of list.getEntries())if(q.start!==null&&e.startTime>=q.start&&e.startTime<=q.start+650)q.loaf.push({start:e.startTime-q.start,duration:e.duration,blockingDuration:e.blockingDuration});});loaf.observe({type:'long-animation-frame',buffered:false});}catch{}
+    try{loaf=new PerformanceObserver(list=>{for(const e of list.getEntries())if(q.start!==null&&e.startTime>=q.start&&e.startTime<=q.start+650)q.loaf.push({start:e.startTime-q.start,duration:e.duration,blockingDuration:e.blockingDuration,...(diagnostic?{renderStart:e.renderStart,styleAndLayoutStart:e.styleAndLayoutStart,scripts:Array.from(e.scripts??[],s=>({sourceURL:s.sourceURL,sourceFunctionName:s.sourceFunctionName,invoker:s.invoker,duration:s.duration,forcedStyleAndLayoutDuration:s.forcedStyleAndLayoutDuration}))}:{})});});loaf.observe({type:'long-animation-frame',buffered:false});}catch{}
     const start=()=>{q.start=performance.now();q.last=q.start;requestAnimationFrame(tick);};
-    function tick(now){if(q.start===null)return;const elapsed=now-q.start;q.gaps.push(now-q.last);q.last=now;if(elapsed<650)requestAnimationFrame(tick);else{q.done=true;long?.disconnect();loaf?.disconnect();}}
+    function finish(){long?.disconnect();loaf?.disconnect();document.removeEventListener('visibilitychange',visibility);q.done=true;}
+    function visibility(){q.visibility.push({at:performance.now()-q.start,state:document.visibilityState});}
+    if(diagnostic)document.addEventListener('visibilitychange',visibility);
+    function tick(now){if(q.start===null)return;const elapsed=now-q.start;q.gaps.push(now-q.last);if(diagnostic)q.raw.push({raf:now-q.start,callback:performance.now()-q.start,gap:now-q.last});q.last=now;if(elapsed<650)requestAnimationFrame(tick);else if(diagnostic)setTimeout(finish,300);else finish();}
     document.querySelector('.ff-overlay').addEventListener('pointerdown',start,{once:true,capture:true});
-  },name);
+  },{name,diagnostic});
 }
 async function metrics(){
   await page.waitForFunction(()=>window.__enginePerf?.done,null,{timeout:15000});
-  return page.evaluate(()=>{const q=window.__enginePerf,g=[...q.gaps].sort((a,b)=>a-b);return{name:q.name,activeWindowMs:650,gapDefinition:'rAF intervals intersecting the active 650ms window, including a closing long interval',frames:g.length,maxGapMs:g.at(-1)??null,p95GapMs:g.length?g[Math.min(g.length-1,Math.ceil(g.length*.95)-1)]:null,longTasks:q.longTasks,loaf:q.loaf};});
+  return page.evaluate(()=>{const q=window.__enginePerf,g=[...q.gaps].sort((a,b)=>a-b);return{name:q.name,activeWindowMs:650,gapDefinition:'rAF intervals intersecting the active 650ms window, including a closing long interval',frames:g.length,maxGapMs:g.at(-1)??null,p95GapMs:g.length?g[Math.min(g.length-1,Math.ceil(g.length*.95)-1)]:null,longTasks:q.longTasks,loaf:q.loaf,...(q.raw.length?{raw:q.raw,visibility:q.visibility}: {})};});
 }
 async function ensureSettled(){await page.waitForTimeout(850);}
 async function verify(spec,url){
@@ -175,9 +179,46 @@ async function cleanDemo(url){
     results.demo={marks,fixtureDisclosure:results.fixtureDisclosure,recordingSpeed:1,videoPath:await page.video().path()};
   }finally{await context.close();}
 }
+/** One focused attribution run; never mixed with the original QA/demo result. */
+async function diagnosticRun(url){
+  const report={completed:false,scope:'Two fresh-browser cold desktop baselines plus one separately instrumented cold desktop sample. No screenshots/video. Not a physical device test.',interpretation:'Fresh browser processes do not reset OS/driver caches. Attribution durations are inclusive/nested and must not be summed. GL calls measure CPU submission/blocking, not GPU elapsed time. Image request-to-load includes loading and is not decode-only timing.',samples:[]};
+  try{
+    for(const instrumented of [false,false,true]){
+      browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
+      const context=await browser.newContext({viewport:{width:1280,height:800},deviceScaleFactor:1,userAgent:DESKTOP});
+      try{
+        await enter(context,specs[0],url);
+        if(instrumented)await page.evaluate(()=>{
+          const a=window.flaghack,records=[];window.__engineAttribution=records;window.__engineWrapped=[];
+          const save=(label,start,extra={})=>{const q=window.__enginePerf;if(q?.start!=null&&start>=q.start&&start<=q.start+650)records.push({label,start:start-q.start,duration:performance.now()-start,...extra});};
+          const wrap=(object,key,label)=>{if(!object||typeof object[key]!=='function')return;window.__engineWrapped.push(label);const original=object[key];object[key]=function(...args){const start=performance.now();try{return original.apply(this,args);}finally{save(label,start);}};};
+          wrap(a.sim,'step','simulation.step');wrap(a.ui,'update','ui.update');
+          wrap(a.ui?.frickFrack,'render','table.dom-rebuild');wrap(a.ui?.frickFrack,'publishEngineView','table.layout-reads');
+          wrap(a.renderer,'render','game.render');wrap(a.renderer.frickScene,'draw','table.draw-total');
+          wrap(a.renderer.renderer,'render','three.render');
+          wrap(CanvasRenderingContext2D.prototype,'drawImage','canvas.drawImage');
+          const gl=a.renderer.renderer.getContext();
+          for(const name of ['compileShader','linkProgram','texImage2D','texSubImage2D'])wrap(gl,name,'gl.'+name);
+          // Image URLs here are requests already made by public renderer code; no deck inspection or preloading.
+          const descriptor=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');
+          if(descriptor?.set)Object.defineProperty(HTMLImageElement.prototype,'src',{...descriptor,set(value){const started=performance.now();this.addEventListener('load',()=>save('image.request-to-load',started,{url:String(value),width:this.naturalWidth,height:this.naturalHeight}),{once:true});return descriptor.set.call(this,value);}});
+        });
+        await armMetrics('cold-opening-deal',true);await act('Deal hand',specs[0]);
+        const sample={instrumented,metrics:await metrics()};
+        sample.state=await state();
+        assert.equal(sample.state.session.dealer[1],null,'Diagnostic does not reveal hole card');
+        if(instrumented){sample.attribution=await page.evaluate(()=>window.__engineAttribution);sample.wrapped=await page.evaluate(()=>window.__engineWrapped);}
+        report.samples.push(sample);
+      }finally{await context.close();await browser.close();browser=null;}
+    }
+    report.completed=true;
+  }catch(error){report.error=error.stack||String(error);throw error;}
+  finally{writeFileSync(join(OUT,'diagnostic-result.json'),JSON.stringify(report,null,2));}
+}
 async function main(){
   mkdirSync(OUT,{recursive:true});await new Promise(done=>server.listen(0,'127.0.0.1',done));
   const url=`http://127.0.0.1:${server.address().port}${PROJECT}`;results.url=url;
+  if(DIAGNOSTIC){try{await diagnosticRun(url);}finally{server.close();}return;}
   browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
   try{for(const spec of specs)await verify(spec,url);await cleanDemo(url);results.completed=true;}
   catch(error){results.error=error.stack||String(error);if(page&&!page.isClosed()){results.failureState=await state().catch(()=>null);await page.screenshot({path:join(OUT,'failure.png')}).catch(()=>{});}throw error;}
