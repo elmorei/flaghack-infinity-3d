@@ -121,6 +121,7 @@ export class FrickFrackUI implements UiPart {
   private next: HTMLButtonElement | null = null;
   private active: FrickFrackSession | null = null;
   private tableWorld: World | null = null;
+  private lastChoosing = false;
   private wager = 1;
   private wagerInput: HTMLInputElement | null = null;
   private wagerAvailable = 0;
@@ -178,11 +179,14 @@ export class FrickFrackUI implements UiPart {
       && !handFlagBlocker(world, local.playerFaction, world.frickFrack.wizardId));
     if (session?.phase === 'betting' && this.lastEnginePhase !== 'betting') this.engineRound++;
     this.lastEnginePhase = session?.phase ?? '';
-    if (world !== this.tableWorld || !session || session.id !== this.active?.id || session.faction !== this.active?.faction || session.phase !== 'playing' || session.arcana?.choices?.length) {
+    const ownershipChanged = world !== this.tableWorld || session?.id !== this.active?.id || session?.faction !== this.active?.faction;
+    const choosingNow = !!session?.arcana?.choices?.length;
+    if (ownershipChanged) this.key = '';
+    if (ownershipChanged || !session || session.phase !== 'playing' || (choosingNow && !this.lastChoosing)) {
       this.sideboardOpen = false; this.selectedMajor = null; this.majorTargets = []; this.sleeveIndex = 0;
-      this.sleeveViewer?.remove(); this.sleeveViewer = null; this.body.inert = false; this.key = "";
+      this.sleeveViewer?.remove(); this.sleeveViewer = null; this.body.inert = false;
     }
-    this.active = session; this.tableWorld = world;
+    this.active = session; this.tableWorld = world; this.lastChoosing = choosingNow;
     show(this.root, session !== null);
     this.root.classList.toggle('ff-in-world', session?.phase === 'dialogue' || session?.phase === 'empty');
     document.documentElement.classList.toggle('ff-conversation-active', session !== null);

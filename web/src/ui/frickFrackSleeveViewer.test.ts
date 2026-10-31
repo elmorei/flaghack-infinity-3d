@@ -7,7 +7,8 @@ class NodeStub {
   dataset: Record<string, string> = {};
   attributes: Record<string, string> = {};
   className = ''; textContent = ''; innerHTML = ''; disabled = false; inert = false;
-  focus = vi.fn(); blur = vi.fn();
+  focus = vi.fn(); blur = vi.fn(); remove = vi.fn();
+  classList = { contains: () => false, toggle: vi.fn() };
   listeners: Record<string, (ev: unknown) => void> = {};
   appendChild(node: NodeStub) { this.children.push(node); }
   setAttribute(key: string, value: string) { this.attributes[key] = value; }
@@ -33,6 +34,30 @@ function flatten(node: NodeStub): NodeStub[] { return [node, ...node.children.fl
 afterEach(() => vi.unstubAllGlobals());
 
 describe('sleeve viewer interactions', () => {
+  it.each(['betting', 'rolling', 'result', 'dialogue', 'playing'] as const)('does not rebuild unchanged %s state on each update', phase => {
+    const { ui, s, world, render } = fixture(); s.phase = phase;
+    if (phase === 'playing') s.arcana = { choices: [{ id: 77, rank: 2, suit: 0 }] };
+    Object.assign(ui, { offer: new NodeStub(), key: '', frame: vi.fn(), engineRound: 0, tableWorld: world, lastChoosing: false });
+    vi.stubGlobal('document', { documentElement: new NodeStub(), createElement: () => new NodeStub() });
+    ui.update(world, 1000); ui.update(world, 1100); ui.update(world, 1200);
+    expect(render).toHaveBeenCalledExactlyOnceWith(s, 0, world);
+    expect(ui.frame).toHaveBeenCalledTimes(3);
+  });
+  it('closes on transition into a choice, but preserves explicit inspection after reopening', () => {
+    const { ui, s, world, render } = fixture();
+    const originalViewer = new NodeStub();
+    Object.assign(ui, { offer: new NodeStub(), key: '', frame: vi.fn(), tableWorld: world, lastChoosing: false, sleeveViewer: originalViewer });
+    vi.stubGlobal('document', { documentElement: new NodeStub(), createElement: () => new NodeStub() });
+    ui.update(world, 1000); expect(ui.sideboardOpen).toBe(true);
+    s.arcana = { choices: [{ id: 77, rank: 2, suit: 0 }] }; s.revision++;
+    ui.update(world, 1100);
+    expect(ui.sideboardOpen).toBe(false); expect(originalViewer.remove).toHaveBeenCalledOnce();
+    // Reopening is a local inspection; no authoritative revision changes.
+    const reopenedViewer = new NodeStub(); ui.sideboardOpen = true; ui.sleeveViewer = reopenedViewer; ui.body.inert = true;
+    ui.update(world, 1200); ui.update(world, 1300);
+    expect(ui.sideboardOpen).toBe(true); expect(ui.body.inert).toBe(true);
+    expect(reopenedViewer.remove).not.toHaveBeenCalled(); expect(render).toHaveBeenCalledTimes(2);
+  });
   it('browses physical card identities, including duplicate faces, without submitting a play', () => {
     const { ui, submit, render } = fixture();
     ui.browseSleeve(1);
