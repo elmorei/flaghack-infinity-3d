@@ -160,3 +160,43 @@ describe('stable backdrop proportions', () => {
     expect(rect.y + rect.height / 2).toBeCloseTo(height / 2);
   });
 });
+
+describe('engine sleeve viewer layer', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', { innerWidth: 800, innerHeight: 600 });
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => mockContext() }) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  it('layers a large actual card above the scrim without moving the table and blocks underlying raycasts', () => {
+    const s = new FrickFrackScene(), { r, state } = rendererMock(), v = view();
+    s.draw(r, v, 1000);
+    const before = s.snapshot();
+    const scrim = (s as any).sleeveScrim;
+    const dispose = vi.spyOn(scrim.material, 'dispose');
+    v.sleeveOverlay = { x: 0, y: 0, width: 800, height: 600 };
+    v.cards.push({ key: 'sleeve-viewer:123', card: known, order: -1, defeated: false, rect: { x: 300, y: 100, width: 200, height: 300 } });
+    s.draw(r, v, 1100);
+    const after = s.snapshot();
+    expect(after.panel).toEqual(before.panel); expect(after.backdropRect).toEqual(before.backdropRect);
+    expect(after.cards[0]).toEqual(before.cards[0]);
+    expect(after.cards[1]).toMatchObject({ faceUp: true, width: 200, height: 300, z: 110 });
+    expect(scrim.visible).toBe(true); expect(scrim.position.z).toBe(100);
+    expect(s.pick(400, 250)).toBe('sleeve-viewer:123');
+    expect(s.pick(136, 154)).toBeNull();
+    expect(state.scissor.toArray()).toEqual([5, 6, 7, 8]);
+    delete v.sleeveOverlay; v.cards.pop(); s.draw(r, v, 1200);
+    expect(s.snapshot().sleeveOverlay).toBeNull(); expect(scrim.visible).toBe(false);
+    expect(s.pick(136, 154)).toBe('dealer:0');
+    s.clear(); expect(scrim.visible).toBe(false); s.dispose(); expect(dispose).toHaveBeenCalledOnce();
+  });
+  it('supports viewer bounds beyond the normal panel while retaining the same table bounds', () => {
+    const s = new FrickFrackScene(), { r } = rendererMock(), v = view();
+    v.sleeveOverlay = { x: 0, y: 0, width: 800, height: 600 };
+    v.cards = [{ key: 'sleeve-viewer:123', card: known, order: -1, defeated: false, rect: { x: 730, y: 100, width: 60, height: 90 } }];
+    s.draw(r, v, 1000);
+    expect(s.snapshot().panel).toEqual(v.panel);
+    expect(s.pick(760, 145)).toBe('sleeve-viewer:123');
+    expect(r.setScissor).toHaveBeenCalledWith(0, 0, 800, 600);
+    s.dispose();
+  });
+});

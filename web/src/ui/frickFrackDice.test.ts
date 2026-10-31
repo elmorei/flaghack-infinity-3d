@@ -101,7 +101,7 @@ describe('authoritative target die presentation', () => {
     const app = { session: { screen: 'playing', playerFaction: 0, spectator: false },
       world: { phase: 'playing', time: 20, factions: [{ alive: true, controlMode: 'avatar' }],
         avatarOf: () => ({ koUntil: 0 }), frickFrack: { sessions: { 0: s } } }, submit };
-    const fixture = Object.assign(Object.create(FrickFrackUI.prototype), { host: { app }, pending: '', body: { querySelectorAll: () => [] } });
+    const fixture = Object.assign(Object.create(FrickFrackUI.prototype), { host: { app }, pending: '', root: { querySelectorAll: () => [] }, body: { querySelectorAll: () => [] } });
     fixture.send('bet', { wager: 3 }); fixture.send('bet', { wager: 3 });
     expect(submit).toHaveBeenCalledTimes(1);
     expect(submit.mock.calls[0][0]).toEqual({ t: 'frickFrack', faction: 0, sessionId: 7, revision: 2, action: 'bet', wager: 3 });

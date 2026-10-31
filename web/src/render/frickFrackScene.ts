@@ -10,7 +10,9 @@ import { createDie, dieMotion, visibleDieFace } from './frickFrackDie';
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface CardView { key: string; card: FrickFrackCard | null; rect: Rect; defeated: boolean; order: number }
 export interface TableView { sessionKey: string; panel: Rect; cards: CardView[]; reducedMotion: boolean;
-  die?: { result: number; progress: number; rect: Rect; rollKey: string }; deck?: Rect }
+  die?: { result: number; progress: number; rect: Rect; rollKey: string }; deck?: Rect;
+  /** Local sleeve viewer bounds; does not alter the table or its backdrop layout. */
+  sleeveOverlay?: Rect }
 export interface PublicArtwork { url: string; crop?: { x: number; y: number; width: number; height: number } }
 /** Calling this with null is deliberately a complete privacy boundary. */
 export function publicCardArtwork(card: FrickFrackCard | null): PublicArtwork | null {
@@ -171,6 +173,8 @@ export class FrickFrackScene {
   private readonly blanketMaterial = new THREE.MeshBasicMaterial({ map: this.blanketTexture, toneMapped: false });
   private readonly blanket = new THREE.Mesh(this.plane, this.blanketMaterial);
   private readonly deck = new THREE.Group();
+  private readonly sleeveScrim = new THREE.Mesh(this.plane, new THREE.MeshBasicMaterial({ color: '#101b20', opacity: .86, transparent: true, depthWrite: false, toneMapped: false }));
+  private sleeveOverlay: Rect | null = null;
   private readonly die = createDie();
   private readonly dieShadow = new THREE.Mesh(this.plane, new THREE.MeshBasicMaterial({ map: this.shadowTexture, transparent: true, depthWrite: false, toneMapped: false }));
   private dieState: { result: number; face: number; progress: number; rollKey: string } | null = null;
@@ -187,7 +191,8 @@ export class FrickFrackScene {
     this.camera.position.z = 1000;
     this.sceneryKind = typeof window !== 'undefined' && window.innerWidth < 700 ? 'portrait' : 'landscape';
     this.loadScenery(this.sceneryKind);
-    this.blanket.position.z = -20; this.scene.add(this.blanket, this.deck, this.die.mesh, this.dieShadow);
+    this.blanket.position.z = -20; this.scene.add(this.blanket, this.deck, this.die.mesh, this.dieShadow, this.sleeveScrim);
+    this.sleeveScrim.visible = false;
     this.die.mesh.visible = this.dieShadow.visible = false;
     for (let i = 0; i < 4; i++) {
       const m = new THREE.Mesh(this.plane, this.backMaterial); m.position.set(i * .025, i * .023, i * .1); this.deck.add(m);
@@ -211,32 +216,34 @@ export class FrickFrackScene {
     return [...this.cards].map(([key, node]) => ({ key, hidden: node.hidden, rotation: node.group.rotation.y, signature: node.signature }));
   }
   snapshot() {
-    return { active: this.active, drawCount: this.drawCount, cardCount: this.cards.size, meshCount: 5 + this.cards.size * 3 + (this.dieState ? 2 : 0), sessionKey: this.key,
+    return { active: this.active, drawCount: this.drawCount, cardCount: this.cards.size, meshCount: 5 + this.cards.size * 3 + (this.dieState ? 2 : 0) + (this.sleeveOverlay ? 1 : 0), sessionKey: this.key,
       die: this.dieState ? { ...this.dieState } : null, backdropReady: this.sceneryReady, backdropKind: this.sceneryKind,
+      sleeveOverlay: this.sleeveOverlay ? { ...this.sleeveOverlay } : null,
       panel: { ...this.panel }, backdropRect: { ...this.backdropRect }, backdropAspect: this.backdropAspect,
       cards: [...this.cards].map(([key, node]) => ({ key, hidden: node.hidden, defeated: node.view.defeated,
-        x: node.group.position.x, y: this.height - node.group.position.y, width: node.view.rect.width, height: node.view.rect.height,
+        z: node.group.position.z, x: node.group.position.x, y: this.height - node.group.position.y, width: node.view.rect.width, height: node.view.rect.height,
         rotationY: node.group.rotation.y, visible: node.group.visible, faceVisible: !node.hidden && Math.cos(node.group.rotation.y) > 0,
         faceUp: !node.hidden && Math.abs(node.group.rotation.y) < .01, animationProgress: node.progress,
         textureKey: node.signature })) };
   }
   /** Raycast actual engine geometry, not a second DOM hit box. */
   pick(clientX: number, clientY: number): string | null {
-    if (!this.active || clientX < this.panel.x || clientY < this.panel.y || clientX > this.panel.x + this.panel.width || clientY > this.panel.y + this.panel.height) return null;
+    const bounds = this.sleeveOverlay ?? this.panel;
+    if (!this.active || clientX < bounds.x || clientY < bounds.y || clientX > bounds.x + bounds.width || clientY > bounds.y + bounds.height) return null;
     this.camera.updateMatrixWorld(); this.scene.updateMatrixWorld(true);
     this.raycaster.setFromCamera(new THREE.Vector2(clientX / this.width * 2 - 1, 1 - clientY / this.height * 2), this.camera);
-    const picks = [...this.cards].filter(([, n]) => n.group.visible).flatMap(([key, n]) => n.group.children.map(mesh => ({ key, mesh })));
+    const picks = [...this.cards].filter(([key, n]) => n.group.visible && (!this.sleeveOverlay || key.startsWith('sleeve-viewer:'))).flatMap(([key, n]) => n.group.children.map(mesh => ({ key, mesh })));
     const hit = this.raycaster.intersectObjects(picks.map(p => p.mesh), false)[0];
     return hit ? picks.find(p => p.mesh === hit.object)?.key ?? null : null;
   }
   private remove(key: string, node: CardNode): void {
     this.scene.remove(node.group, node.shadow); disposeFace(node.face); node.front.material.dispose(); node.shadow.material.dispose(); this.cards.delete(key);
   }
-  clear(): void { for (const [key, node] of this.cards) this.remove(key, node); this.key = ''; this.active = false; this.dieState = null; this.die.mesh.visible = this.dieShadow.visible = false; }
+  clear(): void { for (const [key, node] of this.cards) this.remove(key, node); this.key = ''; this.active = false; this.dieState = null; this.sleeveOverlay = null; this.sleeveScrim.visible = false; this.die.mesh.visible = this.dieShadow.visible = false; }
   dispose(): void {
     if (this.disposed) return; this.disposed = true; this.clear(); this.plane.dispose();
     this.backTexture.dispose(); this.blanketTexture.dispose(); this.shadowTexture.dispose(); this.backMaterial.dispose(); this.blanketMaterial.dispose();
-    this.die.dispose(); this.dieShadow.material.dispose(); Object.values(this.sceneryTextures).forEach(map => map.dispose());
+    this.die.dispose(); this.dieShadow.material.dispose(); this.sleeveScrim.material.dispose(); Object.values(this.sceneryTextures).forEach(map => map.dispose());
     Object.values(this.sceneryImages).forEach(img => { img.onload = null; img.onerror = null; });
   }
   draw(renderer: THREE.WebGLRenderer, view: TableView, nowMs: number): void {
@@ -246,6 +253,13 @@ export class FrickFrackScene {
     this.active = true; this.width = width; this.height = height;
     this.camera.right = width; this.camera.top = height; this.camera.updateProjectionMatrix();
     const panel = view.panel; this.panel = { ...panel };
+    this.sleeveOverlay = view.sleeveOverlay ? { ...view.sleeveOverlay } : null;
+    this.sleeveScrim.visible = !!this.sleeveOverlay;
+    if (this.sleeveOverlay) {
+      const r = this.sleeveOverlay;
+      this.sleeveScrim.position.set(r.x + r.width / 2, height - r.y - r.height / 2, 100);
+      this.sleeveScrim.scale.set(r.width, r.height, 1);
+    }
     this.sceneryKind = width / height < .95 ? 'portrait' : 'landscape';
     this.loadScenery(this.sceneryKind);
     const scenery = this.sceneryTextures[this.sceneryKind]; this.sceneryReady = !!scenery;
@@ -303,10 +317,11 @@ export class FrickFrackScene {
       node.progress = motion.progress;
       const x = deckX + (item.rect.x + item.rect.width / 2 - deckX) * motion.progress;
       const y = deckY + (item.rect.y + item.rect.height / 2 - deckY) * motion.progress;
-      node.group.position.set(x, height - y + motion.lift, 10 + item.order * .15);
+      const inViewer = !!this.sleeveOverlay && item.key.startsWith('sleeve-viewer:');
+      node.group.position.set(x, height - y + motion.lift, inViewer ? 110 : 10 + item.order * .15);
       node.group.scale.set(item.rect.width, item.rect.height, 1); node.group.rotation.y = motion.angle;
-      node.group.rotation.z = Math.sin((item.order + 1) * 2.7) * .018 * motion.progress;
-      node.shadow.position.set(x + 3 + motion.lift * .2, height - y - 5 - motion.lift * .2, 2);
+      node.group.rotation.z = inViewer ? 0 : Math.sin((item.order + 1) * 2.7) * .018 * motion.progress;
+      node.shadow.position.set(x + 3 + motion.lift * .2, height - y - 5 - motion.lift * .2, inViewer ? 105 : 2);
       node.shadow.scale.set(item.rect.width * 1.5, item.rect.height * 1.28, 1);
       node.group.visible = item.rect.width > 0 && item.rect.height > 0; node.shadow.visible = node.group.visible;
     }
@@ -317,8 +332,9 @@ export class FrickFrackScene {
     try {
       renderer.setRenderTarget(null); renderer.setViewport(0, 0, width, height); renderer.setScissorTest(false);
       renderer.autoClear = false; renderer.toneMapping = THREE.NoToneMapping; renderer.setClearColor('#1a302a', 1); renderer.clear(true, true, true);
-      const x = Math.max(0, panel.x), y = Math.max(0, height - panel.y - panel.height);
-      renderer.setScissor(x, y, Math.max(0, Math.min(width, panel.x + panel.width) - x), Math.max(0, Math.min(height, height - panel.y) - y));
+      const clip = this.sleeveOverlay ?? panel;
+      const x = Math.max(0, clip.x), y = Math.max(0, height - clip.y - clip.height);
+      renderer.setScissor(x, y, Math.max(0, Math.min(width, clip.x + clip.width) - x), Math.max(0, Math.min(height, height - clip.y) - y));
       renderer.setScissorTest(true); renderer.render(this.scene, this.camera); this.drawCount++;
     } finally {
       renderer.setRenderTarget(target); renderer.setViewport(viewport); renderer.setScissor(scissor); renderer.setScissorTest(scissorTest);
