@@ -162,7 +162,7 @@ describe('post-grade marker overlay routing', () => {
   it('renders the actual overlay after PostFx without clearing or regrading the map', () => {
     const { target, renderer } = rendererFixture(); const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(); const order: string[] = [];
     vi.mocked(renderer.render).mockImplementation(() => { expect(renderer.autoClear).toBe(false); expect(renderer.getRenderTarget()).toBe(null); order.push('marks'); });
-    const state = { ctx: { time: 0, shared: { commandOverlay: scene } }, camera, renderer, modules: [], needsWarm: false, warmUntil: 0,
+    const state = { ctx: { time: 0, world: { frickFrack: { sessions: {} } }, session: { playerFaction: 0 }, shared: { commandOverlay: scene } }, camera, renderer, frickScene: { clear() {} }, modules: [], needsWarm: false, warmUntil: 0,
       updateFx() {}, post: { render() { order.push('post'); } } };
     GameRenderer.prototype.render.call(state as unknown as GameRenderer, 1 / 60);
     expect(order).toEqual(['post', 'marks']); expect(renderer.autoClear).toBe(true); expect(renderer.getRenderTarget()).toBe(target); target.dispose();
