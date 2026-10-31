@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FrickFrackUI, majorPublicBlocker } from './frickFrack';
+import { setFrickFrackPrivateView } from '../sim/frickFrackPrivate';
+import type { World } from '../sim/world';
 import type { FrickFrackCard, FrickFrackSession } from '../sim/frickFrack';
 
 class NodeStub {
@@ -57,6 +59,37 @@ describe('sleeve viewer interactions', () => {
     ui.update(world, 1200); ui.update(world, 1300);
     expect(ui.sideboardOpen).toBe(true); expect(ui.body.inert).toBe(true);
     expect(reopenedViewer.remove).not.toHaveBeenCalled(); expect(render).toHaveBeenCalledTimes(2);
+  });
+  it.each(['dealer', 'next'] as const)('shows a new private %s peek immediately, but lets the sleeve reopen', kind => {
+    const { ui, s, world, render } = fixture();
+    Object.assign(ui, { offer: new NodeStub(), key: '', frame: vi.fn(), tableWorld: world, lastChoosing: false, lastPeekKey: '' });
+    vi.stubGlobal('document', { documentElement: new NodeStub(), createElement: () => new NodeStub() });
+    ui.update(world, 1000); expect(ui.sideboardOpen).toBe(true);
+    s.revision++;
+    setFrickFrackPrivateView(world as unknown as World, 0, {
+      sessionId: s.id, revision: s.revision, kind, expiresAt: world.time + (kind === 'dealer' ? 3 : 5),
+      cards: [{ id: 77, rank: 2, suit: 0 }],
+    });
+    ui.update(world, 1100);
+    expect(ui.sideboardOpen).toBe(false);
+    expect(render).toHaveBeenCalledTimes(2);
+    ui.sideboardOpen = true; ui.body.inert = true;
+    ui.update(world, 1200); ui.update(world, 1300);
+    expect(ui.sideboardOpen).toBe(true); expect(ui.body.inert).toBe(true);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+  it('does not dismiss inspection for an expired or not-yet-entitled peek', () => {
+    const { ui, s, world } = fixture();
+    Object.assign(ui, { offer: new NodeStub(), key: '', frame: vi.fn(), tableWorld: world, lastChoosing: false, lastPeekKey: '' });
+    vi.stubGlobal('document', { documentElement: new NodeStub(), createElement: () => new NodeStub() });
+    ui.update(world, 1000);
+    setFrickFrackPrivateView(world as unknown as World, 0, {
+      sessionId: s.id, revision: s.revision + 1, kind: 'dealer', expiresAt: world.time + 3,
+      cards: [{ id: 77, rank: 2, suit: 0 }],
+    });
+    ui.update(world, 1100); expect(ui.sideboardOpen).toBe(true);
+    world.time += 4; s.revision++;
+    ui.update(world, 1200); expect(ui.sideboardOpen).toBe(true);
   });
   it('browses physical card identities, including duplicate faces, without submitting a play', () => {
     const { ui, submit, render } = fixture();

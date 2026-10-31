@@ -122,6 +122,7 @@ export class FrickFrackUI implements UiPart {
   private active: FrickFrackSession | null = null;
   private tableWorld: World | null = null;
   private lastChoosing = false;
+  private lastPeekKey = '';
   private wager = 1;
   private wagerInput: HTMLInputElement | null = null;
   private wagerAvailable = 0;
@@ -181,7 +182,7 @@ export class FrickFrackUI implements UiPart {
     this.lastEnginePhase = session?.phase ?? '';
     const ownershipChanged = world !== this.tableWorld || session?.id !== this.active?.id || session?.faction !== this.active?.faction;
     const choosingNow = !!session?.arcana?.choices?.length;
-    if (ownershipChanged) this.key = '';
+    if (ownershipChanged) { this.key = ''; this.lastPeekKey = ''; }
     if (ownershipChanged || !session || session.phase !== 'playing' || (choosingNow && !this.lastChoosing)) {
       this.sideboardOpen = false; this.selectedMajor = null; this.majorTargets = []; this.sleeveIndex = 0;
       this.sleeveViewer?.remove(); this.sleeveViewer = null; this.body.inert = false;
@@ -203,6 +204,12 @@ export class FrickFrackUI implements UiPart {
     }
     const available = world.avatarOf(session.faction)?.carried.length ?? 0;
     const privateView = getFrickFrackPrivateView(world, session.faction);
+    const peekKey = privateView ? `${privateView.sessionId}:${privateView.revision}:${privateView.expiresAt}` : '';
+    // A successful timed glance must be visible immediately, not expire behind inspection.
+    if (peekKey && peekKey !== this.lastPeekKey && this.sideboardOpen) {
+      this.sideboardOpen = false; this.sleeveViewer?.remove(); this.sleeveViewer = null; this.body.inert = false;
+    }
+    this.lastPeekKey = peekKey;
     const signature = `${session.faction}:${session.id}:${session.revision}:${session.phase}:${available}:${world.frickFrack.sideboards[session.faction].map(c => c.id).join(',')}:${privateView?.expiresAt ?? 0}`;
     if (this.pending && (this.pending !== `${session.id}:${session.revision}` || now - this.pendingAt > 2500)) { this.pending = ''; this.key = ''; }
     if (signature !== this.key) {
