@@ -52,7 +52,7 @@ describe('authoritative target die presentation', () => {
   });
   it('keeps main actions and disabled wager input visible during rolling, with accessible live status', () => {
     const { fixture, actions, created } = renderFixture(); fixture.render(session(), 8, { time: 10.5 });
-    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Again', 'Exit']);
+    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Exit']);
     expect(created.some(n => n.className === 'ff-table-stage')).toBe(true);
     expect(created.some(n => n.className === 'ff-deck-stage' && n.attrs['aria-hidden'] === 'true')).toBe(true);
     expect(created.some(n => n.className === 'ff-target-title' && n.textContent === 'Rolling the target')).toBe(true);
@@ -64,12 +64,28 @@ describe('authoritative target die presentation', () => {
     const { fixture, actions, controls } = renderFixture();
     const s = { ...session(), phase }; fixture.active = s;
     fixture.render(s, 8, { time: 12, frickFrack: { sideboards: { 0: [] } } });
-    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Again', 'Exit']);
-    expect(controls.Deal.disabled).toBe(phase !== 'betting');
+    expect(actions).toEqual(['Deal', 'Hit', 'Stand', 'Exit']);
+    expect(controls.Deal.disabled).toBe(phase !== 'betting' && phase !== 'result');
     expect(controls.Hit.disabled).toBe(phase !== 'playing');
     expect(controls.Stand.disabled).toBe(phase !== 'playing');
-    expect(controls.Again.disabled).toBe(phase !== 'result');
+    expect(controls.Again).toBeUndefined();
     expect(controls.Exit.disabled).toBe(false);
+  });
+  it('uses Deal at result only to request the next authoritative roll, never to auto-wager', () => {
+    const s = { ...session(), phase: 'result' as FrickFrackSession['phase'] };
+    const submit = vi.fn();
+    const app = { session: { screen: 'playing', playerFaction: 0, spectator: false },
+      world: { phase: 'playing', time: 20, factions: [{ alive: true, controlMode: 'avatar' }],
+        avatarOf: () => ({ koUntil: 0 }), frickFrack: { sessions: { 0: s } } }, submit };
+    const fixture = Object.assign(Object.create(FrickFrackUI.prototype), { host: { app }, pending: '', body: { querySelectorAll: () => [] } });
+    fixture.send('bet', { wager: 3 }); fixture.send('bet', { wager: 3 });
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit.mock.calls[0][0]).toEqual({ t: 'frickFrack', faction: 0, sessionId: 7, revision: 2, action: 'again' });
+    s.phase = 'rolling'; s.revision++; fixture.pending = ''; fixture.send('bet', { wager: 3 });
+    expect(submit).toHaveBeenCalledTimes(1);
+    s.phase = 'betting'; s.revision++; fixture.send('bet', { wager: 3 });
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(submit.mock.calls[1][0]).toMatchObject({ action: 'bet', wager: 3 });
   });
   it('publishes die lane and unchanged authoritative progress in read-only phase', () => {
     const s = session(), rect = { x: 12, y: 20, width: 160, height: 82 };

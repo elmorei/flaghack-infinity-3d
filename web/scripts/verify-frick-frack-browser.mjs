@@ -303,7 +303,7 @@ async function main(){
         await shot('desktop-winning-hand');await holdForDemo('winning-hand',2500);
         check('desktop: physical numeric/Major pickups, random Hit, one-use Ace, inspect/confirm Sun reveal, Stand and settled win');
 
-        await tap(button('Again'));
+        await tap(button('Deal'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         // A known sideboard card still goes through the real Play button and combat resolver.
         await seedAndQuiver('frick-136-25',10);await deal(1);
@@ -329,7 +329,7 @@ async function main(){
         }
         await page.setViewportSize({width:spec.width,height:spec.height});
         await tap(button('Stand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
-        await tap(button('Again'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await tap(button('Deal'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         assert.equal((await state()).session.defeated?.length??0,0,'Authoritative next hand clears combat history');
         // The simulation changes phase before the next UI render publishes that revision.
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===0);
@@ -348,7 +348,7 @@ async function main(){
         await shot('desktop-pair-profit');await holdForDemo('pair-profit',3000);
         check('desktop: pair doubles only winning profit, not returned stake');
 
-        await tap(button('Again'));
+        await tap(button('Deal'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-1',10);
         // Observe settlement before the live world can consume stock again.
@@ -370,7 +370,7 @@ async function main(){
         await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 
-        await tap(button('Again'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await tap(button('Deal'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-9',3);await deal(3);
         await tap(button('Hit'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='empty');

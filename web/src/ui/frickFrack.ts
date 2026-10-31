@@ -151,7 +151,7 @@ export class FrickFrackUI implements UiPart {
     this.title = el('h2', '', identity, 'Frick-frack'); this.title.id = 'ff-title';
     this.status = el('p', 'ff-status', panel);
     this.body = el('div', 'ff-body', panel);
-    this.flags = el('div', 'ff-flag-counter', panel);
+    this.flags = el('div', 'ff-flag-counter res frame', panel);
     this.flagValue = flagCounter(this.flags).value;
     this.flags.setAttribute('role', 'status');
     this.flags.setAttribute('aria-label', 'Available player Flags');
@@ -278,10 +278,9 @@ export class FrickFrackUI implements UiPart {
       adjust('+', 'Wager one more Flag', () => this.wager + 1);
       adjust('All', 'Wager all available Flags', () => this.wagerAvailable);
       const actions = el('div', 'ff-actions ff-main-actions', this.body);
-      this.action(actions, 'Deal', 'bet', () => ({ wager: clampWager(Number(this.wagerInput?.value ?? this.wager), available) })).disabled = !betting || available < 1;
+      this.action(actions, 'Deal', 'bet', () => ({ wager: clampWager(Number(this.wagerInput?.value ?? this.wager), available) })).disabled = s.phase !== 'result' && (!betting || available < 1);
       this.action(actions, 'Hit', 'hit').disabled = !playing || choosing;
       this.action(actions, 'Stand', 'stand').disabled = !playing || choosing;
-      this.action(actions, 'Again', 'again').disabled = s.phase !== 'result';
       const sleeve = button('ff-button', actions, 'Sleeve', ev => {
         if (sleeve.disabled) return;
         this.sideboardOpen = !this.sideboardOpen; this.render(s, available, world);
@@ -326,9 +325,6 @@ export class FrickFrackUI implements UiPart {
         }
         if (!choosing) this.renderMajorPicker(board, s, available, world);
       }
-      const rules = el('details', 'ff-rules', extras);
-      el('summary', '', rules, 'Rules · combat & poker prizes');
-      for (const rule of FRICK_FRACK_TABLE_RULES) el('p', '', rules, rule);
     }
     this.frame();
     if (this.pending) for (const b of this.body.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('button,input,select')) b.disabled = true;
@@ -496,6 +492,8 @@ export class FrickFrackUI implements UiPart {
   private send(action: TableAction, extra?: TableExtras): void {
     const s = activeFrickFrack(this.host.app), w = this.host.app.world;
     if (!s || !w || this.pending === `${s.id}:${s.revision}`) return;
+    // Deal starts a new roll at results; it never wagers until a later betting click.
+    if (action === 'bet' && s.phase === 'result') { action = 'again'; extra = undefined; }
     if ((action === 'next' || action === 'play' || action === 'decline') && w.time < s.readyAt) return;
     if (s.phase === 'rolling' && action !== 'exit' && action !== 'decline') return;
     if (action === 'bet' && s.phase !== 'betting' || action === 'again' && s.phase !== 'result') return;

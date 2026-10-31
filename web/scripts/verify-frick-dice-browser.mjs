@@ -28,7 +28,7 @@ const server=createServer((req,res)=>{
 const ANDROID='Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const DESKTOP='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const specs=[{name:'desktop',width:1280,height:800,touch:false},{name:'small-phone',width:320,height:568,touch:true},{name:'phone-landscape',width:844,height:390,touch:true},{name:'reduced-motion',width:1280,height:800,touch:false,reduced:true}];
-const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged last dialogue page, resources and deterministic seed. Real Play, host-owned roll, betting, Deal, Stand, Again and Exit. Normal-speed browser capture.',checks:[],scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged last dialogue page, resources and deterministic seed. Real Play, host-owned roll, betting, Deal, Stand, Deal-to-roll and Exit. Normal-speed browser capture.',checks:[],scenarios:[]};
 let browser,page;
 const check=label=>{results.checks.push(label);console.log('PASS '+label);};
 const state=()=>page.evaluate(()=>{
@@ -47,10 +47,23 @@ async function installStableProbe(){
       const main=[...document.querySelectorAll('.res-flags-n.num')].find(e=>!root.contains(e));
       const style=e=>{const c=getComputedStyle(e);return {fontFamily:c.fontFamily,fontWeight:c.fontWeight,color:c.color,textShadow:c.textShadow};};
       const counter=root.querySelector('.ff-flag-counter'),wager=root.querySelector('.ff-wager');
+      const frameStyle=e=>{const c=getComputedStyle(e);return Object.fromEntries(['backgroundImage','backgroundColor','borderImageSource','borderImageSlice','borderImageWidth','borderImageRepeat','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','borderTopStyle','borderRadius','boxShadow','paddingTop','paddingRight','paddingBottom','paddingLeft'].map(k=>[k,c[k]]));};
+      const counterFrame=frameStyle(counter),mainFrame=frameStyle(main.closest('.res.frame'));
+      // DOM-only digit fixtures; restore the authoritative displayed value in the
+      // same browser turn. Never mutate simulation resources to test typography.
+      const original=number.textContent,fit=[];
+      try{for(const digits of ['9','10','100']){
+        number.textContent=digits;
+        const row=number.parentElement,cs=getComputedStyle(counter),rs=getComputedStyle(row),num=x=>parseFloat(x)||0;
+        const scale=counter.getBoundingClientRect().width/counter.offsetWidth;
+        const natural=[...row.children].reduce((n,e)=>n+e.getBoundingClientRect().width/scale,0)+num(rs.columnGap)*(row.children.length-1)+num(rs.paddingLeft)+num(rs.paddingRight)+num(cs.paddingLeft)+num(cs.paddingRight)+num(cs.borderLeftWidth)+num(cs.borderRightWidth);
+        fit.push({digits,width:counter.getBoundingClientRect().width,natural:natural*scale});
+      }}finally{number.textContent=original;}
+
       const calls=[],focusFailures=[],submit=app.submit;app.submit=(...args)=>{calls.push(args);};
       try{for(const b of root.querySelectorAll('button:disabled')){b.focus({preventScroll:true});if(document.activeElement===b)focusFailures.push(b.dataset.action||b.textContent);b.click();b.dispatchEvent(new MouseEvent('click',{bubbles:true}));}}finally{app.submit=submit;}
       return {phase:s.phase,viewport:{width:innerWidth,height:innerHeight},panel:rect(root.querySelector('.ff-panel')),stage:rect(root.querySelector('.ff-table-stage')),controls,
-        counter:rect(counter),counterText:number.textContent,available:app.world.avatarOf(s.faction).carried.length,counterStyle:style(number),mainStyle:style(main),
+        counter:rect(counter),counterFramed:counter.matches('.res.frame'),counterFrame,mainFrame,fit,removedControls:root.querySelectorAll('.ff-rules,[data-action="again"]').length,counterText:number.textContent,available:app.world.avatarOf(s.faction).carried.length,counterStyle:style(number),mainStyle:style(main),
         icon:counter.querySelector('.res-flag-ic')?.innerHTML,mainIcon:main.parentElement.querySelector('.res-flag-ic')?.innerHTML,
         wager:rect(wager),wagerDisabled:[...wager.querySelectorAll('button,input')].map(e=>e.disabled),
         sleeveOpen:root.querySelector('[data-action="sleeve"]').getAttribute('aria-expanded')==='true',disabledCalls:calls.length,focusFailures,snapshot:app.renderer.frickScene.snapshot()};
@@ -59,8 +72,8 @@ async function installStableProbe(){
 }
 function assertStableTable(value,baseline,phase){
   assert.equal(value.phase,phase);
-  assert.deepEqual(value.controls.map(b=>b.action),['bet','hit','stand','again','sleeve','exit'],'All six main controls remain in stable order');
-  const enabled=phase==='betting'?['bet','exit']:phase==='playing'?['hit','stand','sleeve','exit']:phase==='result'?['again','exit']:['exit'];
+  assert.deepEqual(value.controls.map(b=>b.action),['bet','hit','stand','sleeve','exit'],'All five main controls remain in stable order');
+  const enabled=phase==='betting'?['bet','exit']:phase==='playing'?['hit','stand','sleeve','exit']:phase==='result'?['bet','exit']:['exit'];
   for(const b of value.controls){
     assert.equal(b.disabled,!enabled.includes(b.action),phase+': '+b.action+' readiness');
     assert.ok(b.rect.width>0&&b.rect.height>=40,phase+': '+b.action+' visible touch target');
@@ -73,6 +86,11 @@ function assertStableTable(value,baseline,phase){
   assert.equal(value.disabledCalls,0,'Disabled clicks and synthetic dispatch never reach submit');
   assert.equal(value.counterText,String(value.available),'Bottom-left count shows authoritative available Flags');
   assert.deepEqual(value.counterStyle,value.mainStyle,'Counter reuses actual main gameplay font, color and shadow');
+  assert.equal(value.removedControls,0,'Rules bar and Again button are absent');
+  assert.equal(value.counterFramed,true,'Flag count uses the main res frame classes');
+  assert.deepEqual(value.counterFrame,value.mainFrame,'Counter plate reuses actual main background, border and shadow');
+  value.fit.forEach(f=>assert.ok(Math.abs(f.width-f.natural)<=3,'Flag plate hugs '+f.digits+' text rather than fixed empty width'));
+  assert.ok(value.fit[1].width>value.fit[0].width&&value.fit[2].width>value.fit[1].width,'Flag plate grows naturally for added digits');
   assert.equal(value.icon,value.mainIcon,'Counter reuses main Flag icon');
   assert.ok(value.counter.x<value.viewport.width/2&&value.counter.y>value.viewport.height/2,'Flag count is bottom-left');
   assert.ok(value.counter.x>=-1&&value.counter.y+value.counter.height<=value.viewport.height+1,'Flag count remains on screen');
@@ -202,16 +220,27 @@ async function verifyDice(spec,url){
     assert.equal(await sleeve.getAttribute('aria-expanded'),'false','Second Enter closes Sleeve rather than hitting');
     const playing=await state();assert.equal(playing.session.target,26);assert.equal(playing.snapshot.die.face,6);
     assert.equal(playing.session.dealer[1],null,'Dealer hole privacy retained');
-    await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result'&&!document.querySelector('.ff-main-actions [data-action="again"]')?.disabled);
+    await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result'&&!document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled);
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'result');
     await page.screenshot({path:join(OUT,spec.name+'-stable-result.png')});
-    await act('Again',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-target-title')?.textContent==='Rolling the target');
+    const resultAvailable=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
+    await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-target-title')?.textContent==='Rolling the target');
+    const nextRoll=await state();
+    assert.equal(nextRoll.session.wager,0,'Result Deal starts roll without placing another wager');
+    assert.equal(nextRoll.session.player.length+nextRoll.session.dealer.length,0,'No automatic cards before next intentional bet');
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable,'Result Deal neither charges nor repeats settlement payout');
+    assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'rolling');
     assert.equal(await button('Deal').count(),1);assert.equal(await button('Deal').isDisabled(),true);
     await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
     // The physical die can settle before the 100ms UI writer publishes betting.
     await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'betting');
-    const again=await state();assert.equal(again.session.rollNumber,old.session.rollNumber+1);
+    await page.waitForTimeout(300);
+    const again=await state();
+    assert.equal(again.phase,'betting','A second intentional Deal is required to wager');
+    assert.equal(again.session.wager,0);assert.equal(again.session.player.length+again.session.dealer.length,0);
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable,'Next betting does not autocharge or repay');
+    assert.equal(again.session.rollNumber,old.session.rollNumber+1);
     assert.equal(again.snapshot.die.face,again.session.dieResult);assert.equal(again.session.target,20+again.session.dieResult);
     await act('Leave table',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
     assert.equal((await state()).snapshot.active,false);
@@ -229,7 +258,7 @@ async function diceDemo(url){
     await page.evaluate(()=>window.fh.frickFrack.resetEntropy('frick-136-25'));
     mark('deal');await act('Deal',spec);await page.waitForTimeout(1500);
     mark('stand');await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');await page.waitForTimeout(1200);
-    mark('again');await act('Again',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');await page.waitForTimeout(1700);mark('end');
+    mark('next-roll');await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');await page.waitForTimeout(1700);mark('end');
     results.demo={marks,videoPath:await page.video().path(),recordingSpeed:1,fixtureDisclosure:results.fixtureDisclosure};
   }finally{await context.close();}
 }

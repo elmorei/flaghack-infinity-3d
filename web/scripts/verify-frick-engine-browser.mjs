@@ -28,7 +28,7 @@ const server=createServer((req,res)=>{
 const ANDROID='Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const DESKTOP='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const specs=[{name:'desktop',width:1280,height:800,touch:false},{name:'small-phone',width:320,height:568,touch:true},{name:'phone-landscape',width:844,height:390,touch:true},{name:'reduced-motion',width:1280,height:800,touch:false,reduced:true}];
-const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged betting session, resources, seed and Sun card. Real production Deal/Hit/Sun/Stand/Again/Exit commands. Normal-speed browser video.',checks:[],scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged betting session, resources, seed and Sun card. Real production Deal/Hit/Sun/Stand/Deal-to-roll/Exit commands. Normal-speed browser video.',checks:[],scenarios:[]};
 let browser,page;
 const check=label=>{results.checks.push(label);console.log('PASS '+label);};
 const state=()=>page.evaluate(()=>{
@@ -150,7 +150,7 @@ async function verify(spec,url){
     }
     await act('Stand',spec);await page.waitForFunction(()=>['result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
     if((await state()).phase==='result'){
-      await act('Again',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+      await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
       await ensureSettled();assert.equal((await state()).snapshot.cards.length,0,'New hand clears previous meshes');
       await act('Leave table',spec);
     }else await act('Return to the burn',spec);
