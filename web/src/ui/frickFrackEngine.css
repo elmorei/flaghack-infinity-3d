@@ -1,0 +1,25 @@
+/* The underlying shared game canvas owns all card/cloth pixels. DOM only lays out
+   accessible input targets and command labels; no card image, CSS flip or canvas. */
+.ff-overlay:not(.ff-in-world) { background: transparent !important; }
+.ff-overlay:not(.ff-in-world) .ff-panel { background: transparent !important; box-shadow: none !important; border: 1px solid #fff4ce99; }
+.ff-overlay:not(.ff-in-world) .ff-hands { background: transparent !important; box-shadow: none !important; border: 0; }
+.ff-overlay:not(.ff-in-world) .ff-header h2 { color: #192b3b; text-shadow: 0 1px #fff9; }
+.ff-overlay:not(.ff-in-world) .ff-eyebrow,
+.ff-overlay:not(.ff-in-world) .ff-small,
+.ff-overlay:not(.ff-in-world) .ff-hand h3,
+.ff-overlay:not(.ff-in-world) .ff-rules,
+.ff-overlay:not(.ff-in-world) .ff-rules summary,
+.ff-overlay:not(.ff-in-world) .ff-cheat-name,
+.ff-overlay:not(.ff-in-world) .ff-wager > span { color: #273b45; }
+.ff-overlay:not(.ff-in-world) .ff-status { color: #233443; background: #fff6dfcf; border-color: #8a4b3744; border-radius: 8px; }
+.ff-overlay:not(.ff-in-world) .ff-sideboard { background: #fff5e6ce; border-color: #8b584766; }
+.ff-overlay:not(.ff-in-world) .ff-sideboard summary { color: #263849; }
+.ff-overlay:not(.ff-in-world) .ff-total { color: #172a3c; background: #fff5d8; border-color: #9a674a; }
+.ff-overlay:not(.ff-in-world) .ff-wizard-remark { color: #263849; background: #fff5ddd9; border-color: #b45d4b; }
+.ff-overlay:not(.ff-in-world) .ff-result { background: #152c39e8; color: #fff1ce; }
+.ff-overlay .ff-engine-card,
+.ff-overlay .ff-engine-card.ff-card-defeated { background: transparent !important; color: transparent !important; border: 0 !important; box-shadow: none !important; font-size: 0 !important; filter: none; opacity: 1; }
+.ff-engine-card > * { visibility: hidden !important; }
+.ff-engine-card.ff-button { width: 72px; height: 108px; padding: 0; flex: 0 0 auto; }
+.ff-engine-card:focus-visible { outline: 3px solid #176b7b !important; outline-offset: 4px; }
+@media (max-width: 540px) { .ff-engine-card.ff-button { width: 56px; height: 84px; } }

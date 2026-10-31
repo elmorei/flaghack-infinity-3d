@@ -4,6 +4,9 @@
  * Camera placement is owned by game/controls (it writes ctx.camera each frame).
  */
 import * as THREE from 'three';
+import { FrickFrackScene } from './frickFrackScene';
+import { getFrickFrackView } from './frickFrackView';
+import { frickFrackInputLocked } from '../game/frickFrackControls';
 import type { Session } from '../game/session';
 import { isMobileCommandLayout } from '../game/mobileTouch';
 import { mobileCommandExtent } from '../game/cameraRig';
@@ -29,6 +32,7 @@ import { VfxRenderer } from './vfx/vfxRenderer';
 const WARM_CAP_MS = 300;
 
 export class GameRenderer {
+  readonly frickScene = new FrickFrackScene();
   readonly renderer: THREE.WebGLRenderer;
   camera: WorldCamera;
   private readonly perspective = new THREE.PerspectiveCamera(70, 1, .1, 1200);
@@ -164,6 +168,17 @@ export class GameRenderer {
     ctx.beat = this.beatSource?.() ?? (ctx.time * FESTIVAL_BPM) / 60;
     this.updateFx(dt);
     for (const m of this.modules) m.update(dt);
+    const table = getFrickFrackView();
+    const encounter = ctx.world.frickFrack?.sessions[ctx.session.playerFaction];
+    if (table && encounter && frickFrackInputLocked(ctx.world, ctx.session)
+      && ['betting', 'playing', 'result'].includes(encounter.phase)
+      && table.sessionKey.startsWith(`${encounter.id}:`)) {
+      // Keep presentation clocks and effect modules alive; replace only the obscured
+      // world GPU pass with the actual card-table scene on the SAME WebGL renderer.
+      this.frickScene.draw(this.renderer, table, performance.now());
+      return true;
+    }
+    this.frickScene.clear();
     if (this.needsWarm) {
       // After one update, so materials the modules create lazily are included. compileAsync
       // starts every link at once (KHR_parallel_shader_compile) and resolves when all are

@@ -1,3 +1,5 @@
+import { setFrickFrackView } from '../render/frickFrackView';
+import type { CardView, Rect } from '../render/frickFrackScene';
 import { frickFrackTableCards } from '../sim/frickFrackTable';
 import { handFlagBlocker } from '../sim/systems/recruitment';
 import { frickFrackInputLocked } from '../game/frickFrackControls';
@@ -11,13 +13,14 @@ import type { UiHost, UiPart } from './core';
 import { button, el, setText, show } from './dom';
 import './frickFrack.css';
 import './frickFrackTarot.css';
-import { tarotCardLabel, renderFrickFrackCard } from './frickFrackTarot';
+import { tarotCardLabel } from './frickFrackTarot';
 import './frickFrackParody.css';
-import { parodyCardLabel, renderParodyCard } from './frickFrackParody';
-import { majorArcanaLabel, renderMajorArcanaCard } from './frickFrackArcana';
+import { parodyCardLabel } from './frickFrackParody';
+import { majorArcanaLabel } from './frickFrackArcana';
 import { FRICK_FRACK_ARCANA } from '../sim/frickFrackArcana';
 import { getFrickFrackPrivateView } from '../sim/frickFrackPrivate';
 import './frickFrackArcana.css';
+import './frickFrackEngine.css';
 
 type TableCommand = Extract<Command, { t: 'frickFrack' }>;
 type TableAction = TableCommand['action'];
@@ -103,6 +106,10 @@ export class FrickFrackUI implements UiPart {
   private selectedMajor: number | null = null;
   private majorTargets: number[] = [];
   private majorValue = 1;
+  private readonly engineCards = new Map<HTMLElement, { card: FrickFrackCard | null; key: string; order: number; defeated: boolean }>();
+  private engineRound = 0;
+  private lastEnginePhase = '';
+  private readonly reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
   constructor(host: UiHost, parent: HTMLElement) {
     this.host = host;
@@ -137,11 +144,14 @@ export class FrickFrackUI implements UiPart {
     show(this.offer, !!world && !session && local.screen === 'playing' && !local.spectator && world.phase === 'playing' && world.factions[local.playerFaction].controlMode !== 'rts'
       && document.documentElement.dataset.deviceLayout === 'mobile' && local.mobileMenu === null && !Object.values(local.panels).some(Boolean)
       && !handFlagBlocker(world, local.playerFaction, world.frickFrack.wizardId));
+    if (session?.phase === 'betting' && this.lastEnginePhase !== 'betting') this.engineRound++;
+    this.lastEnginePhase = session?.phase ?? '';
     this.active = session;
     show(this.root, session !== null);
     this.root.classList.toggle('ff-in-world', session?.phase === 'dialogue' || session?.phase === 'empty');
     document.documentElement.classList.toggle('ff-conversation-active', session !== null);
     if (!session || !world) {
+      setFrickFrackView(null); this.engineCards.clear();
       this.key = ''; this.pending = ''; this.text = null; this.next = null; this.selectedMajor = null; this.majorTargets = [];
       if (wasOpen) { this.focusBefore?.blur(); this.focusBefore = null; }
       return;
@@ -163,13 +173,15 @@ export class FrickFrackUI implements UiPart {
 
   frame(): void {
     const session = this.active, w = this.host.app.world;
-    if (!session || !w) return;
+    if (!session || !w) { setFrickFrackView(null); return; }
+    this.publishEngineView(session);
     if (this.text) setText(this.text, revealedDialogue(this.textSource, w.time - session.dialogueStartedAt));
     if (this.next) this.next.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-ready-gate]')) b.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
   }
 
   private render(s: FrickFrackSession, available: number, world: World): void {
+    this.engineCards.clear();
     this.body.replaceChildren(); this.text = null; this.next = null; this.wagerInput = null;
     setText(this.title, s.phase === 'dialogue' || s.phase === 'empty' ? 'The Frick-frack Wizard' : 'Frick-frack');
     setText(this.status, `Holding ${available} Flag${available === 1 ? '' : 's'}${s.wager > 0 ? ` · Wager ${s.wager}` : ''} · The burn continues outside.`);
@@ -234,12 +246,12 @@ export class FrickFrackUI implements UiPart {
               this.selectedMajor = card.id; this.majorTargets = []; this.majorValue = 1; this.sideboardOpen = true;
               this.render(s, available, world);
             });
-            renderMajorArcanaCard(pick, card);
+            this.engineCard(pick, card, `sleeve:${card.id}`, -1);
             pick.setAttribute('aria-label', `Inspect ${spec.name}`); pick.disabled = choosing;
             el('span', 'ff-cheat-name', option, spec.name);
           } else {
             const pick = this.action(picks, cardLabel(card), 'cheat', () => ({ cardId: card.id }));
-            renderParodyCard(pick, card); renderFrickFrackCard(pick, card);
+            this.engineCard(pick, card, `sleeve:${card.id}`, -1);
             pick.setAttribute('aria-label', `Play ${cardLabel(card)} once`); pick.disabled = choosing;
           }
         }
@@ -267,11 +279,10 @@ export class FrickFrackUI implements UiPart {
     if (total) el('span', 'ff-total', heading, total.slice(3));
     const row = el('div', 'ff-card-row', hand);
     if (!displayed.length) el('span', 'ff-small', row, 'Waiting for the deal');
-    for (const {card, defeated} of displayed) {
+    for (const [index, {card, defeated}] of displayed.entries()) {
       const tile = el('div', `ff-card${card === null ? ' ff-card-back' : card.suit === 1 || card.suit === 2 ? ' ff-card-red' : ''}`, row, card === null ? '✦' : cardLabel(card));
       if (card) tile.dataset.cardId = String(card.id);
-      renderFrickFrackCard(tile, card);
-      renderParodyCard(tile, card);
+      this.engineCard(tile, card, `${name}:${index}`, index * 2 + (name === 'Wizard' ? 0 : 1), defeated);
       tile.setAttribute('aria-label', `${cardLabel(card)}${defeated ? ' — defeated, does not count' : ''}`);
       if (defeated) {
         tile.classList.add('ff-card-defeated');
@@ -290,7 +301,7 @@ export class FrickFrackUI implements UiPart {
     for (const [index, card] of (s.arcana?.choices ?? []).entries()) {
       const option = el('div', 'ff-choice-option', options);
       const face = el('div', 'ff-card', option, cardLabel(card));
-      renderFrickFrackCard(face, card); renderParodyCard(face, card);
+      this.engineCard(face, card, `extra:${this.engineCards.size}:${card.id}`, -1);
       this.action(option, `Keep ${cardLabel(card)}`, 'choose', () => ({ choiceIndex: index as 0 | 1 }));
     }
   }
@@ -306,7 +317,7 @@ export class FrickFrackUI implements UiPart {
     const row = el('div', 'ff-card-row', panel);
     for (const card of peek.cards) {
       const face = el('div', 'ff-card', row, cardLabel(card));
-      renderFrickFrackCard(face, card); renderParodyCard(face, card);
+      this.engineCard(face, card, `extra:${this.engineCards.size}:${card.id}`, -1);
     }
   }
 
@@ -364,6 +375,32 @@ export class FrickFrackUI implements UiPart {
     button('ff-button', actions, 'Cancel', () => { this.selectedMajor = null; this.majorTargets = []; this.render(s, available, world); });
   }
 
+  /** Accessible placeholders lay out/pick cards; all visible artwork is engine mesh. */
+  private engineCard(tile: HTMLElement, card: FrickFrackCard | null, key: string, order: number, defeated = false): void {
+    tile.classList.add('ff-engine-card');
+    if (card?.tarot) tile.classList.add('ff-tarot-card');
+    if (card?.parody !== undefined) tile.classList.add('ff-parody-card');
+    if (card?.arcana !== undefined) tile.classList.add('ff-arcana-card');
+    tile.dataset.engineKey = key;
+    tile.setAttribute('aria-label', `${cardLabel(card)}${defeated ? ' — defeated, does not count' : ''}`);
+    this.engineCards.set(tile, { card: card ? { ...card } : null, key, order, defeated });
+  }
+
+  private publishEngineView(s: FrickFrackSession): void {
+    if (!['betting', 'playing', 'result'].includes(s.phase)) { setFrickFrackView(null); return; }
+    const panel = this.root.querySelector<HTMLElement>('.ff-panel');
+    if (!panel) return;
+    const rect = (r: DOMRect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+    const cards: CardView[] = [];
+    // One read-only layout batch; there are no per-card writes or DOM animation tracks.
+    for (const [tile, value] of this.engineCards) {
+      if (!tile.isConnected || !tile.getClientRects().length) continue;
+      const r = tile.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) cards.push({ ...value, rect: rect(r) });
+    }
+    setFrickFrackView({ sessionKey: `${s.id}:${this.engineRound}`, panel: rect(panel.getBoundingClientRect()), cards, reducedMotion: this.reducedMotion?.matches ?? false });
+  }
+
   private setWager(value: number): void { this.wager = clampWager(value, this.wagerAvailable); if (this.wagerInput) this.wagerInput.value = String(this.wager); }
   private action(parent: HTMLElement, text: string, action: TableAction, extra?: () => TableExtras): HTMLButtonElement {
     return button('ff-button', parent, text, () => this.send(action, extra?.()), 'confirm');
@@ -390,5 +427,5 @@ export class FrickFrackUI implements UiPart {
       ev.stopPropagation();
     }
   };
-  dispose(): void { window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); document.documentElement.classList.remove('ff-conversation-active'); this.root.remove(); this.offer.remove(); }
+  dispose(): void { setFrickFrackView(null); this.engineCards.clear(); window.removeEventListener('keydown', this.onKey, true); window.removeEventListener('fh-menu-back', this.onBack); document.documentElement.classList.remove('ff-conversation-active'); this.root.remove(); this.offer.remove(); }
 }
