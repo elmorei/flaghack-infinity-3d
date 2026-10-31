@@ -83,7 +83,11 @@ async function deal(){
 }
 async function open(){await page.locator('[data-action="sleeve"]').click();await viewer().waitFor({state:'visible'});}
 async function card(){
-  await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().cards.some(c=>c.key.startsWith('sleeve-viewer:')&&c.faceUp));
+  await page.waitForFunction(()=>{
+    const key=document.querySelector('.ff-sleeve-card')?.dataset.engineKey;
+    const a=window.flaghack,board=a.world.frickFrack.sideboards[a.session.playerFaction];
+    return key && board.some(c=>key===`sleeve-viewer:${c.id}`) && a.renderer.frickScene.snapshot().cards.some(c=>c.key===key&&c.faceUp);
+  });
   return (await state()).snapshot.cards.find(c=>c.key.startsWith('sleeve-viewer:'));
 }
 async function geometry(){return page.locator('.ff-table-stage,.ff-main-actions,.ff-flag-counter').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));}
