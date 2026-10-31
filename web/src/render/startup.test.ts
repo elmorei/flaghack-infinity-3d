@@ -10,7 +10,8 @@ function fixture() {
   const post = { render: vi.fn() };
   const renderer: any = Object.create(GameRenderer.prototype);
   Object.assign(renderer, {
-    ctx: { time: 0, scene: {}, shared: {} }, camera: {}, renderer: gpu, post, modules: [],
+    ctx: { time: 0, scene: {}, world: { frickFrack: { sessions: {} } }, session: { playerFaction: 0 }, shared: {} }, camera: {}, renderer: gpu, post, modules: [],
+    frickScene: { clear: vi.fn() },
     warmTarget: {}, needsWarm: true, warmUntil: 0, warmError: null,
     disposeRetired: vi.fn(), updateFx: vi.fn(), beatSource: null,
   });
