@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80" preserveAspectRatio="none">
+<!-- Decorative frame only. Labels and activation remain native DOM controls. -->
+<defs><linearGradient id="face" x2="0.25" y2="1"><stop stop-color="#364153"/><stop offset="1" stop-color="#192534"/></linearGradient><linearGradient id="gold" x2="0.2" y2="1"><stop stop-color="#f4d796"/><stop offset=".45" stop-color="#ae7e35"/><stop offset=".7" stop-color="#d9b568"/><stop offset="1" stop-color="#765020"/></linearGradient></defs>
+<path d="M21 5H219L223 12L232 16L235 65L225 68L220 75H20L15 69L5 66L8 16L17 12Z" fill="#1b1511" stroke="#18120e" stroke-width="4"/>
+<path d="M22 6H218L222 13L230 17L233 63L223 67L219 73H21L17 67L7 64L10 18L19 13Z" fill="#503b21" stroke="url(#gold)" stroke-width="2.5"/>
+<path d="M25 11H215L219 18L225 21L227 60L219 63L215 68H25L21 63L13 60L16 22L22 18Z" fill="url(#face)" stroke="#161a16" stroke-width="3"/>
+<path d="M25 12H215L219 19L225 22L226 59L219 62L215 67H25L21 62L14 59L17 23L22 19Z" fill="none" stroke="#d3ad65" stroke-width="1"/>
+<!-- Small static wear marks, not animated noise. -->
+<path d="M34 19l17 1m121 3l22-1M40 59l15 1m108-9l9 1M77 25l8-1m56 37l16-1M28 35l7 1m164 9l12-1" fill="none" stroke="#e9cd8b" stroke-width=".6" opacity=".16"/>
+<path d="M21 7h35m99 0h48M9 59l1-17m219-11l2 19M35 72h48m90 0h27" stroke="#ffe6a5" stroke-width=".7" opacity=".65"/>
+<g fill="#9a7339" stroke="#e1bf77" stroke-width=".65"><path d="M29 33l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z"/><path d="M211 33l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z"/></g>
+<g fill="#ead39c"><circle cx="29" cy="40" r="1"/><circle cx="211" cy="40" r="1"/></g></svg>

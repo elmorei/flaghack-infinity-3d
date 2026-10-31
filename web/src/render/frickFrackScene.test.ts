@@ -103,3 +103,49 @@ describe('shared engine scene lifecycle', () => {
   });
 
 });
+
+describe('replicated physical die',()=>{
+  beforeEach(()=>{vi.stubGlobal('window',{innerWidth:800,innerHeight:600});vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>mockContext()})});});
+  afterEach(()=>vi.unstubAllGlobals());
+  it.each([1,2,3,4,5,6])('renders selected face %s after roll without restarting on rerender',result=>{
+    const s=new FrickFrackScene(),{r}=rendererMock(),v=view();v.reducedMotion=false;
+    v.die={result,progress:.2,rollKey:'1:1',rect:{x:100,y:30,width:300,height:80}};
+    s.draw(r,v,0);expect(s.snapshot().die).toMatchObject({result,progress:.2,rollKey:'1:1'});
+    v.die.progress=1;s.draw(r,v,100);expect(s.snapshot().die).toMatchObject({result,face:result,progress:1});
+    s.draw(r,{...v},900);expect(s.snapshot().die).toMatchObject({result,face:result,progress:1});
+    s.clear();expect(s.snapshot().die).toBeNull();s.dispose();
+  });
+  it('renders late join at replicated progress rather than starting another roll',()=>{
+    const s=new FrickFrackScene(),{r}=rendererMock(),v=view();v.reducedMotion=false;
+    v.die={result:6,progress:.7,rollKey:'3:9',rect:{x:100,y:30,width:300,height:80}};
+    s.draw(r,v,9999);expect(s.snapshot().die?.progress).toBe(.7);s.dispose();
+  });
+});
+
+describe('clean yellow-flag scenery and live deck anchor', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', { innerWidth: 800, innerHeight: 600 });
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => mockContext() }) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  it('loads only cosmetic scenery, preserves the live cards, and disposes its texture', () => {
+    let img: any;
+    vi.stubGlobal('Image', class { onload: null | (() => void) = null; onerror = null; src = ''; decoding = ''; constructor() { img = this; } });
+    const s = new FrickFrackScene(), { r } = rendererMock();
+    expect(img.src).toContain('cards/frick-frack-yellow-flags.webp');
+    expect(s.snapshot().backdropReady).toBe(false);
+    img.onload(); expect(s.snapshot().backdropReady).toBe(true);
+    const texture = (s as any).sceneryTextures.landscape, dispose = vi.spyOn(texture, 'dispose');
+    s.draw(r, view(null), 1000);
+    expect(s.snapshot().cards[0]).toMatchObject({ hidden: true, textureKey: 'hidden', faceVisible: false });
+    s.dispose(); expect(dispose).toHaveBeenCalledOnce(); expect(img.onload).toBeNull();
+  });
+  it('places the engine deck at its DOM layout anchor without changing card rules', () => {
+    const s = new FrickFrackScene(), { r } = rendererMock();
+    s.draw(r, { ...view(), deck: { x: 200, y: 250, width: 60, height: 90 } }, 1000);
+    expect((s as any).deck.position.x).toBe(230);
+    expect((s as any).deck.position.y).toBe(305);
+    expect((s as any).deck.scale.x).toBe(60);
+    expect(s.snapshot().cards[0].faceUp).toBe(true); s.dispose();
+  });
+});

@@ -171,7 +171,7 @@ export class GameRenderer {
     const table = getFrickFrackView();
     const encounter = ctx.world.frickFrack?.sessions[ctx.session.playerFaction];
     if (table && encounter && frickFrackInputLocked(ctx.world, ctx.session)
-      && ['betting', 'playing', 'result'].includes(encounter.phase)
+      && ['rolling', 'betting', 'playing', 'result'].includes(encounter.phase)
       && table.sessionKey.startsWith(`${encounter.id}:`)) {
       // Keep presentation clocks and effect modules alive; replace only the obscured
       // world GPU pass with the actual card-table scene on the SAME WebGL renderer.

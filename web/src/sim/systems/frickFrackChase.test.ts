@@ -123,6 +123,7 @@ describe('Wizard thrown-Flag pursuit', () => {
     const { w, av, wizard } = arena(); wizard.pos = { x: av.pos.x, z: av.pos.z + 1 };
     const before = av.carried.length; offerFrickFrackFlag(w, wizard, 0, av.carried[0]); const s = w.frickFrack.sessions[0]!;
     for (let i = 0; i < 3; i++) { w.time = s.readyAt; cmdFrickFrack(w, {t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:i<2?'next':'play'}); }
+    s.target=21;s.dieResult=1;w.time=s.rollEndsAt!;updateFrickFrack(w);
     resetFrickFrackEntropy(w, 'frick-tarot-3'); cmdFrickFrack(w, {t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:2});
     expect(s.phase).toBe('playing'); expect(av.carried.length).toBe(before - 2);
     wizard.pos.x += 7; updateFrickFrack(w); updateFrickFrack(w);

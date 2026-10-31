@@ -46,7 +46,7 @@ async function enter(context,spec,url){
   await page.waitForTimeout(1800);
   await stageBetting();
   await page.getByRole('button',{name:'Deal hand',exact:true}).waitFor({state:'visible'});
-  await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().active);
+  await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().active && window.flaghack.renderer.frickScene.snapshot().backdropReady);
 }
 async function stageBetting(){
   await page.evaluate(()=>{
@@ -151,7 +151,7 @@ async function verify(spec,url){
     assert.equal(exited.snapshot.active,false,'Exit releases engine scene');assert.ok(exited.gpuCalls>0,'World draws after table exit');
     check(spec.name+': real Hit combat, reveal/settlement/again/exit, no stale engine table');
     if(spec.name==='desktop'){
-      await stageBetting();await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().active);
+      await stageBetting();await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().active && window.flaghack.renderer.frickScene.snapshot().backdropReady);
       await page.setViewportSize({width:844,height:390});await ensureSettled();assert.equal((await state()).snapshot.active,true);
       await page.evaluate(()=>{const w=window.flaghack.world,av=w.avatarOf(0);av.hp=0;av.koUntil=w.time+6;});
       await page.locator('.ff-overlay').waitFor({state:'hidden'});await ensureSettled();assert.equal((await state()).snapshot.active,false);

@@ -229,6 +229,8 @@ async function main(){
             for(const id of [...av.carried])window.fh.flags.destroyFlag(w,id);
             window.fh.give({flags:count});
             window.fh.frickFrack.resetEntropy(seed);
+            // Legacy payout fixtures pin target 21; the dedicated dice suite verifies real rolls for all six targets.
+            const s=w.frickFrack.sessions[0]; if(s){s.dieResult=1;s.target=21;s.revision++;}
           },{seed,count});
           await page.waitForTimeout(100);
         }

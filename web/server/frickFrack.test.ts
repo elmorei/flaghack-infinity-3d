@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Match } from './match';
-import { cmdFrickFrack, offerFrickFrackFlag, resetFrickFrackEntropy } from '../src/sim/systems/frickFrack';
+import { cmdFrickFrack, offerFrickFrackFlag, resetFrickFrackEntropy, updateFrickFrack } from '../src/sim/systems/frickFrack';
 const options={seed:'frick-host',mode:'standard' as const,difficulty:'normal' as const,humans:[0 as const]};
 const listener={frame:(_text:string)=>{},ended:()=>{},resync:()=>{},broken:()=>{}};
 function open(match:Match) {
@@ -9,13 +9,17 @@ function open(match:Match) {
  expect(offerFrickFrackFlag(w,wizard,0,av.carried[0])).toBe(true);
  for(let i=0;i<3;i++) { const s=w.frickFrack.sessions[0]!;w.time=s.readyAt;
  cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:i===2?'play':'next'}); }
- return w.frickFrack.sessions[0]!;
+ const s=w.frickFrack.sessions[0]!;
+ expect(s.phase).toBe('rolling');w.time=s.rollEndsAt!;updateFrickFrack(w);
+ expect(s.phase).toBe('betting');return s;
 }
 describe('host Frick-frack session lifecycle',()=>{
  it('disconnect and NPC takeover release locks without refunding committed wagers',()=>{
    const match=new Match(options,listener,()=>{}),w=match.world;
-   match.driveHuman(0,'player',1);resetFrickFrackEntropy(w,'frick-browser-0');
+   match.driveHuman(0,'player',1);
    let s=open(match);
+   // Preserve this legacy committed-wager scenario; dice targets have independent coverage.
+   s.dieResult=1;s.target=21;resetFrickFrackEntropy(w,'frick-browser-0');
    cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:1});
    expect(s.phase).toBe('playing');
    const held=w.avatarOf(0).carried.length;

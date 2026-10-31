@@ -23,3 +23,116 @@
 .ff-engine-card.ff-button { width: 72px; height: 108px; padding: 0; flex: 0 0 auto; }
 .ff-engine-card:focus-visible { outline: 3px solid #176b7b !important; outline-offset: 4px; }
 @media (max-width: 540px) { .ff-engine-card.ff-button { width: 56px; height: 84px; } }
+
+/* The die itself is engine geometry; this transparent lane reserves safe roll space. */
+.ff-die-tray { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; min-width: 0; }
+.ff-die-stage { flex: 0 0 160px; height: 82px; pointer-events: none; }
+.ff-die-label { margin: 0; color: #192b3b; background: #fff5dfd9; border: 1px solid #8a4b3744; border-radius: 8px; padding: 10px 12px; font-weight: 700; line-height: 1.4; }
+@media (max-width: 540px) { .ff-die-tray { gap: 8px; }.ff-die-stage { flex-basis: 100px; height: 72px; }.ff-die-label { padding: 8px; font-size: 12px; } }
+
+/* Live composition over the clean yellow-flag photograph. All table pieces use
+   measured DOM anchors; expanding hands/help grow the layout rather than overlap. */
+.ff-overlay:not(.ff-in-world) { padding: max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
+.ff-overlay:not(.ff-in-world) .ff-panel { width: min(1400px,100%); max-height: calc(100dvh - 16px); padding: 20px clamp(38px,10vw,200px) 28px; border: 0; border-radius: 0; }
+.ff-overlay:not(.ff-in-world) .ff-header h2 { margin: 0 0 4px; color: #fff0c1; font-size: clamp(22px,2.6vw,32px); font-weight: 500; letter-spacing: .12em; text-shadow: 0 2px 6px #190f05, 0 1px 2px #190f05; }
+.ff-overlay:not(.ff-in-world) .ff-eyebrow { display: none; }
+.ff-overlay:not(.ff-in-world) .ff-status { width: fit-content; max-width: 100%; margin: 0 auto; padding: 3px 12px; color: #fff0cf; background: #302217d9; border: 0; font-size: 11px; }
+.ff-overlay:not(.ff-in-world) .ff-body { padding-top: 8px; display: flex; flex-direction: column; align-items: stretch; }
+.ff-table-stage { display: grid; grid-template-columns: 1fr minmax(100px,180px) 1fr; grid-template-rows: auto minmax(135px,auto) 100px minmax(158px,auto); row-gap: 12px; min-width: 0; }
+.ff-overlay:not(.ff-in-world) .ff-hands, .ff-die-tray { display: contents; }
+.ff-target-panel { grid-column: 1/-1; grid-row: 1; justify-self: center; max-width: 100%; text-align: center; padding: 8px 20px; color: #fff0cb; background: linear-gradient(135deg,#30231def,#423222eb); border: 1px solid #ddb96e; box-shadow: inset 0 0 0 3px #392920, inset 0 0 0 4px #b99855, 0 3px 8px #24100955; border-radius: 9px 2px; }
+.ff-target-title { margin: 0; font: 500 clamp(23px,2.7vw,34px) Cinzel,Georgia,serif; text-transform: uppercase; letter-spacing: .06em; }
+.ff-target-panel .ff-die-label { margin: 3px 0 0; padding: 0; border: 0; background: transparent; color: #f0dcad; font-size: 12px; font-weight: 400; }
+.ff-overlay:not(.ff-in-world) .ff-hand { grid-column: 1/-1; min-width: 0; align-self: center; padding: 0; border: 0; }
+.ff-hand-dealer { grid-row: 2; }.ff-hand-player { grid-row: 4; }
+.ff-overlay:not(.ff-in-world) .ff-hand h3 { justify-content: center; width: fit-content; margin: 0 auto 6px; padding: 3px 10px; color: #fff1ce; background: #382b21db; border-radius: 15px; font-size: 11px; text-shadow: 0 1px #000; }
+.ff-overlay:not(.ff-in-world) .ff-total { min-width: 18px; padding: 0 4px; color: #ffdf87; border: 0; background: transparent; font-size: 13px; }
+.ff-table-stage .ff-card-row { min-height: 112px; gap: 9px; }
+.ff-table-stage .ff-card-row > .ff-small { padding: 6px 12px; border-radius: 6px; background: #fff0cecc; }
+.ff-table-stage .ff-card { width: clamp(64px,6.3vw,94px); height: clamp(96px,9.45vw,141px); flex: 0 0 auto; }
+.ff-table-stage .ff-hand-dealer .ff-card { width: clamp(60px,5.5vw,82px); height: clamp(90px,8.25vw,123px); }
+.ff-die-stage { grid-column: 2; grid-row: 3; width: 100%; height: 100%; min-width: 0; }
+.ff-deck-stage { grid-column: 1; grid-row: 3; justify-self: center; align-self: center; width: 94px; height: 118px; pointer-events: none; }
+.ff-table-notices:empty { display: none; }
+.ff-table-notices { text-align: center; }
+.ff-table-notices p { margin: 8px 0 0; padding: 8px 12px; font-size: 13px; }
+.ff-overlay:not(.ff-in-world) .ff-main-actions { margin-top: 12px; padding: 6px 0; gap: 14px; }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button { min-width: 145px; min-height: 54px; padding: 12px 22px; color: #ffebbc; background: linear-gradient(145deg,#253c36,#132c2c); border: 2px solid #c9a257; border-radius: 11px 3px; box-shadow: inset 0 0 0 3px #182320, inset 0 0 0 4px #a88140, 0 4px 5px #1d100a99; font: 500 18px Cinzel,Georgia,serif; text-transform: uppercase; letter-spacing: .04em; }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:hover { filter: brightness(1.2); }
+.ff-overlay:not(.ff-in-world) .ff-wager { margin-top: 10px; }
+.ff-overlay:not(.ff-in-world) .ff-wager > span { color: #fff2d3; text-shadow: 0 1px 3px #000; }
+.ff-overlay:not(.ff-in-world) .ff-rules { margin-top: 8px; padding: 0; border: 1px solid #c5a36b99; border-radius: 8px; background: #fff1d9ed; }
+.ff-rules summary { cursor: pointer; padding: 12px 16px; min-height: 44px; box-sizing: border-box; }
+.ff-rules > p { margin: 10px 16px; }
+.ff-overlay:not(.ff-in-world) .ff-sideboard { margin-top: 8px; background: #fff1d9ed; }
+@media (min-width: 1000px) { .ff-overlay:not(.ff-in-world) .ff-panel { padding-left: clamp(100px,10vw,200px); padding-right: clamp(100px,10vw,200px); }.ff-table-stage { row-gap: 16px; } }
+@media (max-width: 700px) {
+  .ff-overlay:not(.ff-in-world) { padding: max(5px,env(safe-area-inset-top)) 0 max(5px,env(safe-area-inset-bottom)); }
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding: 18px 9% 22px; max-height: calc(100dvh - 10px); }
+  .ff-overlay:not(.ff-in-world) .ff-header h2 { font-size: 23px; }
+  .ff-table-stage { grid-template-columns: 1fr 110px 1fr; grid-template-rows: auto minmax(112px,auto) 86px minmax(125px,auto); gap: 10px 0; }
+  .ff-target-panel { padding: 8px 12px; }.ff-target-title { font-size: 24px; }.ff-target-panel .ff-die-label { font-size: 11px; }
+  .ff-table-stage .ff-card-row { min-height: 86px; gap: 5px; }
+  .ff-table-stage .ff-card, .ff-table-stage .ff-hand-dealer .ff-card { width: 54px; height: 81px; }
+  .ff-deck-stage { width: 54px; height: 81px; }
+  .ff-overlay:not(.ff-in-world) .ff-main-actions { gap: 8px; }
+  .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button { min-width: 88px; min-height: 48px; padding: 10px; font-size: 14px; }
+  .ff-overlay:not(.ff-in-world) .ff-wager-row { flex-wrap: wrap; }
+  .ff-overlay:not(.ff-in-world) .ff-wager input { width: 58px; }
+}
+@media (min-width: 701px) {
+  .ff-overlay:not(.ff-in-world) .ff-panel { padding-top: 14px; padding-bottom: 18px; }
+  .ff-table-stage { grid-template-rows: auto minmax(124px,auto) 80px minmax(145px,auto); row-gap: 8px; }
+  .ff-target-panel { padding-top: 5px; padding-bottom: 5px; }
+  .ff-target-title { font-size: clamp(24px,2.4vw,30px); }
+  .ff-target-panel .ff-die-label { margin-top: 1px; }
+  .ff-deck-stage { width: 62px; height: 80px; }
+}
+
+/* Concept-inspired stepped plaque frames, with live text and native hit targets.
+   Decoration is repo-native SVG geometry; no labels are baked into the artwork. */
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button,
+.ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] {
+  --ff-plaque: url('./assets/frick-plaque-green.svg');
+  position: relative;
+  box-sizing: border-box;
+  min-width: 180px;
+  min-height: 66px;
+  padding: 20px 38px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ff-plaque) center / 100% 100% no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 3px 2px #271407a6);
+  color: #ffedc4;
+  font: 500 21px Georgia, 'Times New Roman', serif;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+  line-height: 1.15;
+  text-shadow: 0 2px 2px #160e08;
+  text-align: center;
+}
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button[data-action="stand"] { --ff-plaque: url('./assets/frick-plaque-red.svg'); }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button[data-action="exit"],
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button[data-action="decline"],
+.ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { --ff-plaque: url('./assets/frick-plaque-navy.svg'); }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:hover:not(:disabled),
+.ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"]:hover { filter: brightness(1.16) drop-shadow(0 3px 2px #271407a6); }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:active:not(:disabled) { transform: translateY(1px); }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:disabled { opacity: .5; filter: saturate(.3); }
+.ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button:focus-visible,
+.ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"]:focus-visible { outline: 3px solid #b9fff4; outline-offset: 3px; }
+.ff-overlay:not(.ff-in-world) .ff-sideboard:not([open]) { align-self: center; border: 0; background: transparent; }
+.ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { width: fit-content; max-width: 100%; margin: 0 auto; font-size: 16px; cursor: pointer; list-style: none; }
+.ff-sideboard > summary[data-action="sleeve"]::-webkit-details-marker { display: none; }
+.ff-sideboard > summary[data-action="sleeve"]::after { content: ' ▾'; color: #d9b774; }
+.ff-sideboard[open] > summary[data-action="sleeve"]::after { content: ' ▴'; }
+@media (max-width: 700px) {
+  .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button,
+  .ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { min-width: 112px; min-height: 52px; padding: 16px 27px; font-size: 15px; }
+  .ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { font-size: 13px; }
+}
+@media (forced-colors: active) {
+  .ff-overlay:not(.ff-in-world) .ff-main-actions .ff-button,
+  .ff-overlay:not(.ff-in-world) .ff-sideboard > summary[data-action="sleeve"] { border: 2px solid ButtonText; background: ButtonFace; color: ButtonText; filter: none; text-shadow: none; }
+}

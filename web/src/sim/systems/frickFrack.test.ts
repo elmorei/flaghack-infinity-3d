@@ -25,6 +25,9 @@ function command(w: World, action: CommandOf<'frickFrack'>['action'], rest: Part
 function start(w: World) {
   expect(offerFrickFrackFlag(w, w.hippies.get(w.frickFrack.wizardId)!, 0, w.avatarOf(0).carried[0])).toBe(true);
   for (let i = 0; i < 3; i++) { w.time = w.frickFrack.sessions[0]!.readyAt; command(w, i < 2 ? 'next' : 'play'); }
+  // These regression fixtures retain the target-21 hand scenarios; dice tests cover all targets.
+  const s=w.frickFrack.sessions[0]!; s.dieResult=1; s.target=21;
+  w.time=s.rollEndsAt!; updateFrickFrack(w);
 }
 function fill(w: World) { const av = w.avatarOf(0); while (av.carried.length < AVATAR.quiver) { const f = spawnFlag(w, { state: 'loose', owner: 0, pos: { ...av.pos } }); giveFlag(w, f.id, av.id); } }
 describe('Frick-frack authoritative minigame', () => {
@@ -92,7 +95,7 @@ describe('Frick-frack authoritative minigame', () => {
     const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'normal'); command(w, 'bet', { wager: 1 }); const s = w.frickFrack.sessions[0]!;
     s.player = [{ id: 99999, rank: 10, suit: 0 }, { id: 99998, rank: 1, suit: 0 }]; fill(w); const altar = w.hearthOf(0)!;
     const before = [...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id).length; command(w, 'stand'); expect(s.result).toBe('win'); expect(av.carried).toHaveLength(AVATAR.quiver);
-    expect([...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id)).toHaveLength(before + 2); const count = w.flags.size; command(w, 'stand'); expect(w.flags.size).toBe(count); command(w, 'again'); expect(s.phase).toBe('betting');
+    expect([...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id)).toHaveLength(before + 2); const count = w.flags.size; command(w, 'stand'); expect(w.flags.size).toBe(count); command(w, 'again'); expect(s.phase).toBe('rolling'); w.time=s.rollEndsAt!; updateFrickFrack(w); expect(s.phase).toBe('betting');
   });
   it('shows no-flags dialogue after losing held bankroll, not altar stock', () => {
     const { w, av } = arena(); start(w); resetFrickFrackEntropy(w, 'normal'); command(w, 'bet', { wager: av.carried.length }); const s = w.frickFrack.sessions[0]!;

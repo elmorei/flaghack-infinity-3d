@@ -39,6 +39,9 @@ jobs:
       - name: Verify actual engine table, privacy and active-motion pacing
         if: ${{ inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
+      - name: Verify six physical die faces and record normal-speed dice demo
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs
       - name: Verify authoritative Frick-frack gameplay controls
         if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
@@ -50,5 +53,6 @@ jobs:
           path: |
             web/host-release/frick-engine-smoke/
             web/host-release/frick-frack-smoke/
+            web/host-release/frick-dice-smoke/
           if-no-files-found: warn
           retention-days: 14

@@ -11,7 +11,7 @@ import { beginTask, setStatusAt } from './units/brain';
 import type { Brain } from './units/brain';
 import { locomote, moveTo } from './units/move';
 import type { UnitsState } from './units/state';
-import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_DROP_CHANCE, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
+import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_DROP_CHANCE, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, frickFrackTarget, FRICK_FRACK_ROLL_SECONDS, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
 import type { FrickFrackCard, FrickFrackSession } from '../frickFrack';
 import { applyFrickFrackArcana } from '../frickFrackArcana';
 import type { FrickFrackHand } from '../frickFrackArcana';
@@ -129,6 +129,13 @@ function empty(w: World, s: FrickFrackSession): void {
 function cleanupTemporary(w: World, f: FactionId): void {
   w.frickFrack.sideboards[f] = w.frickFrack.sideboards[f].filter(c => !c.temporary);
 }
+/** One host roll before betting; commands cannot skip or reroll its reveal interval. */
+function beginRoll(w: World, s: FrickFrackSession): void {
+  s.dieResult = privateState(w).rng.int(1, 6); s.target = 20 + s.dieResult;
+  s.rollNumber = (s.rollNumber ?? 0) + 1; s.rollStartedAt = w.time;
+  s.rollEndsAt = w.time + FRICK_FRACK_ROLL_SECONDS; s.readyAt = s.rollEndsAt;
+  s.phase = 'rolling';
+}
 function syncDealer(s: FrickFrackSession, hand: PrivateHand): void {
   if (!hand.dealer.some(c => c.id === hand.holeId)) hand.holeId = null;
   s.dealer = hand.dealer.map(c => !hand.revealDealer && c.id === hand.holeId ? null : { ...c });
@@ -160,7 +167,7 @@ function revealPlayerCard(s: FrickFrackSession, hand: PrivateHand, card: FrickFr
   const remark = frickFrackParodyRemark(card); if (remark) s.remark = remark;
   revealCard(s, hand, card.id);
   // Strength protects a draw that is still present after its CCG battle, not a transformed old card.
-  if (s.arcana?.strength && s.player.some(c=>c.id===card.id) && frickFrackTotal(s.player.filter(c=>hand.revealedIds.includes(c.id))) > 21) {
+  if (s.arcana?.strength && s.player.some(c=>c.id===card.id) && frickFrackTotal(s.player.filter(c=>hand.revealedIds.includes(c.id)),frickFrackTarget(s)) > frickFrackTarget(s)) {
     s.player = s.player.filter(c=>c.id!==card.id); s.arcana.strength=false;
     s.remark = 'Strength discards that draw before it can make you bust.';
   }
@@ -184,13 +191,13 @@ function result(w: World, s: FrickFrackSession, outcome: 'win' | 'lose' | 'push'
   if (outcome === 'lose' && hand && s.arcana?.judgement && !s.arcana.judgementUsed) {
     s.arcana.judgement=false;s.arcana.judgementUsed=true;s.result=null;s.message='Judgement grants one replay at your already committed wager.';
     setFrickFrackPrivateView(w,s.faction,null);dealFresh(w,s,hand);s.phase='playing';
-    if (frickFrackTotal(s.player) === 21 || frickFrackTotal(hand.dealer) === 21) stand(w,s);
+    if (frickFrackTotal(s.player,frickFrackTarget(s)) === frickFrackTarget(s) || frickFrackTotal(hand.dealer,frickFrackTarget(s)) === frickFrackTarget(s)) stand(w,s);
     return;
   }
   if (hand) s.dealer = hand.dealer.map(c => ({ ...c }));
-  const poker = frickFrackTotal(s.player) <= 21 ? evaluateFrickFrackPoker(s.player) : null;
+  const poker = frickFrackTotal(s.player,frickFrackTarget(s)) <= frickFrackTarget(s) ? evaluateFrickFrackPoker(s.player,frickFrackTarget(s)) : null;
   const multiplier = poker?.profitMultiplier ?? 1;
-  const extra = outcome === 'win' && s.arcana?.world && frickFrackTotal(s.player) === 21 ? s.wager : 0;
+  const extra = outcome === 'win' && s.arcana?.world && frickFrackTotal(s.player,frickFrackTarget(s)) === frickFrackTarget(s) ? s.wager : 0;
   const profit = outcome === 'win' ? s.wager * multiplier + extra : 0;
   const payout = outcome === 'win' ? s.wager + profit : outcome === 'push' ? s.wager : 0;
   awardFlags(w, s.faction, payout);
@@ -217,14 +224,14 @@ function stand(w: World, s: FrickFrackSession): void {
   const hand = privateState(w).hands.get(s.faction); if (!hand) return;
   revealDealer(s,hand);
   // A revealed CCG can remove cards from either hand; recompute after every draw/battle.
-  while (frickFrackTotal(hand.dealer) < 17 && hand.deck.length) { const c=draw(hand);hand.dealer.push(c);if(s.arcana)delete s.arcana.softDealer;revealCard(s,hand,c.id); }
-  const player = frickFrackTotal(s.player), dealer = frickFrackTotal(hand.dealer);
-  result(w, s, player > 21 ? 'lose' : dealer > 21 || player > dealer || (player === dealer && s.arcana?.justice) ? 'win' : player === dealer ? 'push' : 'lose');
+  while (frickFrackTotal(hand.dealer,frickFrackTarget(s)) < frickFrackTarget(s) - 4 && hand.deck.length) { const c=draw(hand);hand.dealer.push(c);if(s.arcana)delete s.arcana.softDealer;revealCard(s,hand,c.id); }
+  const player = frickFrackTotal(s.player,frickFrackTarget(s)), dealer = frickFrackTotal(hand.dealer,frickFrackTarget(s));
+  result(w, s, player > frickFrackTarget(s) ? 'lose' : dealer > frickFrackTarget(s) || player > dealer || (player === dealer && s.arcana?.justice) ? 'win' : player === dealer ? 'push' : 'lose');
 }
 function finishPlayerChange(w: World, s: FrickFrackSession, hand: PrivateHand): void {
   if (s.arcana?.choices?.length) return;
-  if (frickFrackTotal(s.player) > 21) { revealDealer(s,hand);if(frickFrackTotal(s.player)>21)result(w,s,'lose');else stand(w,s); }
-  else if (frickFrackTotal(s.player) === 21) stand(w,s);
+  if (frickFrackTotal(s.player,frickFrackTarget(s)) > frickFrackTarget(s)) { revealDealer(s,hand);if(frickFrackTotal(s.player,frickFrackTarget(s))>frickFrackTarget(s))result(w,s,'lose');else stand(w,s); }
+  else if (frickFrackTotal(s.player,frickFrackTarget(s)) === frickFrackTarget(s)) stand(w,s);
 }
 export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
   const s = w.frickFrack.sessions[c.faction];
@@ -239,13 +246,13 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
     }
     if (s.dialogueIndex !== dialogue.length - 1) return;
     if (c.action === 'decline' || c.action === 'exit') { closeFrickFrackSession(w, c.faction); return; }
-    if (c.action === 'play') { s.phase = 'betting'; if (!av.carried.length) empty(w, s); s.revision++; } return;
+    if (c.action === 'play') { if (!av.carried.length) empty(w, s); else beginRoll(w, s); s.revision++; } return;
   }
   if (c.action === 'exit' || c.action === 'decline') { closeFrickFrackSession(w, c.faction); return; }
   if (s.phase === 'empty') return;
   if (s.phase === 'result' && c.action === 'again') {
-    s.phase='betting';s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;s.wager=0;s.result=null;s.message='';delete s.remark;delete s.arcana;s.revision++;
-    if (!av.carried.length) empty(w,s);return;
+    s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;s.wager=0;s.result=null;s.message='';delete s.remark;delete s.arcana;s.revision++;
+    if (!av.carried.length) empty(w,s); else beginRoll(w,s); return;
   }
   if (s.phase === 'betting' && c.action === 'bet') {
     const wager=c.wager;if (!Number.isInteger(wager)||wager!<1||wager!>av.carried.length) return;
@@ -253,7 +260,7 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
     const hand:PrivateHand={deck:[],dealer:[],usedNumeric:[],temporaryIds:[],revealDealer:false,revealedIds:[],holeId:null};
     privateState(w).hands.set(c.faction,hand);s.wager=wager!;s.phase='playing';delete s.arcana;delete s.remark;s.revision++;
     dealFresh(w,s,hand);
-    if (frickFrackTotal(s.player)===21||frickFrackTotal(hand.dealer)===21) stand(w,s);
+    if (frickFrackTotal(s.player,frickFrackTarget(s))===frickFrackTarget(s)||frickFrackTotal(hand.dealer,frickFrackTarget(s))===frickFrackTarget(s)) stand(w,s);
     return;
   }
   if (s.phase !== 'playing') return;
@@ -310,6 +317,11 @@ export function updateFrickFrack(w: World): void {
     if (s && (!canPlay(w, f) || !wizard || wizard.hp <= 0 || wizard.status === 'ko' ||
         (s.phase !== 'chasing' && conversationSeparated(w, wizard, f)) ||
         (s.phase === 'chasing' && w.time - s.dialogueStartedAt > 120))) closeFrickFrackSession(w, f);
+    const live = w.frickFrack.sessions[f];
+    if (live?.phase === 'rolling' && w.time >= (live.rollEndsAt ?? Infinity)) {
+      if (!w.avatarOf(f).carried.length) empty(w,live); else live.phase = 'betting';
+      live.revision++;
+    }
     if (!canPlay(w, f) || isFrickFrackLocked(w, f)) continue;
     const av = w.avatarOf(f), cards = w.frickFrack.sideboards[f];
     for (let i = w.frickFrack.drops.length - 1; i >= 0 && cards.length < FRICK_FRACK_SIDEBOARD_CAP; i--) {

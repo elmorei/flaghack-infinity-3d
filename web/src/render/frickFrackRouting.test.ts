@@ -17,8 +17,8 @@ function setup() {
   return { state, world, session, draw, clear, update, post, render };
 }
 describe('engine table GPU routing', () => {
-  it('uses the shared engine and keeps simulation-owned time/effect modules advancing', () => {
-    const f = setup(); expect(f.render()).toBe(true);
+  it.each(['rolling','betting','playing','result'] as const)('uses the shared engine during %s and keeps effect clocks advancing', phase => {
+    const f = setup(); f.world.frickFrack.sessions[0]!.phase=phase; expect(f.render()).toBe(true);
     expect(f.draw).toHaveBeenCalledOnce(); expect(f.post).not.toHaveBeenCalled();
     expect(f.update).toHaveBeenCalledWith(.016); expect(f.state.ctx.time).toBe(.016);
   });

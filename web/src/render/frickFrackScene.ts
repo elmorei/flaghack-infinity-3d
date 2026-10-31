@@ -5,10 +5,12 @@ import type { FrickFrackCard } from '../sim/frickFrack';
 import { tarotCardAsset } from '../ui/frickFrackTarot';
 import { parodyCardSprite } from '../ui/frickFrackParody';
 import { majorArcanaAsset } from '../ui/frickFrackArcana';
+import { createDie, dieMotion, visibleDieFace } from './frickFrackDie';
 
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface CardView { key: string; card: FrickFrackCard | null; rect: Rect; defeated: boolean; order: number }
-export interface TableView { sessionKey: string; panel: Rect; cards: CardView[]; reducedMotion: boolean }
+export interface TableView { sessionKey: string; panel: Rect; cards: CardView[]; reducedMotion: boolean;
+  die?: { result: number; progress: number; rect: Rect; rollKey: string }; deck?: Rect }
 export interface PublicArtwork { url: string; crop?: { x: number; y: number; width: number; height: number } }
 /** Calling this with null is deliberately a complete privacy boundary. */
 export function publicCardArtwork(card: FrickFrackCard | null): PublicArtwork | null {
@@ -152,10 +154,17 @@ export class FrickFrackScene {
   private readonly backTexture = makeBack();
   private readonly blanketTexture = makeBlanket();
   private readonly shadowTexture = makeShadow();
+  private sceneryTextures: Partial<Record<'landscape' | 'portrait', THREE.Texture>> = {};
+  private sceneryImages: Partial<Record<'landscape' | 'portrait', HTMLImageElement>> = {};
+  private sceneryKind: 'landscape' | 'portrait' = 'landscape';
+  private sceneryReady = false;
   private readonly backMaterial = new THREE.MeshBasicMaterial({ map: this.backTexture, transparent: true, alphaTest: .02, toneMapped: false });
   private readonly blanketMaterial = new THREE.MeshBasicMaterial({ map: this.blanketTexture, toneMapped: false });
   private readonly blanket = new THREE.Mesh(this.plane, this.blanketMaterial);
   private readonly deck = new THREE.Group();
+  private readonly die = createDie();
+  private readonly dieShadow = new THREE.Mesh(this.plane, new THREE.MeshBasicMaterial({ map: this.shadowTexture, transparent: true, depthWrite: false, toneMapped: false }));
+  private dieState: { result: number; face: number; progress: number; rollKey: string } | null = null;
   private readonly cards = new Map<string, CardNode>();
   private key = '';
   private disposed = false;
@@ -167,17 +176,34 @@ export class FrickFrackScene {
   private readonly raycaster = new THREE.Raycaster();
   constructor() {
     this.camera.position.z = 1000;
-    this.blanket.position.z = -20; this.scene.add(this.blanket, this.deck);
+    this.sceneryKind = typeof window !== 'undefined' && window.innerWidth < 700 ? 'portrait' : 'landscape';
+    this.loadScenery(this.sceneryKind);
+    this.blanket.position.z = -20; this.scene.add(this.blanket, this.deck, this.die.mesh, this.dieShadow);
+    this.die.mesh.visible = this.dieShadow.visible = false;
     for (let i = 0; i < 4; i++) {
       const m = new THREE.Mesh(this.plane, this.backMaterial); m.position.set(i * .025, i * .023, i * .1); this.deck.add(m);
     }
+  }
+  private loadScenery(kind: 'landscape' | 'portrait'): void {
+    if (this.sceneryImages[kind] || typeof Image === 'undefined') return;
+    // Public scenery only. A portrait composition keeps full-size flag edges without squeezing the landscape image.
+    const img = this.sceneryImages[kind] = new Image(); img.decoding = 'async';
+    img.onload = () => {
+      if (this.disposed) return;
+      const map = this.sceneryTextures[kind] = new THREE.Texture(img);
+      map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = false;
+      map.minFilter = THREE.LinearFilter; map.needsUpdate = true;
+      if (this.sceneryKind === kind) { this.blanketMaterial.map = map; this.blanketMaterial.needsUpdate = true; this.sceneryReady = true; }
+    };
+    img.src = `${import.meta.env.BASE_URL}cards/frick-frack-yellow-flags${kind === 'portrait' ? '-portrait' : ''}.webp`;
   }
   /** Public-only diagnostic information; no private deck identities can enter this scene. */
   inspect(): { key: string; hidden: boolean; rotation: number; signature: string }[] {
     return [...this.cards].map(([key, node]) => ({ key, hidden: node.hidden, rotation: node.group.rotation.y, signature: node.signature }));
   }
   snapshot() {
-    return { active: this.active, drawCount: this.drawCount, cardCount: this.cards.size, meshCount: 5 + this.cards.size * 3, sessionKey: this.key,
+    return { active: this.active, drawCount: this.drawCount, cardCount: this.cards.size, meshCount: 5 + this.cards.size * 3 + (this.dieState ? 2 : 0), sessionKey: this.key,
+      die: this.dieState ? { ...this.dieState } : null, backdropReady: this.sceneryReady, backdropKind: this.sceneryKind,
       cards: [...this.cards].map(([key, node]) => ({ key, hidden: node.hidden, defeated: node.view.defeated,
         x: node.group.position.x, y: this.height - node.group.position.y, width: node.view.rect.width, height: node.view.rect.height,
         rotationY: node.group.rotation.y, visible: node.group.visible, faceVisible: !node.hidden && Math.cos(node.group.rotation.y) > 0,
@@ -196,10 +222,12 @@ export class FrickFrackScene {
   private remove(key: string, node: CardNode): void {
     this.scene.remove(node.group, node.shadow); disposeFace(node.face); node.front.material.dispose(); node.shadow.material.dispose(); this.cards.delete(key);
   }
-  clear(): void { for (const [key, node] of this.cards) this.remove(key, node); this.key = ''; this.active = false; }
+  clear(): void { for (const [key, node] of this.cards) this.remove(key, node); this.key = ''; this.active = false; this.dieState = null; this.die.mesh.visible = this.dieShadow.visible = false; }
   dispose(): void {
     if (this.disposed) return; this.disposed = true; this.clear(); this.plane.dispose();
     this.backTexture.dispose(); this.blanketTexture.dispose(); this.shadowTexture.dispose(); this.backMaterial.dispose(); this.blanketMaterial.dispose();
+    this.die.dispose(); this.dieShadow.material.dispose(); Object.values(this.sceneryTextures).forEach(map => map.dispose());
+    Object.values(this.sceneryImages).forEach(img => { img.onload = null; img.onerror = null; });
   }
   draw(renderer: THREE.WebGLRenderer, view: TableView, nowMs: number): void {
     if (this.disposed) return;
@@ -208,11 +236,30 @@ export class FrickFrackScene {
     this.active = true; this.width = width; this.height = height;
     this.camera.right = width; this.camera.top = height; this.camera.updateProjectionMatrix();
     const panel = view.panel; this.panel = { ...panel };
+    this.sceneryKind = panel.width / panel.height < .95 ? 'portrait' : 'landscape';
+    this.loadScenery(this.sceneryKind);
+    const scenery = this.sceneryTextures[this.sceneryKind]; this.sceneryReady = !!scenery;
+    const backdrop = scenery ?? this.blanketTexture;
+    if (this.blanketMaterial.map !== backdrop) { this.blanketMaterial.map = backdrop; this.blanketMaterial.needsUpdate = true; }
     this.blanket.position.set(panel.x + panel.width / 2, height - panel.y - panel.height / 2, -20);
     this.blanket.scale.set(panel.width, panel.height, 1); this.blanketTexture.repeat.set(panel.width / 180, panel.height / 180);
-    const deckSize = Math.max(28, Math.min(52, panel.width * .07));
-    const deckX = panel.x + panel.width - deckSize * .8 - 18, deckY = panel.y + 38;
+    const deckSize = view.deck ? Math.min(view.deck.width, view.deck.height / 1.5) : Math.max(28, Math.min(52, panel.width * .07));
+    const deckX = view.deck ? view.deck.x + view.deck.width / 2 : panel.x + panel.width - deckSize * .8 - 18;
+    const deckY = view.deck ? view.deck.y + view.deck.height / 2 : panel.y + 38;
     this.deck.position.set(deckX, height - deckY, 1); this.deck.scale.set(deckSize, deckSize * 1.5, 1); this.deck.rotation.z = -.10;
+    this.die.mesh.visible = this.dieShadow.visible = !!view.die;
+    if (view.die) {
+      const d = view.die, motion = dieMotion(d.progress, d.result, view.reducedMotion);
+      const size = Math.max(24, Math.min(44, d.rect.height * .55));
+      const x = d.rect.x + d.rect.width / 2 + motion.x * Math.min(1, d.rect.width / 280);
+      const y = d.rect.y + d.rect.height / 2 + motion.y;
+      this.die.mesh.position.set(x, height - y + motion.lift * .45, 40 + motion.lift);
+      this.die.mesh.scale.setScalar(size); this.die.mesh.quaternion.copy(motion.rotation);
+      this.dieShadow.position.set(x + 5 + motion.lift * .2, height - y - 9, 3);
+      this.dieShadow.scale.set(size * (1.9 + motion.lift / 80), size * 1.6, 1);
+      this.dieShadow.material.opacity = 1 - motion.lift / 70;
+      this.dieState = { result: d.result, face: visibleDieFace(motion.rotation), progress: motion.progress, rollKey: d.rollKey };
+    } else this.dieState = null;
     const present = new Set(view.cards.map(c => c.key));
     for (const [key, node] of this.cards) if (!present.has(key)) this.remove(key, node);
     for (const item of view.cards) {

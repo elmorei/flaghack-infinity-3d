@@ -45,10 +45,12 @@ export function createFrickFrackCheatCard(id: number, index: number): FrickFrack
 export interface FrickFrackDrop { id: number; card: FrickFrackCard; pos: V2; createdAt: number }
 export interface FrickFrackSession {
   id: number; revision: number; faction: FactionId;
-  phase: 'chasing' | 'dialogue' | 'betting' | 'playing' | 'result' | 'empty';
+  phase: 'chasing' | 'dialogue' | 'rolling' | 'betting' | 'playing' | 'result' | 'empty';
   /** Host-selected encounter script; never changes between hands in the same visit. */
   dialogueVariant?: number;
   dialogueIndex: number; dialogueStartedAt: number; readyAt: number;
+  /** Host-authoritative die and timing; fixed for one hand, including Judgement replays. */
+  dieResult?: number; target?: number; rollStartedAt?: number; rollEndsAt?: number; rollNumber?: number;
   wager: number; player: FrickFrackCard[]; dealer: (FrickFrackCard | null)[];
   result: 'win' | 'lose' | 'push' | null; message: string;
   /** Last public player-card remark, independent of outcome text and hidden dealer cards. */
@@ -117,7 +119,12 @@ export function frickFrackDialogueVariant(previousVisits: number): number {
 export const FRICK_FRACK_EMPTY = 'You have no Flags left to bet. Come back when you have some more. I will be here, attending to the hat.';
 export function frickFrackTextDuration(text: string): number { return text.length * FRICK_FRACK_LETTER_SECONDS + .25; }
 export function createFrickFrackState(): FrickFrackState { return { wizardId: -1, visits: {}, sessions: {}, sideboards: { 0: [], 1: [], 2: [], 3: [] }, drops: [] }; }
-export function frickFrackTotal(cards: readonly (FrickFrackCard | null)[]): number {
+export const FRICK_FRACK_ROLL_SECONDS = 1.25;
+/** Legacy snapshots and isolated fixtures without dice retain the original target. */
+export function frickFrackTarget(session: Pick<FrickFrackSession, 'target'>): number {
+  return Number.isInteger(session.target) && session.target! >= 21 && session.target! <= 26 ? session.target! : 21;
+}
+export function frickFrackTotal(cards: readonly (FrickFrackCard | null)[], target = 21): number {
   let total = 0, aces = 0;
   for (const c of cards) if (c) {
     if (c.arcana !== undefined) continue;
@@ -125,7 +132,7 @@ export function frickFrackTotal(cards: readonly (FrickFrackCard | null)[]): numb
     else if (c.parody !== undefined) total += c.rank;
     else { total += c.rank === 1 ? 11 : Math.min(c.rank, 10); if (c.rank === 1) aces++; }
   }
-  while (total > 21 && aces-- > 0) total -= 10;
+  while (total > target && aces-- > 0) total -= 10;
   return total;
 }
 export const FRICK_FRACK_DROP_CHANCE = .035;

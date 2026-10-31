@@ -1,5 +1,6 @@
 /** Shared Major Arcana rules. Majors are one-use sideboard effects, never numeric draw cards. */
 import type { FrickFrackCard, FrickFrackSession } from './frickFrack';
+import { frickFrackTarget } from './frickFrack';
 import type { FrickFrackPrivateView } from './frickFrackPrivate';
 export type ArcanaTarget = 'none' | 'one' | 'two' | 'value' | 'confirmOne';
 export interface ArcanaDefinition { id: number; name: string; description: string; target: ArcanaTarget }
@@ -25,7 +26,7 @@ export const FRICK_FRACK_ARCANA: readonly ArcanaDefinition[] = [
   [18,'The Moon','Replace the hidden dealer card without looking at it.','none'],
   [19,'The Sun','Permanently reveal the dealer’s hidden card.','none'],
   [20,'Judgement','Arm one free replay if this hand loses. Same committed wager.','none'],
-  [21,'The World','If you win with exactly 21, win two stakes instead of one.','none'],
+  [21,'The World','If you win with exactly the rolled target, win two stakes instead of one.','none'],
 ].map(([id,name,description,target]) => ({id:id as number,name:name as string,description:description as string,target:target as ArcanaTarget}));
 export interface FrickFrackArcanaState {
   sun?: boolean; strength?: boolean; justice?: boolean; world?: boolean; judgement?: boolean;
@@ -47,10 +48,10 @@ export function frickFrackCardValue(c: FrickFrackCard): number {
   if (c.arcana !== undefined) return 0;
   return c.value ?? (c.parody !== undefined ? c.rank : c.rank === 1 ? 11 : Math.min(c.rank,10));
 }
-export function frickFrackDealerSoft(cards: readonly FrickFrackCard[]): boolean {
+export function frickFrackDealerSoft(cards: readonly FrickFrackCard[], target = 21): boolean {
   let total = 0, aces = 0;
   for (const c of cards) { total += frickFrackCardValue(c); if (c.arcana === undefined && c.value === undefined && c.parody === undefined && c.rank === 1) aces++; }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  while (total > target && aces > 0) { total -= 10; aces--; }
   return aces > 0;
 }
 const highest = (cards: FrickFrackCard[]) => cards.reduce((best,c,i) => frickFrackCardValue(c) > frickFrackCardValue(cards[best]) ? i : best,0);
@@ -83,7 +84,7 @@ export function applyFrickFrackArcana(ctx: ArcanaContext, id: number, request: A
     case 2: peek('dealer',[h.dealer.find(c=>c.id===h.holeId)!],3); break;
     case 3: { const c={id:ctx.nextId(),rank:3,suit:0,value:3,temporary:true}; sideboard.push(c);h.temporaryIds.push(c.id);break; }
     case 4: s.player.find(c=>c.id===targets[0])!.value=4;break;
-    case 5: effects.softDealer=frickFrackDealerSoft(h.dealer);break;
+    case 5: effects.softDealer=frickFrackDealerSoft(h.dealer,frickFrackTarget(s));break;
     case 6: case 7: effects.choices=[draw(),draw()];break;
     case 8: effects.strength=true;break;
     case 9: peek('next',h.deck.slice(-3).reverse(),5);break;

@@ -23,10 +23,10 @@ function pokerRank(card: FrickFrackCard): number | null {
   if (card.rank > 13) return null;
   return card.rank >= 12 ? card.rank + 1 : card.rank;
 }
-export function evaluateFrickFrackPoker(cards: readonly FrickFrackCard[]): FrickFrackPokerBonus {
+export function evaluateFrickFrackPoker(cards: readonly FrickFrackCard[], target = 21): FrickFrackPokerBonus {
   const none: FrickFrackPokerBonus = { profitMultiplier: 1, straightHigh: null, label: '' };
   // All bonuses are disabled on a bust, using actual blackjack values/ace flexibility.
-  if (frickFrackTotal(cards) > 21) return none;
+  if (frickFrackTotal(cards,target) > target) return none;
   const groups = new Map<number, FrickFrackCard[]>();
   for (const card of cards) {
     const rank = pokerRank(card); if (rank === null) continue;
