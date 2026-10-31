@@ -216,6 +216,8 @@ export class GameUI {
       this.minimap.draw(world, t0);
     }
 
+    // Measure only after HUD, table rebuilds, ready gates, focus and other UI writers.
+    this.frickFrack.publishEngineFrame();
     const ms = performance.now() - t0;
     this.uiMs = this.uiMs * 0.95 + ms * 0.05;
     this.uiMaxWindow = Math.max(this.uiMaxWindow, ms);

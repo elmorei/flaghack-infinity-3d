@@ -174,10 +174,16 @@ export class FrickFrackUI implements UiPart {
   frame(): void {
     const session = this.active, w = this.host.app.world;
     if (!session || !w) { setFrickFrackView(null); return; }
-    this.publishEngineView(session);
     if (this.text) setText(this.text, revealedDialogue(this.textSource, w.time - session.dialogueStartedAt));
     if (this.next) this.next.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-ready-gate]')) b.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
+  }
+
+  /** Geometry reads run once after the UI root finishes its DOM writes. */
+  publishEngineFrame(): void {
+    const session = this.active;
+    if (!session || !this.host.app.world) { setFrickFrackView(null); return; }
+    this.publishEngineView(session);
   }
 
   private render(s: FrickFrackSession, available: number, world: World): void {
