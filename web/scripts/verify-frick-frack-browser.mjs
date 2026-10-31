@@ -307,8 +307,15 @@ async function main(){
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         // A known sideboard card still goes through the real Play button and combat resolver.
         await seedAndQuiver('frick-136-25',10);await deal(1);
-        await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0];w.frickFrack.sideboards[0]=[{id:w.newId(),rank:4,suit:0,parody:3}];s.revision++;});
+        const combatCard=await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0],id=w.newId();w.frickFrack.sideboards[0]=[{id,rank:4,suit:0,parody:3}];s.revision++;return id;});
+        // Wait for this exact staged revision's card, even if its section is hidden.
+        // A persistent Sleeve from the previous betting render may report closed
+        // just before playing restores the remembered open state; clicking that
+        // stale observation would close the current sleeve rather than open it.
+        await dialog.locator(`[data-engine-key="sleeve:${combatCard}"]`).waitFor({state:'attached'});
+        await page.waitForFunction(()=>document.querySelector('.ff-main-actions [data-action="sleeve"]')?.disabled===false);
         if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
+        await page.waitForFunction(()=>document.querySelector('.ff-main-actions [data-action="sleeve"]')?.getAttribute('aria-expanded')==='true');
         await tap(dialog.getByRole('button',{name:/^Play .* once$/}));
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===2);
         assert.equal((await state()).session.player.length,2);

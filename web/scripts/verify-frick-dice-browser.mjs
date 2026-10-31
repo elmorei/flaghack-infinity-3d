@@ -195,6 +195,11 @@ async function verifyDice(spec,url){
     await page.locator('.ff-extras').evaluate(e=>{e.scrollTop=e.scrollHeight;});
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'playing');
     if(spec.touch)await sleeve.tap();else await sleeve.click();assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'playing');
+    await sleeve.focus(); await page.keyboard.press('Enter');
+    assert.equal(await sleeve.getAttribute('aria-expanded'),'true','Keyboard opens Sleeve');
+    assert.equal(await sleeve.evaluate(e=>document.activeElement===e),true,'Sleeve keeps keyboard focus after rerender');
+    await page.keyboard.press('Enter');
+    assert.equal(await sleeve.getAttribute('aria-expanded'),'false','Second Enter closes Sleeve rather than hitting');
     const playing=await state();assert.equal(playing.session.target,26);assert.equal(playing.snapshot.die.face,6);
     assert.equal(playing.session.dealer[1],null,'Dealer hole privacy retained');
     await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result'&&!document.querySelector('.ff-main-actions [data-action="again"]')?.disabled);
@@ -203,7 +208,8 @@ async function verifyDice(spec,url){
     await act('Again',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-target-title')?.textContent==='Rolling the target');
     assert.equal(await button('Deal').count(),1);assert.equal(await button('Deal').isDisabled(),true);
     await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-    await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1);
+    // The physical die can settle before the 100ms UI writer publishes betting.
+    await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'betting');
     const again=await state();assert.equal(again.session.rollNumber,old.session.rollNumber+1);
     assert.equal(again.snapshot.die.face,again.session.dieResult);assert.equal(again.session.target,20+again.session.dieResult);

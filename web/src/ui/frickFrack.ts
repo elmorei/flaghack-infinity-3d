@@ -218,7 +218,7 @@ export class FrickFrackUI implements UiPart {
     this.body.replaceChildren(); this.text = null; this.next = null; this.wagerInput = null;
     setText(this.title, s.phase === 'dialogue' || s.phase === 'empty' ? 'The Frick-frack Wizard' : 'Frick-frack');
     if (this.flagValue) setText(this.flagValue, String(available));
-    setText(this.status, `${s.wager > 0 ? `Wager ${s.wager} · ` : ''}The burn continues outside.`);
+    setText(this.status, `${s.wager > 0 ? `Wager ${s.wager} · ` : ''}${s.phase === 'playing' ? 'Exit forfeits your wager.' : 'The burn continues outside.'}`);
     if (s.phase === 'dialogue' || s.phase === 'empty') {
       el('div', 'ff-wizard-seal', this.body, '✦');
       el('div', 'ff-page-number', this.body, s.phase === 'dialogue' ? `A brief word · ${s.dialogueIndex + 1} / ${frickFrackDialogue(s.dialogueVariant).length}` : 'An unfortunate arithmetic');
@@ -282,9 +282,10 @@ export class FrickFrackUI implements UiPart {
       this.action(actions, 'Hit', 'hit').disabled = !playing || choosing;
       this.action(actions, 'Stand', 'stand').disabled = !playing || choosing;
       this.action(actions, 'Again', 'again').disabled = s.phase !== 'result';
-      const sleeve = button('ff-button', actions, 'Sleeve', () => {
+      const sleeve = button('ff-button', actions, 'Sleeve', ev => {
         if (sleeve.disabled) return;
         this.sideboardOpen = !this.sideboardOpen; this.render(s, available, world);
+        if (ev.detail === 0) this.body.querySelector<HTMLButtonElement>('[data-action="sleeve"]')?.focus({ preventScroll: true });
       });
       sleeve.dataset.action = 'sleeve'; sleeve.disabled = !playing;
       sleeve.setAttribute('aria-expanded', String(playing && this.sideboardOpen)); sleeve.setAttribute('aria-controls', 'ff-sleeve');

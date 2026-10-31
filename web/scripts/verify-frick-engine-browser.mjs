@@ -126,7 +126,15 @@ async function verify(spec,url){
     entry.metrics.push(await metrics());await ensureSettled();
     const hit=await state();entry.hit=hit;
     assert.ok(hit.session.defeated?.length,'Seeded real Hit produces actual CCG combat');
-    assert.ok(hit.snapshot.cards.some(c=>c.defeated),'Engine retains defeated card with marker');
+    // Compact hands deliberately clip offscreen engine meshes. Inspect the real
+    // defeated card by scrolling its horizontal hand lane, not by weakening the
+    // assertion to an invisible DOM tombstone.
+    const defeatedTile=page.locator('.ff-hands .ff-card-defeated').first();
+    await defeatedTile.scrollIntoViewIfNeeded();
+    const defeatedKey=await defeatedTile.getAttribute('data-engine-key');
+    await page.waitForFunction(key=>window.flaghack.renderer.frickScene.snapshot().cards.some(c=>c.key===key&&c.defeated&&c.visible&&c.animationProgress===1),defeatedKey);
+    const inspected=await state();entry.defeatedInspected=inspected;
+    assert.ok(inspected.snapshot.cards.some(c=>c.key===defeatedKey&&c.defeated&&c.visible),'Engine shows the scrolled defeated card with marker');
     await page.screenshot({path:join(OUT,spec.name+'-engine-defeated.png')});
     if(spec.name==='desktop'){
       await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
