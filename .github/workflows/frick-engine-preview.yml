@@ -45,6 +45,11 @@ jobs:
       - name: Verify authoritative Frick-frack gameplay controls
         if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
+      - name: Verify automatic lobby styles in native solo and mixed-device multiplayer
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.diagnostic != true && !contains(github.event.head_commit.message, '[engine-diagnostic]') }}
+        run: |
+          npm run build:server
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
       - name: Upload engine-native demo and evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -54,5 +59,6 @@ jobs:
             web/host-release/frick-engine-smoke/
             web/host-release/frick-frack-smoke/
             web/host-release/frick-dice-smoke/
+            web/host-release/auto-style-smoke/
           if-no-files-found: warn
           retention-days: 14
