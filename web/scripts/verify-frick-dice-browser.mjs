@@ -163,7 +163,8 @@ async function invite(seed){
 async function roll(spec, seed, expected){
   await invite(seed);
   const before=await state();await act('Yes, play Frick-frack',spec);
-  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting'&&!document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled);
+  // Host state can advance before the 100ms DOM writer. Require the actual control, not !undefined.
+  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting'&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
   const initial=await state();assert.equal(initial.session.dieResult,undefined,'Invitation does not start an extra roll');
   const initialLayout=await page.evaluate(()=>window.__readStableTable());assertStableTable(initialLayout,null,'betting');
   const available=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
@@ -184,7 +185,7 @@ async function roll(spec, seed, expected){
   assert.equal(gate.target,20+expected);assert.equal(gate.dealDisabled,true,'Deal stays visible but cannot bet while rolling');
   assertStableTable(gate.layout, initialLayout, 'rolling');
   const quiver=gate.quiver;assert.equal(quiver,available-1,'Single Deal charges selected wager at roll start');
-  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing'&&!document.querySelector('.ff-main-actions [data-action="stand"]')?.disabled);
+  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing'&&document.querySelector('.ff-main-actions [data-action="stand"]')?.disabled===false);
   await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1);
   const settled=await state();
   assert.equal(settled.session.dieResult,expected);assert.equal(settled.session.target,20+expected);
@@ -235,7 +236,7 @@ async function verifyDice(spec,url){
     assert.equal(await sleeve.getAttribute('aria-expanded'),'false','Second Enter closes Sleeve rather than hitting');
     const playing=await state();assert.equal(playing.session.target,26);assert.equal(playing.snapshot.die.face,6);
     assert.equal(playing.session.dealer[1],null,'Dealer hole privacy retained');
-    await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result'&&!document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled);
+    await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result'&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'result');
     await page.screenshot({path:join(OUT,spec.name+'-stable-result.png')});
     const resultAvailable=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
