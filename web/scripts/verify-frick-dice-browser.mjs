@@ -88,7 +88,14 @@ function assertStableTable(value,baseline,phase){
   assert.deepEqual(value.counterStyle,value.mainStyle,'Counter reuses actual main gameplay font, color and shadow');
   assert.equal(value.removedControls,0,'Rules bar and Again button are absent');
   assert.equal(value.counterFramed,true,'Flag count uses the main res frame classes');
-  assert.deepEqual(value.counterFrame,value.mainFrame,'Counter plate reuses actual main background, border and shadow');
+  const borderWidths=['borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth'];
+  // The main HUD uses CSS zoom: Chromium snaps used border widths to device
+  // pixels (e.g. shared 13px CSS becomes 12.2222px at .9 zoom). Keep exact
+  // artwork/background/padding checks; allow only one CSS pixel of this rounding.
+  for(const key of Object.keys(value.mainFrame)) {
+    if(borderWidths.includes(key))assert.ok(Math.abs(parseFloat(value.counterFrame[key])-parseFloat(value.mainFrame[key]))<=1,'Shared frame border width '+key);
+    else assert.equal(value.counterFrame[key],value.mainFrame[key],'Shared frame style '+key);
+  }
   value.fit.forEach(f=>assert.ok(Math.abs(f.width-f.natural)<=3,'Flag plate hugs '+f.digits+' text rather than fixed empty width'));
   assert.ok(value.fit[1].width>value.fit[0].width&&value.fit[2].width>value.fit[1].width,'Flag plate grows naturally for added digits');
   assert.equal(value.icon,value.mainIcon,'Counter reuses main Flag icon');
