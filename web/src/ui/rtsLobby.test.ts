@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LobbyScreen } from './lobby';
 import { Session } from '../game/session';
+import { deviceLayout } from '../startup/device';
 import type { UiHost } from './core';
 class Node {
   tagName: string; className = ''; textContent = ''; innerHTML = ''; children: Node[] = []; parentElement: Node | null = null;
@@ -49,34 +50,40 @@ function setup(online = false, mobile = false) {
   return { ui, app, net, controls: ui as any };
 }
 afterEach(() => vi.unstubAllGlobals());
-describe('Regular / Degen lobby selection', () => {
-  it('defaults mobile local games to Degen, retains Regular desktop and explicit mobile choice', () => {
-    const m = setup(false, true);
-    expect(m.controls.controlMode.value).toBe('rts');
-    expect(m.controls.controlMode.children.map((x: Node) => x.textContent)).toEqual(['Regular · action + command', 'Degen · command only']);
-    m.controls.controlMode.value = 'avatar'; m.controls.controlMode.handlers.get('change')(); m.ui.update(null, 1);
-    expect(m.controls.controlMode.value).toBe('avatar'); m.ui.dispose();
-    const d = setup(); expect(d.controls.controlMode.value).toBe('avatar'); d.ui.dispose();
+describe('automatic device play style', () => {
+  it.each([true, false])('removes the selector and assigns only the local human (mobile=%s)', mobile => {
+    const { ui, app, controls } = setup(false, mobile);
+    expect(controls.controlMode).toBeUndefined();
+    expect(JSON.stringify(controls.root.children, (key, value) => key === 'parentElement' ? undefined : value)).not.toContain('Your play style');
+    // A stale former selector value cannot override the current resolved device layout.
+    controls.localControlMode = mobile ? 'avatar' : 'rts';
+    controls.start.click();
+    expect(app.startMatch.mock.calls[0][0].rtsFactions).toEqual(mobile ? [0] : []);
+    controls.seats[2].action.click(); ui.update(null, 1); controls.start.click();
+    expect(app.startMatch.mock.calls[1][0].humans).toEqual([2]);
+    expect(app.startMatch.mock.calls[1][0].rtsFactions).toEqual(mobile ? [2] : []);
+    ui.dispose();
   });
-  it('does not overwrite an existing online Regular seat on mobile', () => {
-    const m = setup(true, true); expect(m.controls.controlMode.value).toBe('avatar');
-    expect(m.net.setControlMode).not.toHaveBeenCalled(); m.ui.dispose();
+  it.each([
+    ['https://game.test/?view=desktop', 'Android', false],
+    ['https://game.test/?view=mobile', 'Windows NT', true],
+    ['https://game.test/', 'Windows NT', false],
+  ] as const)('honors resolved view %s instead of narrow screen size', (url, userAgent, mobile) => {
+    const resolved = deviceLayout({ url, userAgent, width: 390, height: 844, maxTouchPoints: 10, coarsePointer: true });
+    const { ui, app, controls } = setup(false, resolved === 'mobile');
+    controls.start.click();
+    expect(app.startMatch.mock.calls[0][0].rtsFactions).toEqual(mobile ? [0] : []);
+    ui.dispose();
   });
-  it('starts local matches with only the selected RTS faction, preserves choice through updates, and permits switching back', () => {
-    const { ui, app, controls } = setup();
-    controls.controlMode.value = 'rts'; controls.controlMode.handlers.get('change')(); ui.update(null, 1);
-    expect(controls.controlMode.value).toBe('rts'); controls.start.click();
-    expect(app.startMatch.mock.calls[0][0].rtsFactions).toEqual([0]);
-    controls.controlMode.value = 'avatar'; controls.controlMode.handlers.get('change')(); controls.start.click();
-    expect(app.startMatch.mock.calls[1][0].rtsFactions).toEqual([]); ui.dispose();
-  });
-  it('sends own mode preference online and displays only host-acknowledged frozen mode', () => {
-    const { ui, net, controls } = setup(true);
-    controls.controlMode.value = 'rts'; controls.controlMode.handlers.get('change')();
-    expect(net.setControlMode).toHaveBeenCalledWith('rts');
+  it('leaves each online seat to its own handshake, without applying the host layout globally', () => {
+    const { ui, net, controls } = setup(true, true);
+    net.lobby.players.push({ id: 'pc', name: 'PC', seat: 1, ready: false, connected: true, controlMode: 'avatar' });
+    net.lobby.seats[1].playerId = 'pc';
     net.lobby.players[0].controlMode = 'rts'; net.version++; ui.update(null, 1);
-    expect(controls.controlMode.value).toBe('rts');
-    net.lobby.phase = 'playing'; net.version++; ui.update(null, 2);
-    expect(controls.controlMode.disabled).toBe(true); ui.dispose();
+    expect(controls.seats[0].occupant.textContent).toBe('Player · Degen');
+    expect(controls.seats[1].occupant.textContent).toBe('PC');
+    expect(net.setControlMode).not.toHaveBeenCalled();
+    expect(controls.controlMode).toBeUndefined();
+    ui.dispose();
   });
 });

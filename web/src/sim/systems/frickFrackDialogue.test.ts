@@ -26,7 +26,6 @@ function visit(w: World, f: FactionId = 0) {
 function advanceToTable(w: World, f: FactionId = 0) {
   const s = w.frickFrack.sessions[f]!;
   for (let i = 0; i < 3; i++) { w.time = s.readyAt; cmdFrickFrack(w, { t: 'frickFrack', faction: f, sessionId: s.id, revision: s.revision, action: i < 2 ? 'next' : 'play' }); }
-  w.time=s.rollEndsAt!; updateFrickFrack(w);
 }
 describe('Frick-frack return-visit dialogue', () => {
   it('retains the original introduction and cycles six distinct three-page scripts without immediate repeats', () => {
@@ -56,8 +55,8 @@ describe('Frick-frack return-visit dialogue', () => {
     const projectile = [...w.projectiles.values()].find(p => p.thrower === w.avatarOf(0).id)!;
     expect(offerFrickFrackFlag(w, wizard, 0, projectile.flagId)).toBe(true); expect(w.frickFrack.sessions[0]?.phase).toBe('chasing'); expect(w.frickFrack.visits).toEqual({});
     closeFrickFrackSession(w,0); w.time += 2; const s = visit(w); advanceToTable(w); expect(s.phase).toBe('betting'); expect(s.dialogueVariant).toBe(0);
-    s.phase = 'result'; s.result = 'push'; cmdFrickFrack(w, {t:'frickFrack', faction:0, sessionId:s.id, revision:s.revision, action:'again'});
-    expect(s.phase).toBe('rolling'); w.time=s.rollEndsAt!; updateFrickFrack(w); expect(s.phase).toBe('betting'); expect(s.dialogueVariant).toBe(0); expect(w.frickFrack.visits?.[0]).toBe(1);
+    s.phase = 'result'; s.result = 'push'; cmdFrickFrack(w, {t:'frickFrack', faction:0, sessionId:s.id, revision:s.revision, action:'again', wager:1});
+    expect(s.phase).toBe('rolling'); expect(s.rollNumber).toBe(1); expect(s.dialogueVariant).toBe(0); expect(w.frickFrack.visits?.[0]).toBe(1);
   });
   it('replicates host-selected scripts and retained visit counters through snapshots, deltas and reconnects', () => {
     const { w } = arena(); visit(w); closeFrickFrackSession(w,0); w.time += 2; const s = visit(w);

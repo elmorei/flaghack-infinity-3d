@@ -51,6 +51,7 @@ export interface FrickFrackSession {
   dialogueIndex: number; dialogueStartedAt: number; readyAt: number;
   /** Host-authoritative die and timing; fixed for one hand, including Judgement replays. */
   dieResult?: number; target?: number; rollStartedAt?: number; rollEndsAt?: number; rollNumber?: number;
+  /** Zero before Deal; committed exactly once before the rolling phase begins. */
   wager: number; player: FrickFrackCard[]; dealer: (FrickFrackCard | null)[];
   result: 'win' | 'lose' | 'push' | null; message: string;
   /** Last public player-card remark, independent of outcome text and hidden dealer cards. */

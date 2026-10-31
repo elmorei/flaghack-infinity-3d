@@ -28,7 +28,7 @@ const server=createServer((req,res)=>{
 const ANDROID='Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const DESKTOP='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const specs=[{name:'desktop',width:1280,height:800,touch:false},{name:'small-phone',width:320,height:568,touch:true},{name:'phone-landscape',width:844,height:390,touch:true},{name:'reduced-motion',width:1280,height:800,touch:false,reduced:true}];
-const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged last dialogue page, resources and deterministic seed. Real Play, host-owned roll, betting, Deal, Stand, Deal-to-roll and Exit. Normal-speed browser capture.',checks:[],scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Regular-mode simulation is explicitly staged on all layouts, including mobile (whose real lobby defaults to Degen). Staged last dialogue page, resources and deterministic seed. Real Play, wager selection, single Deal, host-owned roll and automatic deal, Stand, next-hand single Deal and Exit. Card entropy is staged during rolling; real die results are not overridden. Normal-speed browser capture.',checks:[],scenarios:[]};
 let browser,page;
 const check=label=>{results.checks.push(label);console.log('PASS '+label);};
 const state=()=>page.evaluate(()=>{
@@ -102,7 +102,7 @@ function assertStableTable(value,baseline,phase){
   assert.ok(value.counter.x<value.viewport.width/2&&value.counter.y>value.viewport.height/2,'Flag count is bottom-left');
   assert.ok(value.counter.x>=-1&&value.counter.y+value.counter.height<=value.viewport.height+1,'Flag count remains on screen');
   assert.equal(value.wagerDisabled.length,4,'Wager decrement/input/increment/all remain present');
-  if(phase!=='betting')assert.ok(value.wagerDisabled.every(Boolean),'Wager controls disabled outside betting');
+  if(!['betting','result'].includes(phase))assert.ok(value.wagerDisabled.every(Boolean),'Wager controls disabled during committed hand');
   if(baseline){
     const near=(a,b,label)=>{for(const key of ['x','y','width','height'])assert.ok(Math.abs(a[key]-b[key])<=1,phase+': invariant '+label+' '+key+' '+a[key]+' vs '+b[key]);};
     near(value.snapshot.backdropRect,baseline.snapshot.backdropRect,'background');near(value.panel,baseline.panel,'scene frame');near(value.stage,baseline.stage,'table/card zones');near(value.wager,baseline.wager,'wager zone');
@@ -118,6 +118,7 @@ async function enter(context,spec,url){
   await page.locator('#startup').waitFor({state:'detached'});
   await page.evaluate(()=>window.flaghack.startMatch({seed:'engine-frick-native',humans:[0],rtsFactions:[],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
   await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
+  assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
   await page.waitForTimeout(1800);
   await installStableProbe();
   await stageBetting();
@@ -162,6 +163,12 @@ async function invite(seed){
 async function roll(spec, seed, expected){
   await invite(seed);
   const before=await state();await act('Yes, play Frick-frack',spec);
+  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting'&&!document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled);
+  const initial=await state();assert.equal(initial.session.dieResult,undefined,'Invitation does not start an extra roll');
+  const initialLayout=await page.evaluate(()=>window.__readStableTable());assertStableTable(initialLayout,null,'betting');
+  const available=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
+  const input=page.locator('.ff-overlay').getByLabel('Flags to wager');await input.fill('1');await input.dispatchEvent('change');
+  await act('Deal',spec);
   await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-target-title')?.textContent==='Rolling the target');
   // Sample and inject in one browser turn, so slow test-driver roundtrips cannot turn an early bet into a legal settled bet.
   const gate=await page.evaluate(()=>{
@@ -169,19 +176,21 @@ async function roll(spec, seed, expected){
     if(s.phase!=='rolling')throw Error('Harness missed the 1.25-second rolling sample window');
     const sampled={dieResult:s.dieResult,target:s.target,quiver:a.world.avatarOf(0).carried.length,
       dealDisabled:document.querySelector('.ff-overlay [data-action="bet"]')?.disabled,layout:window.__readStableTable()};
-    a.submit({t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:1});return sampled;
+    a.submit({t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:1});
+    // Deterministic card fixture only, after the real die result has been drawn.
+    window.fh.frickFrack.resetEntropy('frick-136-25');return sampled;
   });
   assert.equal(gate.dieResult,expected,'Host seeded result matches expected face');
   assert.equal(gate.target,20+expected);assert.equal(gate.dealDisabled,true,'Deal stays visible but cannot bet while rolling');
-  assertStableTable(gate.layout, null, 'rolling');
-  const quiver=gate.quiver;
-  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+  assertStableTable(gate.layout, initialLayout, 'rolling');
+  const quiver=gate.quiver;assert.equal(quiver,available-1,'Single Deal charges selected wager at roll start');
+  await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing'&&!document.querySelector('.ff-main-actions [data-action="stand"]')?.disabled);
   await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1);
   const settled=await state();
   assert.equal(settled.session.dieResult,expected);assert.equal(settled.session.target,20+expected);
   assert.equal(settled.snapshot.die.face,expected,'Actual cube mesh face equals authoritative result');
   assert.equal(settled.snapshot.die.result,expected);assert.equal(settled.snapshot.die.progress,1);
-  assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),quiver,'Premature wager rejected without spending');
+  assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),quiver,'Repeated wager rejected without spending twice');
   assert.ok(settled.time>before.time,'World continues while die rolls');
   assert.match(await page.locator('.ff-die-label').textContent(),new RegExp(String(20+expected)));
   const key=settled.snapshot.die.rollKey;
@@ -190,7 +199,7 @@ async function roll(spec, seed, expected){
   assert.equal((await state()).snapshot.die.rollKey,key,'Rerender retains die result/roll identity');
   assert.equal((await state()).snapshot.die.face,expected);
   const settledLayout=await page.evaluate(()=>window.__readStableTable());
-  assertStableTable(settledLayout,gate.layout,'betting');
+  assertStableTable(settledLayout,gate.layout,'playing');
   settled.layout=settledLayout;
   return settled;
 }
@@ -206,14 +215,13 @@ async function verifyDice(spec,url){
       assert.equal(settled.snapshot.backdropKind,spec.name==='small-phone'?'portrait':'landscape','Responsive scenery uses the appropriate composition');
       await page.locator('.ff-die-stage').scrollIntoViewIfNeeded();
       await page.screenshot({path:join(OUT,spec.name+'-die-'+result+'.png')});
-      await act('Leave table',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
+      await act('Exit · forfeit wager',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
     }
-    // Real hand and next-hand flow: retain target while playing and roll anew before any next stake.
+    // One press per hand: retain target while playing, then commit/roll/deal the next hand.
     const layoutStart=await roll(spec,seeds[6],6);
-    await page.evaluate(()=>window.fh.frickFrack.resetEntropy('frick-136-25'));
-    const old=await state();await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing'&&!document.querySelector('.ff-main-actions [data-action="stand"]')?.disabled);
+    const old=await state();
     const playingLayout=await page.evaluate(()=>window.__readStableTable());assertStableTable(playingLayout,layoutStart.layout,'playing');
-    const counterBefore=layoutStart.layout.available;assert.equal(playingLayout.available,counterBefore-1,'Wager removes one available Flag');
+    assert.equal(playingLayout.available,layoutStart.layout.available,'Automatic deal does not charge the wager again');
     const sleeve=page.locator('.ff-main-actions [data-action="sleeve"]');if(spec.touch)await sleeve.tap();else await sleeve.click();
     const openLayout=await page.evaluate(()=>window.__readStableTable());assertStableTable(openLayout,playingLayout,'playing');assert.equal(openLayout.sleeveOpen,true);
     await page.screenshot({path:join(OUT,spec.name+'-stable-sleeve.png')});
@@ -231,26 +239,40 @@ async function verifyDice(spec,url){
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'result');
     await page.screenshot({path:join(OUT,spec.name+'-stable-result.png')});
     const resultAvailable=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
+    const nextWager=2;const input=page.locator('.ff-overlay').getByLabel('Flags to wager');
+    await input.fill(String(nextWager));await input.dispatchEvent('change');
+    await page.evaluate(()=>window.fh.frickFrack.resetEntropy('roll-13'));
     await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-target-title')?.textContent==='Rolling the target');
+    await page.evaluate(()=>window.fh.frickFrack.resetEntropy('frick-136-25'));
     const nextRoll=await state();
-    assert.equal(nextRoll.session.wager,0,'Result Deal starts roll without placing another wager');
-    assert.equal(nextRoll.session.player.length+nextRoll.session.dealer.length,0,'No automatic cards before next intentional bet');
-    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable,'Result Deal neither charges nor repeats settlement payout');
+    assert.equal(nextRoll.session.wager,nextWager,'Result Deal binds selected wager once');
+    assert.equal(nextRoll.session.player.length+nextRoll.session.dealer.length,0,'Cards wait for die settlement');
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable-nextWager,'Result Deal charges once without repeating settlement payout');
     assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'rolling');
     assert.equal(await button('Deal').count(),1);assert.equal(await button('Deal').isDisabled(),true);
-    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-    // The physical die can settle before the 100ms UI writer publishes betting.
-    await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
-    assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'betting');
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing'&&document.querySelector('.ff-main-actions [data-action="stand"]')?.disabled===false);
+    await page.waitForFunction(()=>window.flaghack.renderer.frickScene.snapshot().die?.progress===1);
+    assertStableTable(await page.evaluate(()=>window.__readStableTable()),playingLayout,'playing');
     await page.waitForTimeout(300);
     const again=await state();
-    assert.equal(again.phase,'betting','A second intentional Deal is required to wager');
-    assert.equal(again.session.wager,0);assert.equal(again.session.player.length+again.session.dealer.length,0);
-    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable,'Next betting does not autocharge or repay');
+    assert.equal(again.phase,'playing','One Deal automatically rolls and deals the next hand');
+    assert.equal(again.session.wager,nextWager);assert.equal(again.session.player.length+again.session.dealer.length,4);
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),resultAvailable-nextWager,'Auto deal never double charges');
     assert.equal(again.session.rollNumber,old.session.rollNumber+1);
     assert.equal(again.snapshot.die.face,again.session.dieResult);assert.equal(again.session.target,20+again.session.dieResult);
-    await act('Leave table',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
+    await act('Exit · forfeit wager',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
     assert.equal((await state()).snapshot.active,false);
+    // Exiting during the committed roll cannot refund, restart, or deal later.
+    await invite(SEEDS[6]);await act('Yes, play Frick-frack',spec);
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting'&&document.querySelector('.ff-main-actions [data-action="bet"]')?.disabled===false);
+    const funds=await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length);
+    const stake=page.locator('.ff-overlay').getByLabel('Flags to wager');await stake.fill('2');await stake.dispatchEvent('change');
+    await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&document.querySelector('.ff-main-actions [data-action="exit"]')?.disabled===false);
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),funds-2);
+    const exit=page.locator('.ff-main-actions [data-action="exit"]');if(spec.touch)await exit.tap({noWaitAfter:true});else await exit.click({noWaitAfter:true});
+    await page.locator('.ff-overlay').waitFor({state:'hidden'});await page.waitForTimeout(1500);
+    assert.equal((await state()).session,null,'Exit during roll never auto deals later');
+    assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),funds-2,'Committed roll exit forfeits exactly one stake');
     assert.deepEqual(entry.errors,[]);check(spec.name+': physical die, all host gating, stable scene/control bounds, HUD Flag styling/count, disabled actions, physical die and another-hand lifecycle');
   }catch(error){entry.error=error.stack||String(error);entry.failureState=await state().catch(()=>null);await page.screenshot({path:join(OUT,spec.name+'-failure.png')}).catch(()=>{});throw error;}
   finally{await context.close();}
@@ -260,12 +282,17 @@ async function diceDemo(url){
   const marks=[],start=Date.now(),mark=label=>marks.push({label,seconds:(Date.now()-start)/1000});
   try{
     await enter(context,spec,url);await invite(SEEDS[6]);
-    mark('ready');await page.waitForTimeout(350);mark('roll');await act('Yes, play Frick-frack',spec);
-    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');await page.waitForTimeout(1400);
+    mark('ready');await page.waitForTimeout(350);await act('Yes, play Frick-frack',spec);
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');await page.waitForTimeout(700);
+    mark('deal-roll');await act('Deal',spec);
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling');
     await page.evaluate(()=>window.fh.frickFrack.resetEntropy('frick-136-25'));
-    mark('deal');await act('Deal',spec);await page.waitForTimeout(1500);
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing');mark('auto-dealt');await page.waitForTimeout(1700);
     mark('stand');await act('Stand',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');await page.waitForTimeout(1200);
-    mark('next-roll');await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');await page.waitForTimeout(1700);mark('end');
+    await page.evaluate(()=>window.fh.frickFrack.resetEntropy('roll-13'));
+    mark('next-deal-roll');await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling');
+    await page.evaluate(()=>window.fh.frickFrack.resetEntropy('frick-136-25'));
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing');mark('next-auto-dealt');await page.waitForTimeout(1700);mark('end');
     results.demo={marks,videoPath:await page.video().path(),recordingSpeed:1,fixtureDisclosure:results.fixtureDisclosure};
   }finally{await context.close();}
 }

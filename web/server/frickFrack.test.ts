@@ -10,18 +10,17 @@ function open(match:Match) {
  for(let i=0;i<3;i++) { const s=w.frickFrack.sessions[0]!;w.time=s.readyAt;
  cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:i===2?'play':'next'}); }
  const s=w.frickFrack.sessions[0]!;
- expect(s.phase).toBe('rolling');w.time=s.rollEndsAt!;updateFrickFrack(w);
  expect(s.phase).toBe('betting');return s;
 }
 describe('host Frick-frack session lifecycle',()=>{
- it('disconnect and NPC takeover release locks without refunding committed wagers',()=>{
+ it.each(['rolling','playing'] as const)('disconnect and NPC takeover release locks without refunding committed wagers during %s',phase=>{
    const match=new Match(options,listener,()=>{}),w=match.world;
    match.driveHuman(0,'player',1);
    let s=open(match);
    // Preserve this legacy committed-wager scenario; dice targets have independent coverage.
-   s.dieResult=1;s.target=21;resetFrickFrackEntropy(w,'frick-browser-0');
    cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:1});
-   expect(s.phase).toBe('playing');
+   if(phase==='playing'){s.dieResult=1;s.target=21;resetFrickFrackEntropy(w,'frick-browser-0');w.time=s.rollEndsAt!;updateFrickFrack(w);}
+   expect(s.phase).toBe(phase);
    const held=w.avatarOf(0).carried.length;
    match.holdStill(0);
    expect(w.frickFrack.sessions[0]).toBeUndefined();
@@ -34,6 +33,7 @@ describe('host Frick-frack session lifecycle',()=>{
    const signatures=new Set<string>();
    for(let i=0;i<4;i++) { const match=new Match(options,listener,()=>{}),w=match.world,s=open(match);
      cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action:'bet',wager:1});
+     w.time=s.rollEndsAt!;updateFrickFrack(w);
      signatures.add(JSON.stringify([s.player.map(c=>[c.rank,c.suit]),s.dealer.map(c=>c&&[c.rank,c.suit])]));
    }
    expect(signatures.size).toBeGreaterThan(1);

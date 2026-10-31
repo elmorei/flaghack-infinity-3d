@@ -123,6 +123,8 @@ interface Conn {
 
 interface Player {
   controlMode: 'avatar' | 'rts';
+  /** Latest client layout, applied next lobby if a live match has frozen this seat. */
+  nextControlMode: 'avatar' | 'rts';
   readonly id: string;
   readonly token: string;
   name: string;
@@ -323,19 +325,24 @@ export class Room {
     if (!known?.conn && this.connectedCount() >= MAX_PLAYERS) return this.deny(conn, 'full');
     if (known) {
       if (name && name !== known.name) known.name = this.uniqueAmongOthers(name, known);
+      if (msg.controlMode !== undefined) {
+        known.nextControlMode = msg.controlMode;
+        if (this.phase === 'lobby') this.setControlMode(known, msg.controlMode);
+      }
       this.attach(conn, known, now, true);
     } else {
-      this.attach(conn, this.newPlayer(name, now), now, false);
+      this.attach(conn, this.newPlayer(name, now, msg.controlMode ?? 'avatar'), now, false);
     }
   }
 
-  private newPlayer(name: string, now: number): Player {
+  private newPlayer(name: string, now: number, controlMode: 'avatar' | 'rts'): Player {
     const player: Player = {
       id: `p${this.nextPlayer++}`,
       token: randomBytes(16).toString('hex'),
       name: this.uniqueAmongOthers(name, null),
       seat: null,
-      controlMode: 'avatar',
+      controlMode,
+      nextControlMode: controlMode,
       ready: false,
       conn: null,
       connectedAt: now,
@@ -467,7 +474,7 @@ export class Room {
 
   private setControlMode(player: Player, mode: 'avatar' | 'rts'): boolean {
     if (this.phase !== 'lobby' || player.controlMode === mode) return false;
-    player.controlMode = mode;
+    player.controlMode = player.nextControlMode = mode;
     player.ready = false;
     this.markLobby();
     return true;
@@ -722,6 +729,7 @@ export class Room {
     this.phase = 'lobby';
     this.abandonAt = 0;
     for (const p of this.players.values()) {
+      p.controlMode = p.nextControlMode;
       p.inMatch = false;
       p.joining = false;
       p.ready = false;

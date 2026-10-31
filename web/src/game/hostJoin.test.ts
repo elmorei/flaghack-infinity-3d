@@ -54,7 +54,7 @@ describe('explicit App remote joining', () => {
     pending.resolve(); await join;
     expect(Socket.made).toHaveLength(1); expect(Socket.made[0].url).toBe('wss://a.example/ws');
     Socket.made[0].open();
-    expect(Socket.made[0].sent).toEqual([{ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, name: 'Alice', password: 'secret', token: 'token-for-a' }]);
+    expect(Socket.made[0].sent).toEqual([{ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, name: 'Alice', password: 'secret', token: 'token-for-a', controlMode: 'avatar' }]);
     await app.joinHost('Alice', 'secret', 'https://b.example'); expect(Socket.made).toHaveLength(1);
     app.cancelJoin(); expect(Socket.made[0].readyState).toBe(3); expect(app.net).toBeNull();
   });

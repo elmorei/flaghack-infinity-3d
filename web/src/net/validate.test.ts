@@ -263,6 +263,17 @@ describe('parseClientMessage', () => {
     expect(parseClientMessage(JSON.stringify({ ...hello, build: 'x'.repeat(128) }))).not.toBeNull();
   });
 
+  it('accepts only valid optional per-client control modes in hello', () => {
+    const hello = { t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: 'pw', token: null };
+    for (const controlMode of ['rts', 'avatar']) {
+      expect(parseClientMessage(JSON.stringify({ ...hello, controlMode }))).toEqual({ ...hello, controlMode });
+    }
+    for (const controlMode of ['degen', '', null, 1, {}, ['rts']]) {
+      expect(parseClientMessage(JSON.stringify({ ...hello, controlMode }))).toBeNull();
+    }
+    expect(parseClientMessage(JSON.stringify({ ...hello, controlMode: 'rts', faction: 1 }))).toBeNull();
+  });
+
   it('answers a hello from another protocol version whatever its shape, so the host can explain', () => {
     expect(parseClientMessage('{"t":"hello","protocol":0,"nick":"old client"}')).toEqual({
       t: 'hello',

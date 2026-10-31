@@ -1,7 +1,7 @@
 name: Verify engine-rendered Frick-frack preview
 on:
   push:
-    branches: ['qa/engine-picnic-20261031']
+    branches: ['qa/engine-picnic-20261031', 'qa/auto-style-single-deal-20261031']
   workflow_dispatch:
     inputs:
       diagnostic:

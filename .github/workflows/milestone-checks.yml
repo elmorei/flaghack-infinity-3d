@@ -3,7 +3,7 @@ name: Verify working milestone
 # Build/test only: no releases, deployment, or update-feed changes.
 on:
   push:
-    branches: [work/milestone-20261027]
+    branches: [work/milestone-20261027, qa/auto-style-single-deal-20261031]
 permissions:
   contents: read
 jobs:

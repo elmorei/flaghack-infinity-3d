@@ -28,7 +28,7 @@ const server=createServer((req,res)=>{
 const ANDROID='Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const DESKTOP='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const specs=[{name:'desktop',width:1280,height:800,touch:false},{name:'small-phone',width:320,height:568,touch:true},{name:'phone-landscape',width:844,height:390,touch:true},{name:'reduced-motion',width:1280,height:800,touch:false,reduced:true}];
-const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Staged betting session, resources, seed and Sun card. Real production Deal/Hit/Sun/Stand/Deal-to-roll/Exit commands. Normal-speed browser video.',checks:[],scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Regular-mode simulation is explicitly staged on all layouts, including mobile (whose real lobby defaults to Degen). Staged betting session, resources, card seed/target during rolling and Sun card. Real production Deal/Hit/Sun/Stand/one-Deal-roll-and-deal/Exit commands. Normal-speed browser video.',checks:[],scenarios:[]};
 let browser,page;
 const check=label=>{results.checks.push(label);console.log('PASS '+label);};
 const state=()=>page.evaluate(()=>{
@@ -43,6 +43,7 @@ async function enter(context,spec,url){
   await page.locator('#startup').waitFor({state:'detached'});
   await page.evaluate(()=>window.flaghack.startMatch({seed:'engine-frick-native',humans:[0],rtsFactions:[],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
   await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
+  assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
   await page.waitForTimeout(1800);
   await stageBetting();
   await page.getByRole('button',{name:'Deal',exact:true}).waitFor({state:'visible'});
@@ -72,7 +73,12 @@ async function stageBetting(){
   });
 }
 const button=name=>page.locator('.ff-overlay').getByRole('button',{name,exact:true});
-const act=async(name,spec)=>{const b=button(name);if(spec.touch)await b.tap({noWaitAfter:true});else await b.click({noWaitAfter:true});};
+const act=async(name,spec)=>{const b=button(name);if(spec.touch)await b.tap({noWaitAfter:true});else await b.click({noWaitAfter:true});
+  if(name==='Deal'){
+    await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling');
+    await page.evaluate(()=>{const s=window.flaghack.world.frickFrack.sessions[0];if(s.phase!=='rolling')throw Error('Missed staged deck window');window.fh.frickFrack.resetEntropy('frick-136-25');s.dieResult=1;s.target=21;});
+  }
+};
 async function armMetrics(name,diagnostic=false){
   await page.evaluate(({name,diagnostic})=>{
     const q={name,start:null,last:null,gaps:[],raw:[],visibility:[],longTasks:[],loaf:[],done:false};window.__enginePerf=q;
@@ -84,7 +90,11 @@ async function armMetrics(name,diagnostic=false){
     function visibility(){q.visibility.push({at:performance.now()-q.start,state:document.visibilityState});}
     if(diagnostic)document.addEventListener('visibilitychange',visibility);
     function tick(now){if(q.start===null)return;const elapsed=now-q.start;q.gaps.push(now-q.last);if(diagnostic)q.raw.push({raf:now-q.start,callback:performance.now()-q.start,gap:now-q.last});q.last=now;if(elapsed<650)requestAnimationFrame(tick);else if(diagnostic)setTimeout(finish,300);else finish();}
-    document.querySelector('.ff-overlay').addEventListener('pointerdown',start,{once:true,capture:true});
+    if(name.includes('deal')){
+      // Start at the authoritative card transition, not the preceding die roll.
+      const s=window.flaghack.world.frickFrack.sessions[0];let phase=s.phase;
+      Object.defineProperty(s,'phase',{enumerable:true,configurable:true,get:()=>phase,set(value){phase=value;if(value==='playing'&&q.start===null)start();}});
+    }else document.querySelector('.ff-overlay').addEventListener('pointerdown',start,{once:true,capture:true});
   },{name,diagnostic});
 }
 async function metrics(){
@@ -150,9 +160,12 @@ async function verify(spec,url){
     }
     await act('Stand',spec);await page.waitForFunction(()=>['result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
     if((await state()).phase==='result'){
-      await act('Deal',spec);await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
-      await ensureSettled();assert.equal((await state()).snapshot.cards.length,0,'New hand clears previous meshes');
-      await act('Leave table',spec);
+      await act('Deal',spec);
+      await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling'&&window.flaghack.renderer.frickScene.snapshot().cards.length===0);
+      assert.equal((await state()).session.wager,1,'One result Deal commits next wager');
+      await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='playing');
+      await ensureSettled();assert.ok((await state()).snapshot.cards.length>=4,'Next hand deals automatically');
+      await act('Exit · forfeit wager',spec);
     }else await act('Return to the burn',spec);
     await page.locator('.ff-overlay').waitFor({state:'hidden'});await ensureSettled();
     const exited=await state();entry.exited=exited;

@@ -129,7 +129,7 @@ function empty(w: World, s: FrickFrackSession): void {
 function cleanupTemporary(w: World, f: FactionId): void {
   w.frickFrack.sideboards[f] = w.frickFrack.sideboards[f].filter(c => !c.temporary);
 }
-/** One host roll before betting; commands cannot skip or reroll its reveal interval. */
+/** One host roll after committing the wager; commands cannot skip or reroll its reveal interval. */
 function beginRoll(w: World, s: FrickFrackSession): void {
   s.dieResult = privateState(w).rng.int(1, 6); s.target = 20 + s.dieResult;
   s.rollNumber = (s.rollNumber ?? 0) + 1; s.rollStartedAt = w.time;
@@ -246,21 +246,18 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
     }
     if (s.dialogueIndex !== dialogue.length - 1) return;
     if (c.action === 'decline' || c.action === 'exit') { closeFrickFrackSession(w, c.faction); return; }
-    if (c.action === 'play') { if (!av.carried.length) empty(w, s); else beginRoll(w, s); s.revision++; } return;
+    if (c.action === 'play') { if (!av.carried.length) empty(w, s); else s.phase = 'betting'; s.revision++; } return;
   }
   if (c.action === 'exit' || c.action === 'decline') { closeFrickFrackSession(w, c.faction); return; }
   if (s.phase === 'empty') return;
-  if (s.phase === 'result' && c.action === 'again') {
-    s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;s.wager=0;s.result=null;s.message='';delete s.remark;delete s.arcana;s.revision++;
-    if (!av.carried.length) empty(w,s); else beginRoll(w,s); return;
-  }
-  if (s.phase === 'betting' && c.action === 'bet') {
+  if ((s.phase === 'betting' && c.action === 'bet') ||
+      (s.phase === 'result' && (c.action === 'bet' || c.action === 'again'))) {
     const wager=c.wager;if (!Number.isInteger(wager)||wager!<1||wager!>av.carried.length) return;
+    // Commit once before the roll. Exit/KO/disconnect forfeits this same wager.
     for (const id of av.carried.slice(-wager!)) destroyFlag(w,id);
-    const hand:PrivateHand={deck:[],dealer:[],usedNumeric:[],temporaryIds:[],revealDealer:false,revealedIds:[],holeId:null};
-    privateState(w).hands.set(c.faction,hand);s.wager=wager!;s.phase='playing';delete s.arcana;delete s.remark;s.revision++;
-    dealFresh(w,s,hand);
-    if (frickFrackTotal(s.player,frickFrackTarget(s))===frickFrackTarget(s)||frickFrackTotal(hand.dealer,frickFrackTarget(s))===frickFrackTarget(s)) stand(w,s);
+    s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;
+    s.wager=wager!;s.result=null;s.message='';delete s.arcana;delete s.remark;s.revision++;
+    beginRoll(w,s);
     return;
   }
   if (s.phase !== 'playing') return;
@@ -319,8 +316,12 @@ export function updateFrickFrack(w: World): void {
         (s.phase === 'chasing' && w.time - s.dialogueStartedAt > 120))) closeFrickFrackSession(w, f);
     const live = w.frickFrack.sessions[f];
     if (live?.phase === 'rolling' && w.time >= (live.rollEndsAt ?? Infinity)) {
-      if (!w.avatarOf(f).carried.length) empty(w,live); else live.phase = 'betting';
-      live.revision++;
+      // The wager is already paid; an all-in hand must still be dealt.
+      const hand:PrivateHand={deck:[],dealer:[],usedNumeric:[],temporaryIds:[],revealDealer:false,revealedIds:[],holeId:null};
+      privateState(w).hands.set(f,hand);live.phase='playing';live.revision++;
+      dealFresh(w,live,hand);
+      if (frickFrackTotal(live.player,frickFrackTarget(live))===frickFrackTarget(live) ||
+          frickFrackTotal(hand.dealer,frickFrackTarget(live))===frickFrackTarget(live)) stand(w,live);
     }
     if (!canPlay(w, f) || isFrickFrackLocked(w, f)) continue;
     const av = w.avatarOf(f), cards = w.frickFrack.sideboards[f];

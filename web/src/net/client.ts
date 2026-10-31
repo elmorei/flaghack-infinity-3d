@@ -5,6 +5,7 @@
  * backoff when the transmission drops mid-burn.
  * Owner: Controls (NetClient role).
  */
+import { isMobileCommandLayout } from '../game/mobileTouch';
 import { BUILD_ID } from './build';
 import { normalizeMatch } from '../sim/matchSettings';
 import type { Command } from '../sim/commands';
@@ -374,7 +375,7 @@ export class NetClient implements NetSession {
     }, 10_000);
     ws.onopen = () => {
       if (this.ws !== ws) return;
-      this.send({ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, name: this.name, password: this.password, token: this.token });
+      this.send({ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, name: this.name, password: this.password, token: this.token, controlMode: isMobileCommandLayout() ? 'rts' : 'avatar' });
       if (!this.reconnecting) {
         this.status = 'joining';
         this.changed();

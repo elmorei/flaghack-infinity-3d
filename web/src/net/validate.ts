@@ -386,14 +386,14 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
       const { sessionId, revision, action, wager, cardId, targetCardIds, value, confirmCost, choiceIndex } = m;
       if (!isInt(sessionId, 0) || !isInt(revision, 0)) return null;
       const base = { t: 'frickFrack' as const, faction, sessionId, revision };
-      if (action === 'bet') return isInt(wager, 1) ? { ...base, action, wager } : null;
+      if (action === 'bet' || action === 'again') return isInt(wager, 1) ? { ...base, action, wager } : null;
       if (action === 'cheat') {
         if (!isInt(cardId,0) || (targetCardIds !== undefined && (!Array.isArray(targetCardIds) || targetCardIds.length > 2 || targetCardIds.some(id=>!isInt(id,0)) || new Set(targetCardIds).size !== targetCardIds.length)) ||
             (value !== undefined && !isInt(value,1,7)) || (confirmCost !== undefined && confirmCost !== true)) return null;
         return {...base,action,cardId,...(targetCardIds !== undefined ? {targetCardIds:targetCardIds as number[]} : {}),...(value !== undefined ? {value:value as number} : {}),...(confirmCost !== undefined ? {confirmCost:true} : {})};
       }
       if (action === 'choose') return isInt(choiceIndex,0,1) ? {...base,action,choiceIndex} : null;
-      if (action === 'next' || action === 'play' || action === 'decline' || action === 'hit' || action === 'stand' || action === 'again' || action === 'exit') return { ...base, action };
+      if (action === 'next' || action === 'play' || action === 'decline' || action === 'hit' || action === 'stand' || action === 'exit') return { ...base, action };
       return null;
     },
   },
@@ -411,7 +411,7 @@ export function parseCommand(v: unknown): Command | null {
   const entry = COMMANDS[t];
   if (t === 'frickFrack') {
     const keys = ['t', 'faction', 'sessionId', 'revision', 'action'];
-    if (v.action === 'bet') keys.push('wager');
+    if (v.action === 'bet' || v.action === 'again') keys.push('wager');
     if (v.action === 'cheat') { keys.push('cardId'); for (const extra of ['targetCardIds','value','confirmCost']) if (Object.hasOwn(v,extra)) keys.push(extra); }
     if (v.action === 'choose') keys.push('choiceIndex');
     return exact(v, keys) ? entry.parse(v, faction) : null;
@@ -424,13 +424,14 @@ type MessageType = ClientMessage['t'];
 const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } = {
   hello: {
     keys: ['t', 'protocol', 'build', 'name', 'password', 'token'],
-    parse: ({ protocol, build, name, password, token }) =>
+    parse: ({ protocol, build, name, password, token, controlMode }) =>
       isInt(protocol, 0) &&
       isText(build, MAX_BUILD_ID) &&
       isText(name, RAW_NAME) &&
       isText(password, MAX_PASSWORD) &&
-      (token === null || isText(token, MAX_TOKEN))
-        ? { t: 'hello', protocol, build, name, password, token }
+      (token === null || isText(token, MAX_TOKEN)) &&
+      (controlMode === undefined || controlMode === 'avatar' || controlMode === 'rts')
+        ? { t: 'hello', protocol, build, name, password, token, ...(controlMode === undefined ? {} : { controlMode }) }
         : null,
   },
   seat: {
@@ -517,7 +518,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     return MESSAGES.hello.parse({ ...v, build: '' });
   }
   const entry = MESSAGES[t];
-  return exact(v, entry.keys) ? entry.parse(v) : null;
+  const keys = t === 'hello' && Object.hasOwn(v, 'controlMode') ? [...entry.keys, 'controlMode'] : entry.keys;
+  return exact(v, keys) ? entry.parse(v) : null;
 }
 
 /**

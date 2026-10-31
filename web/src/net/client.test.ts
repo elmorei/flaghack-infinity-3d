@@ -111,6 +111,7 @@ describe('NetClient', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('isolates private knowledge by seat and connection epoch, clearing on resnapshot and drop', () => {
@@ -128,11 +129,20 @@ describe('NetClient', () => {
     socket(0).drop();expect(peek).toHaveBeenLastCalledWith(null);client.leave();
   });
 
+  it.each(['mobile', 'desktop'])('sends the resolved %s layout in hello, ignoring old stored preferences', layout => {
+    vi.stubGlobal('document', { documentElement: { dataset: { deviceLayout: layout } } });
+    vi.stubGlobal('localStorage', { getItem: () => layout === 'mobile' ? 'avatar' : 'rts' });
+    const { client } = setup('old-token');
+    socket(0).open();
+    expect(socket(0).sent[0]).toMatchObject({ controlMode: layout === 'mobile' ? 'rts' : 'avatar' });
+    client.leave();
+  });
+
   it('says hello with the stored token and keeps the new one', () => {
     const { client, calls, savedToken } = setup('old-token');
     expect(client.status).toBe('connecting');
     socket(0).open();
-    expect(socket(0).sent[0]).toEqual({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: 'pw', token: 'old-token' });
+    expect(socket(0).sent[0]).toEqual({ t: 'hello', protocol: PROTOCOL_VERSION, build: 'development', name: 'alice', password: 'pw', token: 'old-token', controlMode: 'avatar' });
     expect(client.status).toBe('joining');
     socket(0).receive({ t: 'welcome', protocol: PROTOCOL_VERSION, build: 'development', playerId: 'p1', token: 'tok-1', lobby: lobby('lobby') });
     expect(client.status).toBe('lobby');

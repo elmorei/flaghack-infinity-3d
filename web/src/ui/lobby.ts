@@ -58,8 +58,6 @@ export class LobbyScreen implements UiPart {
   private talk: HTMLElement;
   private localSeed: string | null = null;
   private localSeat: FactionId = 0;
-  private localControlMode: 'avatar' | 'rts' = isMobileCommandLayout() ? 'rts' : 'avatar';
-  private controlMode: HTMLSelectElement;
   private start: HTMLButtonElement;
   private startHint: HTMLElement;
   /** What the line under Start says when nothing was refused (set from the lobby state). */
@@ -128,25 +126,13 @@ export class LobbyScreen implements UiPart {
 
     const rules = el('div', 'panel lobby-rules', left);
     el('div', 'panel-title', rules, 'The burn');
-    const modeRow = el('label', 'setup-field', rules);
-    el('span', '', modeRow, 'Your play style');
-    this.controlMode = el('select', 'field-in', modeRow);
-    el('option', '', this.controlMode, 'Regular · action + command').value = 'avatar';
-    el('option', '', this.controlMode, 'Degen · command only').value = 'rts';
-    this.controlMode.setAttribute('aria-label', 'Your play style');
-    el('small', 'setup-hint', modeRow, 'Degen rulers remain on their altar throne. Signifiers recruit, build and fight for you. Choose before the match.');
-    this.controlMode.addEventListener('change', () => {
-      const mode = this.controlMode.value === 'rts' ? 'rts' : 'avatar';
-      if (this.net) this.net.setControlMode(mode);
-      else this.localControlMode = mode;
-    });
     this.setup = new MatchSetup(rules, parent, () => this.readSettings(), (patch) => this.writeSettings(patch));
     const go = el('div', 'lobby-go', rules);
     this.start = button('btn btn-primary btn-begin lobby-start', go, 'Light the burn', () => {
       if (!this.net) {
         const settings = this.readSettings();
         this.host.veiledLoad(() => this.host.app.startMatch({
-          seed: settings.seed ?? undefined, difficulty: settings.difficulty, match: settings.match, humans: [this.localSeat], rtsFactions: this.localControlMode === 'rts' ? [this.localSeat] : [],
+          seed: settings.seed ?? undefined, difficulty: settings.difficulty, match: settings.match, humans: [this.localSeat], rtsFactions: isMobileCommandLayout() ? [this.localSeat] : [],
         }));
       } else if (this.net.lobby?.phase === 'playing') this.flashHint('A burn is already under way. Wait for it to end.');
       else this.leaderOnly(() => this.net?.start());
@@ -261,8 +247,6 @@ export class LobbyScreen implements UiPart {
     const settings = this.readSettings();
     const match = normalizeMatch(settings.match);
     if (!match.active.includes(this.localSeat)) this.localSeat = match.active[0];
-    this.controlMode.value = this.localControlMode;
-    this.controlMode.disabled = false;
     setText(this.server, 'Local game lobby');
     setText(this.status, 'Choose your character, turn rival seats on or off, then light the burn.');
     for (const f of FACTION_IDS) {
@@ -370,9 +354,6 @@ export class LobbyScreen implements UiPart {
       setText(this.status, net.status === 'lobby' ? 'Gathering…' : 'Greeting the host…');
       return;
     }
-    const me = lobby.players.find(p => p.id === net.playerId);
-    this.controlMode.value = me?.controlMode ?? 'avatar';
-    this.controlMode.disabled = lobby.phase !== 'lobby' || net.reconnecting;
     this.renderStatus(lobby);
     this.renderSeats(net, lobby);
     this.renderPlayers(net, lobby);

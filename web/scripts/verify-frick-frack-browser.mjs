@@ -32,7 +32,7 @@ async function main(){
   if(!process.env.LIVE_URL)await new Promise(done=>server.listen(0,'127.0.0.1',done));
   const url=process.env.LIVE_URL||`http://127.0.0.1:${server.address().port}${PROJECT}`;
   const browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
-  const results={url,completed:false,physicalDeviceTest:false,checks:[],scenarios:[]};
+  const results={url,completed:false,physicalDeviceTest:false,fixtureDisclosure:'Explicit Regular-mode simulation fixture on every layout, including mobile whose lobby defaults to Degen. Known card/payout fixtures reset entropy and pin target21 during real committed rolls; actual six die faces are verified in the dedicated dice suite.',checks:[],scenarios:[]};
   let page;
   const check=label=>{results.checks.push(label);console.log('PASS '+label);};
   const shot=name=>page.screenshot({path:join(OUT,name+'.png'),animations:'disabled'});
@@ -59,6 +59,7 @@ async function main(){
         window.__frickQa={};
       });
       await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
+      assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
       // Locator actions already scroll and re-resolve after UI revisions; a separate
       // scrollIntoViewIfNeeded can retain a detached element across a normal rerender.
       const tap=async locator=>{if(spec.touch)await locator.tap({noWaitAfter:true});else await locator.click({noWaitAfter:true});};
@@ -228,6 +229,7 @@ async function main(){
             const w=window.flaghack.world,av=w.avatarOf(0);
             for(const id of [...av.carried])window.fh.flags.destroyFlag(w,id);
             window.fh.give({flags:count});
+            window.__frickQa.handSeed=seed;
             window.fh.frickFrack.resetEntropy(seed);
             // Legacy payout fixtures pin target 21; the dedicated dice suite verifies real rolls for all six targets.
             const s=w.frickFrack.sessions[0]; if(s){s.dieResult=1;s.target=21;s.revision++;}
@@ -238,7 +240,11 @@ async function main(){
           const input=dialog.getByLabel('Flags to wager');
           await input.fill(String(amount));await input.dispatchEvent('change');
           await tap(button('Deal'));
-          await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase!=='betting');
+          await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling');
+          // Disclosed legacy card/payout fixture: preserve the original shuffled deck
+          // and target after the real production roll has committed this wager.
+          await page.evaluate(()=>{const s=window.flaghack.world.frickFrack.sessions[0];if(s.phase!=='rolling')throw Error('Missed rolling fixture window');window.fh.frickFrack.resetEntropy(window.__frickQa.handSeed);s.dieResult=1;s.target=21;});
+          await page.waitForFunction(()=>['playing','result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
         }
         await seedAndQuiver('frick-136-25',10);
         // A physically present known card is picked up by the normal simulation before use.
@@ -303,8 +309,6 @@ async function main(){
         await shot('desktop-winning-hand');await holdForDemo('winning-hand',2500);
         check('desktop: physical numeric/Major pickups, random Hit, one-use Ace, inspect/confirm Sun reveal, Stand and settled win');
 
-        await tap(button('Deal'));
-        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         // A known sideboard card still goes through the real Play button and combat resolver.
         await seedAndQuiver('frick-136-25',10);await deal(1);
         const combatCard=await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0],id=w.newId();w.frickFrack.sideboards[0]=[{id,rank:4,suit:0,parody:3}];s.revision++;return id;});
@@ -329,13 +333,12 @@ async function main(){
         }
         await page.setViewportSize({width:spec.width,height:spec.height});
         await tap(button('Stand'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
-        await tap(button('Deal'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
+        await seedAndQuiver('frick-136-57',5);await deal(2);
         assert.equal((await state()).session.defeated?.length??0,0,'Authoritative next hand clears combat history');
         // The simulation changes phase before the next UI render publishes that revision.
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===0);
         assert.equal(await dialog.locator('.ff-defeated-cross').count(),0,'Next hand clears combat history');
         check('desktop and narrow layouts: tied CCG cards keep visible X marks, excluded from total; next hand clears history');
-        await seedAndQuiver('frick-136-57',5);await deal(2);
         assert.equal((await state()).session.phase,'playing');
         assert.deepEqual((await state()).session.player.map(c=>c.rank),[10,10],'Authentic shuffled pair, not an injected outcome');
         await shot('desktop-pair-hand');await holdForDemo('pair-hand',2000);
@@ -348,8 +351,6 @@ async function main(){
         await shot('desktop-pair-profit');await holdForDemo('pair-profit',3000);
         check('desktop: pair doubles only winning profit, not returned stake');
 
-        await tap(button('Deal'));
-        await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-1',10);
         // Observe settlement before the live world can consume stock again.
         await page.evaluate(()=>{
@@ -370,7 +371,6 @@ async function main(){
         await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
 
-        await tap(button('Deal'));await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='betting');
         await seedAndQuiver('frick-136-9',3);await deal(3);
         await tap(button('Hit'));
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='empty');

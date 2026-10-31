@@ -12,8 +12,9 @@ function table(seed='frick-136-25') {
  const command=(action:CommandOf<'frickFrack'>['action'],extra:Partial<CommandOf<'frickFrack'>>={})=>{const s=w.frickFrack.sessions[0]!;cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action,...extra});};
  for(let i=0;i<3;i++){w.time=w.frickFrack.sessions[0]!.readyAt;command(i<2?'next':'play');}
  // Preserve the target-21 effect scenarios independently of the new roll RNG.
- const roll=w.frickFrack.sessions[0]!;roll.target=21;roll.dieResult=1;w.time=roll.rollEndsAt!;updateFrickFrack(w);
- resetFrickFrackEntropy(w,seed);command('bet',{wager:1});
+ command('bet',{wager:1});
+ const roll=w.frickFrack.sessions[0]!;roll.target=21;roll.dieResult=1;
+ resetFrickFrackEntropy(w,seed);w.time=roll.rollEndsAt!;updateFrickFrack(w);
  const s=w.frickFrack.sessions[0]!;expect(s.phase).toBe('playing');
  const major=(arcana:number,extra:Partial<CommandOf<'frickFrack'>>={})=>{const c={id:w.newId(),rank:0,suit:0,arcana};w.frickFrack.sideboards[0].push(c);command('cheat',{cardId:c.id,...extra});return c;};
  return {w,av,s,command,major};

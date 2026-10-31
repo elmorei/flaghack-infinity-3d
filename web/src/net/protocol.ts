@@ -125,7 +125,7 @@ export interface StateFrame {
 // ── Client → host ────────────────────────────────────────────────────────────
 export type ClientMessage =
   /** First message. `token` (from a previous welcome) reclaims the same player/seat. */
-  | { t: 'hello'; protocol: number; build: string; name: string; password: string; token: string | null }
+  | { t: 'hello'; protocol: number; build: string; name: string; password: string; token: string | null; controlMode?: 'avatar' | 'rts' }
   /** Lobby/pre-boss seat selection (null = spectate). During the boss use bossTakeover instead. */
   | { t: 'seat'; seat: FactionId | null }
   /** An eliminated human claims an unreserved surviving AI camp during the actual boss encounter. */

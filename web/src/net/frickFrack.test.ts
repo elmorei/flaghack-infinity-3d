@@ -10,13 +10,15 @@ const options = {seed:'frick-wire',mode:'standard' as const,difficulty:'normal' 
 describe('Frick-frack public wire and commands', () => {
   it('accepts exact bounded commands and rejects payload smuggling', () => {
     const base={t:'frickFrack',faction:0,sessionId:1,revision:0};
-    for (const action of ['next','play','decline','hit','stand','again','exit']) expect(parseCommand({...base,action})).toEqual({...base,action});
-    expect(parseCommand({...base,action:'bet',wager:2})).toEqual({...base,action:'bet',wager:2});
+    for (const action of ['next','play','decline','hit','stand','exit']) expect(parseCommand({...base,action})).toEqual({...base,action});
+    for (const action of ['bet','again']) {
+      expect(parseCommand({...base,action,wager:2})).toEqual({...base,action,wager:2});
+      expect(parseCommand({...base,action})).toBeNull();
+      for (const wager of [0,-1,.5,NaN,Infinity,'2',2147483648]) expect(parseCommand({...base,action,wager})).toBeNull();
+    }
     expect(parseCommand({...base,action:'cheat',cardId:1})).toEqual({...base,action:'cheat',cardId:1});
-    for (const wager of [0,-1,.5,NaN,Infinity,'2',2147483648]) expect(parseCommand({...base,action:'bet',wager})).toBeNull();
     for (const revision of [-1,.1,NaN,'0']) expect(parseCommand({...base,revision,action:'hit'})).toBeNull();
     for (const action of ['hit','stand','exit','play']) expect(parseCommand({...base,action,wager:2})).toBeNull();
-    expect(parseCommand({...base,action:'bet'})).toBeNull();
     expect(parseCommand({...base,action:'cheat',cardId:1,rank:1})).toBeNull();
     expect(parseCommand({...base,action:'settle',win:true})).toBeNull();
   });

@@ -1,7 +1,35 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, connect, hello, host, join } from './testkit';
+import { BUILD_ID } from '../src/net/build';
+import { PROTOCOL_VERSION } from '../src/net/protocol';
+import { cleanup, connect, hello, host, join, PASSWORD } from './testkit';
 afterEach(cleanup);
 describe('host authoritative RTS seats', () => {
+  it.each([['avatar', 'rts'], ['rts', 'avatar']] as const)('assigns %s leader and %s guest independently in the initial handshake', async (leaderMode, guestMode) => {
+    const h = await host();
+    const leader = await connect(h), guest = await connect(h);
+    const greet = (c: typeof leader, name: string, controlMode: 'avatar' | 'rts', token: string | null = null) =>
+      c.send({ t: 'hello', protocol: PROTOCOL_VERSION, build: BUILD_ID, password: PASSWORD, name, token, controlMode });
+    greet(leader, 'leader', leaderMode); const me = await leader.next('welcome');
+    greet(guest, 'guest', guestMode); const other = await guest.next('welcome');
+    expect(other.lobby.players.map(p => p.controlMode)).toEqual([leaderMode, guestMode]);
+    // Reclaiming a saved lobby seat uses the current device, not the old selector preference.
+    const back = await connect(h);
+    const changed = leaderMode === 'avatar' ? 'rts' : 'avatar';
+    greet(back, 'leader', changed, me.token);
+    const welcome = await back.next('welcome');
+    expect(welcome.lobby.players.find(p => p.id === me.playerId)?.controlMode).toBe(changed);
+    expect(welcome.lobby.players.find(p => p.id === other.playerId)?.controlMode).toBe(guestMode);
+    // A second reclaim restores the original device before starting, without touching guest or AI.
+    const current = await connect(h); greet(current, 'leader', leaderMode, me.token); await current.next('welcome');
+    current.send({ t: 'start' });
+    const started = await current.next('matchStart', undefined, 15000);
+    expect(started.options.rtsFactions).toEqual([leaderMode, guestMode].flatMap((mode, i) => mode === 'rts' ? [i] : []));
+    const live = await connect(h); greet(live, 'leader', changed, me.token); await live.next('welcome');
+    const resumed = await live.next('matchStart', undefined, 15000);
+    expect(resumed.options.rtsFactions).toEqual(started.options.rtsFactions);
+    expect(resumed.seat).toBe(0);
+  });
+
   it('lets each player choose only their own next-match mode; freezes mode through live edits and reconnects', async () => {
     const h = await host();
     const leader = await join(h, 'leader'), guest = await join(h, 'guest');

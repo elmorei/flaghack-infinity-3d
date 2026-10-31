@@ -4,13 +4,13 @@ import { Rng } from '../rng';
 import { FRICK_FRACK_ROLL_SECONDS, frickFrackTarget, frickFrackTotal } from '../frickFrack';
 import { frickFrackDealerSoft } from '../frickFrackArcana';
 import { evaluateFrickFrackPoker } from '../frickFrackPoker';
-import { initializeFrickFrack, offerFrickFrackFlag, cmdFrickFrack, resetFrickFrackEntropy, updateFrickFrack } from './frickFrack';
+import { initializeFrickFrack, offerFrickFrackFlag, closeFrickFrackSession, cmdFrickFrack, resetFrickFrackEntropy, updateFrickFrack } from './frickFrack';
 import { frickFrackFromWire, frickFrackWire } from '../../net/frickFrack';
 import { SnapshotEncoder } from '../../net/codec';
 import { NetMirror } from '../../net/mirror';
 import type { CommandOf } from '../commands';
 function seedFor(face:number) { for(let n=0;n<1000;n++) { const seed=`roll-${n}`;if(new Rng(seed).int(1,6)===face)return seed; }throw new Error('No seed'); }
-function table(face=1) {
+function table(face=1, autoDeal=true) {
  const {world:w}=newMatch('dice-table');w.factions[0].isPlayer=true;initializeFrickFrack(w);
  const av=w.avatarOf(0),wizard=w.hippies.get(w.frickFrack.wizardId)!;wizard.pos={x:av.pos.x,z:av.pos.z};
  expect(offerFrickFrackFlag(w,wizard,0,av.carried[0])).toBe(true);
@@ -18,22 +18,23 @@ function table(face=1) {
  const command=(action:CommandOf<'frickFrack'>['action'],extra:Partial<CommandOf<'frickFrack'>>={})=>cmdFrickFrack(w,{t:'frickFrack',faction:0,sessionId:s.id,revision:s.revision,action,...extra});
  for(let i=0;i<2;i++){w.time=s.readyAt;command('next');}
  resetFrickFrackEntropy(w,seedFor(face));w.time=s.readyAt;command('play');
- const ready=()=>{w.time=s.rollEndsAt!;updateFrickFrack(w);};
- const deal=()=>{ready();resetFrickFrackEntropy(w,'normal');command('bet',{wager:1});};
+ expect(s.phase).toBe('betting');expect(s.target).toBeUndefined();expect(s.rollNumber).toBeUndefined();
+ if(autoDeal)command('bet',{wager:1});
+ const ready=()=>{if(s.phase==='rolling'){resetFrickFrackEntropy(w,'normal');w.time=s.rollEndsAt!;updateFrickFrack(w);}};
+ const deal=ready;
  return{w,av,wizard,s,command,ready,deal};
 }
 const copy=<T>(v:T):T=>JSON.parse(JSON.stringify(v));
 describe('host-authoritative rolled Frick-frack targets',()=>{
- it.each([1,2,3,4,5,6])('rolls face%s once, reveals before betting, and uses corresponding dealer threshold',face=>{
+ it.each([1,2,3,4,5,6])('commits once, rolls face%s then automatically deals using the corresponding dealer threshold',face=>{
   const {w,av,s,command,ready}=table(face),before=[...av.carried],rev=s.revision;
   expect(s).toMatchObject({phase:'rolling',dieResult:face,target:20+face,rollNumber:1});
   expect(s.rollEndsAt!-s.rollStartedAt!).toBeCloseTo(FRICK_FRACK_ROLL_SECONDS);
   for(const action of ['bet','play','again','hit','stand'] as const)command(action,action==='bet'?{wager:1}:{});
-  expect(s.revision).toBe(rev);expect(av.carried).toEqual(before);expect(s.wager).toBe(0);
+  expect(s.revision).toBe(rev);expect(av.carried).toEqual(before);expect(s.wager).toBe(1);
   w.time=s.rollEndsAt!-.001;updateFrickFrack(w);expect(s.phase).toBe('rolling');ready();
-  expect(s.phase).toBe('betting');expect(s.revision).toBe(rev+1);
+  expect(s.phase).toBe('playing');expect(s.revision).toBe(rev+1);
   for(let i=0;i<3;i++)updateFrickFrack(w);expect(s.revision).toBe(rev+1);
-  resetFrickFrackEntropy(w,'normal');command('bet',{wager:1});
   expect(s.phase).toBe('playing');expect(s.target).toBe(20+face);
   s.player=[10,10,face].map((value,i)=>({id:w.newId(),rank:i+2,suit:0,value}));
   command('stand');expect(s.result).not.toBe('lose');
@@ -44,8 +45,8 @@ describe('host-authoritative rolled Frick-frack targets',()=>{
   const a=table(4),b=table(4);expect(a.s).toEqual(b.s);
   const stale={t:'frickFrack' as const,faction:0 as const,sessionId:a.s.id,revision:a.s.revision,action:'bet' as const,wager:1};
   a.ready();const before=copy(a.s);cmdFrickFrack(a.w,stale);expect(a.s).toEqual(before);
-  a.deal();a.command('stand');const last=a.s.rollNumber;resetFrickFrackEntropy(a.w,seedFor(6));a.command('again');
-  expect(a.s).toMatchObject({phase:'rolling',dieResult:6,target:26,rollNumber:last!+1,wager:0});
+  a.deal();a.command('stand');const last=a.s.rollNumber;resetFrickFrackEntropy(a.w,seedFor(6));a.command('again',{wager:1});
+  expect(a.s).toMatchObject({phase:'rolling',dieResult:6,target:26,rollNumber:last!+1,wager:1});
   const revision=a.s.revision;a.command('again');expect(a.s.revision).toBe(revision);
  });
  it('preserves one public roll through full snapshots, deltas and late joining without private shoe data',()=>{
@@ -77,10 +78,38 @@ describe('host-authoritative rolled Frick-frack targets',()=>{
   s.player=[10,10,10].map((rank)=>({id:w.newId(),rank,suit:0}));const roll=[s.target,s.dieResult,s.rollStartedAt,s.rollEndsAt,s.rollNumber];
   command('stand');expect(s.arcana?.judgementUsed).toBe(true);expect([s.target,s.dieResult,s.rollStartedAt,s.rollEndsAt,s.rollNumber]).toEqual(roll);
  });
- it.each(['exit','ko','end'] as const)('allows interruption while rolling: %s without a wager debit',cause=>{
+ it.each(['exit','ko','end','disconnect'] as const)('forfeits only the committed wager when interrupted while rolling: %s',cause=>{
   const {w,av,s,command}=table(2),flags=[...av.carried];
-  if(cause==='exit')command('exit');else{if(cause==='ko')av.koUntil=w.time+5;else w.phase='ended';updateFrickFrack(w);}
-  expect(w.frickFrack.sessions[0]).toBeUndefined();expect(av.carried).toEqual(flags);expect(s.wager).toBe(0);
+  if(cause==='exit')command('exit');else if(cause==='disconnect')closeFrickFrackSession(w,0);else{if(cause==='ko')av.koUntil=w.time+5;else w.phase='ended';updateFrickFrack(w);}
+  expect(w.frickFrack.sessions[0]).toBeUndefined();expect(av.carried).toEqual(flags);expect(s.wager).toBe(1);
+ });
+ it('accepts no wager before Deal, rejects invalid wagers, and deals an all-in hand',()=>{
+  const {w,av,s,command,ready}=table(3,false),before=[...av.carried];
+  for(const wager of [undefined,0,-1,.5,Infinity,before.length+1])command('bet',{wager});
+  expect(s.phase).toBe('betting');expect(s.wager).toBe(0);expect(s.rollNumber).toBeUndefined();expect(av.carried).toEqual(before);
+  command('bet',{wager:before.length});
+  expect(s.phase).toBe('rolling');expect(s.player).toEqual([]);expect(s.dealer).toEqual([]);expect(av.carried).toHaveLength(0);
+  const revision=s.revision;
+  for(const action of ['bet','again','hit','stand'] as const)command(action,{wager:1});
+  expect(s.revision).toBe(revision);expect(s.wager).toBe(before.length);
+  ready();expect(s.phase).toBe('playing');expect(s.player).toHaveLength(2);expect(av.carried).toHaveLength(0);
+ });
+ it('result Deal uses the newly selected wager and cannot double-charge or reroll',()=>{
+  const {w,av,s,command,ready}=table(5);ready();command('stand');
+  expect(s.phase).toBe('result');const before=av.carried.length,roll=s.rollNumber!;
+  for(const wager of [undefined,0,before+1])command('bet',{wager});
+  command('again');expect(s.phase).toBe('result');expect(av.carried).toHaveLength(before);
+  const cmd={t:'frickFrack' as const,faction:0 as const,sessionId:s.id,revision:s.revision,action:'bet' as const,wager:2};
+  cmdFrickFrack(w,cmd);cmdFrickFrack(w,cmd);
+  expect(s).toMatchObject({phase:'rolling',wager:2,rollNumber:roll+1,result:null,player:[],dealer:[]});
+  expect(av.carried).toHaveLength(before-2);const rev=s.revision;
+  command('bet',{wager:1});expect(s.revision).toBe(rev);expect(av.carried).toHaveLength(before-2);
+  ready();expect(s.phase).toBe('playing');expect(s.wager).toBe(2);
+ });
+ it('cancels before auto-deal when the wizard or player leaves, without partial hands or refunds',()=>{
+  const {w,av,wizard,s}=table(2),before=[...av.carried];
+  wizard.pos.x+=10;w.time=s.rollEndsAt!;updateFrickFrack(w);updateFrickFrack(w);
+  expect(w.frickFrack.sessions[0]).toBeUndefined();expect(s.player).toEqual([]);expect(av.carried).toEqual(before);
  });
  it('rejects malformed/mismatched roll wire and retains old target21 snapshots',()=>{
   const {w}=table(3);const raw=copy(frickFrackWire(w.frickFrack)) as any[];

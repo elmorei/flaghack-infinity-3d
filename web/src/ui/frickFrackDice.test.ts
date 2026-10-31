@@ -37,7 +37,7 @@ describe('authoritative target die presentation', () => {
     expect(frickFrackDicePresentation(s, 9)?.progress).toBe(0);
     expect(frickFrackDicePresentation(s, 10.625)?.progress).toBe(.5);
     expect(frickFrackDicePresentation(s, 12)?.progress).toBe(1);
-    expect(frickFrackDicePresentation(s, 12)?.label).toContain('Betting opens when it settles');
+    expect(frickFrackDicePresentation(s, 12)?.label).toContain('Cards deal automatically when it settles');
     expect(frickFrackDicePresentation(s, 12)?.label).not.toContain('24');
     expect(s.dieResult).toBe(4); expect(s.target).toBe(24);
   });
@@ -71,7 +71,31 @@ describe('authoritative target die presentation', () => {
     expect(controls.Again).toBeUndefined();
     expect(controls.Exit.disabled).toBe(false);
   });
-  it('uses Deal at result only to request the next authoritative roll, never to auto-wager', () => {
+  it.each(['betting', 'result'] as const)('allows selecting a wager before Deal in %s, but never with no Flags', phase => {
+    const { fixture, controls } = renderFixture();
+    const s = { ...session(), phase }; fixture.active = s; fixture.pending = '';
+    fixture.render(s, 8, { time: 12, frickFrack: { sideboards: { 0: [] } } });
+    fixture.setWager(3);
+    expect(fixture.wagerInput.disabled).toBe(false);
+    expect(fixture.wagerInput.value).toBe('3');
+    fixture.render(s, 0, { time: 12, frickFrack: { sideboards: { 0: [] } } });
+    expect(controls.Deal.disabled).toBe(true); expect(fixture.wagerInput.disabled).toBe(true);
+  });
+  it('explains the single Deal before the first roll without inventing a target', () => {
+    const { fixture, created } = renderFixture(); const s = { ...session(), phase: 'betting' as const, dieResult: undefined, target: undefined };
+    fixture.active = s; fixture.render(s, 8, { time: 12 });
+    expect(created.some(n => n.textContent === 'Ready to deal')).toBe(true);
+    expect(created.some(n => n.textContent.includes('Deal rolls the die and deals your hand'))).toBe(true);
+    expect(created.some(n => n.textContent === 'Target 21')).toBe(false);
+  });
+  it('retains the committed wager while rolling even after the carried Flags are charged', () => {
+    const { fixture } = renderFixture(); const s = { ...session(), wager: 5 }; fixture.active = s;
+    fixture.render(s, 0, { time: 10.5 });
+    expect(fixture.wagerInput.value).toBe('5'); expect(fixture.wagerInput.disabled).toBe(true);
+    expect(fixture.status.textContent).toContain('Exit forfeits your wager.');
+    fixture.setWager(1); expect(fixture.wager).toBe(5);
+  });
+  it('uses one Deal at result to commit the chosen wager and blocks duplicate or rolling commands', () => {
     const s = { ...session(), phase: 'result' as FrickFrackSession['phase'] };
     const submit = vi.fn();
     const app = { session: { screen: 'playing', playerFaction: 0, spectator: false },
@@ -80,7 +104,7 @@ describe('authoritative target die presentation', () => {
     const fixture = Object.assign(Object.create(FrickFrackUI.prototype), { host: { app }, pending: '', body: { querySelectorAll: () => [] } });
     fixture.send('bet', { wager: 3 }); fixture.send('bet', { wager: 3 });
     expect(submit).toHaveBeenCalledTimes(1);
-    expect(submit.mock.calls[0][0]).toEqual({ t: 'frickFrack', faction: 0, sessionId: 7, revision: 2, action: 'again' });
+    expect(submit.mock.calls[0][0]).toEqual({ t: 'frickFrack', faction: 0, sessionId: 7, revision: 2, action: 'bet', wager: 3 });
     s.phase = 'rolling'; s.revision++; fixture.pending = ''; fixture.send('bet', { wager: 3 });
     expect(submit).toHaveBeenCalledTimes(1);
     s.phase = 'betting'; s.revision++; fixture.send('bet', { wager: 3 });

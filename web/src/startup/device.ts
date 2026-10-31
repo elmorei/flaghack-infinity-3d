@@ -1,4 +1,4 @@
-/** Presentation only: all devices share the same game, protocol, invite and save state. */
+/** Resolved client layout (also selects the local human play style); shared game and protocol. */
 export type DeviceLayout = 'mobile' | 'desktop';
 export interface DeviceHints {
   url: string;

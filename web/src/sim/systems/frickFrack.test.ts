@@ -5,12 +5,21 @@ import { spawnFlag } from '../factory';
 import { frickFrackTotal } from '../frickFrack';
 import type { World } from '../world';
 import type { CommandOf } from '../commands';
-import { cmdFrickFrack, closeFrickFrackSession, initializeFrickFrack, offerFrickFrackFlag, resetFrickFrackEntropy, updateFrickFrack } from './frickFrack';
+import { cmdFrickFrack, closeFrickFrackSession, initializeFrickFrack, offerFrickFrackFlag, resetFrickFrackEntropy as setEntropy, updateFrickFrack } from './frickFrack';
 import { canRecruit, cmdHandFlag, enlist } from './recruitment';
 import { applyCommands } from './commands';
 import { damageEntity } from './combat';
 import { giveFlag } from './flags';
 import { cmdThrow, updateAvatars } from './avatars';
+// Preserve historical target-21/card-shoe fixtures; dedicated dice tests exercise the real RNG sequence.
+const seeds = new WeakMap<World, string>();
+function resetFrickFrackEntropy(w: World, seed: string) { seeds.set(w, seed); setEntropy(w, seed); }
+function settle(w: World) {
+  const s = w.frickFrack.sessions[0]!;
+  if (s.phase !== 'rolling') return;
+  s.target=21;s.dieResult=1;setEntropy(w,seeds.get(w) ?? 'normal');
+  w.time=s.rollEndsAt!;updateFrickFrack(w);
+}
 function arena() {
   const { world: w } = newMatch('frick-frack-suite'); w.factions[0].isPlayer = true; initializeFrickFrack(w);
   const av = w.avatarOf(0), wizard = w.hippies.get(w.frickFrack.wizardId)!;
@@ -21,13 +30,11 @@ function arena() {
 function command(w: World, action: CommandOf<'frickFrack'>['action'], rest: Partial<CommandOf<'frickFrack'>> = {}) {
   const s = w.frickFrack.sessions[0]!;
   cmdFrickFrack(w, { t: 'frickFrack', faction: 0, sessionId: s.id, revision: s.revision, action, ...rest });
+  if (action === 'bet') settle(w);
 }
 function start(w: World) {
   expect(offerFrickFrackFlag(w, w.hippies.get(w.frickFrack.wizardId)!, 0, w.avatarOf(0).carried[0])).toBe(true);
   for (let i = 0; i < 3; i++) { w.time = w.frickFrack.sessions[0]!.readyAt; command(w, i < 2 ? 'next' : 'play'); }
-  // These regression fixtures retain the target-21 hand scenarios; dice tests cover all targets.
-  const s=w.frickFrack.sessions[0]!; s.dieResult=1; s.target=21;
-  w.time=s.rollEndsAt!; updateFrickFrack(w);
 }
 function fill(w: World) { const av = w.avatarOf(0); while (av.carried.length < AVATAR.quiver) { const f = spawnFlag(w, { state: 'loose', owner: 0, pos: { ...av.pos } }); giveFlag(w, f.id, av.id); } }
 describe('Frick-frack authoritative minigame', () => {
@@ -79,7 +86,7 @@ describe('Frick-frack authoritative minigame', () => {
   it('masks hole card and prevents replayed bets/hits', () => {
     const { w, av } = arena(); start(w); resetFrickFrackEntropy(w, 'normal'); const s = w.frickFrack.sessions[0]!;
     const bet: CommandOf<'frickFrack'> = { t: 'frickFrack', faction: 0, sessionId: s.id, revision: s.revision, action: 'bet', wager: 1 };
-    const initial = av.carried.length; cmdFrickFrack(w, bet); cmdFrickFrack(w, bet); expect(av.carried.length).toBe(initial - 1); expect(s.phase).toBe('playing'); expect(s.dealer[1]).toBeNull();
+    const initial = av.carried.length; cmdFrickFrack(w, bet); cmdFrickFrack(w, bet); settle(w); expect(av.carried.length).toBe(initial - 1); expect(s.phase).toBe('playing'); expect(s.dealer[1]).toBeNull();
     const hit: CommandOf<'frickFrack'> = { ...bet, revision: s.revision, action: 'hit' }; cmdFrickFrack(w, hit); const len = s.player.length; cmdFrickFrack(w, hit); expect(s.player.length).toBe(len);
   });
   it('allows exit and forfeits only active wager', () => {
@@ -95,7 +102,7 @@ describe('Frick-frack authoritative minigame', () => {
     const { w, av } = arena(); fill(w); start(w); resetFrickFrackEntropy(w, 'normal'); command(w, 'bet', { wager: 1 }); const s = w.frickFrack.sessions[0]!;
     s.player = [{ id: 99999, rank: 10, suit: 0 }, { id: 99998, rank: 1, suit: 0 }]; fill(w); const altar = w.hearthOf(0)!;
     const before = [...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id).length; command(w, 'stand'); expect(s.result).toBe('win'); expect(av.carried).toHaveLength(AVATAR.quiver);
-    expect([...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id)).toHaveLength(before + 2); const count = w.flags.size; command(w, 'stand'); expect(w.flags.size).toBe(count); command(w, 'again'); expect(s.phase).toBe('rolling'); w.time=s.rollEndsAt!; updateFrickFrack(w); expect(s.phase).toBe('betting');
+    expect([...w.flags.values()].filter(f => f.state === 'stock' && f.holder === altar.id)).toHaveLength(before + 2); const count = w.flags.size; command(w, 'stand'); expect(w.flags.size).toBe(count); command(w, 'again', { wager: 1 }); expect(s.phase).toBe('rolling'); settle(w); expect(s.phase).toBe('playing');
   });
   it('shows no-flags dialogue after losing held bankroll, not altar stock', () => {
     const { w, av } = arena(); start(w); resetFrickFrackEntropy(w, 'normal'); command(w, 'bet', { wager: av.carried.length }); const s = w.frickFrack.sessions[0]!;

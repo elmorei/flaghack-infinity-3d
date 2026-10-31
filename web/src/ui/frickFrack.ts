@@ -35,7 +35,7 @@ type TableExtras = Pick<TableCommand, 'wager' | 'cardId' | 'targetCardIds' | 'va
 /** Player-facing rules, kept outside the table layout for readable collapsed help. */
 export const FRICK_FRACK_TABLE_RULES = [
   '136 cards: 52 standard, 56 Rider–Waite minor arcana, and 28 original CCG/sports cards. Major Arcana are one-use sideboard effects, never dealer draws.',
-  'Before betting, the wizard rolls one six-sided die on the blanket. The target is 20 + the roll (21–26), fixed for the whole hand. Closest to that target without going over wins. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. The wizard stands at the target minus 4, including soft hands. Base wins pay 1:1, including a two-card target; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
+  'Choose your wager, then press Deal once. Your wager is committed while the wizard rolls one six-sided die on the blanket and automatically deals the cards. Leaving during the roll or hand forfeits your wager. The target is 20 + the roll (21–26), fixed for the whole hand. Closest to that target without going over wins. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. The wizard stands at the target minus 4, including soft hands. Base wins pay 1:1, including a two-card target; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
   'On reveal, CCG cards fight opponent CCG cards only. Friendly cards coexist; ordinary and tarot cards do not fight. The lower value is defeated; equal values both die. Defeated cards stay visible with an X, but do not count toward totals, poker prizes, effects or further fights.',
   'At hand end, your strongest pair, three of a kind, or four of a kind multiplies base win profit by 2, 3, or 4. These prizes do not stack. Your returned stake is not multiplied; The World’s extra stake is added separately.',
   'A non-bust five-card straight at hand end copies its highest printed card into your sleeve, even on a blackjack loss or push. No straight prize for a bust, and no mid-hand award.',
@@ -47,7 +47,7 @@ export function frickFrackDicePresentation(s: FrickFrackSession, worldTime: numb
   if (!Number.isInteger(result) || result! < 1 || result! > 6) return null;
   const duration = (s.rollEndsAt ?? 0) - (s.rollStartedAt ?? 0);
   const progress = s.phase === 'rolling' ? Math.max(0, Math.min(1, duration > 0 ? (worldTime - (s.rollStartedAt ?? 0)) / duration : 0)) : 1;
-  const label = s.phase === 'rolling' ? 'The wizard is rolling the die… Betting opens when it settles.'
+  const label = s.phase === 'rolling' ? 'The wizard is rolling the die… Cards deal automatically when it settles.'
     : `Rolled ${result} · Target ${frickFrackTarget(s)} · Wizard stands at ${frickFrackTarget(s) - 4}`;
   return { result: result!, progress, rollKey: `${s.id}:${s.rollNumber ?? 0}`, label };
 }
@@ -218,7 +218,7 @@ export class FrickFrackUI implements UiPart {
     this.body.replaceChildren(); this.text = null; this.next = null; this.wagerInput = null;
     setText(this.title, s.phase === 'dialogue' || s.phase === 'empty' ? 'The Frick-frack Wizard' : 'Frick-frack');
     if (this.flagValue) setText(this.flagValue, String(available));
-    setText(this.status, `${s.wager > 0 ? `Wager ${s.wager} · ` : ''}${s.phase === 'playing' ? 'Exit forfeits your wager.' : 'The burn continues outside.'}`);
+    setText(this.status, `${s.wager > 0 ? `Wager ${s.wager} · ` : ''}${s.phase === 'playing' || s.phase === 'rolling' ? 'Exit forfeits your wager.' : 'The burn continues outside.'}`);
     if (s.phase === 'dialogue' || s.phase === 'empty') {
       el('div', 'ff-wizard-seal', this.body, '✦');
       el('div', 'ff-page-number', this.body, s.phase === 'dialogue' ? `A brief word · ${s.dialogueIndex + 1} / ${frickFrackDialogue(s.dialogueVariant).length}` : 'An unfortunate arithmetic');
@@ -238,14 +238,14 @@ export class FrickFrackUI implements UiPart {
       this.deckStage = el('div', 'ff-deck-stage', stage);
       this.deckStage.setAttribute('aria-hidden', 'true');
       const die = frickFrackDicePresentation(s, world.time);
-      if (die) {
+      {
         const tray = el('section', 'ff-die-tray', stage);
         tray.setAttribute('aria-label', 'Target die');
         this.dieStage = el('div', 'ff-die-stage', tray);
         this.dieStage.setAttribute('aria-hidden', 'true');
         const target = el('div', 'ff-target-panel', tray);
-        el('h3', 'ff-target-title', target, s.phase === 'rolling' ? 'Rolling the target' : `Target ${frickFrackTarget(s)}`);
-        this.dieLabel = el('p', 'ff-die-label', target, die.label);
+        el('h3', 'ff-target-title', target, s.phase === 'rolling' ? 'Rolling the target' : die ? `Target ${frickFrackTarget(s)}` : 'Ready to deal');
+        this.dieLabel = el('p', 'ff-die-label', target, die?.label ?? 'Choose your wager. Deal rolls the die and deals your hand.');
         this.dieLabel.setAttribute('role', 'status'); this.dieLabel.setAttribute('aria-live', 'polite');
         this.dieLabel.setAttribute('aria-atomic', 'true');
       }
@@ -255,13 +255,14 @@ export class FrickFrackUI implements UiPart {
       const notices = el('div', 'ff-table-notices', this.body);
       if (s.remark) { const remark = el('p', 'ff-wizard-remark', notices, s.remark); remark.setAttribute('role', 'status'); }
       if (s.message) el('p', `ff-result ff-${s.result ?? 'waiting'}`, notices, s.message);
-      const betting = s.phase === 'betting', playing = s.phase === 'playing';
+      const betting = s.phase === 'betting' || s.phase === 'result', playing = s.phase === 'playing';
+      const committed = playing || s.phase === 'rolling';
       const choosing = !!s.arcana?.choices?.length;
       const field = el('label', 'ff-wager', this.body);
       el('span', '', field, 'Flags to wager');
       const row = el('div', 'ff-wager-row', field);
       this.wagerAvailable = available;
-      this.wager = clampWager(this.wager, available);
+      this.wager = committed ? s.wager : clampWager(this.wager, available);
       const adjust = (label: string, name: string, value: () => number) => {
         const b = button('ff-button', row, label, () => { if (!b.disabled) this.setWager(value()); });
         b.setAttribute('aria-label', name); b.dataset.wager = label;
@@ -278,7 +279,7 @@ export class FrickFrackUI implements UiPart {
       adjust('+', 'Wager one more Flag', () => this.wager + 1);
       adjust('All', 'Wager all available Flags', () => this.wagerAvailable);
       const actions = el('div', 'ff-actions ff-main-actions', this.body);
-      this.action(actions, 'Deal', 'bet', () => ({ wager: clampWager(Number(this.wagerInput?.value ?? this.wager), available) })).disabled = s.phase !== 'result' && (!betting || available < 1);
+      this.action(actions, 'Deal', 'bet', () => ({ wager: clampWager(Number(this.wagerInput?.value ?? this.wager), available) })).disabled = !betting || available < 1;
       this.action(actions, 'Hit', 'hit').disabled = !playing || choosing;
       this.action(actions, 'Stand', 'stand').disabled = !playing || choosing;
       const sleeve = button('ff-button', actions, 'Sleeve', ev => {
@@ -289,8 +290,8 @@ export class FrickFrackUI implements UiPart {
       sleeve.dataset.action = 'sleeve'; sleeve.disabled = !playing;
       sleeve.setAttribute('aria-expanded', String(playing && this.sideboardOpen)); sleeve.setAttribute('aria-controls', 'ff-sleeve');
       const exit = this.action(actions, 'Exit', 'exit');
-      exit.setAttribute('aria-label', playing ? 'Exit · forfeit wager' : 'Leave table');
-      exit.title = playing ? 'Leaving forfeits your wager' : 'Leave table';
+      exit.setAttribute('aria-label', committed ? 'Exit · forfeit wager' : 'Leave table');
+      exit.title = committed ? 'Leaving forfeits your wager' : 'Leave table';
       this.updateWagerControls();
       const extras = el('div', 'ff-extras', this.body);
       if (playing) {
@@ -473,14 +474,14 @@ export class FrickFrackUI implements UiPart {
   }
 
   private setWager(value: number): void {
-    if (this.active?.phase !== 'betting' || this.pending) return;
+    if (!this.active || !['betting', 'result'].includes(this.active.phase) || this.pending) return;
     this.wager = clampWager(value, this.wagerAvailable);
     if (this.wagerInput) this.wagerInput.value = String(this.wager);
     this.updateWagerControls();
   }
   private updateWagerControls(): void {
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-wager]')) {
-      b.disabled = this.active?.phase !== 'betting' || !!this.pending || this.wagerAvailable < 1
+      b.disabled = !this.active || !['betting', 'result'].includes(this.active.phase) || !!this.pending || this.wagerAvailable < 1
         || (b.dataset.wager === '−' ? this.wager <= 1 : this.wager >= this.wagerAvailable);
     }
   }
@@ -492,11 +493,10 @@ export class FrickFrackUI implements UiPart {
   private send(action: TableAction, extra?: TableExtras): void {
     const s = activeFrickFrack(this.host.app), w = this.host.app.world;
     if (!s || !w || this.pending === `${s.id}:${s.revision}`) return;
-    // Deal starts a new roll at results; it never wagers until a later betting click.
-    if (action === 'bet' && s.phase === 'result') { action = 'again'; extra = undefined; }
+    // A single Deal commits the chosen wager, rolls and then automatically deals.
     if ((action === 'next' || action === 'play' || action === 'decline') && w.time < s.readyAt) return;
     if (s.phase === 'rolling' && action !== 'exit' && action !== 'decline') return;
-    if (action === 'bet' && s.phase !== 'betting' || action === 'again' && s.phase !== 'result') return;
+    if (action === 'bet' && !['betting', 'result'].includes(s.phase) || action === 'again' && s.phase !== 'result') return;
     if (['hit', 'stand', 'cheat', 'choose'].includes(action) && s.phase !== 'playing') return;
     if (['hit', 'stand', 'cheat'].includes(action) && s.arcana?.choices?.length) return;
     this.pending = `${s.id}:${s.revision}`; this.pendingAt = performance.now();

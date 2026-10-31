@@ -10,16 +10,16 @@ If either actor is knocked far away or launched out of conversational reach, the
 
 ## Table rules
 
-- Target 21; aces count as 1 or 11, faces as 10.
+- Each hand has a host-rolled target of 20 + one six-sided die (21–26); aces count as 1 or 11, faces as 10.
 - Each shuffled hand uses 136 cards: the full 52-card playing deck, all 56 Rider–Waite–Smith Minor Arcana, and 28 original parody cards (four families, each valued 1–7). Tarot aces count as 1 or 11, numbered cards retain their number, and Page, Knight, Queen and King each count as 10. Major Arcana are excluded from the draw deck and available only as one-use sideboard effects. Card identity and the displayed blackjack value are preserved across draws and network snapshots.
-- Choose a whole-Flag wager up to the Flags currently held. Altar stock is not automatically withdrawn.
-- Hit or stand. The wizard stands on all 17s, including soft 17.
+- Choose a whole-Flag wager up to the Flags currently held, then press **Deal** once. That commits the wager, rolls the die on the table, and automatically deals when it settles. The same single press starts every subsequent hand; the wager can be adjusted on the result screen. Altar stock is not automatically withdrawn.
+- Hit or stand. The wizard stands at target minus four, including soft totals (17 for target 21, through 22 for target 26).
 - All wins pay 1:1, including two-card blackjack. Equal results push and return the wager.
-- Play as many hands as desired, or leave before betting. Exiting an unfinished hand forfeits the committed wager.
+- Play as many hands as desired, or leave before betting. Exiting an unfinished hand forfeits the committed wager, including during the die roll.
 - Winnings fill the quiver; surplus goes to an owned altar's stock. If no altar exists, surplus remains as real loose Flags rather than disappearing.
 - With no Flags left to bet, the wizard asks the player to return later.
 
-The suggested dice-selected target is not part of this release.
+Deal, Hit, Stand, Sleeve, and Exit keep their positions; unavailable actions are disabled. Repeated clicks cannot charge another wager or reroll a committed hand. An all-in wager still deals normally even though the carried Flag count reaches zero during the roll. Judgement replays keep the same wager and target.
 
 ## Cards up your sleeve
 
@@ -29,7 +29,7 @@ A hippie knockdown has a 3.5% chance to leave a card. A nearby Regular avatar pi
 
 Sessions and card inventories belong to the authoritative simulation. Every action carries a session ID and revision; stale or duplicate actions cannot settle a hand twice. Dealer hole cards and shoe order stay in host-private state. Online hosts use private shuffle entropy rather than the public map seed. Committed wagers are an explicit Flag sink and payouts an explicit casino source; moving between quiver and altar never duplicates Flags.
 
-Protocol 20 requires matching browser and host builds. Degen/Plan mobile controls are unchanged.
+Protocol 22 requires matching browser and host builds. Degen/Plan mobile controls are unchanged.
 
 ## Public CCG battles
 
