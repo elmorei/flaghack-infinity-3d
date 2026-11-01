@@ -32,6 +32,7 @@ async function enter(context,spec,url){
   await page.waitForFunction(()=>document.querySelector('#startup[data-ready="true"]')||window.flaghack&&!window.flaghack.startupPending,null,{timeout:180000});
   if(await page.locator('#startup').count())await page.getByRole('button',{name:'Skip',exact:true}).click({noWaitAfter:true});
   await page.locator('#startup').waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),spec.touch?'mobile':'desktop','QA must exercise actual selected device layout, not only a narrow viewport');
   await page.evaluate(()=>window.flaghack.startMatch({seed:'engine-frick-native',humans:[0],rtsFactions:[],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
   await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
   assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
@@ -92,7 +93,7 @@ async function card(){
 }
 async function geometry(){return page.locator('.ff-table-stage,.ff-main-actions,.ff-flag-counter').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));}
 async function scenario(spec,url){
-  const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.touch,isMobile:!!spec.touch,deviceScaleFactor:1,reducedMotion:spec.reduced?'reduce':'no-preference',recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
+  const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.touch,isMobile:!!spec.touch,...(spec.touch?{userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'}:{}),deviceScaleFactor:1,reducedMotion:spec.reduced?'reduce':'no-preference',recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
   const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);
   const check=s=>{entry.checks.push(s);console.log(`PASS ${spec.name}: ${s}`);};
   try{

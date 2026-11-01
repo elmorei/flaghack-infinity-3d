@@ -361,7 +361,9 @@ export function renderPrompt(text: string): string {
   let out = '';
   for (let i = 0; i < parts.length; i += 2) {
     const key = parts[i];
-    const label = parts[i + 1] ?? '';
+    // Informational pickup text appended after key/label pairs is not another key.
+    if (i + 1 >= parts.length) { out += `<span class="pl">${escapeHtml(key)}</span>`; continue; }
+    const label = parts[i + 1];
     const hold = /^Hold\s+/i.test(key);
     const cap = hold ? key.replace(/^Hold\s+/i, '') : key;
     out += `<span class="pk">${hold ? '<span class="ph">Hold</span>' : ''}${kbd(cap)}<span class="pl">${escapeHtml(label)}</span></span>`;

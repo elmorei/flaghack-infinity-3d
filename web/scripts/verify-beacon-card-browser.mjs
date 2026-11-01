@@ -59,7 +59,7 @@ async function renderState(){return page.evaluate(()=>{
   const glowA=glow.geometry.getAttribute('aIconA'),glowB=glow.geometry.getAttribute('aIconB');
   const glows=[];for(let i=0;i<glow.geometry.instanceCount;i++)if(glowB.getW(i)===1)glows.push({x:glowA.getX(i),z:glowA.getZ(i),size:glowA.getW(i)});
   const pulses=[];for(let i=0;i<ring.geometry.instanceCount;i++)if(ringC.getX(i)===3)pulses.push({x:ringA.getX(i),z:ringA.getZ(i),radius:ringA.getW(i),intensity:ringB.getW(i)});
-  return {cards,pulses,glows,glowAttributes:Object.keys(glow.geometry.attributes),prompt:a.session.prompt,sideboard:w.frickFrack.sideboards[0],beaconExists:w.beacons.has(fixture.beacon),hippies:fixture.hippies.map(h=>({id:h.id,was:h.faction,now:w.hippies.get(h.id)?.faction})),meshTap:w.factions[0].meshTap,view:a.session.view};
+  return {cards,pulses,glows,glowAttributes:Object.keys(glow.geometry.attributes),prompt:a.session.prompt,sideboard:w.frickFrack.sideboards[0],beaconExists:w.beacons.has(fixture.beacon),hippies:fixture.hippies.map(h=>({id:h.id,was:h.faction,now:w.hippies.get(h.id)?.faction})),meshTap:w.factions[0].meshTap,view:a.session.view,deviceLayout:document.documentElement.dataset.deviceLayout};
 });}
 async function platformScenario(spec,context,check){
   await page.evaluate(()=>{const a=window.flaghack;a.session.view='command';a.session.tool='flag';a.world.factions[0].lumber=1000;});
@@ -102,12 +102,15 @@ async function platformScenario(spec,context,check){
     });
     assert.equal(placed.level,1);assert.ok(Math.abs(placed.rootY-placed.ground-3.2)<.001,'Building model remains on its deck');
     await page.screenshot({path:join(OUT,`${spec.name}-${kind}-on-deck.png`)});
+    await page.waitForFunction(()=>{const w=window.flaghack.world,t=window.__platformTarget;return Array.from(w.buildings.values()).some(b=>b.kind===t.kind&&b.facet===t.facet&&b.level===1&&b.built>=1);},null,{timeout:60000});
+    await page.waitForTimeout(900);
+    await page.screenshot({path:join(OUT,`${spec.name}-${kind}-completed-on-deck.png`)});
     check(`${kind} deck-level ghost agrees with actual ${spec.mobile?'long-press/menu/Confirm':'mouse-click'} placement and raised model`);
     await page.evaluate(()=>{window.flaghack.session.tool='flag';});
   }
 }
 async function scenario(spec,url){
-  const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.mobile,isMobile:!!spec.mobile,deviceScaleFactor:1,recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
+  const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.mobile,isMobile:!!spec.mobile,...(spec.mobile?{userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'}:{}),deviceScaleFactor:1,recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
   const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);
   const check=text=>{entry.checks.push(text);console.log(`PASS ${spec.name}: ${text}`);};
   try{
@@ -116,6 +119,7 @@ async function scenario(spec,url){
     await page.waitForFunction(()=>document.querySelector('#startup[data-ready="true"]')||window.flaghack&&!window.flaghack.startupPending,null,{timeout:180000});
     if(await page.locator('#startup').count())await page.getByRole('button',{name:'Skip',exact:true}).click({noWaitAfter:true});
     await page.locator('#startup').waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),spec.mobile?'mobile':'desktop','QA must exercise actual selected device layout, not only a narrow viewport');
     await page.evaluate(()=>window.flaghack.startMatch({seed:'beacon-card-preview',humans:[0,1,2],rtsFactions:[],match:{...window.flaghack.session.settings.match,active:[0,1,2],bossMode:false,days:3}}));
     await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
     await page.waitForTimeout(1500);const fixture=await stage();
