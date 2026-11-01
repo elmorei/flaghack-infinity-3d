@@ -45,7 +45,6 @@ import {
   LEY_EDGE,
   LIGHTNING_PULL_MULT,
   MAX_BUILD_LEVEL,
-  MESH_TAP_DURATION,
   OUTPOST_PRESSURE_MULT,
   PIECE,
   PROJECTILE,
@@ -541,7 +540,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
       '**Pings**: Rally, Attack, Flag-here and SOS (P or middle mouse).',
       `**SOS**: a hurt hippie pings on its own; Defend hippies within ${HIPPIE.sosRespondRadius} m respond.`,
       `**Retransmit: TAKE A SHOT** (${RETRANSMIT_COOLDOWN} s cooldown): every hippie on your mesh gains ${RETRANSMIT_ATTENTION} attention and wobbles for 2 s.`,
-      `**MOOP**: a knocked-out enemy may drop its beacon. Pick it up to tap that camp's mesh for ${MESH_TAP_DURATION} s.`,
+      `**MOOP**: a knocked-out enemy may drop its beacon. Pick it up to convert a random 1 or 2 awake Signifiers from that camp to yours, limited to those available.`,
     ],
   },
   {
@@ -590,6 +589,6 @@ export const TIPS: readonly string[] = [
   'Saffron is fast and the crash is faster; dose before the push, not during the defence.',
   `Answer SOS pings: Defend hippies within ${HIPPIE.sosRespondRadius} m come running, and so should you.`,
   `Retransmit TAKE A SHOT when attention runs low; it gives every hippie ${RETRANSMIT_ATTENTION} more.`,
-  `An enemy beacon dropped in the dirt taps their mesh for ${MESH_TAP_DURATION} s. MOOP responsibly.`,
+  `An enemy beacon dropped in the dirt converts a random 1 or 2 of that camp's awake Signifiers to your side, limited to those available. MOOP responsibly.`,
   `Overlapping Surveys grow unstable; above ${INSTABILITY_DISCHARGE} the Crystal discharges lightning on everyone inside.`,
 ];

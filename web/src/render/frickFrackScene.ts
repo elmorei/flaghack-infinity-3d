@@ -47,7 +47,7 @@ export function coveredImageRect(sw: number, sh: number, width: number, height: 
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
-interface Face { texture: THREE.CanvasTexture; cancelled: boolean; image?: HTMLImageElement }
+export interface Face { texture: THREE.Texture; cancelled: boolean; image?: HTMLImageElement }
 interface CardNode {
   group: THREE.Group; front: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   shadow: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
@@ -122,7 +122,7 @@ function paintStandard(ctx: CanvasRenderingContext2D, card: FrickFrackCard): voi
   }
   if (card.value !== undefined) printValue(ctx, card);
 }
-function makeFace(card: FrickFrackCard, defeated: boolean): Face {
+export function makeFace(card: FrickFrackCard, defeated: boolean): Face {
   const [c, ctx] = canvas(); const face: Face = { texture: texture(c), cancelled: false };
   const base = () => { ctx.clearRect(0, 0, 256, 384); rounded(ctx, 2, 2, 252, 380); ctx.fillStyle = '#fff5df'; ctx.fill(); ctx.strokeStyle = '#ccbea0'; ctx.lineWidth = 3; ctx.stroke(); };
   const finish = () => {
@@ -150,7 +150,7 @@ function makeFace(card: FrickFrackCard, defeated: boolean): Face {
   img.src = art.url;
   return face;
 }
-function disposeFace(face: Face | null): void {
+export function disposeFace(face: Face | null): void {
   if (!face) return; face.cancelled = true;
   if (face.image) { face.image.onload = null; face.image.onerror = null; }
   face.texture.dispose();

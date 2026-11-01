@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../buildingGeometry';
 /**
  * Target selection for hippie behaviours: Hearths, Flags to fetch or pull, plan nodes, the
  * rival Flags that matter (critical loop Flags, Hearth threats, Survey boundaries, intruders),
@@ -18,7 +19,12 @@ import type { DepotTarget } from '../sceneryDepots';
 export type LogisticsTarget = Building | DepotTarget;
 export function logisticsTarget(world: World, id: number, at?: V2): LogisticsTarget | undefined { return world.buildings.get(id) ?? getDepot(world, id, at); }
 export function logisticsRadius(b: LogisticsTarget): number { return b.kind === 'car' ? 0 : BUILDINGS[b.kind].radius; }
-export function atLogistics(h: Hippie, b: LogisticsTarget, reach: number): boolean { return b.kind === 'car' ? Math.hypot(h.pos.x-b.servicePoint.x,h.pos.z-b.servicePoint.z) <= reach : atBuilding(h,b,reach); }
+export function atLogistics(world: World, h: Hippie, b: LogisticsTarget, reach: number): boolean {
+  const y = world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0);
+  const base = b.kind === 'car' ? world.collision.groundHeight(b.servicePoint.x, b.servicePoint.z) : buildingBaseHeight(world, b);
+  if (Math.abs(y - base) > HIPPIE.interactReach) return false;
+  return b.kind === 'car' ? Math.hypot(h.pos.x-b.servicePoint.x,h.pos.z-b.servicePoint.z) <= reach : atBuilding(h,b,reach);
+}
 import { geometryOwners } from '../survey';
 import { brainOf } from './brain';
 import type { Brain } from './brain';
@@ -444,7 +450,7 @@ export function buildingNeedingHands(world: World, sys: UnitsState, h: Hippie, f
   let best: Building | null = null;
   let bestD = maxDist * maxDist;
   for (const b of world.buildings.values()) {
-    if (b.faction !== f || (b.built >= 1 && !needsRepair(world, b))) continue;
+    if (b.faction !== f || (b.built >= 1 && !needsRepair(world, b)) || world.time < (brainOf(h).avoidBuildings.get(b.id) ?? 0)) continue;
     if ((sys.helpers.get(b.id) ?? 0) >= MAX_HELPERS) continue;
     const d2 = (b.pos.x - h.pos.x) * (b.pos.x - h.pos.x) + (b.pos.z - h.pos.z) * (b.pos.z - h.pos.z);
     if (d2 < bestD) {
@@ -465,6 +471,7 @@ export function claimDrumSlot(world: World, sys: UnitsState, h: Hippie, b: Brain
   let bestSlot = -1;
   let bestD = Infinity;
   for (const c of sys.drumCircles[f]) {
+    if (world.time < (b.avoidBuildings.get(c.id) ?? 0)) continue;
     let slots = sys.drumSlots.get(c.id);
     if (!slots) {
       slots = new Int32Array(DRUMMERS_PER_CIRCLE).fill(-1);

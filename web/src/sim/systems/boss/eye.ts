@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../buildingGeometry';
 /** Fixed-clock charge and a five-second gaze sweep. Mirrors only render the facts. */
 import { BOSS_EYE_BLAST_RADIUS, BOSS_EYE_DAMAGE, BOSS_EYE_MAX_RANGE, BOSS_EYE_TIMING, clearBossEyeCharge } from '../../boss';
 import type { BossState } from '../../boss';
@@ -129,7 +130,7 @@ function flagInside(world: World, at: V3, flag: Flag, from: V3 | null): V3 | nul
   let pos: V3 = flag.pos;
   if (flag.state === 'stock') {
     const building = world.buildings.get(flag.holder);
-    if (building) pos = { ...building.pos, y: groundHeight(building.pos.x, building.pos.z, world.map.half) };
+    if (building) pos = { ...building.pos, y: buildingBaseHeight(world, building) };
   } else if (flag.state === 'carried') {
     const avatar = world.avatars.get(flag.holder), hippie = world.hippies.get(flag.holder);
     if (avatar) pos = avatar.pos;
@@ -152,11 +153,11 @@ export function blastBossEye(world: World, boss: BossState, at: V3, from: V3 | n
   // Capture contents before KO scatter or structure removal changes their positions.
   const hitFlags = new Map<number, V3>();
   for (const flag of world.flags.values()) { if (knocked.has(flag.id)) continue; const pos = flagInside(world, at, flag, from); if (pos) hitFlags.set(flag.id, pos); }
-  const buildings = [...world.buildings.values()].filter(b => b.hp > 0 && !damaged.has(b.id) && bodyInside(at, b.pos.x, b.pos.z, groundHeight(b.pos.x, b.pos.z, world.map.half), groundHeight(b.pos.x, b.pos.z, world.map.half) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius, from));
+  const buildings = [...world.buildings.values()].filter(b => b.hp > 0 && !damaged.has(b.id) && bodyInside(at, b.pos.x, b.pos.z, buildingBaseHeight(world, b), buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius, from));
   // A destroyed storage structure spills recoverable Flags as well. Detach before
   // consumeBuilding's ordinary eating lifecycle would remove the held contents.
   for (const b of buildings) if (b.kind !== 'hearth' && b.hp <= BOSS_EYE_DAMAGE) {
-    for (const flag of world.flags.values()) if (flag.holder === b.id) hitFlags.set(flag.id, { ...b.pos, y: groundHeight(b.pos.x, b.pos.z, world.map.half) });
+    for (const flag of world.flags.values()) if (flag.holder === b.id) hitFlags.set(flag.id, { ...b.pos, y: buildingBaseHeight(world, b) });
   }
   const brokenBarriers = captureBossBarrierBreak(world, hitFlags.keys(), boss);
   for (const [id, pos] of hitFlags) { dropLoose(world, id, pos); knocked.add(id); }
@@ -185,7 +186,7 @@ export function blastBossEye(world: World, boss: BossState, at: V3, from: V3 | n
     // Other buildings are permanently removed only when this 1,000-damage hit is lethal.
     building.hp = Math.max(building.kind === 'hearth' ? 1 : 0, building.hp - BOSS_EYE_DAMAGE);
     world.emit({ t: 'hit', target: building.id, by: boss.id, amount: BOSS_EYE_DAMAGE,
-      pos: { ...building.pos, y: groundHeight(building.pos.x, building.pos.z, world.map.half) + BUILDING_HEIGHT[building.kind] / 2 } });
+      pos: { ...building.pos, y: buildingBaseHeight(world, building) + BUILDING_HEIGHT[building.kind] / 2 } });
     if (building.hp <= 0) consumeBuilding(world, building, true);
   }
   const reach = { x: 0, z: 0, dist: 0 };

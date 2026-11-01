@@ -11,7 +11,7 @@ import { beginTask, setStatusAt } from './units/brain';
 import type { Brain } from './units/brain';
 import { locomote, moveTo } from './units/move';
 import type { UnitsState } from './units/state';
-import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_DROP_CHANCE, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, frickFrackTarget, FRICK_FRACK_ROLL_SECONDS, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
+import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, frickFrackTarget, FRICK_FRACK_ROLL_SECONDS, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
 import type { FrickFrackCard, FrickFrackSession } from '../frickFrack';
 import { applyFrickFrackArcana } from '../frickFrackArcana';
 import type { FrickFrackHand } from '../frickFrackArcana';
@@ -291,9 +291,9 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
   if(!wasRevealed&&hand.revealDealer)revealDealer(s,hand);else syncDealer(s,hand);
   if(effect.stand)stand(w,s);else finishPlayerChange(w,s,hand);
 }
-/** Called once from the KO transition, never from each frame of the KO animation. */
+/** Materialize the card selected by the shared KO loot roll; never roll a second chance. */
 export function dropFrickFrackCard(w: World, h: Hippie): void {
-  if (h.wizard || !privateState(w).rng.chance(FRICK_FRACK_DROP_CHANCE)) return;
+  if (h.wizard) return;
   const rng = privateState(w).rng, id = w.newId();
   w.frickFrack.drops.push({ id, card: createFrickFrackCheatCard(id, rng.int(0, 101)), pos: { ...h.pos }, createdAt: w.time });
   // Physical cards persist for ten minutes, with a hard bound for unlimited matches.

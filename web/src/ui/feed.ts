@@ -36,13 +36,14 @@ interface Aggregate {
   render: (count: number) => string;
 }
 
-const VIA_TEXT: Record<'workshop' | 'drumcircle' | 'gcc' | 'hand' | 'throw' | 'dialectics', string> = {
+const VIA_TEXT: Record<Extract<GameEvent, { t: 'recruited' }>['via'], string> = {
   workshop: 'at a Flag Workshop',
   drumcircle: 'at the Drum Circle',
   gcc: 'at the Geomantic Command Center',
   hand: 'for a handed Flag',
   throw: 'for a thrown Flag',
   dialectics: 'through Flagellian Dialectics',
+  beacon: 'through a recovered D.E.G.E.N. beacon',
 };
 
 const PIECE_NAME: Record<'wall' | 'floor' | 'ramp', string> = { wall: 'Tarp Walls', floor: 'Decks', ramp: 'Ramps' };

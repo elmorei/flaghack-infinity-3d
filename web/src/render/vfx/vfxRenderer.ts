@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../sim/buildingGeometry';
 /**
  * Event-driven VFX. GameEvents trigger one-shot bursts (Flag plants/pulls/throws, staff
  * swings and hits, splinters, KO stars, confetti, crystal glass, discharge lightning, Omega
@@ -404,11 +405,13 @@ export class VfxRenderer implements RenderModule {
         break;
       }
       case 'buildingDone': {
-        fx.confetti(e.pos.x, this.groundY(e.pos.x, e.pos.z), e.pos.z, this.color(e.faction));
+        const building = w.buildings.get(e.buildingId);
+        fx.confetti(e.pos.x, building ? buildingBaseHeight(w, building) : this.groundY(e.pos.x, e.pos.z), e.pos.z, this.color(e.faction));
         break;
       }
       case 'buildingDisabled': {
-        fx.wreck(e.pos.x, this.groundY(e.pos.x, e.pos.z), e.pos.z, 1);
+        const building = w.buildings.get(e.buildingId);
+        fx.wreck(e.pos.x, building ? buildingBaseHeight(w, building) : this.groundY(e.pos.x, e.pos.z), e.pos.z, 1);
         this.shake(e.pos.x, e.pos.z, 0.2, 8, 35);
         break;
       }
@@ -419,7 +422,8 @@ export class VfxRenderer implements RenderModule {
       }
       case 'wardPulse': {
         if (!this.spend(1)) break;
-        fx.wardPulse(e.pos.x, this.groundY(e.pos.x, e.pos.z), e.pos.z, this.color(e.faction));
+        const ward = w.buildings.get(e.buildingId);
+        fx.wardPulse(e.pos.x, ward ? buildingBaseHeight(w, ward) : this.groundY(e.pos.x, e.pos.z), e.pos.z, this.color(e.faction));
         break;
       }
       case 'ability': {

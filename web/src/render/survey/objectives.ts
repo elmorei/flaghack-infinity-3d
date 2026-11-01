@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../sim/buildingGeometry';
 /**
  * Tutorial objective markers (Session.markers, written by the Training Burn director; the
  * list may change any frame). 'node': a breathing ring on the Ley Node with five turning
@@ -745,7 +746,7 @@ export class ObjectiveFeature {
     if (b) {
       v.x = b.pos.x;
       v.z = b.pos.z;
-      v.y = groundHeight(v.x, v.z, this.world.map.half);
+      v.y = buildingBaseHeight(w, b);
       v.top = v.y + BUILDING_HEIGHT[b.kind];
       v.footprint = BUILDINGS[b.kind].radius + 0.7;
       return true;

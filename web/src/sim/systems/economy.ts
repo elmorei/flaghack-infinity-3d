@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../buildingGeometry';
 /**
  * Camp economy: Hearth/Workshop Flag crafting, passive recruitment from the shared population, ritual
  * income from drummers and Saffron, lumber pile depletion and respawn, hoarding flag.
@@ -190,6 +191,7 @@ function gainRitual(world: World, st: EconState, dt: number): void {
       let best = -1;
       let bestD = reach2;
       for (let i = 0; i < circles.length; i++) {
+        if (Math.abs(buildingBaseHeight(world, circles[i]) - world.collision.groundHeight(h.pos.x, h.pos.z) - (h.airborne?.y ?? 0)) > HIPPIE.interactReach) continue;
         const d = (circles[i].pos.x - h.pos.x) ** 2 + (circles[i].pos.z - h.pos.z) ** 2;
         if (d <= bestD) {
           best = i;

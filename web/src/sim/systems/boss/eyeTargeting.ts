@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../buildingGeometry';
 /** Strategic eye targets are independent of the giant's close-range hands and altar route. */
 import { BOSS_EYE_BLAST_RADIUS, BOSS_EYE_MAX_RANGE, BOSS_RADIUS } from '../../boss';
 import type { BossState } from '../../boss';
@@ -72,7 +73,7 @@ function rankedBossEyeTargets(world: World, boss: BossState): RatedTarget[] {
     candidates.push(point);
   }
   const buildings = [...world.buildings.values()].filter(b => b.kind !== 'hearth' && b.hp > 0);
-  for (const b of buildings) candidates.push({ x: b.pos.x, y: groundHeight(b.pos.x, b.pos.z, world.map.half) + BUILDING_HEIGHT[b.kind] / 2, z: b.pos.z });
+  for (const b of buildings) candidates.push({ x: b.pos.x, y: buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind] / 2, z: b.pos.z });
   const pieces = [...world.pieces.values()].filter(p => p.hp > 0);
   for (const p of pieces) { const at = piecePosition(world, p); if (at) candidates.push({ ...at }); }
   const crystalTargets = crystalFlagTargets(world, boss), crystalAims = new Map(crystalTargets.map(t => [t.at, t.supports]));
@@ -92,7 +93,7 @@ function rankedBossEyeTargets(world: World, boss: BossState): RatedTarget[] {
     } else if (!farEnough(at.x, at.z) || Math.hypot(distance, at.y - groundHeight(boss.pos.x, boss.pos.z, world.map.half)) > BOSS_EYE_MAX_RANGE - ORIGIN_ENVELOPE) continue;
     let count = 0, aggression = 0, structure = 0;
     for (const u of units) if (bodyInside(at, u.x, u.z, u.y, u.y + u.height, u.radius)) { count++; aggression += u.threat; }
-    for (const b of buildings) if (bodyInside(at, b.pos.x, b.pos.z, groundHeight(b.pos.x, b.pos.z, world.map.half), groundHeight(b.pos.x, b.pos.z, world.map.half) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius)) structure += 7;
+    for (const b of buildings) if (bodyInside(at, b.pos.x, b.pos.z, buildingBaseHeight(world, b), buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius)) structure += 7;
     for (const p of pieces) {
       pieceClosest(world, p, at.x, at.z, reach);
       const ground = pieceGroundHeight(world, p);

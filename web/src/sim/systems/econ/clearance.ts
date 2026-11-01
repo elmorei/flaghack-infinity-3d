@@ -6,6 +6,7 @@
  * Oriented boxes follow the three.js yaw convention used by the collision world and the
  * renderer: local +z points along (sin yaw, cos yaw), local +x along (cos yaw, -sin yaw).
  */
+import { buildingBaseHeight } from '../../buildingGeometry';
 import { BUILDING_HEIGHT, BUILDINGS } from '../../constants';
 import type { MapLayout, Obstacle } from '../../map/mapgen';
 import { distToSegment, pointInConvex } from '../../math';
@@ -195,20 +196,24 @@ export function polygonClearance(world: World, xs: number[], zs: number[], y0: n
 }
 
 /** Does a thick segment starting at height y0 cut into a standing camp building? */
-export function segmentHitsBuilding(world: World, ax: number, az: number, bx: number, bz: number, halfWidth: number, y0: number): boolean {
+export function segmentHitsBuilding(world: World, ax: number, az: number, bx: number, bz: number, halfWidth: number, y0: number, y1 = Infinity): boolean {
   for (const b of world.buildings.values()) {
     if (isCollapsed(b)) continue;
-    if (world.collision.groundHeight(b.pos.x, b.pos.z) + BUILDING_HEIGHT[b.kind] <= world.collision.groundHeight((ax + bx) / 2, (az + bz) / 2) + y0) continue;
+    const ground = world.collision.groundHeight((ax + bx) / 2, (az + bz) / 2);
+    const base = buildingBaseHeight(world, b);
+    if (base + BUILDING_HEIGHT[b.kind] <= ground + y0 || base >= ground + y1) continue;
     if (distToSegment(b.pos.x, b.pos.z, ax, az, bx, bz) < BUILDINGS[b.kind].radius + halfWidth) return true;
   }
   return false;
 }
 
 /** Does a convex footprint starting at height y0 cut into a standing camp building? */
-export function polygonHitsBuilding(world: World, xs: number[], zs: number[], y0: number): boolean {
+export function polygonHitsBuilding(world: World, xs: number[], zs: number[], y0: number, y1 = Infinity): boolean {
   for (const b of world.buildings.values()) {
     if (isCollapsed(b)) continue;
-    if (world.collision.groundHeight(b.pos.x, b.pos.z) + BUILDING_HEIGHT[b.kind] <= world.collision.groundHeight(xs.reduce((a, x) => a + x, 0) / xs.length, zs.reduce((a, z) => a + z, 0) / zs.length) + y0) continue;
+    const ground = world.collision.groundHeight(xs.reduce((a, x) => a + x, 0) / xs.length, zs.reduce((a, z) => a + z, 0) / zs.length);
+    const base = buildingBaseHeight(world, b);
+    if (base + BUILDING_HEIGHT[b.kind] <= ground + y0 || base >= ground + y1) continue;
     if (circleHitsPolygon(b.pos.x, b.pos.z, BUILDINGS[b.kind].radius, xs, zs)) return true;
   }
   return false;

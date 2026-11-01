@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PerspectiveCamera, Vector3 } from 'three';
+import { LEVEL_HEIGHT } from '../sim/constants';
 import { CommandView } from './commandView';
 import { MobileTouch } from './mobileTouch';
 import { Session } from './session';
@@ -55,6 +56,16 @@ describe('production mobile command actions',()=>{
     const p=f.project(facet.cx,f.world.collision.groundHeight(facet.cx,facet.cz),facet.cz);
     f.action('hold',p.x,p.y);f.frame();expect(f.s.mobileMode).toBe('build');expect(f.s.mobileMenu).toBe('build');
     expect(f.s.mobileBuildFacet).toBe(facet.id);expect(f.queue).toEqual([]);
+  });
+  it('holds an elevated center and retains its level through explicit confirmation',()=>{
+    const f=setup();const facet=f.world.lattice.facets.find(fc=>fc.thick&&!fc.boundary&&f.world.inSurvey(fc.id,0))!;
+    const y=f.world.collision.groundHeight(facet.cx,facet.cz)+2*LEVEL_HEIGHT;
+    f.s.hover.facet=facet.id;f.s.hover.node=-1;f.s.hover.point={x:facet.cx,y,z:facet.cz};
+    const p=f.project(facet.cx,y,facet.cz);f.action('hold',p.x,p.y);f.frame();
+    expect(f.s.mobileBuildLevel).toBe(2);expect(f.s.mobileBuildFacet).toBe(facet.id);expect(f.queue).toEqual([]);
+    f.s.mobileMenu=null;f.s.tool='building';f.s.buildingKind='ward';f.s.mobileBuildConfirm=true;
+    f.frame({valid:true,facet:facet.id,level:2});f.frame({valid:true,facet:facet.id,level:2});
+    expect(f.queue).toEqual([{t:'placeBuilding',faction:0,kind:'ward',facet:facet.id,level:2}]);
   });
   it('open menu cancels touch and blocks pending build confirmation',()=>{
     const f=setup();f.s.mobileMenu='build';f.s.mobileBuildFacet=5;f.s.mobileBuildConfirm=true;f.s.tool='building';

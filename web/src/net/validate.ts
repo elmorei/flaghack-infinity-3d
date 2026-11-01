@@ -295,9 +295,10 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
     parse: ({ pieceId }, faction) => (isInt(pieceId, 0) ? { t: 'demolish', faction, pieceId } : null),
   },
   placeBuilding: {
-    keys: ['t', 'faction', 'kind', 'facet'],
-    parse: ({ kind, facet }, faction) =>
-      isKeyOf(BUILDING_KINDS, kind) && isInt(facet, 0) ? { t: 'placeBuilding', faction, kind, facet } : null,
+    keys: ['t', 'faction', 'kind', 'facet', 'level'],
+    parse: ({ kind, facet, level }, faction) =>
+      isKeyOf(BUILDING_KINDS, kind) && isInt(facet, 0) && (level === undefined || isInt(level, 0, MAX_BUILD_LEVEL_INDEX + 1))
+        ? { t: 'placeBuilding', faction, kind, facet, ...(level === undefined ? {} : { level }) } : null,
   },
   plan: {
     keys: ['t', 'faction', 'op', 'nodes'],
@@ -409,6 +410,7 @@ export function parseCommand(v: unknown): Command | null {
   const { t, faction } = v;
   if (!isKeyOf(COMMANDS, t) || !isFaction(faction)) return null;
   const entry = COMMANDS[t];
+  if (t === 'placeBuilding' && !Object.hasOwn(v, 'level')) return exact(v, ['t', 'faction', 'kind', 'facet']) ? entry.parse(v, faction) : null;
   if (t === 'frickFrack') {
     const keys = ['t', 'faction', 'sessionId', 'revision', 'action'];
     if (v.action === 'bet' || v.action === 'again') keys.push('wager');

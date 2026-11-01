@@ -47,7 +47,7 @@ export class ActorsRenderer implements RenderModule {
     this.thrones = new ThroneRenderer(ctx);
     this.hippies = new HippieRenderer(ctx, this.view, this.flags, this.rings, this.icons, this.anchors);
     this.beacons = new BeaconRenderer(ctx, this.rings, this.icons);
-    this.frickFrack = new FrickFrackRenderer(ctx);
+    this.frickFrack = new FrickFrackRenderer(ctx, this.rings, this.icons);
   }
 
   update(dt: number): void {

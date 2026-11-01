@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../sim/buildingGeometry';
 /** Acid reads committed encounter facts. Never select targets, draw RNG, or mutate the sim. */
 import { BOSS_EYE_MAX_RANGE, BOSS_EYE_TIMING } from '../sim/boss';
 import type { BossTarget } from '../sim/boss';
@@ -39,6 +40,7 @@ function resolveTarget(world: World, target: BossTarget | null): BossVisionTarge
   const out: BossVisionTarget = { ...target, at: { x: pos.x, y: base, z: pos.z }, radius: 1, height: 2, faction: -1, name: 'Flag' };
   if (target.kind === 'building') {
     const b = world.buildings.get(target.id)!;
+    out.at.y = buildingBaseHeight(world, b);
     out.radius = BUILDINGS[b.kind].radius; out.height = BUILDING_HEIGHT[b.kind]; out.faction = b.faction;
     out.name = { hearth: 'Altar', gcc: 'GCC', workshop: 'Workshop', drumcircle: 'Drum Circle', ward: 'Ward', druglab: 'Drug Lab' }[b.kind];
   } else if (target.kind === 'avatar') {

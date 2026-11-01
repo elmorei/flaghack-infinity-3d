@@ -2,7 +2,7 @@ import { groundHeight } from '../../terrain';
 import { describe, expect, it } from 'vitest';
 import { BOSS_EYE_BLAST_RADIUS, BOSS_EYE_MAX_RANGE, BOSS_EYE_TIMING } from '../../boss';
 import { BOSS_GAMEPLAY_SCALE, BOSS_HEIGHT } from '../../bossDimensions';
-import { AVATAR, SIM_DT } from '../../constants';
+import { AVATAR, LEVEL_HEIGHT, SIM_DT } from '../../constants';
 import { spawnAvatar, spawnBuilding, spawnFlag, spawnHippie, spawnPiece, spawnProjectile } from '../../factory';
 import { CollisionWorld } from '../../physics/collision';
 import { createMatch } from '../../setup';
@@ -65,11 +65,11 @@ describe('independent strategic eye targeting', () => {
     avatar.pos.z = limit; recordBossFlagThreat(world, avatar.id);
     expect(chooseBossEyeTarget(world, boss)).toEqual(avatar.pos);
   });
-  it('targets distant live gameplay structures and ignores dead buildings', () => {
+  it.each([0, 2])('targets live gameplay structures at level %s and ignores dead buildings', level => {
     const { world, boss } = setup();
     const dead = spawnBuilding(world, 'gcc', 0, 0, 1); dead.pos = { x: 0, z: 20 }; dead.hp = 0;
-    const live = spawnBuilding(world, 'workshop', 0, 1, 1); live.pos = { x: 0, z: 60 };
-    expect(chooseBossEyeTarget(world, boss)).toEqual({ x: 0, y: groundHeight(0,60,world.map.half) + 1.5, z: 60 });
+    const live = spawnBuilding(world, 'workshop', 0, 1, 1, level); live.pos = { x: 0, z: 60 };
+    expect(chooseBossEyeTarget(world, boss)).toEqual({ x: 0, y: world.collision.groundHeight(0, 60) + level * LEVEL_HEIGHT + 1.5, z: 60 });
     world.buildings.delete(live.id); expect(chooseBossEyeTarget(world, boss)).toBeNull();
   });
   it('recognizes player-built pieces as structures', () => {

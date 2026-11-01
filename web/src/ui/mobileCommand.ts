@@ -1,5 +1,6 @@
 /** Mobile command chrome: the field stays clear; existing panels live in one full-screen menu. */
 import type { Session } from '../game/session';
+import { nearbyPickupTag } from '../game/cardPickup';
 import { abilityBlocker } from '../sim/systems/abilities';
 import { CHAKRAS } from '../sim/types';
 import type { BuildingKind } from '../sim/types';
@@ -39,6 +40,7 @@ export class MobileCommandUI implements UiPart {
   private confirm: HTMLButtonElement;
   private cancel: HTMLButtonElement;
   private toast: HTMLElement;
+  private pickup: HTMLElement;
   private modeButtons: HTMLButtonElement[];
   private buildHint: HTMLElement;
   private powers: HTMLElement;
@@ -56,6 +58,8 @@ export class MobileCommandUI implements UiPart {
     button('btn ix', top, 'Home', () => this.home());
     this.toast = el('div', 'mc-alert is-off', this.field);
     this.toast.setAttribute('role', 'status');
+    this.pickup = el('div', 'mc-pickup is-off', this.field);
+    this.pickup.setAttribute('aria-label', 'Nearby pickups');
     this.selected = el('div', 'mc-selected ix is-off', this.field);
     this.selectionLabel = el('span', '', this.selected);
     button('btn', this.selected, 'Orders', () => this.open('units'));
@@ -170,6 +174,8 @@ export class MobileCommandUI implements UiPart {
     const active = !!world && s.screen === 'playing' && s.view === 'command' && !s.spectator && world.factions[s.playerFaction].alive;
     show(this.root, active);
     if (!active || !world) return;
+    const pickup = s.tool === 'building' ? null : nearbyPickupTag(world, s.playerFaction, s.hover.entity);
+    setText(this.pickup, pickup ?? ''); show(this.pickup, !!pickup);
     const nested = s.panels.settings || s.panels.help || s.panels.codex || s.panels.chakras || s.campChoiceOpen;
     const open = s.mobileMenu !== null;
     show(this.menu, open && !nested); show(this.field, !open && !nested);

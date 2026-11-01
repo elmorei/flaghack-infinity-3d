@@ -1,17 +1,17 @@
 /**
  * Dropped D.E.G.E.N. beacons (MOOP!): a little handheld LoRa radio lying screen-up on the
  * ground, with its infamous knob, screw-on antenna and a blinking LED in the colour of the
- * mesh it taps. A glow sprite and a ground pulse make it findable. One instanced draw.
+ * original camp. A glow sprite and a ground pulse make it findable. One instanced draw.
  */
 import * as THREE from 'three';
 import type { RenderContext } from '../context';
 import { MeshBuilder } from './meshBuilder';
-import { ICON_GLOW, RING, type StatusIcons, type UnitRings } from './overlays';
+import type { StatusIcons, UnitRings } from './overlays';
+import { PICKUP_BLINK_HZ as BLINK_HZ, pushDroppedPickup } from './droppedPickup';
 import { METAL_CAP, hash01, markInstancesDirty, writeTransform } from './util';
 
 const CAPACITY = 64;
 const SCALE = 2.4;
-const BLINK_HZ = 1.6;
 
 function buildRadio(): THREE.BufferGeometry {
   const b = new MeshBuilder([
@@ -116,9 +116,7 @@ export class BeaconRenderer {
       led[n * 4 + 1] = c.g;
       led[n * 4 + 2] = c.b;
       led[n * 4 + 3] = ph;
-      const on = (t * BLINK_HZ + ph) % 1 < 0.5 ? 0.8 : 0.08;
-      this.icons.push(b.pos.x, gy + 0.12, b.pos.z, 0.2, ICON_GLOW, on, 0, c, 1);
-      this.rings.push(b.pos.x, gy + 0.02, b.pos.z, 1.1, c, 0.7, RING.pulse, ph);
+      pushDroppedPickup(this.rings, this.icons, b.pos.x, gy, b.pos.z, c, ph, t);
       n++;
     }
     this.mesh.count = n;

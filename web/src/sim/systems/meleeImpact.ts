@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../buildingGeometry';
 /** Contact-only presentation facts. Never changes targeting or damage/protection rules. */
 import { AVATAR, BUILDING_HEIGHT, HIPPIE } from '../constants';
 import { BOSS_RADIUS } from '../boss';
@@ -24,7 +25,7 @@ export function meleeContact(world: World, target: number, by: number): V3 | nul
   }
   if (building) {
     buildingClosest(building, source.pos.x, source.pos.z, out);
-    const base = world.collision.groundHeight(building.pos.x, building.pos.z);
+    const base = buildingBaseHeight(world, building);
     return { x: out.x, y: Math.max(base, Math.min(base + BUILDING_HEIGHT[building.kind], y)), z: out.z };
   }
   const boss = world.boss?.id === target ? world.boss : null;

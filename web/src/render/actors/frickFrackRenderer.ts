@@ -4,6 +4,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { RenderContext } from '../context';
 import { angleDiff } from '../../sim/math';
 import { damp, hash01 } from './util';
+import { makeFace, disposeFace, faceSignature, type Face } from '../frickFrackScene';
+import { sleeveCardDetails } from '../../ui/frickFrackSleeve';
+import type { StatusIcons, UnitRings } from './overlays';
+import { pushDroppedPickup } from './droppedPickup';
 
 export const WIZARD_HEIGHT = 2.57;
 export const CHEAT_CARD_WIDTH = .5;
@@ -104,11 +108,12 @@ export class FrickFrackRenderer {
   private readonly targetPosition = new THREE.Vector3();
   private anchorId = -1;
   private readonly cards = new Map<number, CardView>();
-  private readonly textures = new Map<string, THREE.Texture>();
+  private readonly faces = new Map<string, Face>();
+  private readonly pickupColor = new THREE.Color(0xe8c364);
   private readonly cardGeometry = new THREE.PlaneGeometry(CHEAT_CARD_WIDTH, CHEAT_CARD_HEIGHT);
   private wasVisible = false;
 
-  constructor(private readonly ctx: RenderContext) {
+  constructor(private readonly ctx: RenderContext, private readonly rings: UnitRings, private readonly icons: StatusIcons) {
     this.group.name = 'frick-frack-actors'; this.group.add(this.wizard); this.wizard.visible = false; ctx.scene.add(this.group);
   }
 
@@ -135,21 +140,26 @@ export class FrickFrackRenderer {
     this.wasVisible = !!h;
     const seen = new Set<number>();
     for (const drop of state?.drops ?? []) {
-      seen.add(drop.id); const key = `${drop.card.rank}:${drop.card.suit}`;
+      seen.add(drop.id); const key = faceSignature({...drop.card, id: 0});
       let v = this.cards.get(drop.id);
       if (v && v.key !== key) { this.releaseCard(v); this.cards.delete(drop.id); v = undefined; }
       if (!v) {
-        let texture = this.textures.get(key);
-        if (!texture) { texture = makeCheatCardTexture(drop.card.rank, drop.card.suit); this.textures.set(key, texture); }
-        const material = new THREE.MeshBasicMaterial({map: texture, side: THREE.DoubleSide, toneMapped: false});
+        let face = this.faces.get(key);
+        if (!face) {
+          face = typeof document === 'undefined' ? {texture: new THREE.Texture(), cancelled: false} : makeFace(drop.card, false);
+          this.faces.set(key, face);
+        }
+        const material = new THREE.MeshBasicMaterial({map: face.texture, side: THREE.DoubleSide, transparent: true, alphaTest: .02, toneMapped: false});
         const mesh = new THREE.Mesh(this.cardGeometry, material); mesh.name = `frick-frack-card-${drop.id}`;
-        mesh.userData.cardLabel = cheatCardLabel(drop.card.rank, drop.card.suit); this.group.add(mesh);
+        mesh.userData.cardLabel = sleeveCardDetails(drop.card).name; this.group.add(mesh);
         v = {mesh, key}; this.cards.set(drop.id, v);
       }
       const ground = shared.groundOffset?.(drop.pos.x, drop.pos.z) ?? world.collision.groundHeight(drop.pos.x, drop.pos.z);
-      v.mesh.position.set(drop.pos.x, ground + .48 + .08 * Math.sin(time * 2 + hash01(drop.id) * 6), drop.pos.z);
-      // Tilted toward overhead cameras but still upright enough for Regular view; slowly turns for visibility.
-      v.mesh.rotation.set(-.35, time * .45 + hash01(drop.id) * Math.PI * 2, .08);
+      const phase = hash01(drop.id);
+      // A physical card lies face-up like the radio, rather than floating/spinning above it.
+      v.mesh.position.set(drop.pos.x, ground + .035, drop.pos.z);
+      v.mesh.rotation.set(-Math.PI / 2, 0, phase * Math.PI * 2);
+      pushDroppedPickup(this.rings, this.icons, drop.pos.x, ground, drop.pos.z, this.pickupColor, phase, time);
     }
     for (const [id, v] of this.cards) if (!seen.has(id)) { this.releaseCard(v); this.cards.delete(id); }
   }
@@ -158,7 +168,7 @@ export class FrickFrackRenderer {
   dispose(): void {
     if (this.ctx.shared.unitAnchors?.get(this.anchorId) === this.anchor) this.ctx.shared.unitAnchors.delete(this.anchorId);
     for (const v of this.cards.values()) this.releaseCard(v); this.cards.clear();
-    this.cardGeometry.dispose(); for (const texture of this.textures.values()) texture.dispose(); this.textures.clear();
+    this.cardGeometry.dispose(); for (const face of this.faces.values()) disposeFace(face); this.faces.clear();
     this.wizard.traverse(o => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); const materials = Array.isArray(o.material) ? o.material : [o.material]; materials.forEach(m => m.dispose()); } });
     this.ctx.scene.remove(this.group);
   }

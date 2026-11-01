@@ -5,7 +5,7 @@
  * with a footprint ring on the ground for buildings.
  */
 import * as THREE from 'three';
-import { BUILDINGS } from '../../sim/constants';
+import { BUILDINGS, LEVEL_HEIGHT } from '../../sim/constants';
 import { facetYaw } from '../../sim/factory';
 import type { BuildingKind, PieceKind } from '../../sim/types';
 import type { FrameInfo } from './buildingView';
@@ -112,7 +112,7 @@ export class GhostRenderer {
     if (ghost.facet < 0 || ghost.facet >= lat.facets.length) return;
     const fc = lat.facets[ghost.facet];
     const group = this.buildingGhost(ghost.kind);
-    const gy = f.ctx.shared.groundOffset?.(fc.cx, fc.cz) ?? 0;
+    const gy = (f.ctx.shared.groundOffset?.(fc.cx, fc.cz) ?? f.world.collision.groundHeight(fc.cx, fc.cz)) + ghost.level * LEVEL_HEIGHT;
     group.position.set(fc.cx, gy, fc.cz);
     group.rotation.y = facetYaw(f.world, ghost.facet);
     group.visible = true;

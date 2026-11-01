@@ -7,7 +7,8 @@ function fixture() {
   const h = {id: 42, pos: {x: 10, z: 20}, facing: .8, koUntil: 0, status: 'idle'};
   const world = {frickFrack: {wizardId: h.id, drops: [] as any[]}, hippies: new Map([[h.id, h]]), time: 2, collision: {groundHeight: () => 3}};
   const ctx = {world, time: 4, shared: {unitAnchors: new Map()}, scene: new THREE.Scene()} as unknown as RenderContext;
-  return {ctx, world, h, renderer: new FrickFrackRenderer(ctx)};
+  const rings = {push: vi.fn()}, icons = {push: vi.fn()};
+  return {ctx, world, h, rings, icons, renderer: new FrickFrackRenderer(ctx, rings as any, icons as any)};
 }
 
 describe('Frick-frack actors', () => {
@@ -35,11 +36,28 @@ describe('Frick-frack actors', () => {
     const e = fixture(); e.world.frickFrack.drops.push({id: 91, card: {id: 1, rank: 12, suit: 2}, pos: {x: 7, z: 8}, createdAt: 0});
     const before = JSON.stringify(e.world.frickFrack); e.renderer.update(.1);
     const card = e.renderer.group.getObjectByName('frick-frack-card-91') as THREE.Mesh;
-    expect(card).toBeTruthy(); expect(card.userData.cardLabel).toBe('Q♦'); expect(card.position.x).toBe(7); expect(card.position.z).toBe(8);
-    expect(card.position.y).toBeGreaterThan(3); expect(JSON.stringify(e.world.frickFrack)).toBe(before);
+    expect(card).toBeTruthy(); expect(card.userData.cardLabel).toBe('Queen of Diamonds'); expect(card.position.x).toBe(7); expect(card.position.z).toBe(8);
+    expect(card.position.y).toBeCloseTo(3.035); expect(card.rotation.x).toBe(-Math.PI / 2);
+    expect(e.rings.push).toHaveBeenCalledWith(7, 3.02, 8, 1.1, expect.any(THREE.Color), .7, 3, expect.any(Number));
+    expect(e.icons.push).toHaveBeenCalledOnce(); expect(JSON.stringify(e.world.frickFrack)).toBe(before);
     const dispose = vi.spyOn(card.material as THREE.Material, 'dispose');
     e.world.frickFrack.drops.length = 0; e.renderer.update(.1); expect(e.renderer.group.getObjectByName(card.name)).toBeUndefined(); expect(dispose).toHaveBeenCalledOnce();
     e.renderer.dispose(); expect(e.ctx.scene.children).toHaveLength(0);
+  });
+  it('keeps grounded cards still, follows render terrain, and distinguishes specialty identities', () => {
+    const e = fixture(); e.ctx.shared.groundOffset = () => 9;
+    e.world.frickFrack.drops.push({id: 91, card: {id: 1, rank: 0, suit: 0, arcana: 0}, pos: {x: 7, z: 8}, createdAt: 0});
+    e.renderer.update(.1);
+    const first = e.renderer.group.getObjectByName('frick-frack-card-91') as THREE.Mesh;
+    expect(first.userData.cardLabel).toBe('The Fool'); expect(first.position.y).toBeCloseTo(9.035);
+    const position = first.position.clone(), rotation = first.rotation.clone();
+    e.ctx.time = 100; e.renderer.update(.1);
+    expect(first.position.equals(position)).toBe(true); expect(first.rotation.equals(rotation)).toBe(true);
+    const dispose = vi.spyOn(first.material as THREE.Material, 'dispose');
+    e.world.frickFrack.drops[0].card.arcana = 1; e.renderer.update(.1);
+    const second = e.renderer.group.getObjectByName('frick-frack-card-91') as THREE.Mesh;
+    expect(second.userData.cardLabel).toBe('The Magician'); expect(second).not.toBe(first); expect(dispose).toHaveBeenCalledOnce();
+    e.renderer.dispose();
   });
   it('poses the wizard down during KO and restores it after recovery', () => {
     const e = fixture(); e.h.koUntil = 5; e.renderer.update(.5); expect(e.renderer.wizard.rotation.x).toBeLessThan(-1.5);

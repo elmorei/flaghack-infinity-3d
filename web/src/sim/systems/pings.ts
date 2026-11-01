@@ -1,13 +1,13 @@
 /**
  * D.E.G.E.N. mesh: pings (rally/attack/flag/sos/shot), SOS auto-pings from hurt hippies,
- * Retransmit "TAKE A SHOT", dropped beacon pickup (mesh tap on a rival), expiry.
+ * Retransmit "TAKE A SHOT", dropped beacon recruitment, expiry.
  * Owner: Units agent.
  */
 import {
   AVATAR,
+  HIPPIE,
   HIPPIE_AI,
   MAP_HALF,
-  MESH_TAP_DURATION,
   PING_DURATION,
   RETRANSMIT_ATTENTION,
   RETRANSMIT_COOLDOWN,
@@ -22,6 +22,8 @@ import type { FactionId, Hippie, PingKind } from '../types';
 import type { World } from '../world';
 import { applyEffect } from './effects';
 import { brainOf, releaseTask } from './units/brain';
+import { enlist } from './recruitment';
+import { cancelSceneryService } from './sceneryServices';
 
 /** An SOS this close to a live SOS of the same camp repeats that ping instead of stacking. */
 const SOS_MERGE_RADIUS = 8;
@@ -80,9 +82,10 @@ export function cmdRetransmit(world: World, c: CommandOf<'retransmit'>): void {
 }
 
 export function cmdTapBeacon(world: World, c: CommandOf<'tapBeacon'>): void {
-  if (world.factions[c.faction].controlMode === 'rts' || !world.avatarOf(c.faction)) return;
+  const fac = world.factions[c.faction];
+  if (!fac?.alive || fac.controlMode === 'rts' || !world.avatarOf(c.faction)) return;
   const bc = world.beacons.get(c.beaconId);
-  if (!bc) {
+  if (!bc || bc.until <= world.time) {
     world.emit({ t: 'rejected', faction: c.faction, reason: 'That beacon has already been MOOPed.' });
     return;
   }
@@ -98,11 +101,30 @@ export function cmdTapBeacon(world: World, c: CommandOf<'tapBeacon'>): void {
     world.emit({ t: 'rejected', faction: c.faction, reason: 'Get closer to pick up that beacon.' });
     return;
   }
-  const fac = world.factions[c.faction];
-  const until = Math.max(fac.meshTap[bc.faction] ?? 0, world.time + MESH_TAP_DURATION);
-  fac.meshTap[bc.faction] = until;
+  // Consume once, on the authoritative simulation. The beacon's original camp is the
+  // only source of recruits; neither nearby neutrals nor a different rival may be stolen.
   world.beacons.delete(bc.id);
-  world.emit({ t: 'meshTapped', faction: c.faction, target: bc.faction, until });
+  const candidates = [...world.hippies.values()].filter(h => h.faction === bc.faction &&
+    !h.wizard && h.status !== 'ko' && h.koUntil === 0 && h.hp > 0);
+  const count = Math.min(world.rng.int(1, 2), candidates.length);
+  for (let i = 0; i < count; i++) {
+    // Partial shuffle samples uniformly without replacement and without consuming RNG
+    // in renderer/client code. Existing soft caps never block a successful conversion.
+    const at = world.rng.int(i, candidates.length - 1);
+    [candidates[i], candidates[at]] = [candidates[at], candidates[i]];
+    const h = candidates[i], b = brainOf(h);
+    cancelSceneryService(world, h);
+    releaseTask(world, h, b); // Must release the OLD camp's reservations before enlist.
+    enlist(world, h, c.faction, 'beacon');
+    h.attention = Math.max(h.attention, HIPPIE.distractedRecoverTo);
+    b.nextThinkAt = 0;
+    const flag = world.flags.get(h.carryingFlag);
+    if (flag?.state === 'carried' && flag.holder === h.id) flag.owner = c.faction;
+  }
+  if (!count) world.emit({ t: 'notify', faction: c.faction, severity: 'info',
+    text: 'Beacon collected. That camp has no awake Signifiers to convert.', pos: { ...bc.pos } });
+  else world.emit({ t: 'notify', faction: bc.faction, severity: 'warn',
+    text: `A rival collected your beacon: ${count} ${count === 1 ? 'Signifier changed camps' : 'Signifiers changed camps'}.`, pos: { ...bc.pos } });
 }
 
 /** Auto SOS from a hurt hippie (rate-limited by SOS_COOLDOWN). */

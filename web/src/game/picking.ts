@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../sim/buildingGeometry';
 /**
  * Crosshair / cursor picking. A view ray is resolved against the collision world, including terrain, then the nearest relevant entity is chosen by 3D distance between
  * the ray segment and each entity's vertical extent, normalized by its pick radius: aim near a
@@ -63,7 +64,7 @@ export class Picker {
   /**
    * Best entity near the ray segment origin → origin + dir·tEnd for player `f`: planted or loose
    * Flags, hippies, vexillomancers (your own only with `includeSelf`), buildings, lumber piles,
-   * dropped beacons, plus whatever piece/building the last cast struck. `minRadius` widens small
+   * dropped beacons/cards, plus whatever piece/building the last cast struck. `minRadius` widens small
    * targets (Command View).
    */
   entityAlong(
@@ -113,7 +114,7 @@ export class Picker {
     }
     for (const b of world.buildings.values()) {
       if (isCollapsed(b)) continue;
-      const y = world.collision.groundHeight(b.pos.x, b.pos.z);
+      const y = buildingBaseHeight(world, b);
       this.consider(b.id, b.pos.x, b.pos.z, y, y + (b.kind === 'hearth' ? 4 : 2.6), BUILDINGS[b.kind].radius);
     }
     for (const p of world.piles.values()) if (p.lumber > 0) {
@@ -123,6 +124,10 @@ export class Picker {
     for (const bc of world.beacons.values()) {
       const y = world.collision.groundHeight(bc.pos.x, bc.pos.z);
       this.consider(bc.id, bc.pos.x, bc.pos.z, y, y + 0.6, R_BEACON);
+    }
+    for (const drop of world.frickFrack?.drops ?? []) {
+      const y = world.collision.groundHeight(drop.pos.x, drop.pos.z);
+      this.consider(drop.id, drop.pos.x, drop.pos.z, y, y + .6, R_BEACON);
     }
     return this.best;
   }

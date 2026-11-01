@@ -181,14 +181,17 @@ describe('single 1000-damage, 5-meter boss eye blast', () => {
     expect(strong.hp).toBe(1100); expect(strong.status).not.toBe('ko'); expect(lethal.status).toBe('ko');
     expect(world.drainEvents().filter(e => e.t === 'hit')).toMatchObject([{ amount: 1000 }, { amount: 1000 }, { amount: 1000 }]);
   });
-  it.each(Object.keys(BUILDINGS) as BuildingKind[])('applies 1000 damage to %s at its boundary while preserving the altar floor', kind => {
+  it.each((Object.keys(BUILDINGS) as BuildingKind[]).flatMap(kind => [0, 2].map(level => ({ kind, level }))))('applies 1000 damage to $kind at level $level at its boundary while preserving the altar floor', ({ kind, level }) => {
     const { world, boss } = encounter();
     const strong = spawnBuilding(world, kind, -1, 0, .1), lethal = spawnBuilding(world, kind, -1, 1, 1), outside = spawnBuilding(world, kind, -1, 2, 1);
+    strong.level = level; lethal.level = level; outside.level = level;
     strong.hp = 2500; strong.maxHp = 2500; lethal.hp = 1000; lethal.maxHp = 1000;
     strong.pos = { x: 5 + BUILDINGS[kind].radius, z: 0 }; lethal.pos = { x: -5 - BUILDINGS[kind].radius, z: 0 };
     outside.pos = { x: 0, z: 5 + BUILDINGS[kind].radius + .001 };
     const outsideHp = outside.hp;
-    blastBossEye(world, boss, { x: 0, y: groundHeight(strong.pos.x,strong.pos.z,world.map.half) + BUILDING_HEIGHT[kind] / 2, z: 0 });
+    // encounter() deliberately uses flat collision terrain; test that actual surface
+    // rather than the unrelated procedural dome, plus the authoritative deck level.
+    blastBossEye(world, boss, { x: 0, y: world.collision.groundHeight(strong.pos.x, strong.pos.z) + level * LEVEL_HEIGHT + BUILDING_HEIGHT[kind] / 2, z: 0 });
     expect(world.buildings.has(strong.id)).toBe(true); expect(strong.hp).toBe(1500);
     expect(world.buildings.has(lethal.id)).toBe(kind === 'hearth'); expect(outside.hp).toBe(outsideHp);
     if (kind === 'hearth') expect(lethal.hp).toBe(1);

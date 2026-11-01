@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../buildingGeometry';
 /**
  * Crystal instability from overlapping Surveys: per-facet rise/decay, shimmer/discharge/
  * storm thresholds, Flag Psychosis and resonance effects on units inside.
@@ -398,7 +399,7 @@ function strikePoint(world: World, id: EntityId): V3 {
   const h = world.hippies.get(id);
   if (h) return { x: h.pos.x, y: world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) + 1, z: h.pos.z };
   const b = world.buildings.get(id);
-  if (b) return { x: b.pos.x, y: world.collision.groundHeight(b.pos.x, b.pos.z) + 2, z: b.pos.z };
+  if (b) return { x: b.pos.x, y: buildingBaseHeight(world, b) + 2, z: b.pos.z };
   const p = world.pieces.get(id);
   if (p && p.facet >= 0) {
     const fc = lat.facets[p.facet];

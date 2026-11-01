@@ -9,6 +9,7 @@
  * (the throw, which hands a Flag to a projectile, is the one exception and lives in Units).
  * Owner: SurveyRules agent.
  */
+import { buildingBaseHeight } from '../buildingGeometry';
 import { AVATAR, BUILDING_HEIGHT, CRYSTAL_HEIGHT, LIGHTNING_PULL_MULT, PULL_LIGHTNING_INTERVAL, SIM_HZ, WARD_FLAG_RADIUS, WORKSHOP_FLAG_CAPACITY } from '../constants';
 import { spawnFlag } from '../factory';
 import type { V2, V3 } from '../math';
@@ -61,7 +62,7 @@ export function defendedPullRate(world: World, fl: Flag, puller: FactionId, star
         to: { x: node.x, y: world.collision.groundHeight(node.x, node.z) + 2, z: node.z } });
     } else {
       world.emit({ t: 'wardLightning', buildingId: defender.id, flagId: fl.id, faction: defender.faction,
-        from: { x: defender.pos.x, y: world.collision.groundHeight(defender.pos.x, defender.pos.z) + BUILDING_HEIGHT.ward, z: defender.pos.z },
+        from: { x: defender.pos.x, y: buildingBaseHeight(world, defender) + BUILDING_HEIGHT.ward, z: defender.pos.z },
         to: { x: fl.pos.x, y: fl.pos.y + 2, z: fl.pos.z } });
     }
   }
@@ -288,7 +289,7 @@ export function depositToStock(world: World, flagId: EntityId, hearthId: EntityI
   fl.owner = hearth.faction;
   fl.holder = hearth.id;
   fl.pos.x = hearth.pos.x;
-  fl.pos.y = world.collision.groundHeight(fl.pos.x, hearth.pos.z);
+  fl.pos.y = buildingBaseHeight(world, hearth);
   fl.pos.z = hearth.pos.z;
   fl.tilt = 0;
   record(world, fl, 'stock', by);
@@ -307,7 +308,7 @@ export function craftFlag(world: World, hearthId: EntityId): Flag | null {
   }
   const f = hearth.faction;
   if (f === NEUTRAL) return null;
-  const fl = spawnFlag(world, { state: 'stock', owner: f, holder: hearth.id, pos: { x: hearth.pos.x, y: 0, z: hearth.pos.z } });
+  const fl = spawnFlag(world, { state: 'stock', owner: f, holder: hearth.id, pos: { x: hearth.pos.x, y: buildingBaseHeight(world, hearth), z: hearth.pos.z } });
   world.emit({ t: 'flagCrafted', flagId: fl.id, faction: f, at: hearth.id });
   return fl;
 }

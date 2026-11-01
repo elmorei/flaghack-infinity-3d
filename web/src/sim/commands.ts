@@ -38,7 +38,7 @@ export type Command =
   | { t: 'build'; faction: FactionId; kind: PieceKind; edge: number; facet: number; level: number; rampEdge: number }
   | { t: 'demolish'; faction: FactionId; pieceId: EntityId }
   /** Camp building on a thick facet inside own Survey. */
-  | { t: 'placeBuilding'; faction: FactionId; kind: BuildingKind; facet: number }
+  | { t: 'placeBuilding'; faction: FactionId; kind: BuildingKind; facet: number; level?: number }
   /** Edit the faction's Survey plan. 'set' replaces it. */
   | { t: 'plan'; faction: FactionId; op: 'add' | 'remove' | 'set' | 'clear'; nodes: number[] }
   | { t: 'jobWeights'; faction: FactionId; weights: Partial<Record<JobKind, number>> }

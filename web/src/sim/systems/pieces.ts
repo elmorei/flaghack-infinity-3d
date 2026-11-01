@@ -15,7 +15,10 @@
  *
  * Floors and ramps share the facet slot of a level: one of them per (facet, level).
  */
-import { leavePieceWreckage } from '../wreckage';
+import { buildingLevel } from '../buildingGeometry';
+import { consumeBuilding } from './boss';
+import { dropLoose } from './flags';
+import { leaveBuildingWreckage, leavePieceWreckage } from '../wreckage';
 import type { CommandOf } from '../commands';
 import { LEVEL_HEIGHT, MAX_BUILD_LEVEL, PIECE, PIECE_REACH } from '../constants';
 import { spawnPiece } from '../factory';
@@ -144,12 +147,12 @@ export function canBuildPiece(
   if (kind === 'wall') {
     wallSegment(lat, edge, SEG);
     const hw = PIECE.wallThickness / 2;
-    if (segmentHitsBuilding(world, SEG[0], SEG[1], SEG[2], SEG[3], hw, y0)) return NO.building;
+    if (segmentHitsBuilding(world, SEG[0], SEG[1], SEG[2], SEG[3], hw, y0, (level + 1) * LEVEL_HEIGHT)) return NO.building;
     const clear = segmentClearance(world, SEG[0], SEG[1], SEG[2], SEG[3], hw, y0);
     if (clear !== 'clear') return NO[clear];
   } else {
     facetPolygon(lat, facet, POLY_X, POLY_Z);
-    if (polygonHitsBuilding(world, POLY_X, POLY_Z, y0)) return NO.building;
+    if (polygonHitsBuilding(world, POLY_X, POLY_Z, y0, (level + 1) * LEVEL_HEIGHT)) return NO.building;
     const clear = polygonClearance(world, POLY_X, POLY_Z, y0);
     if (clear !== 'clear') return NO[clear];
     if (kind === 'floor' && level === 0) {
@@ -240,6 +243,19 @@ function removePiece(world: World, p: Piece, bossDestroyed: boolean): void {
   const pos = info ? { x: info.x, y: info.y, z: info.z } : { x: 0, y: 0, z: 0 };
   if (bossDestroyed) leavePieceWreckage(world, p);
   detachPiece(world, p);
+  if (p.kind === 'floor') {
+    for (const building of [...world.buildings.values()]) {
+      if (building.facet !== p.facet || buildingLevel(building) !== p.level + 1) continue;
+      // Ordinary collapse preserves Flags; only boss destruction consumes held stock.
+      if (!bossDestroyed) {
+        for (const flag of [...world.flags.values()]) if (flag.holder === building.id) {
+          dropLoose(world, flag.id, { x: building.pos.x, y: world.collision.groundHeight(building.pos.x, building.pos.z), z: building.pos.z });
+        }
+        leaveBuildingWreckage(world, building);
+      }
+      consumeBuilding(world, building, bossDestroyed);
+    }
+  }
   world.emit({ t: 'pieceDestroyed', pieceId: p.id, kind: p.kind, faction: p.faction, pos, ...(bossDestroyed ? { bossDestroyed: true as const } : {}) });
 }
 

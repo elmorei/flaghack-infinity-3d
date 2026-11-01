@@ -4,6 +4,7 @@
  * Hearth Ward pulses, Drug Lab brewing queue.
  * Owner: Economy agent.
  */
+import { buildingBaseHeight, buildingLevel } from '../buildingGeometry';
 import type { CommandOf } from '../commands';
 import {
   BREW_COST,
@@ -17,6 +18,7 @@ import {
   DRUG_MAX,
   GCC,
   MAX_BUILD_LEVEL,
+  LEVEL_HEIGHT,
   WARD_PULSE_DAMAGE,
   WARD_PULSE_INTERVAL,
   WARD_PULSE_RADIUS,
@@ -27,7 +29,7 @@ import type { Building, BuildingKind, EntityId, FactionId } from '../types';
 import type { World } from '../world';
 import { damageEntity } from './combat';
 import { pickAutoBrew } from './drugs';
-import { pieceBottom } from './econ/pieceGeometry';
+import { facetInradius, pieceBottom } from './econ/pieceGeometry';
 import { econ } from './econ/state';
 import { applyEffect } from './effects';
 import { pieceAt } from './pieces';
@@ -60,6 +62,8 @@ const NO = {
   boundary: { ok: false, reason: 'The Lattice frays at the edge of the burn: build further in.' },
   survey: { ok: false, reason: 'Build inside your own Survey.' },
   overlap: { ok: false, reason: 'Another building already holds this ground.' },
+  level: { ok: false, reason: 'Invalid building level.' },
+  support: { ok: false, reason: 'Elevated buildings need a flat deck under their entire footprint.' },
   pieces: { ok: false, reason: 'Decks or ramps hang too low over this facet.' },
   obstacle: { ok: false, reason: 'Something solid stands here.' },
 } satisfies Record<string, PlacementCheck>;
@@ -81,8 +85,9 @@ export function isCollapsed(b: Building): boolean {
   return b.gcc !== null && b.gcc.destroyedUntil !== 0;
 }
 
-export function canPlaceBuilding(world: World, f: FactionId, kind: BuildingKind, facet: number): PlacementCheck {
+export function canPlaceBuilding(world: World, f: FactionId, kind: BuildingKind, facet: number, level = 0): PlacementCheck {
   if (kind === 'hearth' || kind === 'gcc') return NO.unique;
+  if (!Number.isInteger(level) || level < 0 || level > MAX_BUILD_LEVEL + 1) return NO.level;
   const lat = world.lattice;
   if (!Number.isInteger(facet) || facet < 0 || facet >= lat.facets.length) return NO.facet;
   const fc = lat.facets[facet];
@@ -90,29 +95,36 @@ export function canPlaceBuilding(world: World, f: FactionId, kind: BuildingKind,
   if (fc.boundary) return NO.boundary;
   if (!world.inSurvey(facet, f)) return NO.survey;
   const r = BUILDINGS[kind].radius;
+  const base = world.collision.groundHeight(fc.cx, fc.cz) + level * LEVEL_HEIGHT;
+  const height = BUILDING_HEIGHT[kind];
+  if (level > 0) {
+    const deck = pieceAt(world, 'floor', -1, facet, level - 1);
+    if (!deck || deck.kind !== 'floor' || facetInradius(lat, facet) < r) return NO.support;
+  }
   for (const b of world.buildings.values()) {
     if (isCollapsed(b)) continue;
+    const otherBase = buildingBaseHeight(world, b);
+    if (otherBase + BUILDING_HEIGHT[b.kind] <= base || base + height <= otherBase) continue;
     const min = r + BUILDINGS[b.kind].radius + BUILDING_GAP;
     if ((b.pos.x - fc.cx) ** 2 + (b.pos.z - fc.cz) ** 2 < min * min) return NO.overlap;
   }
-  const height = BUILDING_HEIGHT[kind];
-  for (let level = 0; level <= MAX_BUILD_LEVEL; level++) {
-    const p = pieceAt(world, 'floor', -1, facet, level);
-    if (p && pieceBottom(p.kind, level) < height) return NO.pieces;
+  for (let slot = 0; slot <= MAX_BUILD_LEVEL; slot++) {
+    const p = pieceAt(world, 'floor', -1, facet, slot);
+    if (p && (slot + 1) * LEVEL_HEIGHT > level * LEVEL_HEIGHT && pieceBottom(p.kind, slot) < level * LEVEL_HEIGHT + height) return NO.pieces;
   }
-  if (world.map.isBlockedAt(fc.cx, fc.cz) || world.collision.blockedCircle(fc.cx, fc.cz, r, world.collision.groundHeight(fc.cx, fc.cz) + 0.2, world.collision.groundHeight(fc.cx, fc.cz) + height)) return NO.obstacle;
+  if ((level === 0 && world.map.isBlockedAt(fc.cx, fc.cz)) || world.collision.blockedCircle(fc.cx, fc.cz, r, base + (level === 0 ? 0.2 : 0.01), base + height)) return NO.obstacle;
   if (world.factions[f].lumber < BUILDINGS[kind].cost) return NO_LUMBER[kind];
   return OK;
 }
 
 export function cmdPlaceBuilding(world: World, c: CommandOf<'placeBuilding'>): void {
-  const chk = canPlaceBuilding(world, c.faction, c.kind, c.facet);
+  const chk = canPlaceBuilding(world, c.faction, c.kind, c.facet, c.level ?? 0);
   if (!chk.ok) {
     world.emit({ t: 'rejected', faction: c.faction, reason: chk.reason });
     return;
   }
   world.factions[c.faction].lumber -= BUILDINGS[c.kind].cost;
-  const b = spawnBuilding(world, c.kind, c.faction, c.facet, 0);
+  const b = spawnBuilding(world, c.kind, c.faction, c.facet, 0, c.level ?? 0);
   registerBuildingShape(world, b);
   world.emit({ t: 'buildingPlaced', buildingId: b.id, kind: b.kind, faction: b.faction, pos: { x: b.pos.x, z: b.pos.z } });
 }
@@ -127,7 +139,7 @@ export function damageBuilding(world: World, b: Building, amount: number, by: En
   if (b.kind === 'hearth' && b.hp <= 1) return false;
   b.hp = b.kind === 'hearth' ? Math.max(1, b.hp - amount) : b.hp - amount;
   // Sub-1 ticks (continuous tearing) stay silent so the event stream is not flooded.
-  if (amount >= 1) world.emit({ t: 'hit', target: b.id, by, amount, pos: { x: b.pos.x, y: world.collision.groundHeight(b.pos.x, b.pos.z) + BUILDING_HEIGHT[b.kind] / 2, z: b.pos.z } });
+  if (amount >= 1) world.emit({ t: 'hit', target: b.id, by, amount, pos: { x: b.pos.x, y: buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind] / 2, z: b.pos.z } });
   if (b.hp > 0) return true;
   b.hp = 0;
   if (b.kind === 'gcc') collapseGcc(world, b, world.time + GCC.rebuildTime);
@@ -184,8 +196,8 @@ export function registerBuildingShape(world: World, b: Building): void {
   if (world.buildings.get(b.id) !== b) { st.buildingShapes.delete(b.id); return; }
   if (isCollapsed(b)) return;
   const r = BUILDINGS[b.kind].radius;
-  ids.push(world.collision.addCylinder(b.pos.x, b.pos.z, r, world.collision.groundHeight(b.pos.x, b.pos.z), world.collision.groundHeight(b.pos.x, b.pos.z) + BUILDING_HEIGHT[b.kind], b.id));
-  world.nav.blockCircle(b.pos.x, b.pos.z, r, b.id);
+  ids.push(world.collision.addCylinder(b.pos.x, b.pos.z, r, buildingBaseHeight(world, b), buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind], b.id));
+  if (buildingLevel(b) === 0) world.nav.blockCircle(b.pos.x, b.pos.z, r, b.id);
 }
 
 /**
@@ -205,10 +217,12 @@ function isHelped(world: World, b: Building, f: FactionId): boolean {
   const r = BUILDINGS[b.kind].radius;
   const av = world.avatarOf(f);
   const reach = r + BUILD_HELP_RADIUS;
-  if (av && av.koUntil <= world.time && (av.pos.x - b.pos.x) ** 2 + (av.pos.z - b.pos.z) ** 2 <= reach * reach) return true;
+  const base = buildingBaseHeight(world, b);
+  if (av && av.koUntil <= world.time && Math.abs(av.pos.y - base) <= 1.5 && (av.pos.x - b.pos.x) ** 2 + (av.pos.z - b.pos.z) ** 2 <= reach * reach) return true;
   const helperReach = r + HELPER_REACH;
   for (const h of world.hippies.values()) {
     if (h.faction !== f || (h.status !== 'building' && h.status !== 'repairing')) continue;
+    if (Math.abs(world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) - base) > 1.5) continue;
     if ((h.pos.x - b.pos.x) ** 2 + (h.pos.z - b.pos.z) ** 2 <= helperReach * helperReach) return true;
   }
   return false;

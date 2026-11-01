@@ -110,7 +110,7 @@ describe('large billowing destruction fireballs', () => {
 
   it('routes boss building/piece bursts outside the routine budget, leaving normal destruction alone', () => {
     const fx = make(), wreck = vi.fn(), splinters = vi.fn();
-    const stub = { ctx: { time: 3, world: {} }, sceneryEruptions: fx, syncClock: vi.fn(),
+    const stub = { ctx: { time: 3, world: { buildings: new Map() } }, sceneryEruptions: fx, syncClock: vi.fn(),
       groundY: () => 6, spend: () => false, fx: { wreck, splinters }, shake: vi.fn() };
     const send = (e: Parameters<VfxRenderer['onEvent']>[0]) => VfxRenderer.prototype.onEvent.call(stub as unknown as VfxRenderer, e);
     send({ t: 'buildingDisabled', buildingId: 5, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 }, bossDestroyed: true });
@@ -120,6 +120,22 @@ describe('large billowing destruction fireballs', () => {
     send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
     send({ t: 'pieceDestroyed', pieceId: 9, kind: 'wall', faction: 0, pos: { x: 30, y: 6, z: -20 } });
     fx.update(3); expect(fx.mesh.geometry.instanceCount).toBe(count); expect(wreck).toHaveBeenCalledOnce(); fx.dispose();
+  });
+
+  it('anchors surviving elevated building effects to their base and removed collapse effects to terrain', () => {
+    const wreck = vi.fn(), confetti = vi.fn(), wardPulse = vi.fn();
+    const buildings = new Map([[8, { id: 8, pos: { x: 30, z: -20 }, level: 2 }]]);
+    const stub = { ctx: { time: 3, world: { buildings, collision: { groundHeight: () => 6 } } },
+      syncClock: vi.fn(), groundY: () => 6, spend: () => true, color: () => 0xffcc00,
+      fx: { wreck, confetti, wardPulse }, shake: vi.fn() };
+    const send = (e: Parameters<VfxRenderer['onEvent']>[0]) => VfxRenderer.prototype.onEvent.call(stub as unknown as VfxRenderer, e);
+    send({ t: 'buildingDone', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
+    expect(confetti).toHaveBeenCalledWith(30, 12.4, -20, 0xffcc00);
+    send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
+    expect(wreck).toHaveBeenLastCalledWith(30, 12.4, -20, 1);
+    buildings.clear();
+    send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
+    expect(wreck).toHaveBeenLastCalledWith(30, 6, -20, 1);
   });
 
   it('stretches flames 45% in world vertical, preserving width, age and ground anchor', () => {

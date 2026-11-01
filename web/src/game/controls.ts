@@ -32,6 +32,7 @@ import { effigyCameraTarget } from './effigyCamera';
 import { CommandView, pingKindAt } from './commandView';
 import { Input, LMB, MMB, RMB } from './input';
 import { Picker } from './picking';
+import { droppedCardPrompt } from './cardPickup';
 import type { GhostInfo, Screen, Session, ToolKind, ViewMode } from './session';
 
 /** View blend duration (s) for the global Command View toggle. */
@@ -153,7 +154,7 @@ const CONTEXT_PROMPT: Record<Exclude<ContextKind, 'pull'>, string> = {
   handFlag: 'E  Hand Flag to recruit Signifier',
   none: '',
   plant: 'E  Plant Flag',
-  beacon: 'E  Tap the D.E.G.E.N. Beacon',
+  beacon: 'E  Pick up D.E.G.E.N. Beacon · Convert 1–2 Signifiers',
   gcc: 'Hold E  Push',
   release: 'E  Release the Command Center',
 };
@@ -924,7 +925,7 @@ export class Controls {
       case 'building': {
         const g = s.ghost;
         if (pressed && g && g.valid) {
-          this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: g.facet });
+          this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: g.facet, ...(g.level ? { level: g.level } : {}) });
           if (!inp.shift) s.tool = 'flag';
         }
         return;
@@ -1105,13 +1106,14 @@ export class Controls {
     let ghost = s.tool === 'building' ? this.builder.building(world, f, s.buildingKind, s.hover.point) : null;
     if (isMobileCommandLayout() && s.tool === 'building') {
       const facet = s.mobileBuildFacet;
-      const check = canPlaceBuilding(world, f, s.buildingKind, facet);
-      ghost = { kind: s.buildingKind, facet, edge: -1, level: 0, rampEdge: -1, valid: check.ok, reason: check.reason };
+      const check = canPlaceBuilding(world, f, s.buildingKind, facet, s.mobileBuildLevel);
+      ghost = { kind: s.buildingKind, facet, edge: -1, level: s.mobileBuildLevel, rampEdge: -1, valid: check.ok, reason: check.reason };
     }
     s.ghost = ghost;
     this.clearAim(s);
     const exit = this.command.frame(world, s, f, this.app.renderer.camera, ghost);
     if (s.tool === 'building') s.prompt = this.buildingPrompt(ghost, s.buildingKind);
+    s.prompt = this.join(s.prompt, droppedCardPrompt(world, f, s.hover.entity));
     s.channel = this.channel(world, av);
     if (exit) this.exitCommand(s);
   }
@@ -1149,7 +1151,7 @@ export class Controls {
     if (this.ctxKind === 'pull') e = this.pullPrompt(world, s.playerFaction);
     else if (this.ctxKind === 'handFlag' && world.hippies.get(this.ctxTarget)?.wizard) e = 'E  Offer Flag to the Frick-frack Wizard';
     else if (this.ctxKind !== 'none') e = CONTEXT_PROMPT[this.ctxKind];
-    return this.join(tool, e);
+    return this.join(this.join(tool, e), droppedCardPrompt(world, s.playerFaction, s.hover.entity));
   }
 
   private pullPrompt(world: World, f: FactionId): string {

@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../../buildingGeometry';
 /**
  * Hippie task execution: one tick of whatever the brain's task is. Every branch keeps the
  * public `status` / `statusTarget` truthful (the D.E.G.E.N. mesh shows them) and clears the
@@ -206,11 +207,12 @@ function actFetchStock(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Fa
     return;
   }
   setStatusAt(h, b, 'fetching', hb.pos.x, hb.pos.z);
-  if (!atLogistics(h, hb, HIPPIE.interactReach)) {
-    moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
-    if (routeExhausted(h, b)) {
+  if (!atLogistics(world, h, hb, HIPPIE.interactReach)) {
+    const arrived = moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
+    if (arrived || routeExhausted(h, b)) {
       b.avoidBuildings.set(hb.id, world.time + AVOID_TIME);
       releaseTask(world, h, b);
+      setStatus(h, 'idle');
     }
     return;
   }
@@ -370,11 +372,12 @@ function actDeliver(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
     setRim(b, hb, h);
   }
   setStatusAt(h, b, stow && b.stolen ? 'stealing' : 'hauling', hb.pos.x, hb.pos.z);
-  if (!atLogistics(h, hb, HIPPIE.interactReach)) {
-    moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
-    if (routeExhausted(h, b)) {
+  if (!atLogistics(world, h, hb, HIPPIE.interactReach)) {
+    const arrived = moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
+    if (arrived || routeExhausted(h, b)) {
       b.avoidBuildings.set(hb.id, world.time + AVOID_TIME);
       releaseTask(world, h, b);
+      setStatus(h, 'idle');
     }
     return;
   }
@@ -429,6 +432,12 @@ function actDrum(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
   const dx = c.pos.x - h.pos.x;
   const dz = c.pos.z - h.pos.z;
   if (there || dx * dx + dz * dz <= (ring + 0.8) * (ring + 0.8)) {
+    if (Math.abs(buildingBaseHeight(world, c) - world.collision.groundHeight(h.pos.x, h.pos.z) - (h.airborne?.y ?? 0)) > HIPPIE.interactReach) {
+      b.avoidBuildings.set(c.id, world.time + AVOID_TIME);
+      releaseTask(world, h, b);
+      setStatus(h, 'idle');
+      return;
+    }
     setStatusAt(h, b, 'drumming', c.pos.x, c.pos.z);
     if (there) h.facing = Math.atan2(dx, dz);
   } else setStatusAt(h, b, 'walking', c.pos.x, c.pos.z);
@@ -510,7 +519,8 @@ function actTear(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
     pieceClosest(world, piece, h.pos.x, h.pos.z, reachPt);
   } else if (bld) {
     // Hearths cannot be torn down (only overwritten); disabled buildings are already down.
-    if (bld.faction === f || bld.kind === 'hearth' || bld.disabled || (bld.gcc && bld.gcc.destroyedUntil > world.time)) {
+    if (bld.faction === f || bld.kind === 'hearth' || bld.disabled || (bld.gcc && bld.gcc.destroyedUntil > world.time) ||
+        buildingBaseHeight(world, bld) > world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) + HIPPIE_HAND_Y) {
       endTask(world, h, b, ordered);
       return;
     }
@@ -547,6 +557,12 @@ function actHelp(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
     setStatusAt(h, b, 'walking', bld.pos.x, bld.pos.z);
     moveTo(world, sys, h, b, b.px, b.pz, ARRIVE_RIM);
     if (routeExhausted(h, b)) releaseTask(world, h, b);
+    return;
+  }
+  if (Math.abs(buildingBaseHeight(world, bld) - world.collision.groundHeight(h.pos.x, h.pos.z) - (h.airborne?.y ?? 0)) > HIPPIE.interactReach) {
+    b.avoidBuildings.set(bld.id, world.time + AVOID_TIME);
+    releaseTask(world, h, b);
+    setStatus(h, 'idle');
     return;
   }
   b.moving = false;

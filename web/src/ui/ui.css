@@ -720,7 +720,11 @@
   border-radius: 5px;
   background: rgba(12, 8, 4, 0.78);
   font-size: 14px;
-  white-space: nowrap;
+  white-space: normal;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 24px);
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 .prompt {
@@ -4327,3 +4331,6 @@ html[data-device-layout='mobile'] .scr-playing .banners { max-width: min(90vw, 5
 
 html[data-device-layout='mobile'] .fh-overlay > .reconnect-card { position: absolute; top: max(64px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); max-width: calc(100% - 24px); z-index: 5; }
 .mc-page .netpill { position: relative; inset: auto; max-width: 100%; white-space: normal; }
+
+/* Non-interactive pickup tags share the field plaque styling without covering controls. */
+.mc-pickup { position: absolute; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 130px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; padding: 6px 10px; border: 1px solid rgba(200,151,63,.55); border-radius: 5px; background: rgba(12,8,4,.78); font-size: 13px; line-height: 1.35; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }

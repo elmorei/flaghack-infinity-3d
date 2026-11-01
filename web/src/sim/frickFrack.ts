@@ -2,6 +2,7 @@
 import type { FactionId } from './types';
 import type { V2 } from './math';
 import type { FrickFrackArcanaState } from './frickFrackArcana';
+import { CARD_DROP_CHANCE } from './constants';
 export interface FrickFrackCard {
   id: number; rank: number; suit: number;
   /** Minor Arcana: ranks 11/12/13/14 are Page/Knight/Queen/King; all worth ten. */
@@ -136,5 +137,5 @@ export function frickFrackTotal(cards: readonly (FrickFrackCard | null)[], targe
   while (total > target && aces-- > 0) total -= 10;
   return total;
 }
-export const FRICK_FRACK_DROP_CHANCE = .035;
+export const FRICK_FRACK_DROP_CHANCE = CARD_DROP_CHANCE;
 export const FRICK_FRACK_SIDEBOARD_CAP = 12;

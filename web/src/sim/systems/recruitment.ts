@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../buildingGeometry';
 import { offerFrickFrackFlag } from './frickFrack';
 /** Recruitment changes allegiance within the shared population; it never creates a hippie. */
 import type { CommandOf } from '../commands';
@@ -107,8 +108,8 @@ export function recruiterApproach(world: World, b: Building, h: Hippie): { x: nu
  */
 export function recruitmentLineClear(world: World, b: Building, h: Hippie): boolean {
   const dx = b.pos.x - h.pos.x, dz = b.pos.z - h.pos.z;
-  const y = world.collision.groundHeight(h.pos.x, h.pos.z) + 1;
-  const dy = world.collision.groundHeight(b.pos.x, b.pos.z) + 1 - y;
+  const y = world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) + 1;
+  const dy = buildingBaseHeight(world, b) + 1 - y;
   const distance = Math.hypot(dx, dy, dz);
   return distance < .001 || !world.collision.raycast(h.pos.x, y, h.pos.z, dx, dy, dz, distance, b.id);
 }

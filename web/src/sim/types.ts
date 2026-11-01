@@ -276,6 +276,8 @@ export interface HearthState {
 }
 
 export interface Building {
+  /** Base level: 0 is terrain; N rests on the deck in slot N - 1. */
+  level?: number;
   id: EntityId;
   type: 'building';
   kind: BuildingKind;
@@ -381,11 +383,11 @@ export interface Ping {
   until: number;
 }
 
-/** A dropped D.E.G.E.N. beacon lying on the ground (enemy intel pickup). */
+/** A dropped D.E.G.E.N. beacon recruits 1–2 awake Signifiers from its original camp. */
 export interface DroppedBeacon {
   id: EntityId;
   type: 'beacon';
-  faction: FactionId; // whose mesh it taps
+  faction: FactionId; // original camp, whose hippies can be converted
   pos: V2;
   until: number;
 }

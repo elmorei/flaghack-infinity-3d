@@ -1,3 +1,5 @@
+import { buildingLevel } from '../../sim/buildingGeometry';
+import { LEVEL_HEIGHT } from '../../sim/constants';
 /**
  * BuildingView: the common life of every building visual. Subclasses build their model
  * (cached per kind in the kit) and animate it; the base class handles what every building
@@ -140,7 +142,7 @@ export abstract class BuildingView {
 
   /** Default placement: on the facet centre, facing the facet's long diagonal. */
   protected place(b: Building, f: FrameInfo): void {
-    const gy = f.ctx.shared.groundOffset?.(b.pos.x, b.pos.z) ?? 0;
+    const gy = (f.ctx.shared.groundOffset?.(b.pos.x, b.pos.z) ?? f.world.collision.groundHeight(b.pos.x, b.pos.z)) + buildingLevel(b) * LEVEL_HEIGHT;
     this.root.position.set(b.pos.x, gy, b.pos.z);
     this.root.rotation.y = b.yaw;
   }

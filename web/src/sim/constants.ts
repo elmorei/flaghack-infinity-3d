@@ -372,7 +372,9 @@ export const SOS_COOLDOWN = 6;
 export const RETRANSMIT_COOLDOWN = 60;
 export const RETRANSMIT_ATTENTION = 35;
 export const MESH_TAP_DURATION = 30;
-export const BEACON_DROP_CHANCE = 0.35;
+/** Mutually exclusive intervals in one per-KO loot roll: card, beacon, then no drop. */
+export const CARD_DROP_CHANCE = 0.05;
+export const BEACON_DROP_CHANCE = 0.20;
 /** Seconds a dropped D.E.G.E.N. beacon lies in the dirt before it is MOOP-swept. */
 export const BEACON_LIFETIME = 60;
 

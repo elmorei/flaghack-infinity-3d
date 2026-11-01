@@ -4,7 +4,7 @@ import { dropFrickFrackCard } from './frickFrack';
  * Economy systems. Every damage source in the game calls `damageEntity`.
  * Owner: Units agent.
  */
-import { AVATAR, BEACON_DROP_CHANCE, BEACON_LIFETIME, HIPPIE, MAP_HALF } from '../constants';
+import { AVATAR, CARD_DROP_CHANCE, BEACON_DROP_CHANCE, BEACON_LIFETIME, HIPPIE, MAP_HALF } from '../constants';
 import { spawnBeacon } from '../factory';
 import { TAU } from '../math';
 import type { V2 } from '../math';
@@ -108,17 +108,22 @@ function koAvatar(world: World, av: Avatar, by: EntityId | -1): void {
  * beacon, forgets one-shot orders and waits HIPPIE.respawnTime.
  */
 function koHippie(world: World, h: Hippie, by: EntityId | -1): void {
-  dropFrickFrackCard(world, h);
+  // One authoritative roll: 5% card, 20% beacon, 75% nothing. Ineligible beacon
+  // outcomes stay empty rather than inflating the card rate for neutrals.
+  if (!h.wizard) {
+    const loot = world.rng.next();
+    if (loot < CARD_DROP_CHANCE) dropFrickFrackCard(world, h);
+    else if (loot < CARD_DROP_CHANCE + BEACON_DROP_CHANCE && h.faction !== NEUTRAL && h.beacon) {
+      spawnBeacon(world, h.faction, h.pos, world.time + BEACON_LIFETIME);
+      h.beacon = false;
+    }
+  }
   releaseTask(world, h, brainOf(h));
   if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, { x: h.pos.x, y: world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0), z: h.pos.z });
   h.carryingLumber = 0;
   // Knockouts break allegiance: no old camp orders survive the neutral respawn.
   h.order = null;
   h.job = null;
-  if (h.faction !== NEUTRAL && h.beacon && world.rng.chance(BEACON_DROP_CHANCE)) {
-    spawnBeacon(world, h.faction, h.pos, world.time + BEACON_LIFETIME);
-    h.beacon = false;
-  }
   h.hp = 0;
   h.status = 'ko';
   h.statusTarget = null;

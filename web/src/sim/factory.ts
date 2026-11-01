@@ -159,10 +159,11 @@ export function spawnHippie(world: World, faction: Owner, at: V2): Hippie {
   return h;
 }
 
-export function spawnBuilding(world: World, kind: BuildingKind, faction: Owner, facet: number, built = 0): Building {
+export function spawnBuilding(world: World, kind: BuildingKind, faction: Owner, facet: number, built = 0, level = 0): Building {
   const f = world.lattice.facets[facet];
   const def = BUILDINGS[kind];
   const b: Building = {
+    level,
     id: world.newId(),
     type: 'building',
     kind,
@@ -273,7 +274,7 @@ export function spawnPing(world: World, kind: PingKind, faction: FactionId, at: 
   return p;
 }
 
-/** A D.E.G.E.N. beacon dropped by a KO'd hippie; picking it up taps `faction`'s mesh. */
+/** A D.E.G.E.N. beacon dropped by a KO'd hippie; pickup recruits from `faction`. */
 export function spawnBeacon(world: World, faction: FactionId, at: V2, until: number): DroppedBeacon {
   const b: DroppedBeacon = { id: world.newId(), type: 'beacon', faction, pos: { ...at }, until };
   world.beacons.set(b.id, b);

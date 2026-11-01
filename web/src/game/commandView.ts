@@ -1,3 +1,4 @@
+import { buildingLevelAtHit } from './buildMode';
 import { isMobileCommandLayout } from './mobileTouch';
 /**
  * Command View (the GCC table): tactical camera control (WASD / arrows / screen-edge /
@@ -275,7 +276,7 @@ export class CommandView {
         else s.post('Choose an awake neutral Signifier to recruit.');
       } else if (s.tool === 'building') {
         if (ghost && ghost.valid) {
-          this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet });
+          this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet, ...(ghost.level ? { level: ghost.level } : {}) });
           if (!inp.shift) s.tool = 'flag';
         }
       } else if (s.planTool !== 'select') this.planClick(world, s, f);
@@ -327,8 +328,8 @@ export class CommandView {
     if (s.mobileMenu !== null) { touch.cancel(); s.mobileBuildConfirm = false; return false; }
     if (s.mobileBuildConfirm) {
       s.mobileBuildConfirm = false;
-      if (s.tool === 'building' && ghost?.valid && ghost.facet === s.mobileBuildFacet) {
-        this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet });
+      if (s.tool === 'building' && ghost?.valid && ghost.facet === s.mobileBuildFacet && (ghost.level ?? 0) === s.mobileBuildLevel) {
+        this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet, ...(ghost.level ? { level: ghost.level } : {}) });
         s.tool = 'flag'; s.mobileBuildFacet = -1; s.ghost = null;
       } else s.post(ghost?.reason || 'Choose a buildable space first.', 'warn');
     }
@@ -354,9 +355,10 @@ export class CommandView {
         s.post('Plan mode: tap nodes to mark targets.'); return false;
       }
       const facet = world.lattice.facets[s.hover.facet];
+      const surfaceY = s.hover.point?.y ?? (facet ? world.collision.groundHeight(facet.cx, facet.cz) : 0);
       if (facet && facet.thick && !facet.boundary && world.inSurvey(s.hover.facet, f) &&
-          this.project(camera, facet.cx, world.collision.groundHeight(facet.cx, facet.cz), facet.cz) && Math.hypot(this.sx - action.x, this.sy - action.y) <= 30) {
-        s.mobileMode = 'build'; s.planTool = 'node'; s.mobileBuildFacet = s.hover.facet; s.mobileMenu = 'build';
+          this.project(camera, facet.cx, surfaceY, facet.cz) && Math.hypot(this.sx - action.x, this.sy - action.y) <= 30) {
+        s.mobileMode = 'build'; s.planTool = 'node'; s.mobileBuildFacet = s.hover.facet; s.mobileBuildLevel = buildingLevelAtHit(world, facet.id, surfaceY); s.mobileMenu = 'build';
       } else s.post('Hold the center of a buildable space inside your Survey.', 'warn');
       return false;
     }

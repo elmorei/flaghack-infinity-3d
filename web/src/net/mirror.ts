@@ -56,7 +56,7 @@ function maskOf(codec: EntityCodec, keys: readonly string[]): number {
 /** Avatar fields that client prediction owns on the predicted avatar. */
 const PREDICTED_MASK = maskOf(AVATARS, ['x', 'y', 'z', 'vx', 'vy', 'vz', 'yaw', 'pitch', 'onGround']);
 /** Building fields whose change moves or (un)registers its collision/nav shape. */
-const SHAPE_MASK = maskOf(CODECS.buildings, ['kind', 'x', 'z', 'gcc']);
+const SHAPE_MASK = maskOf(CODECS.buildings, ['kind', 'x', 'z', 'gcc', 'level']);
 
 const NO_FLIPS: readonly number[] = [];
 const NO_ROWS: readonly Wire[][] = [];

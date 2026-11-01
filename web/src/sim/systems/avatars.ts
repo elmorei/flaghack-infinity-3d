@@ -1,3 +1,4 @@
+import { buildingBaseHeight } from '../buildingGeometry';
 import { isFrickFrackLocked } from './frickFrack';
 /**
  * Vexillomancer avatars: movement through CollisionWorld (run/sprint/jump/gravity/step),
@@ -508,7 +509,8 @@ function resolveSwing(world: World, av: Avatar): void {
   }
   {
     for (const b of world.buildings.values()) {
-      if (b.faction === av.faction || ay - world.collision.groundHeight(b.pos.x, b.pos.z) >= BUILDING_HEIGHT) continue;
+      const base = buildingBaseHeight(world, b);
+      if (b.faction === av.faction || ay - base >= BUILDING_HEIGHT || top < base) continue;
       buildingClosest(b, ax, az, reachPt);
       if (reachPt.dist > reach || reachPt.dist >= bestD) continue;
       if (!inCone(ax, az, fx, fz, cosHalf, reachPt.x, reachPt.z, Infinity)) continue;
@@ -546,9 +548,9 @@ function collectLooseFlags(world: World, av: Avatar): void {
 
 /** One Flag per restockInterval from own Hearth/Workshop stock within restockRadius of its edge. */
 function restock(world: World, av: Avatar, mind: AvatarMind): void {
-  if (av.carried.length >= AVATAR.quiver || world.time < mind.restockAt || av.pos.y - world.collision.groundHeight(av.pos.x, av.pos.z) > LEVEL_REACH) return;
+  if (av.carried.length >= AVATAR.quiver || world.time < mind.restockAt) return;
   for (const h of world.buildings.values()) {
-    if (h.faction !== av.faction || (h.kind !== 'hearth' && h.kind !== 'workshop') || h.built < 1) continue;
+    if (h.faction !== av.faction || (h.kind !== 'hearth' && h.kind !== 'workshop') || h.built < 1 || Math.abs(av.pos.y - buildingBaseHeight(world, h)) > LEVEL_REACH) continue;
     const hid = h.id;
     const reach = BUILDINGS[h.kind].radius + AVATAR.restockRadius;
     const dx = h.pos.x - av.pos.x;
@@ -559,6 +561,7 @@ function restock(world: World, av: Avatar, mind: AvatarMind): void {
       return;
     }
   }
+  if (av.pos.y - world.collision.groundHeight(av.pos.x, av.pos.z) > LEVEL_REACH) return;
   for (const o of activeScenery(world, 'car', av.faction)) {
     const point = sceneryServicePoint(world,o,av.pos);
     if (!point || Math.hypot(point.x-av.pos.x,point.z-av.pos.z) > AVATAR.restockRadius) continue;

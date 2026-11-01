@@ -115,9 +115,9 @@ export class BuildGhost {
     g.kind = kind;
     g.edge = -1;
     g.facet = facet;
-    g.level = 0;
+    g.level = buildingLevelAtHit(world, facet, hit.y);
     g.rampEdge = -1;
-    const check = canPlaceBuilding(world, f, kind, facet);
+    const check = canPlaceBuilding(world, f, kind, facet, g.level);
     g.valid = check.ok;
     g.reason = check.reason;
     return g;
@@ -171,4 +171,11 @@ export class BuildGhost {
     }
     return best;
   }
+}
+
+/** Surface height snapped to the same lattice level sent to the authoritative placement check. */
+export function buildingLevelAtHit(world: World, facet: number, y: number): number {
+  const fc = world.lattice.facets[facet];
+  if (!fc) return 0;
+  return clamp(Math.round((y - world.collision.groundHeight(fc.cx, fc.cz)) / LEVEL_HEIGHT), 0, MAX_BUILD_LEVEL + 1);
 }

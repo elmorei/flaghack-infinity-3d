@@ -897,6 +897,7 @@ const HIPPIE_FIELDS: readonly Field<Hippie>[] = [
 ];
 
 const BUILDING_FIELDS: readonly Field<Building>[] = [
+  num('level', 1, (b) => b.level ?? 0, (b, v) => { b.level = v; }),
   choice('kind', BUILDING_KINDS, (b) => b.kind, (b, v) => {
     b.kind = v;
   }),

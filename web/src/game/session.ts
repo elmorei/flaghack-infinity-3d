@@ -128,6 +128,7 @@ export class Session {
   mobileMode: 'units' | 'build' = 'units';
   mobileMenu: null | 'main' | 'units' | 'plan' | 'build' | 'settings' = null;
   mobileBuildFacet = -1;
+  mobileBuildLevel = 0;
   mobileBuildConfirm = false;
   mobileCancelSerial = 0;
   mobileAbility: import('../sim/types').AbilityId | null = null;
