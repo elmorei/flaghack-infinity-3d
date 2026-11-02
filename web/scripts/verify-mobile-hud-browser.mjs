@@ -62,11 +62,15 @@ try{
     assert.ok(await page.locator('.mc-timing .tide').isVisible());assert.ok(await page.locator('.mc-timing .burn').isVisible());
     assert.ok(g.timing.w>0&&g.timing.h>0);
     await page.screenshot({path:join(OUT,`${spec.name}-field.png`)});
+    await page.waitForFunction(()=>{const a=window.flaghack;return a.world.time>=1&&a.session.viewBlend===1&&a.controls.input.touch.enabled&&!a.controls.freshWorld;});
     const beforePan=await page.evaluate(()=>({x:window.flaghack.session.camera.cmdX,z:window.flaghack.session.camera.cmdZ}));
     const cdp=await context.newCDPSession(page),touch={x:g.resources.x+g.resources.w/2,y:g.resources.y+g.resources.h/2,radiusX:2,radiusY:2,force:1,id:1};
+    entry.touchStart=await page.evaluate(p=>({target:document.elementFromPoint(p.x,p.y)?.tagName,enabled:window.flaghack.controls.input.touch.enabled,viewBlend:window.flaghack.session.viewBlend}),touch);
+    assert.equal(entry.touchStart.target,'CANVAS','Resource panel does not intercept touch');
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touch]});
     for(let step=1;step<=4;step++){await page.waitForTimeout(45);await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...touch,x:touch.x-step*8,y:touch.y+step*5}]});}
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();
+    entry.touchEnd=await page.evaluate(()=>({camera:{...window.flaghack.session.camera},touch:{...window.flaghack.controls.input.touch}}));
     await page.waitForFunction(p=>Math.hypot(window.flaghack.session.camera.cmdX-p.x,window.flaghack.session.camera.cmdZ-p.z)>.05,beforePan);
     entry.checks.push('Resource panel passes real touch drags through to field camera input');
     const motion=await page.evaluate(async()=>{
