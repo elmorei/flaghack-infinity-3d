@@ -245,9 +245,12 @@ async function rampScenario(spec,check){
 
 async function completedWardClearance(spec,check){
   if(spec.mobile)return; // Desktop real placement supplies the completion/bounce proof.
+  // Entering command view recenters on the avatar; finish that transition before aiming the fixture.
+  await page.evaluate(()=>{window.flaghack.session.view='command';window.flaghack.session.tool='flag';});
+  await page.waitForTimeout(1100);
   await page.evaluate(()=>{
     const a=window.flaghack,w=a.world,f=window.fh;
-    const fc=w.lattice.facets.find(fc=>f.buildings.canPlaceBuilding(w,0,'ward',fc.id).ok&&![...w.pieces.values()].some(p=>p.facet===fc.id));
+    const fc=w.lattice.facets.find(fc=>f.buildings.canPlaceBuilding(w,0,'ward',fc.id).ok&&![...w.pieces.values()].some(p=>{const at=w.lattice.facets[p.facet];return at&&Math.hypot(at.cx-fc.cx,at.cz-fc.cz)<15;})&&![...w.buildings.values()].some(b=>Math.hypot(b.pos.x-fc.cx,b.pos.z-fc.cz)<15));
     if(!fc)throw Error('No ground Ward clearance fixture');
     w.factions[0].lumber=1000;a.session.view='command';a.session.tool='building';a.session.buildingKind='ward';
     a.session.camera.cmdX=fc.cx;a.session.camera.cmdZ=fc.cz;a.session.camera.cmdHeight=28;
@@ -327,10 +330,10 @@ async function scenario(spec,url){
       check(`Real E pickup converts ${converted.length} source-camp hippie(s), leaves other camps alone, gives no mesh tap, and cannot repeat`);
       await page.screenshot({path:join(OUT,`${spec.name}-beacon-collected.png`)});
     }else check('Mobile-emulated Regular-mode pickup plaque is visible, wraps within viewport and does not intercept touch or overlap field controls');
+    await completedWardClearance(spec,check);
     await platformScenario(spec,context,check);
     await ladderScenario(spec,context,check);
     await rampScenario(spec,check);
-    await completedWardClearance(spec,check);
     entry.after=await renderState();
     if(spec.mobile){
       await page.evaluate(()=>window.flaghack.startMatch({seed:'beacon-card-degen',humans:[0],rtsFactions:[0],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
@@ -341,7 +344,7 @@ async function scenario(spec,url){
       check('Actual Degen match has no avatar and shows no false pickup action plaque');
     }
     assert.deepEqual(entry.errors,[]);entry.completed=true;await page.waitForTimeout(1000);
-  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);entry.rampFailure=await page?.evaluate(()=>({fixture:window.__rampFixture,position:window.flaghack?.world?.avatarOf(0)?.pos})).catch(()=>null);entry.ladderFailure=await page?.evaluate(()=>{const a=window.flaghack,av=a?.world?.avatarOf(0);return{fixture:window.__ladderFixture,position:av?.pos,input:av?.input,view:a?.session.view};}).catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
+  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);entry.clearanceFailure=await page?.evaluate(()=>({target:window.__underDeck,ghost:window.flaghack?.session.ghost,camera:window.flaghack?.session.camera})).catch(()=>null);entry.rampFailure=await page?.evaluate(()=>({fixture:window.__rampFixture,position:window.flaghack?.world?.avatarOf(0)?.pos})).catch(()=>null);entry.ladderFailure=await page?.evaluate(()=>{const a=window.flaghack,av=a?.world?.avatarOf(0);return{fixture:window.__ladderFixture,position:av?.pos,input:av?.input,view:a?.session.view};}).catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
   finally{if(page&&!page.isClosed())entry.videoPath=await page.video()?.path();await context.close();}
 }
 async function main(){
