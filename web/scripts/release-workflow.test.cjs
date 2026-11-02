@@ -13,7 +13,7 @@ test('only main publication can create a host release and deploy Pages', () => {
     assert.match(workflow.jobs[id].if, /github\.ref == 'refs\/heads\/main'/);
     assert.match(workflow.jobs[id].if, /github\.repository == 'elmorei\/flaghack-infinity-3d'/);
   }
-  assert.deepEqual(workflow.jobs['publish-host'].needs, ['client', 'windows-host', 'startup-browser']);
+  assert.deepEqual(workflow.jobs['publish-host'].needs, ['client', 'windows-host', 'startup-browser', 'update-browser']);
   assert.deepEqual(workflow.jobs['deploy-pages'].needs, ['client', 'publish-host']);
   assert.deepEqual(workflow.jobs['publish-host'].permissions, { contents: 'write' });
   assert.deepEqual(workflow.jobs['deploy-pages'].permissions, { pages: 'write', 'id-token': 'write' });
@@ -22,7 +22,7 @@ test('all third-party actions are immutable and builds have no write token', () 
   for (const job of Object.values(workflow.jobs)) {
     for (const step of job.steps) if (step.uses) assert.match(step.uses, /^[^@]+@[a-f0-9]{40}$/);
   }
-  for (const id of ['client', 'windows-host', 'startup-browser']) {
+  for (const id of ['client', 'windows-host', 'startup-browser', 'update-browser']) {
     assert.equal(workflow.jobs[id].permissions, undefined);
     const checkout = workflow.jobs[id].steps.find(step => step.uses?.startsWith('actions/checkout@'));
     assert.equal(checkout.with['persist-credentials'], false);
@@ -62,4 +62,17 @@ test('host package smoke launches the configured branded executable, not the leg
   assert.ok(verify.includes('spawn(executable,'));
   assert.ok(!verify.includes('FLAGHACK Match Host.exe'));
   assert.equal(host.portable.artifactName, 'Flaghack-Host-Windows-x64.${ext}');
+});
+
+ test('new mobile, Crow and explosion checks gate publication against the built Pages artifact', () => {
+  const browser = workflow.jobs['update-browser'];
+  assert.deepEqual(browser.needs, ['client']);
+  assert.equal(browser['runs-on'], 'macos-15');
+  const artifact = browser.steps.find(step => step.uses?.startsWith('actions/download-artifact@'));
+  assert.equal(artifact.with.name, 'github-pages');
+  const runs = browser.steps.map(step => step.run || '').join('\n');
+  assert.match(runs, /npm run build:server/);
+  assert.match(runs, /artifact\.tar/);
+  for (const script of ['verify-mobile-hud-browser.mjs', 'verify-auto-style-browser.mjs', 'verify-explosion-browser.mjs']) assert.ok(runs.includes(script));
+  assert.doesNotMatch(runs, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
 });
