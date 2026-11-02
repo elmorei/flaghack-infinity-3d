@@ -1,35 +1,35 @@
 {
   "schema": 1,
   "repository": "elmorei/flaghack-infinity-3d",
-  "version": "0.1.2-iteration.1",
-  "source": "69384d2257787f9dbc2899fea0b3040557a77f30",
-  "run_id": 38198810535,
+  "version": "0.1.3-iteration.1",
+  "source": "ca14fa29a50ba4837e6d0d29e1d8f1ef63dee449",
+  "run_id": 41379577690,
   "run_attempt": 1,
   "workflow_id": 381482608,
-  "artifact_id": 11724302794,
-  "artifact_name": "flaghack-windows-iteration-0.1.2-iteration.1",
+  "artifact_id": 13112663980,
+  "artifact_name": "flaghack-windows-iteration-0.1.3-iteration.1",
   "zip": {
-    "size": 121801701,
-    "sha256": "bd7a79b05c64994e9bfda4f5a7c0b23fadea7b154c31b92673a97389f70090e2",
-    "sha512": "WZVtdE8iI8vUz+FbfTxpAs7pEyY/emufUtVpOhXDSSusU6TrTDReIJM5PYI+cXrr7xPJfb7+jeYZN/grN04OpA=="
+    "size": 179352837,
+    "sha256": "1908ccabe165e426a2bc1435d35c138119af924d011facb7eb1b24a17614dfdc",
+    "sha512": "IBgVFtK4ZVamW9FREKCxBrepF0BKGNrSeOQd+DI9wQrL0BBv3aETIDHXM01HOJQbQ6PzdwRl+ok7eBMc/XmIFA=="
   },
   "assets": {
-    "Flaghack-Setup-0.1.2-iteration.1-x64.exe": {
-      "size": 121672452,
-      "sha256": "23fb7bb0215c8ed58e3d1533113cc03ccbcb3c3ddb3afde79544f69601ca9618",
-      "sha512": "7XF09pq5ExKcLNF2SjZdqG0yc4d0+BDvnslCglUImBIEgq0iQOyARCqzB/lzb1by9eEzwqhNjmg+qIxVjYc2PA=="
+    "Flaghack-Setup-0.1.3-iteration.1-x64.exe": {
+      "size": 179164140,
+      "sha256": "3edeedd7cd04ec26681e86524938d5abda3816f55848668cdb668b6bc86c1b13",
+      "sha512": "ZK20x2N8eRz37FEYUfzK2ncPOv3FZiTzKqstmkmudt6q6rxJFyEDt1h/ajvj5mRJrWrj4l8FHbOiZxcg+A+DjA=="
     },
-    "Flaghack-Setup-0.1.2-iteration.1-x64.exe.blockmap": {
-      "size": 128358,
-      "sha256": "3e6fdb2baa0873c75cfeca07db99e78b20fbab0854eae88767da68419a0e69e5",
-      "sha512": "KgfoD3xYB/qyHR5DPc/D8LVkWQBJU32aHqs2LLHkK79ShGM01sA0meFtaPqUvdm/0bqtyhXVc1sKdLT9kuXRXw=="
+    "Flaghack-Setup-0.1.3-iteration.1-x64.exe.blockmap": {
+      "size": 187806,
+      "sha256": "05f9987120369d2f0e4b3bd7b17c59cb106d237805e411a1c531158be37a630e",
+      "sha512": "lvqem+AWAO1Zm16QN+VQYWQs/N3olax9+JzhvvW0EwEZ6maCkDuc2VPNnPR4ElGtA1/lDpGxDlBEaarqQdUdVQ=="
     },
     "iteration.yml": {
       "size": 389,
-      "sha256": "f650bb1eb58bcf3e4f1d67967bfcc8d2608cdf3fa69c7f24d06b5d43f116ca89",
-      "sha512": "F7/3ljRWUtzjYNhXo1/StbaQtQmQ3owfZpJyKhiFHppO+ScCePbFn4YLYDnjYN1ChC8DpwhcIZ2Q1d9cJe+ssA=="
+      "sha256": "8dc50434d921e738693303bc87ad110bcf641cdd4c13e766f4d7f2b8bcff1800",
+      "sha512": "lk+OqouzhoM1U2bEWOU9ceMxS25mPeGRXZeuygum4ZVaNQfYI96zhVbsp2vTDJivAMsPNVJgqfEAsZXbt7yqew=="
     }
   },
-  "launcher_tests": 119,
-  "game_tests": 1271
+  "launcher_tests": 111,
+  "game_tests": 2465
 }
