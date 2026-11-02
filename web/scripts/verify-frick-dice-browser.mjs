@@ -63,12 +63,35 @@ async function installStableProbe(){
       const calls=[],focusFailures=[],submit=app.submit;app.submit=(...args)=>{calls.push(args);};
       try{for(const b of root.querySelectorAll('button:disabled')){b.focus({preventScroll:true});if(document.activeElement===b)focusFailures.push(b.dataset.action||b.textContent);b.click();b.dispatchEvent(new MouseEvent('click',{bubbles:true}));}}finally{app.submit=submit;}
       return {phase:s.phase,viewport:{width:innerWidth,height:innerHeight},panel:rect(root.querySelector('.ff-panel')),stage:rect(root.querySelector('.ff-table-stage')),controls,
-        counter:rect(counter),counterFramed:counter.matches('.res.frame'),counterFrame,mainFrame,fit,removedControls:root.querySelectorAll('.ff-rules,[data-action="again"]').length,counterText:number.textContent,available:app.world.avatarOf(s.faction).carried.length,counterStyle:style(number),mainStyle:style(main),
+        counter:rect(counter),counterFramed:counter.matches('.res.frame'),counterFrame,mainFrame,mainFrameCompact:!!main.closest('.mc-resources'),deviceLayout:document.documentElement.dataset.deviceLayout,fit,removedControls:root.querySelectorAll('.ff-rules,[data-action="again"]').length,counterText:number.textContent,available:app.world.avatarOf(s.faction).carried.length,counterStyle:style(number),mainStyle:style(main),
         icon:counter.querySelector('.res-flag-ic')?.innerHTML,mainIcon:main.parentElement.querySelector('.res-flag-ic')?.innerHTML,
         wager:rect(wager),wagerDisabled:[...wager.querySelectorAll('button,input')].map(e=>e.disabled),
         sleeveOpen:root.querySelector('[data-action="sleeve"]').getAttribute('aria-expanded')==='true',disabledCalls:calls.length,focusFailures,snapshot:app.renderer.frickScene.snapshot()};
     };
   });
+}
+function assertSharedFrame(value){
+  const borderWidths=['borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth'];
+  const padding={paddingTop:'2px',paddingRight:'6px',paddingBottom:'4px',paddingLeft:'6px'};
+  // Mobile field status reparents the original resource nodes into a compact
+  // frame. Its dimensions intentionally differ; shared artwork must not.
+  assert.equal(value.mainFrameCompact,value.deviceLayout==='mobile','Only mobile resources use the compact field frame');
+  assert.equal(value.counterFrame.borderImageWidth,'13px','Table counter retains canonical frame artwork width');
+  assert.equal(value.mainFrame.borderImageWidth,value.mainFrameCompact?'7px':'13px','Gameplay frame uses the intended layout width');
+  for(const [key,expected] of Object.entries(padding)){
+    assert.equal(value.counterFrame[key],expected,'Canonical counter '+key);
+    assert.equal(value.mainFrame[key],value.mainFrameCompact?'5px':expected,'Gameplay frame '+key);
+  }
+  // Chromium snaps used borders under HUD CSS zoom. Allow the existing one
+  // CSS pixel rounding tolerance, against each frame's explicit intended size.
+  for(const key of Object.keys(value.mainFrame)){
+    if(borderWidths.includes(key)){
+      assert.ok(Math.abs(parseFloat(value.counterFrame[key])-13)<=1,'Canonical counter border '+key);
+      assert.ok(Math.abs(parseFloat(value.mainFrame[key])-(value.mainFrameCompact?7:13))<=1,'Gameplay frame border '+key);
+    }else if(key!=='borderImageWidth'&&!(key in padding)){
+      assert.equal(value.counterFrame[key],value.mainFrame[key],'Shared frame style '+key);
+    }
+  }
 }
 function assertStableTable(value,baseline,phase){
   assert.equal(value.phase,phase);
@@ -88,14 +111,7 @@ function assertStableTable(value,baseline,phase){
   assert.deepEqual(value.counterStyle,value.mainStyle,'Counter reuses actual main gameplay font, color and shadow');
   assert.equal(value.removedControls,0,'Rules bar and Again button are absent');
   assert.equal(value.counterFramed,true,'Flag count uses the main res frame classes');
-  const borderWidths=['borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth'];
-  // The main HUD uses CSS zoom: Chromium snaps used border widths to device
-  // pixels (e.g. shared 13px CSS becomes 12.2222px at .9 zoom). Keep exact
-  // artwork/background/padding checks; allow only one CSS pixel of this rounding.
-  for(const key of Object.keys(value.mainFrame)) {
-    if(borderWidths.includes(key))assert.ok(Math.abs(parseFloat(value.counterFrame[key])-parseFloat(value.mainFrame[key]))<=1,'Shared frame border width '+key);
-    else assert.equal(value.counterFrame[key],value.mainFrame[key],'Shared frame style '+key);
-  }
+  assertSharedFrame(value);
   value.fit.forEach(f=>assert.ok(Math.abs(f.width-f.natural)<=3,'Flag plate hugs '+f.digits+' text rather than fixed empty width'));
   assert.ok(value.fit[1].width>value.fit[0].width&&value.fit[2].width>value.fit[1].width,'Flag plate grows naturally for added digits');
   assert.equal(value.icon,value.mainIcon,'Counter reuses main Flag icon');
