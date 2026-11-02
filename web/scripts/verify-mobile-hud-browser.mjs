@@ -71,7 +71,7 @@ try{
     for(let i=0;i<3;i++){
       await page.locator('.mc-top').getByRole('button',{name:'Menu',exact:true}).tap();
       await page.locator('.mc-page[data-tab="main"] .res').waitFor({state:'visible'});
-      assert.equal(await page.locator('.res').count(),1);assert.equal(await page.locator('.clock').count(),1);
+      assert.equal(await page.locator('.res:not(.ff-flag-counter)').count(),1);assert.equal(await page.locator('.clock').count(),1);
       assert.ok(await page.locator('.mc-page[data-tab="main"] .clock .tod-l').isVisible(),'Full phase label retained in Overview');
       if(i===0)await page.screenshot({path:join(OUT,`${spec.name}-overview.png`)});
       await page.getByRole('button',{name:'Back to field',exact:true}).tap();await page.locator('.mc-resources .res').waitFor({state:'visible'});
