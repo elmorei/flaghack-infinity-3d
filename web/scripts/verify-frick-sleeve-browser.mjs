@@ -92,13 +92,15 @@ async function card(){
   return (await state()).snapshot.cards.find(c=>c.key.startsWith('sleeve-viewer:'));
 }
 async function geometry(){
-  // A simulation phase can precede the DOM's next layout frame. Zero rectangles
-  // are not a valid baseline; retain the exact reflow comparison once all three exist.
-  await page.waitForFunction(()=>{
-    const els=[...document.querySelectorAll('.ff-table-stage,.ff-main-actions,.ff-flag-counter')];
-    return els.length===3&&els.every(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;});
+  // Readiness and capture must be one browser turn: the table can rerender
+  // between a boolean readiness poll and a separate evaluateAll call.
+  const sample=await page.waitForFunction(()=>{
+    const rects=[...document.querySelectorAll('.ff-table-stage,.ff-main-actions,.ff-flag-counter')].map(e=>{
+      const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};
+    });
+    return rects.length===3&&rects.every(r=>r.width>0&&r.height>0)?rects:false;
   },null,{timeout:30000});
-  return page.locator('.ff-table-stage,.ff-main-actions,.ff-flag-counter').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));
+  try{return await sample.jsonValue();}finally{await sample.dispose();}
 }
 async function scenario(spec,url){
   const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.touch,isMobile:!!spec.touch,...(spec.touch?{userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'}:{}),deviceScaleFactor:1,reducedMotion:spec.reduced?'reduce':'no-preference',recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
