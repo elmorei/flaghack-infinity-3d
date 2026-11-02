@@ -6,8 +6,9 @@
  *   inset Ley edge segment, spanning [L·H, (L+1)·H].
  * - Deck: a rhombus plank platform (sheared planks, rim and inner joists) whose top sits at
  *   (L+1)·H; all decks stand on four ground-reaching scaffold posts exactly where the sim puts them.
- * - Ramp: slatted boards on stringers rising one level from the rampEdge side (L·H) to the
- *   opposite edge ((L+1)·H); level-0 ramps get two posts under the high side.
+ * - Ramp: a centered rectangular strip of slatted boards on straight stringers, rising
+ *   one level from the rampEdge side (L·H) to the opposite edge ((L+1)·H); level-0 ramps
+ *   get two posts under the rectangular high corners.
  *
  * Penrose rhombi come in four corner angles (36°, 72°, 108°, 144°), so each deck/ramp is a
  * rigid instance of one of four variant models placed in a frame anchored at a facet corner
@@ -19,7 +20,7 @@ import { platformLadders, PLATFORM_LADDER_WIDTH, PLATFORM_LADDER_RAIL_OFFSET } f
 import { groundHeight } from '../../sim/terrain';
 import { LEVEL_HEIGHT, MAP_HALF, NEUTRAL_COLOR, PIECE } from '../../sim/constants';
 import type { Lattice } from '../../sim/lattice/lattice';
-import { DECK_THICKNESS, RAMP_THICKNESS, STILT_RADIUS, stiltFoot, wallSegment } from '../../sim/systems/econ/pieceGeometry';
+import { DECK_THICKNESS, RAMP_THICKNESS, STILT_RADIUS, rampPolygon, stiltFoot, wallSegment } from '../../sim/systems/econ/pieceGeometry';
 import type { PieceKind } from '../../sim/types';
 import type { FrameInfo } from './buildingView';
 import { MaterialSet, type MatKey, type ModelBuilder, type ModelGeometry, type StructureKit } from './kit';
@@ -111,9 +112,10 @@ function board(
   thick: number,
   inset: number,
   color: number,
+  xOffset = 0,
 ): void {
-  const xa = (z: number): number => z * cot + inset;
-  const xb = (z: number): number => L + z * cot - inset;
+  const xa = (z: number): number => xOffset + z * cot + inset;
+  const xb = (z: number): number => xOffset + L + z * cot - inset;
   const yt0 = y0 + slope * z0;
   const yt1 = y0 + slope * z1;
   const c = [
@@ -156,30 +158,31 @@ function deckModel(mb: ModelBuilder, L: number, theta: number): void {
   for (const [s0, t0, s1, t1] of rims) mb.beam('woodPaint', corner(s0, t0), corner(s1, t1), 0.12, jh, JOIST);
 }
 
-/** Ramp variant: rises from the anchor edge (z = 0, y = 0) to the far edge (z = h, y = H). */
+/** Largest centered rectangular strip joining the low (z = 0) and high (z = h) edges. */
 function rampModel(mb: ModelBuilder, L: number, theta: number): void {
   const h = L * Math.sin(theta);
-  const cot = Math.cos(theta) / Math.sin(theta);
+  const dx = L * Math.cos(theta);
+  const x0 = Math.max(0, dx), x1 = Math.min(L, L + dx);
+  const width = x1 - x0;
   const slope = H / h;
   const n = 13;
   const gap = 0.07;
   for (let i = 0; i < n; i++) {
     const z0 = (i * h) / n + gap / 2;
     const z1 = ((i + 1) * h) / n - gap / 2;
-    board(mb, L, cot, z0, z1, 0, slope, 0.06, 0.04, i % 2 === 0 ? PLANK : PLANK_ALT);
+    board(mb, width, 0, z0, z1, 0, slope, 0.06, 0.04, i % 2 === 0 ? PLANK : PLANK_ALT, x0);
   }
-  // Stringers along the two slanted sides and the middle, under the slats.
-  const dx = L * Math.cos(theta);
+  // Straight parallel stringers under the rectangular slats (no rhombus shear).
   const sh = RAMP_THICKNESS - 0.06;
   for (const s of [0.04, 0.5, 0.96]) {
-    const a: [number, number, number] = [s * L + 0.03 * dx, 0.03 * H - 0.06 - sh / 2, 0.03 * h];
-    const b: [number, number, number] = [s * L + 0.97 * dx, 0.97 * H - 0.06 - sh / 2, 0.97 * h];
+    const a: [number, number, number] = [x0 + 0.08 + s * (width - 0.16), 0.03 * H - 0.06 - sh / 2, 0.03 * h];
+    const b: [number, number, number] = [x0 + 0.08 + s * (width - 0.16), 0.97 * H - 0.06 - sh / 2, 0.97 * h];
     mb.beam('woodPaint', a, b, 0.12, sh, JOIST);
   }
   // Cleat battens for footing.
   for (let i = 1; i < n; i += 3) {
     const z = (i * h) / n + h / n / 2;
-    board(mb, L, cot, z - 0.025, z + 0.025, 0.025, slope, 0.03, 0.4, JOIST);
+    board(mb, width, 0, z - 0.025, z + 0.025, 0.025, slope, 0.03, Math.min(0.4, width * 0.2), JOIST, x0);
   }
 }
 
@@ -359,6 +362,8 @@ export class PieceRenderer {
   private readonly color = new THREE.Color();
   private readonly owner = new THREE.Color();
   private readonly foot = [0, 0];
+  private readonly rampXs: number[] = [];
+  private readonly rampZs: number[] = [];
   private sig = Number.NaN;
   private popping = false;
 
@@ -433,12 +438,11 @@ export class PieceRenderer {
           this.posts.push(this.m, this.color);
         }
       } else {
-        // Posts under the high side (the two corners opposite the low edge).
-        const fc = lat.facets[p.facet];
+        // The rectangular ramp's high corners, not the outer rhombus corners.
+        rampPolygon(lat, p.facet, Math.max(0, p.rampEdge), this.rampXs, this.rampZs);
         for (const k of [2, 3]) {
-          const n = lat.nodes[fc.nodes[(Math.max(0, p.rampEdge) + k) % 4]];
-          const x = n.x + (fc.cx - n.x) * 0.12;
-          const z = n.z + (fc.cz - n.z) * 0.12;
+          const x = this.rampXs[k];
+          const z = this.rampZs[k];
           const footY = groundHeight(x, z, w.map.half);
           this.m.makeScale(s * 0.7, (baseY + H - RAMP_THICKNESS - footY) * s, s * 0.7).setPosition(x, footY, z);
           this.posts.push(this.m, this.color);

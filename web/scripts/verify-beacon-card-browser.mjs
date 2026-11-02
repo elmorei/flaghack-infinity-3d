@@ -22,7 +22,7 @@ const server=createServer((req,res)=>{
   if(range){const start=Number(range[1]),end=Math.min(body.length-1,range[2]?Number(range[2]):body.length-1);if(start>end||start>=body.length){res.writeHead(416);res.end();return;}headers['Content-Range']=`bytes ${start}-${end}/${body.length}`;body=body.subarray(start,end+1);}
   headers['Content-Length']=body.length;res.writeHead(range?206:200,headers);res.end(body);
 });
-const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. Ladder starting position and neighboring floor are staged; ascent/descent use real keyboard or emulated standard-controller input, never injected avatar movement. Mobile is emulated Regular-mode, not physical-device, touch-joystick or Degen pickup certification.',scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. Rectangular thick/thin ramps, adjoining decks and low-edge avatar starts are staged; real desktop W ascends onto the decks and collision rays verify empty side corners. Ladder starting position and neighboring floor are staged; desktop ascent/descent use real keyboard and disclosed emulated standard-controller axes through production polling, never injected avatar movement. Mobile remains command-only and an emulated standard controller is checked not to move its staged Regular avatar. Mobile is emulated Regular-mode, not physical-device, touch-joystick or Degen pickup certification.',scenarios:[]};
 let browser,page;
 async function stage(){
   return page.evaluate(()=>{
@@ -145,18 +145,30 @@ async function ladderScenario(spec,context,check){
   await page.screenshot({path:join(OUT,`${spec.name}-ladder-joined-edge.png`)});
   await page.evaluate(()=>{const w=window.flaghack.world,t=window.__ladderFixture;window.fh.pieces.detachPiece(w,t.joined);});
   await page.waitForTimeout(500);assert.equal((await geometry()).rails.length,2,'Removing neighbor restores the exposed ladder');
+  let controller=!!spec.mobile;
   const drive=async direction=>{
-    if(spec.mobile)await page.evaluate(direction=>{window.__ladderPad.axes[1]=-direction;},direction);
+    if(controller)await page.evaluate(direction=>{window.__ladderPad.axes[1]=-direction;},direction);
     else if(direction)await page.keyboard.down(direction>0?'KeyW':'KeyS');
     else{await page.keyboard.up('KeyW');await page.keyboard.up('KeyS');}
   };
-  if(spec.mobile){
-    // No touch joystick exists in the Degen UI. Exercise an explicitly emulated
-    // standard controller through the real browser input poll, not avatar commands.
+  const installPad=async()=>{
+    // Poll the normal browser Gamepad API; never assign gamepadActive, moveY or avatar input.
     await page.evaluate(()=>{window.__ladderPad={id:'QA emulated standard controller',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0})),timestamp:performance.now()};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__ladderPad]});});
     await page.waitForTimeout(250);
-  }
+  };
+  if(spec.mobile)await installPad();
   try{
+    if(spec.mobile){
+      // Mobile deliberately forces command view even in this Regular fixture;
+      // controller axes must not be misrepresented as supported avatar climbing.
+      const before=await page.evaluate(()=>({...window.flaghack.world.avatarOf(0).pos}));
+      await drive(1);await page.waitForTimeout(600);await drive(0);
+      const blocked=await page.evaluate(()=>{const a=window.flaghack,av=a.world.avatarOf(0);return{view:a.session.view,pos:av.pos,input:av.input};});
+      assert.equal(blocked.view,'command');assert.deepEqual(blocked.pos,before);
+      assert.equal(blocked.input.moveX,0);assert.equal(blocked.input.moveZ,0);
+      check('Mobile renders tall posts and exposed-edge ladders with live adjacency; command-only layout does not enable avatar climbing via controller');
+      return;
+    }
     await drive(1);
     await page.waitForFunction(()=>{const av=window.flaghack.world.avatarOf(0),t=window.__ladderFixture;return av.pos.y>=t.top-.05&&(av.pos.x-t.x)*t.nx+(av.pos.z-t.z)*t.nz<-.12;},null,{timeout:15000,polling:16});
     await drive(0);
@@ -167,8 +179,68 @@ async function ladderScenario(spec,context,check){
     await page.waitForFunction(()=>window.flaghack.world.avatarOf(0).pos.y<=window.__ladderFixture.bottom+.08,null,{timeout:15000,polling:16});
     await drive(0);
     await page.screenshot({path:join(OUT,`${spec.name}-ladder-descended.png`)});
-    check(`Exposed-edge ladders update on adjacency; ground-reaching posts and real ${spec.mobile?'browser-emulated controller':'keyboard W/S'} climb/board/descend without jump`);
-  }finally{await drive(0);if(spec.mobile)await page.evaluate(()=>{delete navigator.getGamepads;delete window.__ladderPad;});}
+    check('Exposed-edge ladders update on adjacency; ground-reaching posts and real keyboard W/S climb/board/descend without jump');
+    controller=true;await installPad();await drive(1);
+    await page.waitForFunction(()=>{const av=window.flaghack.world.avatarOf(0),t=window.__ladderFixture;return av.pos.y>=t.top-.05&&(av.pos.x-t.x)*t.nx+(av.pos.z-t.z)*t.nz<-.12;},null,{timeout:15000,polling:16});
+    await drive(0);assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).input.jump),false);
+    await page.screenshot({path:join(OUT,`${spec.name}-controller-ladder-climbed.png`)});
+    await drive(-1);
+    await page.waitForFunction(()=>window.flaghack.world.avatarOf(0).pos.y<=window.__ladderFixture.bottom+.08,null,{timeout:15000,polling:16});
+    await drive(0);
+    check('Desktop Regular emulated standard-controller axes climb and descend via production Gamepad polling without jump');
+  }finally{await drive(0);if(controller)await page.evaluate(()=>{delete navigator.getGamepads;delete window.__ladderPad;});}
+}
+
+async function rampScenario(spec,check){
+  for(const thick of [true,false]){
+    const target=await page.evaluate(({thick,specMobile})=>{
+      const a=window.flaghack,w=a.world,f=window.fh,lat=w.lattice;
+      let chosen;
+      for(const fc of lat.facets){
+        if(fc.thick!==thick||fc.boundary||Math.abs(fc.cx)>60||Math.abs(fc.cz)>60)continue;
+        if([...w.pieces.values()].some(p=>{const c=lat.facets[p.facet];return c&&Math.hypot(c.cx-fc.cx,c.cz-fc.cz)<20;})||[...w.buildings.values()].some(b=>Math.hypot(b.pos.x-fc.cx,b.pos.z-fc.cz)<20))continue;
+        for(let side=0;side<4&&!chosen;side++){
+          const n=fc.nodes.map(id=>lat.nodes[id]),p=n[side],q=n[(side+1)%4],d=n[(side+3)%4];
+          const length=Math.hypot(q.x-p.x,q.z-p.z),ux=(q.x-p.x)/length,uz=(q.z-p.z)/length;
+          const shift=(d.x-p.x)*ux+(d.z-p.z)*uz,vx=d.x-p.x-shift*ux,vz=d.z-p.z-shift*uz;
+          const lo=Math.max(0,shift),hi=Math.min(length,length+shift);
+          const xs=[p.x+lo*ux,p.x+hi*ux,p.x+hi*ux+vx,p.x+lo*ux+vx],zs=[p.z+lo*uz,p.z+hi*uz,p.z+hi*uz+vz,p.z+lo*uz+vz];
+          const low={x:(xs[0]+xs[1])/2,z:(zs[0]+zs[1])/2},high={x:(xs[2]+xs[3])/2,z:(zs[2]+zs[3])/2};
+          const run=Math.hypot(high.x-low.x,high.z-low.z),dx=(high.x-low.x)/run,dz=(high.z-low.z)/run;
+          const neighbor=lat.facets[fc.neighbors[(side+2)%4]];if(!neighbor)continue;
+          const base=w.collision.groundHeight(fc.cx,fc.cz),top=w.collision.groundHeight(neighbor.cx,neighbor.cz)+6.4;
+          if(Math.abs(top-base-6.4)>.12||Math.abs(w.collision.groundHeight(low.x-dx,low.z-dz)-base)>.12)continue;
+          if(![...n,low,high].every(v=>w.nav.isWalkable(v.x,v.z)))continue;
+          const inside=(x,z)=>xs.every((v,i)=>{const j=(i+1)%4;return(xs[j]-v)*(z-zs[i])-(zs[j]-zs[i])*(x-v)>=-1e-7;});
+          const gaps=n.map(v=>({x:v.x*.85+fc.cx*.15,z:v.z*.85+fc.cz*.15})).filter(v=>!inside(v.x,v.z));
+          if(!gaps.length||gaps.some(v=>w.collision.raycast(v.x,base+8.4,v.z,0,-1,0,8)))continue;
+          chosen={facet:fc.id,neighbor:neighbor.id,side,xs,zs,low,high,dx,dz,run,base,top,gaps,thick};
+        }
+        if(chosen)break;
+      }
+      if(!chosen)throw Error(`No clear near-level ${thick?'thick':'thin'} ramp fixture`);
+      const t=chosen,r=f.factory.spawnPiece(w,'ramp',0,-1,t.facet,0,t.side),floor=f.factory.spawnPiece(w,'floor',0,-1,t.neighbor,0,-1);f.pieces.attachPiece(w,r);f.pieces.attachPiece(w,floor);t.ramp=r.id;
+      const av=w.avatarOf(0);av.pos={x:t.low.x-t.dx,y:w.collision.groundHeight(t.low.x-t.dx,t.low.z-t.dz),z:t.low.z-t.dz};av.vel={x:0,y:0,z:0};av.hp=200;av.koUntil=0;av.action={kind:'idle'};
+      a.session.view=specMobile?'command':'action';a.session.tool='flag';a.session.camera.yaw=Math.atan2(t.dx,t.dz);a.session.camera.pitch=.45;a.session.camera.dist=14;
+      a.session.camera.cmdX=(t.low.x+t.high.x)/2;a.session.camera.cmdZ=(t.low.z+t.high.z)/2;a.session.camera.cmdHeight=25;
+      window.__rampFixture=t;return t;
+    },{thick,specMobile:!!spec.mobile});
+    const label=thick?'thick':'thin';await page.waitForTimeout(1200);
+    const rays=await page.evaluate(()=>{const w=window.flaghack.world,t=window.__rampFixture,fc=w.lattice.facets[t.facet];return{center:w.collision.raycast(fc.cx,t.base+8.4,fc.cz,0,-1,0,8)?.tag??null,gaps:t.gaps.map(v=>w.collision.raycast(v.x,t.base+8.4,v.z,0,-1,0,8)?.tag??null)};});
+    assert.equal(rays.center,target.ramp,'Ramp center has real sloped collision');assert.ok(rays.gaps.every(tag=>tag===null),'Removed triangular corners have no invisible ramp collision');
+    for(let i=0;i<4;i++){const j=(i+1)%4,k=(i+2)%4;assert.ok(Math.abs((target.xs[j]-target.xs[i])*(target.xs[k]-target.xs[j])+(target.zs[j]-target.zs[i])*(target.zs[k]-target.zs[j]))<1e-6,'Ramp strip corners are rectangular');}
+    await page.screenshot({path:join(OUT,`${spec.name}-${label}-rectangular-ramp.png`)});
+    if(!spec.mobile){
+      try{
+        await page.keyboard.down('KeyW');
+        await page.waitForFunction(()=>{const a=window.flaghack.world.avatarOf(0),t=window.__rampFixture;return(a.pos.x-t.low.x)*t.dx+(a.pos.z-t.low.z)*t.dz>t.run+.2&&a.pos.y>=t.top-.15;},null,{timeout:15000,polling:16});
+        await page.keyboard.up('KeyW');
+        assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).input.jump),false);
+        await page.screenshot({path:join(OUT,`${spec.name}-${label}-ramp-walked-onto-deck.png`)});
+      }finally{await page.keyboard.up('KeyW');}
+    }
+    check(`${label} rectangular ramp has empty noncolliding side corners${spec.mobile?' and renders in mobile command view':'; real W walks onto its high deck without jump'}`);
+  }
 }
 
 async function scenario(spec,url){
@@ -216,6 +288,7 @@ async function scenario(spec,url){
     }else check('Mobile-emulated Regular-mode pickup plaque is visible, wraps within viewport and does not intercept touch or overlap field controls');
     await platformScenario(spec,context,check);
     await ladderScenario(spec,context,check);
+    await rampScenario(spec,check);
     entry.after=await renderState();
     if(spec.mobile){
       await page.evaluate(()=>window.flaghack.startMatch({seed:'beacon-card-degen',humans:[0],rtsFactions:[0],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
@@ -226,7 +299,7 @@ async function scenario(spec,url){
       check('Actual Degen match has no avatar and shows no false pickup action plaque');
     }
     assert.deepEqual(entry.errors,[]);entry.completed=true;await page.waitForTimeout(1000);
-  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);entry.ladderFailure=await page?.evaluate(()=>{const a=window.flaghack,av=a?.world?.avatarOf(0);return{fixture:window.__ladderFixture,position:av?.pos,input:av?.input,view:a?.session.view};}).catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
+  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);entry.rampFailure=await page?.evaluate(()=>({fixture:window.__rampFixture,position:window.flaghack?.world?.avatarOf(0)?.pos})).catch(()=>null);entry.ladderFailure=await page?.evaluate(()=>{const a=window.flaghack,av=a?.world?.avatarOf(0);return{fixture:window.__ladderFixture,position:av?.pos,input:av?.input,view:a?.session.view};}).catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
   finally{if(page&&!page.isClosed())entry.videoPath=await page.video()?.path();await context.close();}
 }
 async function main(){

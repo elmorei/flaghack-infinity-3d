@@ -29,12 +29,12 @@ import type { PlacementCheck } from './buildings';
 import { polygonClearance, polygonHitsBuilding, segmentClearance, segmentHitsBuilding } from './econ/clearance';
 import {
   DECK_THICKNESS,
-  facetInradius,
   facetPolygon,
   pieceBottom,
   pieceGroundHeight,
   RAMP_THICKNESS,
   rampHighEdge,
+  rampPolygon,
   slotCenter,
   slotKey,
   stiltFoot,
@@ -43,9 +43,6 @@ import {
 } from './econ/pieceGeometry';
 import { econ } from './econ/state';
 import type { EconState } from './econ/state';
-
-/** Level-0 ramps block hippie navigation over this share of the facet's inradius. */
-const RAMP_NAV_SHARE = 0.85;
 
 const OK: PlacementCheck = Object.freeze({ ok: true, reason: '' });
 /** Shared frozen rejections: UI ghosts call canBuildPiece every frame, so it allocates nothing. */
@@ -151,7 +148,8 @@ export function canBuildPiece(
     const clear = segmentClearance(world, SEG[0], SEG[1], SEG[2], SEG[3], hw, y0);
     if (clear !== 'clear') return NO[clear];
   } else {
-    facetPolygon(lat, facet, POLY_X, POLY_Z);
+    if (kind === 'ramp') rampPolygon(lat, facet, rampEdge, POLY_X, POLY_Z);
+    else facetPolygon(lat, facet, POLY_X, POLY_Z);
     if (polygonHitsBuilding(world, POLY_X, POLY_Z, y0, (level + 1) * LEVEL_HEIGHT)) return NO.building;
     const clear = polygonClearance(world, POLY_X, POLY_Z, y0);
     if (clear !== 'clear') return NO[clear];
@@ -358,8 +356,8 @@ function registerPieceShapes(world: World, p: Piece): void {
   // The collision world may keep the polygon arrays, so each shape gets its own copy.
   const xs = [0, 0, 0, 0];
   const zs = [0, 0, 0, 0];
-  facetPolygon(lat, p.facet, xs, zs);
-  const fc = lat.facets[p.facet];
+  if (p.kind === 'ramp') rampPolygon(lat, p.facet, p.rampEdge, xs, zs);
+  else facetPolygon(lat, p.facet, xs, zs);
   if (p.kind === 'floor') {
     p.shapeIds.push(col.addSlab(xs, zs, top, DECK_THICKNESS, p.id));
     for (let i = 0; i < 4; i++) {
@@ -369,8 +367,14 @@ function registerPieceShapes(world: World, p: Piece): void {
     }
     return;
   }
-  p.shapeIds.push(col.addRamp(xs, zs, p.rampEdge, (p.rampEdge + 1) % 4, y0, top, RAMP_THICKNESS, p.id));
-  if (p.level === 0) world.nav.blockCircle(fc.cx, fc.cz, facetInradius(lat, p.facet) * RAMP_NAV_SHARE, p.id);
+  p.shapeIds.push(col.addRamp(xs, zs, 0, 1, y0, top, RAMP_THICKNESS, p.id));
+  if (p.level === 0) {
+    // Ground-only unit navigation avoids the actual rectangular strip, not its
+    // former rhombus footprint. The normal nav padding still protects bodies.
+    const width = Math.hypot(xs[1] - xs[0], zs[1] - zs[0]);
+    world.nav.blockSegment((xs[0] + xs[1]) / 2, (zs[0] + zs[1]) / 2,
+      (xs[2] + xs[3]) / 2, (zs[2] + zs[3]) / 2, width, p.id);
+  }
 }
 
 /** Has the lattice re-tiled the edge/facet under this piece (phason flip)? */

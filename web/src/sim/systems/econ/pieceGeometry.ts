@@ -54,6 +54,26 @@ export function facetPolygon(lat: Lattice, facet: number, xs: number[], zs: numb
   }
 }
 
+/**
+ * Largest rectangular strip inside a rhombus joining the chosen low edge to its
+ * opposite high edge. Unlike a full facet, its sides run perpendicular to both
+ * landings. Output stays CCW: indices 0/1 are low, 2/3 high.
+ */
+export function rampPolygon(lat: Lattice, facet: number, rampEdge: number, xs: number[], zs: number[]): void {
+  const ns = lat.facets[facet].nodes;
+  const a = lat.nodes[ns[rampEdge]], b = lat.nodes[ns[(rampEdge + 1) % 4]];
+  const d = lat.nodes[ns[(rampEdge + 3) % 4]];
+  const length = Math.hypot(b.x - a.x, b.z - a.z);
+  const ux = (b.x - a.x) / length, uz = (b.z - a.z) / length;
+  const shift = (d.x - a.x) * ux + (d.z - a.z) * uz;
+  const vx = d.x - a.x - shift * ux, vz = d.z - a.z - shift * uz;
+  const lo = Math.max(0, shift), hi = Math.min(length, length + shift);
+  xs[0] = a.x + lo * ux; zs[0] = a.z + lo * uz;
+  xs[1] = a.x + hi * ux; zs[1] = a.z + hi * uz;
+  xs[2] = xs[1] + vx; zs[2] = zs[1] + vz;
+  xs[3] = xs[0] + vx; zs[3] = zs[0] + vz;
+}
+
 /** Inradius of a rhombus facet (area / perimeter·2). */
 export function facetInradius(lat: Lattice, facet: number): number {
   const ns = lat.facets[facet].nodes;

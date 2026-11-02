@@ -4,11 +4,13 @@ Construction levels are now 6.4 m high, twice the previous 3.2 m. Decks, connect
 
 Every deck has four physical corner posts reaching the actual terrain, including stacked decks. Posts retain a small inward inset so the original ground-level flag positions remain accessible. Ground Flags continue claiming these nodes normally: building or removing platforms neither raises Flags nor removes their claims.
 
+Ramps use a straight rectangular strip between opposite facet edges, leaving the rhombus’s side corners empty. Their rendered boards, placement ghost, collision and navigation blocker follow this strip; deck footprints and construction slots remain unchanged.
+
 Each side without an adjacent same-level deck has a ladder. Adding a neighbor hides the shared-side ladder; removing it restores the ladder. Stacked exterior ladders share their visible rails.
 
 ## Climbing
 
-- Move toward a ladder to climb. Normal keyboard, gamepad and touch-stick movement all use the same motion logic.
+- Move toward a ladder to climb. Keyboard and gamepad use the same avatar motion logic. Touch-stick input uses that logic where avatar control is available; phones currently use the existing command-only view, so they do not offer direct ladder climbing.
 - Look roughly level to step onto the next platform. Look upward while climbing to continue to a higher stacked platform.
 - Move away at the platform edge to descend.
 - Release movement to hold position, or jump to push off the ladder.

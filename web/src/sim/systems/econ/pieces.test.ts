@@ -4,7 +4,7 @@ import type { PieceKind } from '../../types';
 import type { World } from '../../world';
 import { applyFlip } from '../tides';
 import { canBuildPiece, damagePiece, pieceAt } from '../pieces';
-import { wallSegment } from './pieceGeometry';
+import { rampPolygon, wallSegment } from './pieceGeometry';
 import { eventsOf, newMatch, placeAvatar, run } from './testkit';
 
 /** Nearest edge/facet to the vexillomancer where a level-0 piece of `kind` may go right now. */
@@ -84,16 +84,16 @@ describe('pieces', () => {
     run(h, 1 / 60);
     expect(pieceAt(world, 'ramp', -1, facet, 0)?.rampEdge).toBe(1);
     const fc = lat.facets[facet];
+    const xs: number[] = [], zs: number[] = [];
+    rampPolygon(lat, facet, 1, xs, zs);
     const at = (i: number, j: number): number => {
-      // A point just inside the facet next to the midpoint of edge (i, j).
-      const a = lat.nodes[fc.nodes[i]];
-      const b = lat.nodes[fc.nodes[j]];
-      const mx = (a.x + b.x) / 2;
-      const mz = (a.z + b.z) / 2;
+      // Just inside the rectangular strip at its low/high landing midpoint.
+      const mx = (xs[i] + xs[j]) / 2;
+      const mz = (zs[i] + zs[j]) / 2;
       return world.collision.supportHeight(mx + (fc.cx - mx) * 0.1, mz + (fc.cz - mz) * 0.1, 10);
     };
-    const low = at(1, 2) - world.collision.groundHeight(fc.cx, fc.cz);
-    const high = at(3, 0) - world.collision.groundHeight(fc.cx, fc.cz);
+    const low = at(0, 1) - world.collision.groundHeight(fc.cx, fc.cz);
+    const high = at(2, 3) - world.collision.groundHeight(fc.cx, fc.cz);
     expect(low).toBeLessThan(0.6);
     expect(high).toBeGreaterThan(LEVEL_HEIGHT - 0.6);
     expect(world.collision.supportHeight(fc.cx, fc.cz, 10) - world.collision.groundHeight(fc.cx, fc.cz)).toBeCloseTo(LEVEL_HEIGHT / 2, 1);
