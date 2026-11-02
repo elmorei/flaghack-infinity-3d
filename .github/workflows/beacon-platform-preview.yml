@@ -31,7 +31,7 @@ jobs:
       - run: node scripts/verify-pages-build.cjs
   native-browser:
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: web
@@ -52,6 +52,15 @@ jobs:
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
       - name: Verify world pickup presentation and behavior
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-beacon-card-browser.mjs
+      - name: Verify existing live-release browser gates
+        run: |
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-browser.cjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs
       - name: Recheck existing sleeve viewer
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-sleeve-browser.mjs
       - name: Upload native screenshots and normal-speed recordings
@@ -62,5 +71,12 @@ jobs:
           path: |
             web/host-release/beacon-card-smoke/
             web/host-release/frick-sleeve-smoke/
+            web/host-release/startup-smoke/
+            web/host-release/mobile-smoke/
+            web/host-release/mobile-command-smoke/
+            web/host-release/frick-engine-smoke/
+            web/host-release/frick-dice-smoke/
+            web/host-release/frick-frack-smoke/
+            web/host-release/intro-smoke/
           if-no-files-found: warn
           retention-days: 14

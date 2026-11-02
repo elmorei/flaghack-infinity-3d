@@ -91,7 +91,15 @@ async function card(){
   });
   return (await state()).snapshot.cards.find(c=>c.key.startsWith('sleeve-viewer:'));
 }
-async function geometry(){return page.locator('.ff-table-stage,.ff-main-actions,.ff-flag-counter').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));}
+async function geometry(){
+  // A simulation phase can precede the DOM's next layout frame. Zero rectangles
+  // are not a valid baseline; retain the exact reflow comparison once all three exist.
+  await page.waitForFunction(()=>{
+    const els=[...document.querySelectorAll('.ff-table-stage,.ff-main-actions,.ff-flag-counter')];
+    return els.length===3&&els.every(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;});
+  },null,{timeout:30000});
+  return page.locator('.ff-table-stage,.ff-main-actions,.ff-flag-counter').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));
+}
 async function scenario(spec,url){
   const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.touch,isMobile:!!spec.touch,...(spec.touch?{userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'}:{}),deviceScaleFactor:1,reducedMotion:spec.reduced?'reduce':'no-preference',recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
   const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);
@@ -118,6 +126,17 @@ async function scenario(spec,url){
       assert.ok((await viewer().locator('.ff-sleeve-description').innerText()).length>20);
       seen.push(await viewer().locator('.ff-sleeve-family').innerText());
       await page.waitForTimeout(spec.name==='desktop'?1100:100);
+      const bounds=await viewer().evaluate(root=>{
+        const selectors=['.ff-sleeve-header','.ff-sleeve-showcase','.ff-sleeve-card','.ff-sleeve-arrow','.ff-sleeve-details'];
+        return {width:innerWidth,height:innerHeight,items:selectors.flatMap(selector=>[...root.querySelectorAll(selector)].map(el=>{
+          const r=el.getBoundingClientRect();return {selector,x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth};
+        }))};
+      });
+      for(const b of bounds.items){
+        assert.ok(b.width>0&&b.height>0,`${spec.name}: ${b.selector} has visible bounds`);
+        assert.ok(b.x>=-1&&b.y>=-1&&b.right<=bounds.width+1&&b.bottom<=bounds.height+1,`${spec.name}: ${b.selector} stays within viewport: ${JSON.stringify(b)}`);
+        if(b.selector==='.ff-sleeve-details')assert.ok(b.scrollWidth<=b.clientWidth+1,`${spec.name}: description has no horizontal clipping`);
+      }
       await page.screenshot({path:join(OUT,`${spec.name}-card-${i+1}.png`)});
     }
     assert.equal(await control('Next sleeve card').isDisabled(),true);

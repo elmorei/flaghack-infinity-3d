@@ -243,7 +243,7 @@ export class App implements AppApi {
   async joinHost(name: string, password: string, address = location.origin): Promise<void> {
     if (this.startupPending) return;
     if (!this.remoteHostsAvailable) {
-      this.joinError = 'This launcher runs solo games offline. Open FLAGHACK in a web browser to join a host.';
+      this.joinError = 'This launcher runs solo games offline. Open FLAGHACK∞3D in a web browser to join a host.';
       return;
     }
     // Repeated Enter/clicks must not create multiple sockets or replace a live session.

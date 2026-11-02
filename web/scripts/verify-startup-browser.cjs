@@ -122,7 +122,12 @@ async function main() {
     assert.equal(await page.locator('video').evaluate(video => video.muted), true, 'Autoplay starts muted');
     await page.screenshot({ path: join(OUT, 'cold-ready.png') });
     check('cold video plays while title prepares; ready enables Skip without cutting playback');
+    assert.equal(await page.title(), 'FLAGHACK∞3D');
+    assert.equal(await page.locator('#startup').getAttribute('aria-label'), 'FLAGHACK∞3D startup');
     await leave();
+    assert.equal(await page.locator('.title-wordmark').getAttribute('alt'), 'FLAGHACK∞3D — SURVEY FLAGS');
+    await page.screenshot({ path: join(OUT, 'branding-title-desktop.png') });
+    check('Canonical FLAGHACK∞3D browser, startup and title naming');
     state = await readState(); assert.equal(state.pending, false); assert.equal(state.inert, false);
     await page.waitForFunction((prefix) => Object.keys(localStorage).some((key) => key.startsWith(prefix)), CACHE_PREFIX);
     const record = await page.evaluate((prefix) => JSON.parse(localStorage[Object.keys(localStorage).find((key) => key.startsWith(prefix))]), CACHE_PREFIX);

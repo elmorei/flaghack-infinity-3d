@@ -2080,7 +2080,7 @@
   min-width: 0;
   /* Absorb the artboard's transparent glow padding into the vertical stack.
      Percentages follow the wordmark width, so the whole lockup scales together. */
-  margin: -9.184% 0 calc(18px - 6.505%);
+  margin: -7.843% 0 calc(18px - 5.556%);
   line-height: 0;
   flex: none;
 }

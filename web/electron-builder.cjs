@@ -2,7 +2,7 @@
 const channel = process.env.FLAGHACK_CHANNEL || 'iteration';
 if (!['stable', 'iteration'].includes(channel)) throw new Error('FLAGHACK_CHANNEL must be stable or iteration');
 module.exports = {
-  appId: 'com.flaghack.infinity', productName: 'FLAGHACK Infinity',
+  appId: 'com.flaghack.infinity', productName: 'FLAGHACK∞3D',
   directories: { output: 'desktop-release' },
   files: ['desktop/**/*', '!desktop/**/*.test.cjs', 'dist/**/*', 'package.json'],
   extraMetadata: { desktopChannel: channel },

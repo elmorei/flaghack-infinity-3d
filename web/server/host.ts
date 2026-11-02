@@ -55,7 +55,7 @@ const DEFAULT_STATIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..'
 export async function startHost(opts: HostOptions): Promise<RunningHost> {
   const originAllowed = browserOriginPolicy(opts.allowedOrigins);
   const log = opts.log ?? ((line: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${line}`));
-  const serverName = cleanText(opts.serverName ?? `${hostname()}'s burn`, MAX_SERVER_NAME) || 'A FLAGHACK burn';
+  const serverName = cleanText(opts.serverName ?? `${hostname()}'s burn`, MAX_SERVER_NAME) || 'A FLAGHACK∞3D burn';
   const room = new Room({ serverName, password: opts.password, log });
   const files = opts.staticDir === null ? null : createStaticHandler(opts.staticDir ?? DEFAULT_STATIC_DIR);
   // closeTimeout (ws >= 8.19) is missing from @types/ws 8.18, hence the checked const rather than a literal argument.

@@ -60,11 +60,20 @@ async function main(){
       });
       await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
       assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),spec.touch?'mobile':'desktop','Actual selected device layout matches the browser fixture');
       // Locator actions already scroll and re-resolve after UI revisions; a separate
       // scrollIntoViewIfNeeded can retain a detached element across a normal rerender.
       const tap=async locator=>{if(spec.touch)await locator.tap({noWaitAfter:true});else await locator.click({noWaitAfter:true});};
       const dialog=page.locator('.ff-overlay');
       const button=name=>dialog.getByRole('button',{name,exact:true});
+      async function selectSleeveCard(id){
+        const cards=(await state()).sideboard;
+        const wanted=cards.findIndex(c=>c.id===id);assert.ok(wanted>=0,'Requested fixture card is in the real sleeve');
+        const previous=button('Previous sleeve card');
+        for(let i=0;i<cards.length&&!await previous.isDisabled();i++)await tap(previous);
+        for(let i=0;i<wanted;i++)await tap(button('Next sleeve card'));
+        await dialog.locator(`[data-engine-key="sleeve-viewer:${id}"]`).waitFor({state:'visible'});
+      }
       async function stageGift(throwChase=false){
         const beforeGift=await state();
         await page.waitForFunction(t=>window.flaghack.world.time>=t+1.05,beforeGift.time,{timeout:15_000});
@@ -281,21 +290,24 @@ async function main(){
         await shot('desktop-ccg-battle');await holdForDemo('ccg-battle-on-hit',2800);
         if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
         await holdForDemo('sideboard-open',1800);
-        await tap(button('Play A♠ once'));
+        await selectSleeveCard(card.id);
+        await tap(button('Play Card'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.id);
         assert.ok((await state()).session.player.some(c=>c.id===card.id),'Known card added to hand');
-        await button('Play A♠ once').waitFor({state:'detached'});
-        assert.equal(await button('Play A♠ once').count(),0,'Consumed card is unavailable for replay');
+        await dialog.locator(`[data-engine-key="sleeve-viewer:${card.id}"]`).waitFor({state:'detached'});
+        assert.equal((await state()).sideboard.some(c=>c.id===card.id),false,'Consumed card is unavailable for replay');
         await shot('desktop-cheat-played');await holdForDemo('cheat-played',2200);
         if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
-        await tap(button('Inspect The Sun'));
-        await button('Use The Sun').waitFor({state:'visible'});
+        await selectSleeveCard(card.sunId);
+        assert.equal(await dialog.locator('.ff-sleeve-details h2').textContent(),'The Sun');
+        await button('Play Card').waitFor({state:'visible'});
         await shot('desktop-sun-effect-inspection');await holdForDemo('sun-effect-inspection',2500);
-        await tap(button('Use The Sun'));
+        await tap(button('Play Card'));
         await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),card.sunId);
         assert.equal((await state()).session.dealer.includes(null),false,'The Sun permanently reveals the actual dealer hole card');
         assert.equal((await state()).session.player.some(c=>c.arcana!==undefined),false,'Major Arcana is an effect, not a numeric hand card');
-        await button('Use The Sun').waitFor({state:'detached'});
+        await button('Play Card').waitFor({state:'detached'});
+        await tap(button('Close sleeve and return to table'));
         await dialog.locator('.ff-hand-dealer .ff-card-back').waitFor({state:'detached'});
         // Read the current DOM atomically rather than scrolling an element handle
         // captured immediately before the authoritative revision rerenders it.
@@ -312,15 +324,12 @@ async function main(){
         // A known sideboard card still goes through the real Play button and combat resolver.
         await seedAndQuiver('frick-136-25',10);await deal(1);
         const combatCard=await page.evaluate(()=>{const w=window.flaghack.world,s=w.frickFrack.sessions[0],id=w.newId();w.frickFrack.sideboards[0]=[{id,rank:4,suit:0,parody:3}];s.revision++;return id;});
-        // Wait for this exact staged revision's card, even if its section is hidden.
-        // A persistent Sleeve from the previous betting render may report closed
-        // just before playing restores the remembered open state; clicking that
-        // stale observation would close the current sleeve rather than open it.
-        await dialog.locator(`[data-engine-key="sleeve:${combatCard}"]`).waitFor({state:'attached'});
         await page.waitForFunction(()=>document.querySelector('.ff-main-actions [data-action="sleeve"]')?.disabled===false);
-        if(!await dialog.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await tap(dialog.locator('[data-action="sleeve"]'));
-        await page.waitForFunction(()=>document.querySelector('.ff-main-actions [data-action="sleeve"]')?.getAttribute('aria-expanded')==='true');
-        await tap(dialog.getByRole('button',{name:/^Play .* once$/}));
+        await tap(dialog.locator('[data-action="sleeve"]'));
+        await selectSleeveCard(combatCard);
+        await tap(button('Play Card'));
+        await page.waitForFunction(id=>!window.flaghack.world.frickFrack.sideboards[0].some(c=>c.id===id),combatCard);
+        await tap(button('Close sleeve and return to table'));
         await page.waitForFunction(()=>document.querySelectorAll('.ff-defeated-cross').length===2);
         assert.equal((await state()).session.player.length,2);
         assert.equal((await state()).session.dealer[0],null,'Tied visible dealer card dies without revealing hole');

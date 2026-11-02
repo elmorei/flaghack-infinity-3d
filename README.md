@@ -1,6 +1,6 @@
-# Flaghack Infinity
+# FLAGHACK∞3D
 
-**FLAGHACK ∞ — Survey Flags** is a fast 3D 1v1v1v1 vexillomantic action-strategy game
+**FLAGHACK∞3D — Survey Flags** is a fast 3D 1v1v1v1 vexillomantic action-strategy game
 that runs in the browser (three.js + TypeScript). You are a vexillomancer at a burn. You
 throw, plant, pull and steal yellow Survey Flags on an invisible aperiodic **Ley Lattice**,
 build Fortnite-speed structures, and command hippies from the **Geomantic Command Center**.
@@ -9,7 +9,7 @@ You conquer rival camps by enclosing their Flag Hearth inside your Survey until 
 rivals, or [host a burn](#hosting-a-multiplayer-burn) on your own machine that up to four
 friends join from their browsers with a password.
 
-> Under no conditions should you attempt to play a game that claims to be Flaghack.
+> Under no conditions should you attempt to play a game that claims to be FLAGHACK∞3D.
 
 ## This fork
 

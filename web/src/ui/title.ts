@@ -111,8 +111,8 @@ export class TitleScreen implements UiPart {
     const logo = el('h1', 'logo', col);
     const wordmark = el('img', 'title-wordmark', logo);
     wordmark.src = titleWordmarkUrl;
-    wordmark.alt = 'FLAGHACK ∞ — SURVEY FLAGS';
-    wordmark.width = 784;
+    wordmark.alt = 'FLAGHACK∞3D — SURVEY FLAGS';
+    wordmark.width = 918;
     wordmark.height = 252;
     wordmark.draggable = false;
 
@@ -198,7 +198,7 @@ export class TitleScreen implements UiPart {
 
     const foot = el('footer', 'title-foot', this.root);
     el('div', 'transmission', foot, 'A transmission from the Geomantic Command Center');
-    el('div', 'warning-label', foot, 'Under no conditions should you attempt to play a game that claims to be Flaghack.');
+    el('div', 'warning-label', foot, 'Under no conditions should you attempt to play a game that claims to be FLAGHACK∞3D.');
     this.showHost(host.app.hostInfo);
   }
 

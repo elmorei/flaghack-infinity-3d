@@ -4,7 +4,7 @@ const { join } = require('node:path');
 function createHostProcess({ utilityProcess, timeoutMs = 15000 }) {
   return ({ password, port, serverName, allowedOrigins, signal, log, onExit }) => new Promise((resolve, reject) => {
     if (signal.aborted) { reject(new Error('Start canceled.')); return; }
-    const child = utilityProcess.fork(join(__dirname, 'host-worker.cjs'), [], { serviceName: 'FLAGHACK match host', stdio: 'pipe' });
+    const child = utilityProcess.fork(join(__dirname, 'host-worker.cjs'), [], { serviceName: 'FLAGHACK∞3D match host', stdio: 'pipe' });
     let ready = false, stopping = false, exited = false, stopWork, killTimer, startupError;
     let finishExit;
     const exitPromise = new Promise(done => { finishExit = done; });

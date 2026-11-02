@@ -118,7 +118,7 @@ export const QUOTES: readonly Quote[] = [
   { text: "That's why it's advanced.", by: 'Mega Harvard' },
   { text: 'we cannot yet risk the instability of a fully enlightened society.', by: 'President Jaguar' },
   { text: 'there ought to be flags', by: 'the first vexillomancer' },
-  { text: 'Under no conditions should you attempt to play a game that claims to be Flaghack.' },
+  { text: 'Under no conditions should you attempt to play a game that claims to be FLAGHACK∞3D.' },
   { text: "The Acid Cops have an open file on him. It's mostly question marks." },
   // Short direct lines from the digest's page notes.
   { text: 'every Flag had to be within line of sight of two other Flags', by: 'Canon III' },

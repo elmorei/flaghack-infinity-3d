@@ -44,6 +44,7 @@ async function enter(context,spec,url){
   await page.evaluate(()=>window.flaghack.startMatch({seed:'engine-frick-native',humans:[0],rtsFactions:[],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
   await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.world?.frickFrack?.wizardId>=0);
   assert.equal(await page.evaluate(()=>window.flaghack.world.factions[0].controlMode),'avatar','Explicit Regular fixture preserves Frick coverage on mobile layout');
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),spec.touch?'mobile':'desktop','Actual selected device layout matches the browser fixture');
   await page.waitForTimeout(1800);
   await stageBetting();
   await page.getByRole('button',{name:'Deal',exact:true}).waitFor({state:'visible'});
@@ -148,7 +149,9 @@ async function verify(spec,url){
     await page.screenshot({path:join(OUT,spec.name+'-engine-defeated.png')});
     if(spec.name==='desktop'){
       await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
-      await act('Inspect The Sun',spec);await act('Use The Sun',spec);
+      await page.locator('.ff-sleeve-card[data-engine-key]').waitFor({state:'visible'});
+      assert.equal(await page.locator('.ff-sleeve-details h2').textContent(),'The Sun');
+      await act('Play Card',spec);await act('Close sleeve and return to table',spec);
       await page.waitForFunction(()=>!window.flaghack.world.frickFrack.sessions[0].dealer.includes(null));
       await ensureSettled();const revealed=await state();entry.revealed=revealed;
       assert.equal(revealed.snapshot.cards.filter(c=>c.hidden).length,0,'Production Sun effect reveals mesh identity only after authoritative reveal');
@@ -156,7 +159,7 @@ async function verify(spec,url){
       await page.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();
       await page.screenshot({path:join(OUT,'desktop-engine-reveal.png')});
       // Closing the sleeve must not reposition the table or remaining controls.
-      if(await page.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
+      if(await page.locator('.ff-sleeve-viewer').count())await act('Close sleeve and return to table',spec);
     }
     await act('Stand',spec);await page.waitForFunction(()=>['result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
     if((await state()).phase==='result'){
@@ -192,9 +195,9 @@ async function cleanDemo(url){
     mark('ready');await page.waitForTimeout(700);
     mark('deal');await act('Deal',spec);await page.waitForTimeout(1700);
     mark('hit');await act('Hit',spec);await page.waitForTimeout(1700);
-    mark('sun-inspect');await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});await act('Inspect The Sun',spec);await page.waitForTimeout(600);
-    mark('sun-reveal');await act('Use The Sun',spec);await page.waitForTimeout(700);
-    if(await page.locator('[data-action="sleeve"]').evaluate(e=>e.getAttribute('aria-expanded')==='true'))await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});
+    mark('sun-inspect');await page.locator('[data-action="sleeve"]').click({noWaitAfter:true});await page.locator('.ff-sleeve-details h2').waitFor({state:'visible'});assert.equal(await page.locator('.ff-sleeve-details h2').textContent(),'The Sun');await page.waitForTimeout(600);
+    mark('sun-reveal');await act('Play Card',spec);await page.waitForTimeout(700);
+    if(await page.locator('.ff-sleeve-viewer').count())await act('Close sleeve and return to table',spec);
     await page.locator('.ff-hand-dealer').scrollIntoViewIfNeeded();await page.waitForTimeout(1700);
     mark('stand');await act('Stand',spec);await page.waitForTimeout(1600);mark('end');
     results.demo={marks,fixtureDisclosure:results.fixtureDisclosure,recordingSpeed:1,videoPath:await page.video().path()};

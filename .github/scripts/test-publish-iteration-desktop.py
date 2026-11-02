@@ -234,7 +234,7 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(self.fixture.tag_source, publisher.TAG_SOURCE)
         self.assertEqual(self.fixture.mutations,
                          [('upload', publisher.INSTALLER), ('upload', publisher.INSTALLER + '.blockmap'),
-                          ('edit', publisher.TAG), ('delete', publisher.MANIFEST, 631612356),
+                          ('edit', publisher.TAG), ('delete', publisher.MANIFEST, publisher.PREVIOUS_ASSETS[publisher.MANIFEST]['id']),
                           ('upload', publisher.MANIFEST)])
         first_delete = self.fixture.events.index(('delete', publisher.MANIFEST))
         for name in publisher.NAMES[:2]:
@@ -281,7 +281,7 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(self.fixture.mutations, [])
 
     def test_previous_manifest_byte_corruption_blocks_all_writes(self):
-        self.fixture.bytes[631612356] = b'x' * self.fixture.previous[publisher.MANIFEST]['size']
+        self.fixture.bytes[publisher.PREVIOUS_ASSETS[publisher.MANIFEST]['id']] = b'x' * self.fixture.previous[publisher.MANIFEST]['size']
         with self.assertRaisesRegex(RuntimeError, 'SHA-256'):
             self.fixture.publish()
         self.assertEqual(self.fixture.mutations, [])

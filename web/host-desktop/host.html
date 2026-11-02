@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
-  <title>FLAGHACK Match Host</title>
+  <title>FLAGHACK∞3D Match Host</title>
   <link rel="stylesheet" href="host.css">
   <script src="host.js" defer></script>
 </head>
 <body>
   <main>
-    <header><div><p class="eyebrow">FLAGHACK ∞ / MATCH HOST</p><h1>Your match. Their browsers.</h1></div><span id="badge" class="badge">OFFLINE</span></header>
+    <header><div><p class="eyebrow">FLAGHACK∞3D / MATCH HOST</p><h1>Your match. Their browsers.</h1></div><span id="badge" class="badge">OFFLINE</span></header>
     <p class="intro">Keep this app running. Friends play on the Pages site using your private invite. No game window or router setup required.</p>
     <section class="card" aria-labelledby="setup-heading">
       <h2 id="setup-heading">Host a match</h2>
       <form id="setup">
         <fieldset id="settings">
-          <label>Host name<input id="name" maxlength="48" required autocomplete="off" value="My FLAGHACK match"></label>
+          <label>Host name<input id="name" maxlength="48" required autocomplete="off" value="My FLAGHACK∞3D match"></label>
           <label>Connection<select id="mode"><option value="quick">Cloudflare Quick Tunnel (experimental)</option><option value="existing">Use my existing HTTPS endpoint</option></select></label>
           <p id="quick-note" class="notice">Free, temporary tunnel with no uptime guarantee. Its address changes each session. Traffic passes through Cloudflare; only share invites with people you trust.</p>
           <div id="existing-fields" hidden><label>Public HTTPS origin<input id="endpoint" type="url" placeholder="https://match.example.com" autocomplete="off"></label><p class="hint">First forward this endpoint to the loopback address below. It must support HTTPS and secure WebSockets. We verify it reaches this exact match.</p></div>

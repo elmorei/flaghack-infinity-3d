@@ -37,7 +37,7 @@ function cleanLog(value, secret) {
   return line.replace(/([#?&](?:pw|password|token)=)[^\s&]*/gi, '$1[redacted]').slice(0, 500);
 }
 function hostInfo(value) {
-  if (!value || typeof value !== 'object' || !Number.isInteger(value.protocol) || typeof value.build !== 'string' || !value.build || value.build.length > 128 || typeof value.instanceId !== 'string' || !value.instanceId || value.instanceId.length > 128 || !['lobby', 'playing', 'ended'].includes(value.phase) || !Number.isInteger(value.players) || value.players < 0 || value.players > 16 || !Number.isInteger(value.seated) || value.seated < 0 || value.seated > 4) throw new Error('Endpoint did not return a compatible FLAGHACK host.');
+  if (!value || typeof value !== 'object' || !Number.isInteger(value.protocol) || typeof value.build !== 'string' || !value.build || value.build.length > 128 || typeof value.instanceId !== 'string' || !value.instanceId || value.instanceId.length > 128 || !['lobby', 'playing', 'ended'].includes(value.phase) || !Number.isInteger(value.players) || value.players < 0 || value.players > 16 || !Number.isInteger(value.seated) || value.seated < 0 || value.seated > 4) throw new Error('Endpoint did not return a compatible FLAGHACK∞3D host.');
   return { protocol: value.protocol, build: value.build, instanceId: value.instanceId, phase: value.phase, players: value.players, seated: value.seated };
 }
 module.exports = { DEFAULT_PAGES_URL, pagesUrl, publicOrigin, settings, password, invite, cleanLog, hostInfo };

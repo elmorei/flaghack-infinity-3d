@@ -102,9 +102,9 @@ export async function probeHost(endpoint: HostEndpoint, options: HostProbeOption
     });
     if (!response.ok) throw new Error(`The host answered HTTP ${response.status}. Check its HTTPS tunnel and allowed browser origin.`);
     let json: unknown;
-    try { json = await response.json(); } catch { throw new Error('That address did not return FLAGHACK host information. Check the host’s HTTPS address.'); }
+    try { json = await response.json(); } catch { throw new Error('That address did not return FLAGHACK∞3D host information. Check the host’s HTTPS address.'); }
     const info = parseHostInfo(json);
-    if (!info) throw new Error('That address is not a valid FLAGHACK host. Check the host’s HTTPS address.');
+    if (!info) throw new Error('That address is not a valid FLAGHACK∞3D host. Check the host’s HTTPS address.');
     if (options.checkCompatibility !== false) {
       const mismatch = hostCompatibilityError(info);
       if (mismatch) throw new Error(mismatch);

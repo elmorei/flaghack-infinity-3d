@@ -16,7 +16,7 @@ export interface HostArgs {
   allowedOrigins: string[];
 }
 
-export const USAGE = `Host a FLAGHACK ∞ multiplayer burn: friends join from their browsers.
+export const USAGE = `Host a FLAGHACK∞3D multiplayer burn: friends join from their browsers.
 
 Usage:  ./host.sh [options]                (repo root: checks Node, installs, builds, starts)
         npm run host -- [options]          (in web/: builds the client and the server, starts)
@@ -131,7 +131,7 @@ export function banner(b: BannerInfo): string[] {
   const share = `${url(lan[0] ?? local)}#pw=${encodeURIComponent(b.password)}`;
   const lines = [
     '',
-    `FLAGHACK ∞ host "${b.serverName}" is burning on port ${b.port}`,
+    `FLAGHACK∞3D host "${b.serverName}" is burning on port ${b.port}`,
     `  This machine:  ${url(local)}`,
   ];
   for (const address of lan) lines.push(`  LAN:           ${url(address)}`);

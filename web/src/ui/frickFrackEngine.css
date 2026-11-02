@@ -299,11 +299,11 @@
 .ff-sleeve-header h3 { margin: 0; font: 500 clamp(18px,3vw,27px) Cinzel,Georgia,serif; }
 .ff-sleeve-viewer .ff-button { min-height: 48px; min-width: 48px; color: #ffedc4; background: #1c3735; border: 1px solid #c9a257; font-size: 16px; padding: 10px 16px; }
 .ff-sleeve-viewer .ff-button:focus-visible { outline: 3px solid #b9fff4; outline-offset: 3px; }
-.ff-sleeve-content { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(160px,1fr) minmax(0,auto); gap: 16px; width: min(960px,100%); margin: auto; }
-.ff-sleeve-showcase { display: flex; justify-content: center; align-items: center; gap: clamp(12px,3vw,40px); min-height: 0; }
-.ff-sleeve-card { height: min(100%,480px); aspect-ratio: 2 / 3; width: auto; max-width: calc(100% - 120px); flex: 0 1 auto; }
+.ff-sleeve-content { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(160px,1fr) minmax(0,auto); gap: 16px; width: min(960px,100%); margin: auto; }
+.ff-sleeve-showcase { display: flex; justify-content: center; align-items: center; gap: clamp(12px,3vw,40px); min-width: 0; min-height: 0; }
+.ff-sleeve-card { min-width: 0; height: min(100%,480px); aspect-ratio: 2 / 3; width: auto; max-width: calc(100% - 120px); flex: 0 1 auto; }
 .ff-sleeve-arrow { flex: 0 0 48px; font-size: 32px !important; padding: 0 !important; }
-.ff-sleeve-details { width: min(640px,100%); justify-self: center; box-sizing: border-box; background: #231e19ed; border: 1px solid #b99a63; border-radius: 12px; padding: 16px 20px; overflow: auto; overscroll-behavior: contain; max-height: 40dvh; }
+.ff-sleeve-details { min-width: 0; overflow-wrap: anywhere; width: min(640px,100%); justify-self: center; box-sizing: border-box; background: #231e19ed; border: 1px solid #b99a63; border-radius: 12px; padding: 16px 20px; overflow: auto; overscroll-behavior: contain; max-height: 40dvh; }
 .ff-sleeve-details h2 { margin: 4px 0 10px; font: 500 clamp(20px,3vw,28px) Cinzel,Georgia,serif; color: #ffe4a4; }
 .ff-sleeve-details p { line-height: 1.5; margin: 8px 0; }
 .ff-sleeve-index { color: #e5c98b; font-weight: 700; }

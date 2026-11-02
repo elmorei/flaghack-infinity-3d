@@ -9,7 +9,7 @@ const yaml = require('js-yaml');
 
 const root = join(__dirname, '../..');
 const workflow = yaml.load(readFileSync(join(root, '.github/workflows/desktop-publish.yml'), 'utf8'));
-const marker = 'Publish verified iteration desktop 0.1.2-iteration.1 [release:20261012]';
+const marker = 'Publish verified iteration desktop 0.1.3-iteration.1 [release:20261102]';
 const python = process.platform === 'win32' ? 'python' : 'python3';
 
 test('publisher trigger allows only the exact approved iteration push', () => {

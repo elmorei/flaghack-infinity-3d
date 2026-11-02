@@ -102,6 +102,9 @@ async function main() {
       await page.waitForFunction(() => window.flaghack?.session.screen === 'title' && !window.flaghack.startupPending);
       assert.equal(await page.getByText(/Download Windows host|Windows launcher/i).count(), 0);
       await fits(page.locator('.title-wordmark'), `${spec.name} title wordmark`);
+      assert.equal(await page.title(), 'FLAGHACK∞3D');
+      assert.equal(await page.locator('.title-wordmark').getAttribute('alt'), 'FLAGHACK∞3D — SURVEY FLAGS');
+      await shot(`${spec.name}-branding-title`);
       await shot(spec.name + '-title');
       check(`${spec.name}: actual video decodes and touch/click Skip opens title without launcher references`);
       if (spec.full) {

@@ -35,7 +35,7 @@ async function start(): Promise<void> {
     root.inert = false;
     overlay.dispose();
   } catch (error) {
-    console.error('FLAGHACK could not start', error);
+    console.error('FLAGHACK∞3D could not start', error);
     overlay.fail();
   }
 }

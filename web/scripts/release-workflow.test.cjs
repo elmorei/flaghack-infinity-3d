@@ -50,3 +50,16 @@ test('real startup browser validation gates publication of the same built client
   assert.match(run, /verify-startup-browser\.cjs/);
   assert.doesNotMatch(run, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
 });
+
+test('host package smoke launches the configured branded executable, not the legacy name', () => {
+  const host = require('../electron-host-builder.cjs');
+  const verify = readFileSync(join(__dirname, 'verify-host-package.cjs'), 'utf8');
+  assert.equal(host.win.executableName, 'FLAGHACK∞3D Match Host');
+  assert.equal(host.win.executableName, host.productName);
+  assert.ok(verify.includes("require('../electron-host-builder.cjs')"));
+  assert.ok(verify.includes('`${hostBuild.win.executableName}.exe`'));
+  assert.ok(verify.includes('existsSync(executable)'));
+  assert.ok(verify.includes('spawn(executable,'));
+  assert.ok(!verify.includes('FLAGHACK Match Host.exe'));
+  assert.equal(host.portable.artifactName, 'Flaghack-Host-Windows-x64.${ext}');
+});

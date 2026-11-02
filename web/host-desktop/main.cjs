@@ -9,19 +9,23 @@ const { startQuickTunnel } = require('./tunnel.cjs');
 const { DEFAULT_PAGES_URL } = require('./security.cjs');
 const uiUrl = pathToFileURL(join(__dirname, 'host.html')).href;
 let window, controller, quitting = false;
-app.setName('FLAGHACK Match Host');
+// Preserve the host profile independently of the displayed product name.
+const legacyUserData = join(app.getPath('appData'), 'FLAGHACK Match Host');
+app.setPath('userData', legacyUserData);
+app.setPath('sessionData', legacyUserData);
+app.setName('FLAGHACK∞3D Match Host');
 app.enableSandbox();
 if (!smokeMode && !app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (window && !window.isDestroyed()) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); } });
-  app.whenReady().then(smokeMode ? smoke : start).catch(() => { dialog.showErrorBox('Host app could not start', 'Close the app and reopen it. If the problem continues, install the matching FLAGHACK Match Host release.'); app.quit(); });
+  app.whenReady().then(smokeMode ? smoke : start).catch(() => { dialog.showErrorBox('Host app could not start', 'Close the app and reopen it. If the problem continues, install the matching FLAGHACK∞3D Match Host release.'); app.quit(); });
 }
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', event => {
   if (quitting) return;
   event.preventDefault();
   quitting = true;
-  const cleanupWarning = () => dialog.showErrorBox('Check for a background host', 'A match or tunnel could not be stopped cleanly. End cloudflared.exe and FLAGHACK Match Host in Task Manager before starting another match.');
+  const cleanupWarning = () => dialog.showErrorBox('Check for a background host', 'A match or tunnel could not be stopped cleanly. End cloudflared.exe and FLAGHACK∞3D Match Host in Task Manager before starting another match.');
   const deadline = setTimeout(() => { cleanupWarning(); app.exit(1); }, 6500);
   Promise.resolve(controller?.dispose()).then(state => { if (state?.status === 'error') cleanupWarning(); }, cleanupWarning).finally(() => { clearTimeout(deadline); app.quit(); });
 });
@@ -46,14 +50,14 @@ async function start() {
     startTunnel: options => startQuickTunnel({ ...options, executablePath: app.isPackaged ? join(process.resourcesPath, 'vendor', 'cloudflared.exe') : join(__dirname, 'vendor', 'cloudflared.exe') }),
     onState: state => { if (window && !window.isDestroyed()) window.webContents.send('host:state', state); },
   });
-  window = new BrowserWindow({ width: 900, height: 840, minWidth: 740, minHeight: 640, show: false, backgroundColor: '#111421', title: 'FLAGHACK Match Host', icon: join(__dirname, '..', 'desktop', 'icon.png'), webPreferences: { preload: join(__dirname, 'preload.cjs'), partition: 'flaghack-match-host', contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: false, devTools: !app.isPackaged } });
+  window = new BrowserWindow({ width: 900, height: 840, minWidth: 740, minHeight: 640, show: false, backgroundColor: '#111421', title: 'FLAGHACK∞3D Match Host', icon: join(__dirname, '..', 'desktop', 'icon.png'), webPreferences: { preload: join(__dirname, 'preload.cjs'), partition: 'flaghack-match-host', contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: false, devTools: !app.isPackaged } });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => { if (url !== uiUrl) event.preventDefault(); });
   window.webContents.on('will-redirect', event => event.preventDefault());
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   window.webContents.on('render-process-gone', () => { void controller.stop(); });
   window.on('closed', () => { window = null; });
-  handle('host:get', () => ({ ...controller.getState(), defaults: { pagesUrl: DEFAULT_PAGES_URL, serverName: 'My FLAGHACK match', port: 8787 }, version: app.getVersion() }));
+  handle('host:get', () => ({ ...controller.getState(), defaults: { pagesUrl: DEFAULT_PAGES_URL, serverName: 'My FLAGHACK∞3D match', port: 8787 }, version: app.getVersion() }));
   handle('host:start', options => controller.start(options));
   handle('host:stop', () => controller.stop());
   handle('host:copy-invite', () => { const state = controller.getState(); if (state.status !== 'running' || !state.invite) throw new Error('An invite is not ready yet.'); clipboard.writeText(state.invite); return true; });

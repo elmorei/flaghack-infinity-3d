@@ -56,7 +56,9 @@ async function loadMain(t, options = {}) {
     requestSingleInstanceLock: () => true,
     whenReady: async () => {},
     getVersion: () => options.version || '1.0.0',
-    getPath: () => userData,
+    getPath: name => name === 'appData' ? join(userData, '..') : userData,
+    setPath(name, value) { this.paths ||= {}; this.paths[name] = value; },
+    setName(name) { this.name = name; },
     exit() { this.finalQuits += 1; },
     quit() { const quitting = event(); this.emit('before-quit', quitting); if (!quitting.prevented) this.finalQuits += 1; },
   });
@@ -416,4 +418,13 @@ test('Play and duplicate install requests cannot race an open native confirmatio
   assert.deepEqual(context.autoUpdater.installCalls, []);
   await context.invoke('launcher:play');
   assert.equal(context.hostCalls.length, 1);
+});
+
+ test('launcher branding preserves the legacy packaged profile and partition IDs', async t => {
+  const context = await loadMain(t);
+  assert.equal(context.app.name, 'FLAGHACK∞3D');
+  assert.equal(context.app.paths.userData, join(context.userData, '..', 'FLAGHACK Infinity'));
+  assert.equal(context.app.paths.sessionData, context.app.paths.userData);
+  assert.equal(context.launcher.options.title, 'FLAGHACK∞3D Launcher');
+  assert.ok(context.sessions.has('flaghack-launcher'));
 });

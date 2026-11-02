@@ -78,6 +78,8 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-sleeve-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-beacon-card-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs
       - name: Upload startup browser evidence
         if: always()
@@ -92,6 +94,8 @@ jobs:
             web/host-release/frick-dice-smoke/
             web/host-release/frick-frack-smoke/
             web/host-release/intro-smoke/
+            web/host-release/frick-sleeve-smoke/
+            web/host-release/beacon-card-smoke/
           if-no-files-found: warn
           retention-days: 14
 

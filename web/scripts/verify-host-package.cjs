@@ -6,11 +6,14 @@ const { tmpdir } = require('node:os');
 const { randomUUID, createHash } = require('node:crypto');
 const { spawn, execFileSync } = require('node:child_process');
 const asar = require('@electron/asar');
+const hostBuild = require('../electron-host-builder.cjs');
 const { normalizeArchivePaths } = require('./package-paths.cjs');
 const root = join(__dirname, '..');
 const output = join(root, 'host-release');
 const portable = join(output, 'Flaghack-Host-Windows-x64.exe');
 const unpacked = join(output, 'win-unpacked');
+const executable = join(unpacked, `${hostBuild.win.executableName}.exe`);
+assert.ok(existsSync(executable), 'Configured host executable must be packaged');
 const resources = join(unpacked, 'resources');
 const archive = join(resources, 'app.asar');
 const metadata = JSON.parse(asar.extractFile(archive, 'package.json').toString());
@@ -35,7 +38,7 @@ async function smoke() {
   const result = join(tmpdir(), `flaghack-host-smoke-${randomUUID()}.json`);
   try {
     const code = await new Promise((resolve, reject) => {
-      const child = spawn(join(unpacked, 'FLAGHACK Match Host.exe'), ['--smoke-test', '--smoke-result', result], { windowsHide: true, stdio: 'ignore' });
+      const child = spawn(executable, ['--smoke-test', '--smoke-result', result], { windowsHide: true, stdio: 'ignore' });
       const deadline = setTimeout(() => { child.kill(); reject(new Error('Packaged host smoke timed out')); }, 45000);
       child.once('error', error => { clearTimeout(deadline); reject(error); });
       child.once('exit', code => { clearTimeout(deadline); resolve(code); });

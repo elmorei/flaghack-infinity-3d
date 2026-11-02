@@ -24,26 +24,26 @@ REPOSITORY = 'elmorei/flaghack-infinity-3d'
 TAG = 'desktop-iteration'
 RELEASE_ID = 409874213
 TAG_SOURCE = '8909d36160d1c381a669b5761c70fc7a03dbbce3'
-PREVIOUS_VERSION = '0.1.1-iteration.1'
-VERSION = '0.1.2-iteration.1'
+PREVIOUS_VERSION = '0.1.2-iteration.1'
+VERSION = '0.1.3-iteration.1'
 TITLE = f'Iteration desktop {VERSION}'
-MARKER = 'Publish verified iteration desktop 0.1.2-iteration.1 [release:20261012]'
+MARKER = 'Publish verified iteration desktop 0.1.3-iteration.1 [release:20261102]'
 INSTALLER = f'Flaghack-Setup-{VERSION}-x64.exe'
 MANIFEST = 'iteration.yml'
 NAMES = (INSTALLER, INSTALLER + '.blockmap', MANIFEST)
-PREVIOUS_BODY_SHA256 = '3e64d557f64f98148a6b5fe871600025f70a0201984e8e85ca57d6ab56089a51'
+PREVIOUS_BODY_SHA256 = 'f5fbdb758417a3e4dd5b4b3809aa1844d90d74843bc8436347453da670b71de5'
 PREVIOUS_ASSETS = {
     f'Flaghack-Setup-{PREVIOUS_VERSION}-x64.exe': {
-        'id': 631612145, 'size': 122597416,
-        'sha256': '63954a101b2528220742850e53ab09246eb1ed8472dcf97645d192918d9cd22d',
+        'id': 632542815, 'size': 121672452,
+        'sha256': '23fb7bb0215c8ed58e3d1533113cc03ccbcb3c3ddb3afde79544f69601ca9618',
     },
     f'Flaghack-Setup-{PREVIOUS_VERSION}-x64.exe.blockmap': {
-        'id': 631612322, 'size': 129542,
-        'sha256': '000231aef959aa4de4d4f72503b447a84b0ff574bf0f9dc4146e2194fe1fc466',
+        'id': 632543135, 'size': 128358,
+        'sha256': '3e6fdb2baa0873c75cfeca07db99e78b20fbab0854eae88767da68419a0e69e5',
     },
     MANIFEST: {
-        'id': 631612356, 'size': 389,
-        'sha256': '08d9b071957ba6b2cc29175abb2398a3c7c83effb222ee91c637c00195890b76',
+        'id': 632543390, 'size': 389,
+        'sha256': 'f650bb1eb58bcf3e4f1d67967bfcc8d2608cdf3fa69c7f24d06b5d43f116ca89',
     },
 }
 DEFAULT_APPROVAL = Path(__file__).resolve().parents[1] / 'iteration-desktop-approval.json'

@@ -20,7 +20,7 @@ function readInfo(origin, { signal, timeoutMs = 3500, pagesOrigin } = {}) {
       res.setEncoding('utf8');
       res.on('data', chunk => { length += Buffer.byteLength(chunk); if (length > 16384) { oversized = true; reject(new Error('Host response was too large.')); res.destroy(); req.destroy(); } else body += chunk; });
       res.on('error', reject);
-      res.on('end', () => { if (oversized) return; try { resolve(hostInfo(JSON.parse(body))); } catch { reject(new Error('Endpoint did not return a compatible FLAGHACK host.')); } });
+      res.on('end', () => { if (oversized) return; try { resolve(hostInfo(JSON.parse(body))); } catch { reject(new Error('Endpoint did not return a compatible FLAGHACK∞3D host.')); } });
     });
     const timer = setTimeout(() => { reject(new Error('Host endpoint timed out.')); req.destroy(); }, timeoutMs);
     req.on('close', () => clearTimeout(timer));

@@ -20,7 +20,7 @@ jobs:
       github.ref == 'refs/heads/iteration' &&
       github.event_name == 'push' &&
       github.event.head_commit.message ==
-        'Publish verified iteration desktop 0.1.2-iteration.1 [release:20261012]'
+        'Publish verified iteration desktop 0.1.3-iteration.1 [release:20261102]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
