@@ -22,9 +22,9 @@ function fixture() {
 }
 
 describe('tall platforms preserve ground corner claims', () => {
-  it('defaults to 6.4 m and leaves own and enemy planted flags in place when decks are built above', () => {
+  it('defaults to the minimum 5.77 m and leaves own and enemy planted flags in place when decks are built above', () => {
     const { world, facet } = fixture();
-    expect(LEVEL_HEIGHT).toBe(6.4);
+    expect(LEVEL_HEIGHT).toBe(5.77);
     const planted = facet.nodes.slice(0, 2).map((node, faction) => {
       const n = world.lattice.nodes[node];
       const flag = spawnFlag(world, { state: 'loose', owner: faction as 0 | 1, holder: -1, pos: { x: n.x, y: world.collision.groundHeight(n.x, n.z), z: n.z } });

@@ -1,5 +1,5 @@
 import { buildingLevel } from '../../sim/buildingGeometry';
-import { LEVEL_HEIGHT } from '../../sim/constants';
+import { LEVEL_HEIGHT, BUILDING_SCAFFOLD_HEADROOM, BUILDING_POP_START_SCALE } from '../../sim/constants';
 /**
  * BuildingView: the common life of every building visual. Subclasses build their model
  * (cached per kind in the kit) and animate it; the base class handles what every building
@@ -56,7 +56,7 @@ const TAU = Math.PI * 2;
 /** A light scaffold around a footprint: posts, ledgers, braces, one plank deck. */
 export function buildScaffold(mb: ModelBuilder, radius: number, height: number): void {
   const n = 6;
-  const top = height + 0.5;
+  const top = height + BUILDING_SCAFFOLD_HEADROOM;
   const pts: [number, number][] = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * TAU + 0.26;
@@ -229,7 +229,7 @@ export abstract class BuildingView {
     }
     if (this.popT < 1) {
       this.popT = Math.min(1, this.popT + f.dt / POP_TIME);
-      const s = 0.82 + 0.18 * easeOutBack(this.popT);
+      const s = BUILDING_POP_START_SCALE + (1 - BUILDING_POP_START_SCALE) * easeOutBack(this.popT);
       this.body.scale.set(2 - s, s, 2 - s);
     } else if (this.body.scale.y !== 1) {
       this.body.scale.set(1, 1, 1);

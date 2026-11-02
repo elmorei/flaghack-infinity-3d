@@ -35,6 +35,15 @@ describe('buildings on elevated platforms', () => {
       expect(canPlaceBuilding(world, 0, kind, facet.id, 1).ok).toBe(false);
     }
   });
+  it('fits every hand-buildable camp below a single platform level, on ground and stacked decks', () => {
+    for (const kind of ['workshop', 'ward', 'drumcircle', 'druglab'] as const) {
+      for (const level of [0, 1]) {
+        const { world, facet } = fixture();
+        if (level === 1) attachPiece(world, spawnPiece(world, 'floor', 0, -1, facet.id, 1, -1));
+        expect(canPlaceBuilding(world, 0, kind, facet.id, level).ok).toBe(true);
+      }
+    }
+  });
   it('requires flat, footprint-sized support and a valid integer level, without charging failures', () => {
     const { world, facet, deck } = fixture();
     const before = world.factions[0].lumber;

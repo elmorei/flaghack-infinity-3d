@@ -4,6 +4,8 @@
  * curves every pop-in shares, frame-rate independent damping, and flicker noise.
  */
 
+import { BACK_EASE_OVERSHOOT } from '../../sim/constants';
+
 /** mulberry32: tiny deterministic PRNG returning floats in [0, 1). */
 export function seededRandom(seed: number): () => number {
   let a = seed >>> 0;
@@ -18,7 +20,7 @@ export function seededRandom(seed: number): () => number {
 
 /** Overshooting ease used for every pop-in (pieces, buildings, GCC rebuild). */
 export function easeOutBack(t: number): number {
-  const c1 = 1.70158;
+  const c1 = BACK_EASE_OVERSHOOT;
   const c3 = c1 + 1;
   const x = t - 1;
   return 1 + c3 * x * x * x + c1 * x * x;

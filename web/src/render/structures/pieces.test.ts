@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { LEVEL_HEIGHT } from '../../sim/constants';
 import { createMatch } from '../../sim/setup';
-import { rampPolygon } from '../../sim/systems/econ/pieceGeometry';
+import { rampPolygon, DECK_THICKNESS, CORNER_BRACE_DROP, CORNER_BRACE_HALF_Y } from '../../sim/systems/econ/pieceGeometry';
 import { pieceModels, pieceSlotMatrix, rhombusFrame } from './pieces';
 import { StructureKit } from './kit';
 
@@ -11,6 +11,15 @@ function kit() {
 }
 
 describe('rectangular ramp render geometry', () => {
+  it.each([0, 1, 2, 3])('includes corner knee braces in the shared live/ghost deck variant %i', variant => {
+    const resources = kit();
+    const geometry = pieceModels(resources, 8).decks[variant].get('woodPaint')!;
+    geometry.computeBoundingBox();
+    expect(geometry.boundingBox!.min.y).toBeCloseTo(-DECK_THICKNESS - CORNER_BRACE_DROP - CORNER_BRACE_HALF_Y, 5);
+    expect(geometry.boundingBox!.max.y).toBeCloseTo(0, 5);
+    resources.dispose();
+  });
+
   it.each([0, 1, 2, 3])('keeps variant %i slats and stringers within the centered rectangular strip', variant => {
     const resources = kit(), L = 8;
     const model = pieceModels(resources, L).ramps[variant].get('woodPaint')!;

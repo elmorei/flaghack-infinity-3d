@@ -22,7 +22,7 @@ const server=createServer((req,res)=>{
   if(range){const start=Number(range[1]),end=Math.min(body.length-1,range[2]?Number(range[2]):body.length-1);if(start>end||start>=body.length){res.writeHead(416);res.end();return;}headers['Content-Range']=`bytes ${start}-${end}/${body.length}`;body=body.subarray(start,end+1);}
   headers['Content-Length']=body.length;res.writeHead(range?206:200,headers);res.end(body);
 });
-const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. Rectangular thick/thin ramps, adjoining decks and low-edge avatar starts are staged; real desktop W ascends onto the decks and collision rays verify empty side corners. Ladder starting position and neighboring floor are staged; desktop ascent/descent use real keyboard and disclosed emulated standard-controller axes through production polling, never injected avatar movement. Mobile remains command-only and an emulated standard controller is checked not to move its staged Regular avatar. Mobile is emulated Regular-mode, not physical-device, touch-joystick or Degen pickup certification.',scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. A ground Ward is placed by real mouse click and completes naturally under a staged roof; actual finished body including completion bounce is measured, excluding the temporary scaffold. Rectangular thick/thin ramps, adjoining decks and low-edge avatar starts are staged; real desktop W ascends onto the decks and collision rays verify empty side corners. Ladder starting position and neighboring floor are staged; desktop ascent/descent use real keyboard and disclosed emulated standard-controller axes through production polling, never injected avatar movement. Mobile remains command-only and an emulated standard controller is checked not to move its staged Regular avatar. Mobile is emulated Regular-mode, not physical-device, touch-joystick or Degen pickup certification.',scenarios:[]};
 let browser,page;
 async function stage(){
   return page.evaluate(()=>{
@@ -72,7 +72,7 @@ async function platformScenario(spec,context,check){
       const p=f.factory.spawnPiece(w,'floor',0,-1,fc.id,0,-1);f.pieces.attachPiece(w,p);
       const valid=f.buildings.canPlaceBuilding(w,0,kind,fc.id,1);if(!valid.ok)throw Error(`Platform fixture rejected: ${valid.reason}`);
       a.session.camera.cmdX=fc.cx;a.session.camera.cmdZ=fc.cz;a.session.camera.cmdHeight=32;
-      const target={facet:fc.id,x:fc.cx,z:fc.cz,y:w.collision.groundHeight(fc.cx,fc.cz)+6.4,kind};window.__platformTarget=target;
+      const target={facet:fc.id,x:fc.cx,z:fc.cz,y:w.collision.groundHeight(fc.cx,fc.cz)+5.77,kind};window.__platformTarget=target;
       return target;
     },kind);
     await page.waitForTimeout(1500);
@@ -100,7 +100,7 @@ async function platformScenario(spec,context,check){
       const module=a.renderer.modules.find(m=>m.views?.has(b.id)),root=module?.views.get(b.id).root;
       return{level:b.level,rootY:root?.position.y,ground:a.renderer.ctx.shared.groundOffset(b.pos.x,b.pos.z)};
     });
-    assert.equal(placed.level,1);assert.ok(Math.abs(placed.rootY-placed.ground-6.4)<.001,'Building model remains on its deck');
+    assert.equal(placed.level,1);assert.ok(Math.abs(placed.rootY-placed.ground-5.77)<.001,'Building model remains on its deck');
     await page.screenshot({path:join(OUT,`${spec.name}-${kind}-on-deck.png`)});
     await page.waitForFunction(()=>{const w=window.flaghack.world,t=window.__platformTarget;return Array.from(w.buildings.values()).some(b=>b.kind===t.kind&&b.facet===t.facet&&b.level===1&&b.built>=1);},null,{timeout:60000});
     await page.waitForTimeout(900);
@@ -121,7 +121,7 @@ async function ladderScenario(spec,context,check){
     const x=(n0.x+n1.x)/2,z=(n0.z+n1.z)/2,length=Math.hypot(n1.x-n0.x,n1.z-n0.z);
     let nx=(n1.z-n0.z)/length,nz=-(n1.x-n0.x)/length;if((x-fc.cx)*nx+(z-fc.cz)*nz<0){nx=-nx;nz=-nz;}
     const floor=f.factory.spawnPiece(w,'floor',0,-1,fc.id,0,-1);f.pieces.attachPiece(w,floor);
-    const av=w.avatarOf(0),bottom=w.collision.groundHeight(x+nx*.63,z+nz*.63),top=w.collision.groundHeight(fc.cx,fc.cz)+6.4;
+    const av=w.avatarOf(0),bottom=w.collision.groundHeight(x+nx*.63,z+nz*.63),top=w.collision.groundHeight(fc.cx,fc.cz)+5.77;
     av.pos={x:x+nx*.63,y:bottom,z:z+nz*.63};av.vel={x:0,y:0,z:0};av.hp=200;av.koUntil=0;av.action={kind:'idle'};
     a.session.view='action';a.session.tool='flag';a.session.camera.yaw=Math.atan2(-nx,-nz);a.session.camera.pitch=.2;a.session.camera.dist=11;
     const t={facet:fc.id,piece:floor.id,neighbor:edge.facets.find(id=>id!==fc.id),x,z,nx,nz,bottom,top};window.__ladderFixture=t;return t;
@@ -138,7 +138,7 @@ async function ladderScenario(spec,context,check){
   });
   let rendered=await geometry();assert.equal(rendered.rails.length,2,'Both exposed-edge ladder rails are rendered');
   assert.equal(rendered.posts.length,4,'Four corner posts support the isolated platform');
-  for(const post of rendered.posts){const ground=await page.evaluate(({x,z})=>window.flaghack.world.collision.groundHeight(x,z),post);assert.ok(Math.abs(post.y-ground)<.001,'Post reaches terrain');assert.ok(post.height>5.5,'Post reaches the raised deck');}
+  for(const post of rendered.posts){const ground=await page.evaluate(({x,z})=>window.flaghack.world.collision.groundHeight(x,z),post);assert.ok(Math.abs(post.y-ground)<.001,'Post reaches terrain');assert.ok(post.height>5.0,'Post reaches the raised deck');}
   await page.screenshot({path:join(OUT,`${spec.name}-ladder-exposed-posts.png`)});
   await page.evaluate(()=>{const w=window.flaghack.world,t=window.__ladderFixture,f=window.fh;t.joined=f.factory.spawnPiece(w,'floor',0,-1,t.neighbor,0,-1);f.pieces.attachPiece(w,t.joined);});
   await page.waitForTimeout(900);assert.equal((await geometry()).rails.length,0,'Same-height adjacent floor removes the shared-edge ladder');
@@ -173,7 +173,7 @@ async function ladderScenario(spec,context,check){
     await page.waitForFunction(()=>{const av=window.flaghack.world.avatarOf(0),t=window.__ladderFixture;return av.pos.y>=t.top-.05&&(av.pos.x-t.x)*t.nx+(av.pos.z-t.z)*t.nz<-.12;},null,{timeout:15000,polling:16});
     await drive(0);
     const atop=await page.evaluate(()=>{const av=window.flaghack.world.avatarOf(0);return{y:av.pos.y,jump:av.input.jump};});
-    assert.ok(Math.abs(atop.y-fixture.top)<.15,'Normal movement climbs and boards the 6.4m deck');assert.equal(atop.jump,false);
+    assert.ok(Math.abs(atop.y-fixture.top)<.15,'Normal movement climbs and boards the 5.77m deck');assert.equal(atop.jump,false);
     await page.screenshot({path:join(OUT,`${spec.name}-ladder-climbed-onto-deck.png`)});
     await drive(-1);
     await page.waitForFunction(()=>window.flaghack.world.avatarOf(0).pos.y<=window.__ladderFixture.bottom+.08,null,{timeout:15000,polling:16});
@@ -208,8 +208,8 @@ async function rampScenario(spec,check){
           const low={x:(xs[0]+xs[1])/2,z:(zs[0]+zs[1])/2},high={x:(xs[2]+xs[3])/2,z:(zs[2]+zs[3])/2};
           const run=Math.hypot(high.x-low.x,high.z-low.z),dx=(high.x-low.x)/run,dz=(high.z-low.z)/run;
           const neighbor=lat.facets[fc.neighbors[(side+2)%4]];if(!neighbor)continue;
-          const base=w.collision.groundHeight(fc.cx,fc.cz),top=w.collision.groundHeight(neighbor.cx,neighbor.cz)+6.4;
-          if(Math.abs(top-base-6.4)>.12||Math.abs(w.collision.groundHeight(low.x-dx,low.z-dz)-base)>.12)continue;
+          const base=w.collision.groundHeight(fc.cx,fc.cz),top=w.collision.groundHeight(neighbor.cx,neighbor.cz)+5.77;
+          if(Math.abs(top-base-5.77)>.12||Math.abs(w.collision.groundHeight(low.x-dx,low.z-dz)-base)>.12)continue;
           if(![...n,low,high].every(v=>w.nav.isWalkable(v.x,v.z)))continue;
           const inside=(x,z)=>xs.every((v,i)=>{const j=(i+1)%4;return(xs[j]-v)*(z-zs[i])-(zs[j]-zs[i])*(x-v)>=-1e-7;});
           const gaps=n.map(v=>({x:v.x*.85+fc.cx*.15,z:v.z*.85+fc.cz*.15})).filter(v=>!inside(v.x,v.z));
@@ -241,6 +241,47 @@ async function rampScenario(spec,check){
     }
     check(`${label} rectangular ramp has empty noncolliding side corners${spec.mobile?' and renders in mobile command view':'; real W walks onto its high deck without jump'}`);
   }
+}
+
+async function completedWardClearance(spec,check){
+  if(spec.mobile)return; // Desktop real placement supplies the completion/bounce proof.
+  await page.evaluate(()=>{
+    const a=window.flaghack,w=a.world,f=window.fh;
+    const fc=w.lattice.facets.find(fc=>f.buildings.canPlaceBuilding(w,0,'ward',fc.id).ok&&![...w.pieces.values()].some(p=>p.facet===fc.id));
+    if(!fc)throw Error('No ground Ward clearance fixture');
+    w.factions[0].lumber=1000;a.session.view='command';a.session.tool='building';a.session.buildingKind='ward';
+    a.session.camera.cmdX=fc.cx;a.session.camera.cmdZ=fc.cz;a.session.camera.cmdHeight=28;
+    window.__underDeck={facet:fc.id,x:fc.cx,z:fc.cz,y:w.collision.groundHeight(fc.cx,fc.cz)};
+  });
+  await page.waitForTimeout(1200);
+  const point=await page.evaluate(()=>{const a=window.flaghack,t=window.__underDeck,c=a.renderer.camera,p=c.position.clone().set(t.x,t.y,t.z).project(c),r=a.renderer.renderer.domElement.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};});
+  await page.mouse.move(point.x,point.y);
+  await page.waitForFunction(()=>{const s=window.flaghack.session,t=window.__underDeck;return s.ghost?.valid&&s.ghost.facet===t.facet&&s.ghost.level===0;},null,{timeout:15000});
+  await page.mouse.click(point.x,point.y,{delay:80});
+  await page.waitForFunction(()=>{const w=window.flaghack.world,t=window.__underDeck;return[...w.buildings.values()].some(b=>b.kind==='ward'&&b.facet===t.facet&&b.level===0);},null,{timeout:15000});
+  // Stage only the roof. The Ward completes naturally; temporary construction
+  // scaffold clearance is deliberately excluded by the user's finished-model choice.
+  await page.evaluate(()=>{const a=window.flaghack,w=a.world,t=window.__underDeck,f=window.fh;const p=f.factory.spawnPiece(w,'floor',0,-1,t.facet,0,-1);f.pieces.attachPiece(w,p);a.session.tool='flag';});
+  const fit=await page.evaluate(()=>new Promise((resolve,reject)=>{
+    const start=performance.now(),tops=[];let completedAt=null,maxScale=0;
+    function tick(){
+      const a=window.flaghack,w=a.world,t=window.__underDeck,b=[...w.buildings.values()].find(b=>b.kind==='ward'&&b.facet===t.facet&&b.level===0);
+      const view=b&&a.renderer.modules.find(m=>m.views?.has(b.id))?.views.get(b.id);
+      if(b?.built>=1&&view){
+        completedAt??=performance.now();view.root.updateMatrixWorld(true);let top=-Infinity;
+        view.body.traverseVisible(mesh=>{if(!mesh.geometry)return;mesh.geometry.computeBoundingBox();const box=mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);top=Math.max(top,box.max.y);});
+        tops.push(top);maxScale=Math.max(maxScale,view.body.scale.y);
+        if(performance.now()-completedAt>1100){resolve({maximum:Math.max(...tops),samples:tops.length,maxScale,underside:view.root.position.y+5.77-.25});return;}
+      }
+      if(performance.now()-start>20000){reject(Error('Ward did not complete naturally within clearance sample'));return;}
+      requestAnimationFrame(tick);
+    }requestAnimationFrame(tick);
+  }));
+  assert.ok(fit.samples>5&&Number.isFinite(fit.maximum));assert.ok(fit.maxScale>1,'Actual completion overshoot was observed');
+  assert.ok(fit.maximum<fit.underside,'Completed Ward including completion bounce fits below 5.77m platform slab');
+  await page.evaluate(()=>{const a=window.flaghack,t=window.__underDeck,av=a.world.avatarOf(0);av.pos={x:t.x,y:t.y,z:t.z-9};av.vel={x:0,y:0,z:0};a.session.view='action';a.session.camera.yaw=0;a.session.camera.pitch=.15;a.session.camera.dist=10;});
+  await page.waitForTimeout(900);await page.screenshot({path:join(OUT,'desktop-completed-ward-under-braced-deck.png')});
+  check(`Completed Ward fits under braced5.77m deck, including actual completion bounce (${fit.samples} samples); scaffold intentionally excluded`);
 }
 
 async function scenario(spec,url){
@@ -289,6 +330,7 @@ async function scenario(spec,url){
     await platformScenario(spec,context,check);
     await ladderScenario(spec,context,check);
     await rampScenario(spec,check);
+    await completedWardClearance(spec,check);
     entry.after=await renderState();
     if(spec.mobile){
       await page.evaluate(()=>window.flaghack.startMatch({seed:'beacon-card-degen',humans:[0],rtsFactions:[0],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));

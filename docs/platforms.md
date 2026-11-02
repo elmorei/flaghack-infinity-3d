@@ -1,6 +1,6 @@
 # Elevated platforms
 
-Construction levels are now 6.4 m high, twice the previous 3.2 m. Decks, connecting ramps and support walls share this spacing; building, character and map dimensions are unchanged. All hand-built camp buildings fit beneath a deck one construction level above, provided their footprints and other clearance rules permit it.
+Construction levels are 5.77 m high: the minimum whole-centimeter spacing clearing the finished hand-buildable camps and their completion bounce, plus the 0.25 m deck slab. The Ward eye reaches 5.405 m; its maximum completion scale is about 1.018. The unique Hearth/altar flagpole and temporary construction scaffolding are excluded. Decks, connecting ramps and support walls share this spacing; building, character and map dimensions are unchanged. All hand-built camp buildings fit beneath a deck one construction level above, provided their footprints and other clearance rules permit it.
 
 Every deck has four physical corner posts reaching the actual terrain, including stacked decks. Posts retain a small inward inset so the original ground-level flag positions remain accessible. Ground Flags continue claiming these nodes normally: building or removing platforms neither raises Flags nor removes their claims.
 
@@ -20,3 +20,5 @@ Climbing requires a nearby exposed ladder and respects solid obstacles and ceili
 Hippie pathfinding remains ground/ramp-based. It does not automatically plan routes up ladders.
 
 Existing building support rules remain: an elevated camp must sit on a flat, intact deck with enough footprint and headroom. Removing a supporting deck collapses its camp; ordinary collapse releases stored Flags, while boss destruction follows existing destructive behavior.
+
+Each deck has two diagonal knee braces at each corner post. They stay in the corner bands, leaving ladder landings and normal camp footprints clear. Preview and live geometry share the same braces; collision follows their sloped beams.

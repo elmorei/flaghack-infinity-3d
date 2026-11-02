@@ -22,7 +22,22 @@ export const CAMP_CENTERS: Record<FactionId, { x: number; z: number }> = {
   2: { x: 90, z: -90 },
   3: { x: -90, z: -90 },
 };
-export const LEVEL_HEIGHT = 6.4; // construction spacing: platforms, connecting ramps and support walls (m)
+// Shared physical/presentation dimensions keep minimum platform clearance reproducible.
+export const PLATFORM_DECK_THICKNESS = 0.25;
+export const WARD_EYE_CENTER_HEIGHT = 4.78;
+export const WARD_REVEAL_HEIGHT = WARD_EYE_CENTER_HEIGHT + 0.5;
+export const BUILDING_SCAFFOLD_HEADROOM = 0.5;
+/** Finished Ward eye (including brass ring) is the tallest hand-buildable structure. */
+export const WARD_EYE_OUTER_RADIUS = 0.55 + 0.03 + 0.045;
+export const BUILDING_POP_START_SCALE = 0.82;
+export const BACK_EASE_OVERSHOOT = 1.70158;
+/** Exact maximum of easeOutBack, whose derivative vanishes at x=-2c/(3(c+1)). */
+export const BACK_EASE_MAX = 1 + 4 * BACK_EASE_OVERSHOOT ** 3 / (27 * (BACK_EASE_OVERSHOOT + 1) ** 2);
+export const BUILDING_POP_MAX_SCALE = BUILDING_POP_START_SCALE + (1 - BUILDING_POP_START_SCALE) * BACK_EASE_MAX;
+export const TALLEST_BUILDABLE_STRUCTURE_HEIGHT = (WARD_EYE_CENTER_HEIGHT + WARD_EYE_OUTER_RADIUS) * BUILDING_POP_MAX_SCALE;
+export const PLATFORM_CLEARANCE_EPSILON = 0.01; // one centimeter of visual separation above the completion bounce
+/** Minimum whole-centimeter level spacing with positive clearance; unique Hearth flagpole and temporary scaffolding excluded. */
+export const LEVEL_HEIGHT = Math.ceil((TALLEST_BUILDABLE_STRUCTURE_HEIGHT + PLATFORM_DECK_THICKNESS + PLATFORM_CLEARANCE_EPSILON) * 100) / 100;
 export const MAX_BUILD_LEVEL = 3;
 
 // ── Factions ──────────────────────────────────────────────────────────────────

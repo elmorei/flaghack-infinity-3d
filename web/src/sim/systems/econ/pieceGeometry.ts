@@ -6,17 +6,42 @@
  * slab whose top is at (L+1)·H; a ramp of level L rises from L·H on its low edge to (L+1)·H
  * on the opposite edge.
  */
-import { LEVEL_HEIGHT, MAX_BUILD_LEVEL, PIECE } from '../../constants';
+import { LEVEL_HEIGHT, MAX_BUILD_LEVEL, PIECE, PLATFORM_DECK_THICKNESS } from '../../constants';
 import type { Lattice } from '../../lattice/lattice';
 import type { V3 } from '../../math';
 import type { World } from '../../world';
 import type { Piece, PieceKind } from '../../types';
 
-export const DECK_THICKNESS = 0.25;
+export const DECK_THICKNESS = PLATFORM_DECK_THICKNESS;
 export const RAMP_THICKNESS = 0.25;
 export const STILT_RADIUS = 0.12;
 /** Stilts stand this far in from the facet corners so the Ley Node itself stays reachable. */
 export const STILT_INSET = 0.7;
+
+export const CORNER_BRACE_RUN = 0.65;
+export const CORNER_BRACE_DROP = 0.65;
+export const CORNER_BRACE_WIDTH = 0.12;
+/** Vertical envelope of a square beam tilted at 45 degrees. */
+export const CORNER_BRACE_HALF_Y = CORNER_BRACE_WIDTH / Math.SQRT2;
+export interface CornerBrace { ax: number; az: number; bx: number; bz: number; ay: number; by: number }
+/** Two knee braces per inset post; y coordinates are relative to the deck's top. */
+export function cornerBraces(xs: readonly number[], zs: readonly number[]): CornerBrace[] {
+  const cx = (xs[0] + xs[1] + xs[2] + xs[3]) / 4;
+  const cz = (zs[0] + zs[1] + zs[2] + zs[3]) / 4;
+  const feet = xs.map((x, i) => {
+    const length = Math.hypot(cx - x, cz - zs[i]);
+    return { x: x + (cx - x) * STILT_INSET / length, z: zs[i] + (cz - zs[i]) * STILT_INSET / length };
+  });
+  const braces: CornerBrace[] = [];
+  for (let i = 0; i < 4; i++) for (const neighbor of [(i + 1) % 4, (i + 3) % 4]) {
+    const a = feet[i], b = feet[neighbor];
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    braces.push({ ax: a.x, az: a.z, bx: a.x + (b.x - a.x) * CORNER_BRACE_RUN / length,
+      bz: a.z + (b.z - a.z) * CORNER_BRACE_RUN / length,
+      ay: -DECK_THICKNESS - CORNER_BRACE_DROP, by: -DECK_THICKNESS });
+  }
+  return braces;
+}
 
 /** Slot key for an edge or facet id at a build level (one piece per slot). */
 export function slotKey(id: number, level: number): number {

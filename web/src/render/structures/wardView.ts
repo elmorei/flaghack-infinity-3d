@@ -6,7 +6,7 @@
  * ground out to the pulse radius.
  */
 import * as THREE from 'three';
-import { WARD_PULSE_RADIUS } from '../../sim/constants';
+import { WARD_PULSE_RADIUS, WARD_EYE_CENTER_HEIGHT, WARD_REVEAL_HEIGHT } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import type { Building } from '../../sim/types';
 import { BuildingView, type FrameInfo } from './buildingView';
@@ -17,7 +17,8 @@ import { damp } from './util';
 const TAU = Math.PI * 2;
 const SHAFT_Y = 0.5;
 const SHAFT_H = 3.2;
-const EYE_Y = 4.78;
+export const WARD_EYE_Y = WARD_EYE_CENTER_HEIGHT;
+const EYE_Y = WARD_EYE_Y;
 const EYE_R = 0.55;
 const PULSE_TIME = 0.75;
 
@@ -50,6 +51,7 @@ function buildEye(mb: ModelBuilder): void {
 
 /** Static model of the Hearth Ward (shared with its placement ghost). */
 export const WARD_MODEL: ModelRecipe = { name: 'ward', build: buildWard };
+export const WARD_EYE_MODEL: ModelRecipe = { name: 'wardEye', build: buildEye };
 
 export class WardView extends BuildingView {
   private readonly eye = new THREE.Group();
@@ -59,10 +61,10 @@ export class WardView extends BuildingView {
   private flare = 0;
 
   constructor(kit: StructureKit, b: Building) {
-    super(kit, b, EYE_Y + 0.5, 2.2);
+    super(kit, b, WARD_REVEAL_HEIGHT, 2.2);
     this.addStatic(kit.model(WARD_MODEL.name, WARD_MODEL.build));
     this.eye.position.y = EYE_Y;
-    this.addStatic(kit.model('wardEye', buildEye), this.eye);
+    this.addStatic(kit.model(WARD_EYE_MODEL.name, WARD_EYE_MODEL.build), this.eye);
     this.body.add(this.eye);
     this.ringMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,

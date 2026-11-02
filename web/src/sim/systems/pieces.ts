@@ -29,6 +29,7 @@ import type { PlacementCheck } from './buildings';
 import { polygonClearance, polygonHitsBuilding, segmentClearance, segmentHitsBuilding } from './econ/clearance';
 import {
   DECK_THICKNESS,
+  cornerBraces, CORNER_BRACE_WIDTH, CORNER_BRACE_HALF_Y,
   facetPolygon,
   pieceBottom,
   pieceGroundHeight,
@@ -154,6 +155,14 @@ export function canBuildPiece(
     const clear = polygonClearance(world, POLY_X, POLY_Z, y0);
     if (clear !== 'clear') return NO[clear];
     if (kind === 'floor') {
+      // Knee braces project below the slab only in narrow corner bands.
+      for (const b of cornerBraces(POLY_X, POLY_Z)) {
+        const bottom = (level + 1) * LEVEL_HEIGHT + b.ay - CORNER_BRACE_HALF_Y;
+        const braceTop = (level + 1) * LEVEL_HEIGHT + b.by + CORNER_BRACE_HALF_Y;
+        if (segmentHitsBuilding(world, b.ax, b.az, b.bx, b.bz, CORNER_BRACE_WIDTH / 2, bottom, braceTop)) return NO.building;
+        const clear = segmentClearance(world, b.ax, b.az, b.bx, b.bz, CORNER_BRACE_WIDTH / 2, bottom);
+        if (clear !== 'clear') return NO[clear];
+      }
       // Every deck has physical corner posts reaching the terrain.
       for (let i = 0; i < 4; i++) {
         stiltFoot(lat, facet, i, FOOT);
@@ -360,6 +369,16 @@ function registerPieceShapes(world: World, p: Piece): void {
   else facetPolygon(lat, p.facet, xs, zs);
   if (p.kind === 'floor') {
     p.shapeIds.push(col.addSlab(xs, zs, top, DECK_THICKNESS, p.id));
+    for (const b of cornerBraces(xs, zs)) {
+      const length = Math.hypot(b.bx - b.ax, b.bz - b.az);
+      const px = (b.bz - b.az) / length * CORNER_BRACE_WIDTH / 2;
+      const pz = -(b.bx - b.ax) / length * CORNER_BRACE_WIDTH / 2;
+      p.shapeIds.push(col.addRamp(
+        [b.ax - px, b.ax + px, b.bx + px, b.bx - px],
+        [b.az - pz, b.az + pz, b.bz + pz, b.bz - pz], 0, 1,
+        top + b.ay + CORNER_BRACE_HALF_Y, top + b.by + CORNER_BRACE_HALF_Y,
+        CORNER_BRACE_HALF_Y * 2, p.id));
+    }
     for (let i = 0; i < 4; i++) {
       const [sx, sz] = stiltFoot(lat, p.facet, i, FOOT);
       p.shapeIds.push(col.addCylinder(sx, sz, STILT_RADIUS, col.groundHeight(sx, sz), top - DECK_THICKNESS, p.id));

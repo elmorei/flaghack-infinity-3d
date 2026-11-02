@@ -20,7 +20,7 @@ import { platformLadders, PLATFORM_LADDER_WIDTH, PLATFORM_LADDER_RAIL_OFFSET } f
 import { groundHeight } from '../../sim/terrain';
 import { LEVEL_HEIGHT, MAP_HALF, NEUTRAL_COLOR, PIECE } from '../../sim/constants';
 import type { Lattice } from '../../sim/lattice/lattice';
-import { DECK_THICKNESS, RAMP_THICKNESS, STILT_RADIUS, rampPolygon, stiltFoot, wallSegment } from '../../sim/systems/econ/pieceGeometry';
+import { DECK_THICKNESS, CORNER_BRACE_WIDTH, CORNER_BRACE_HALF_Y, cornerBraces, RAMP_THICKNESS, STILT_RADIUS, rampPolygon, stiltFoot, wallSegment } from '../../sim/systems/econ/pieceGeometry';
 import type { PieceKind } from '../../sim/types';
 import type { FrameInfo } from './buildingView';
 import { MaterialSet, type MatKey, type ModelBuilder, type ModelGeometry, type StructureKit } from './kit';
@@ -156,6 +156,19 @@ function deckModel(mb: ModelBuilder, L: number, theta: number): void {
     [0.66, 0.04, 0.66, 0.96],
   ];
   for (const [s0, t0, s1, t1] of rims) mb.beam('woodPaint', corner(s0, t0), corner(s1, t1), 0.12, jh, JOIST);
+  for (const brace of cornerBraces([0, L, L + dx, dx], [0, 0, h, h])) {
+    const length = Math.hypot(brace.bx - brace.ax, brace.bz - brace.az);
+    const px = (brace.bz - brace.az) / length * CORNER_BRACE_WIDTH / 2;
+    const pz = -(brace.bx - brace.ax) / length * CORNER_BRACE_WIDTH / 2;
+    const corners: number[] = [];
+    for (const dy of [-CORNER_BRACE_HALF_Y, CORNER_BRACE_HALF_Y]) {
+      corners.push(brace.ax - px, brace.ay + dy, brace.az - pz,
+        brace.ax + px, brace.ay + dy, brace.az + pz,
+        brace.bx + px, brace.by + dy, brace.bz + pz,
+        brace.bx - px, brace.by + dy, brace.bz - pz);
+    }
+    mb.add('woodPaint', hexa(corners, .35), 0, 0, 0, 0, 0, 0, 1, 1, 1, JOIST);
+  }
 }
 
 /** Largest centered rectangular strip joining the low (z = 0) and high (z = h) edges. */
