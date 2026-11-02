@@ -13,7 +13,7 @@ import { updateBossOutcome } from '../victory';
 import { activeBossCrystals, bossCrystalExposure, bossLightningTarget, syncBossLightning, updateBossLightning } from './lightning';
 
 function encounter() {
-  const world = createMatch({ seed: 'boss-defensive-lightning', difficulty: 'normal', humans: [0], mode: 'standard' });
+  const world = createMatch({ seed: 'boss-defensive-lightning', difficulty: 'normal', humans: [0, 1], mode: 'standard' });
   world.time = 100; world.effigyRevealedAt = 100;
   const boss = spawnBoss(world)!; boss.action = 'idle'; boss.pos = { x: 0, z: 0 };
   world.crystals.clear(); world.buildings.clear(); world.flags.clear(); world.hippies.clear(); world.pieces.clear();

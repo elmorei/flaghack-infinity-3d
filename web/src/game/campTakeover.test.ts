@@ -52,15 +52,15 @@ describe('App camp ownership transition', () => {
     const client = { connected: true, status: 'match', pendingBossTakeover: null, playerId: 'me', requestBossTakeover,
       lobby: { phase: 'playing', seats: [0, 1, 2, 3].map(faction => ({ faction, playerId: faction === 0 ? 'me' : null })), players: [{ id: 'me', name: 'Player' }] } };
     app.client = client; app.mirror = {}; app.predictor = { stale: true }; app.session.camera.yaw = 2;
-    expect(app.takeBossCamp(1)).toBe(true); expect(requestBossTakeover).toHaveBeenCalledExactlyOnceWith(1);
+    expect(app.takeBossCamp(2)).toBe(true); expect(requestBossTakeover).toHaveBeenCalledExactlyOnceWith(2);
     expect(app.session.playerFaction).toBe(0); expect(app.session.camera.yaw).toBe(2);
     expect(app.predictor).toEqual({ stale: true }); expect(app.controls.resetForSeat).not.toHaveBeenCalled();
     // The server's accepted state changes ownership and sends a new snapshot; retain an open pause.
-    world.options.humans = [1]; world.factions[0].isPlayer = false; world.factions[1].isPlayer = true;
+    world.options.humans = [2]; world.factions[0].isPlayer = false; world.factions[2].isPlayer = true;
     app.session.screen = 'paused';
-    app.enterOnline(client, world.options, 1, new SnapshotEncoder(world).full());
-    expect(app.session.playerFaction).toBe(1); expect(app.session.screen).toBe('paused');
-    expect(app.predictor.avatarId).toBe(world.avatarOf(1).id); expect(app.seq).toBe(0); expect(app.tickCmds).toEqual([]);
+    app.enterOnline(client, world.options, 2, new SnapshotEncoder(world).full());
+    expect(app.session.playerFaction).toBe(2); expect(app.session.screen).toBe('paused');
+    expect(app.predictor.avatarId).toBe(world.avatarOf(2).id); expect(app.seq).toBe(0); expect(app.tickCmds).toEqual([]);
     expect(app.tickInput).toMatchObject({ moveX: 0, moveZ: 0, jump: false, sprint: false, throwMode: false });
     expect(app.controls.resetForSeat).toHaveBeenCalledOnce(); expect(app.renderer.attach).toHaveBeenCalledOnce();
   });

@@ -7,7 +7,9 @@ import type { BuildingKind } from '../sim/types';
 import type { World } from '../sim/world';
 import { CHAKRA_INFO } from './catalog';
 import type { UiHost, UiLayout, UiPart } from './core';
-import { button, el, setAttr, setClass, setText, show } from './dom';
+import { button, el, setAttr, setClass, setText, setVar, show } from './dom';
+import { MobileFieldStatus } from './mobileFieldStatus';
+import { MobileAltarIndicators } from './mobileAltarIndicators';
 
 type MobileTab = NonNullable<Session['mobileMenu']>;
 export function cancelMobileTarget(s: Session): void {
@@ -46,6 +48,9 @@ export class MobileCommandUI implements UiPart {
   private powers: HTMLElement;
   private abilities = new Map<string, HTMLButtonElement>();
   private lastOpen: MobileTab | null = null;
+  private status: MobileFieldStatus;
+  private statusHeader: HTMLElement;
+  private altars: MobileAltarIndicators;
 
   constructor(private host: UiHost, layout: UiLayout, source: HTMLElement) {
     const s = host.app.session;
@@ -53,9 +58,15 @@ export class MobileCommandUI implements UiPart {
     // Existing Settings/Codex/etc stay above this menu, not behind it.
     layout.overlay.prepend(this.root);
     this.field = el('div', 'mc-field', this.root);
-    const top = el('div', 'mc-top', this.field);
+    this.statusHeader = el('div', 'mc-status', this.field);
+    const statusLeft = el('div', 'mc-status-left', this.statusHeader);
+    const timing = el('div', 'mc-timing', statusLeft);
+    timing.setAttribute('aria-label', 'Match time');
+    const top = el('div', 'mc-top', statusLeft);
     button('btn ix', top, 'Menu', () => this.open('main'));
     button('btn ix', top, 'Home', () => this.home());
+    const resources = el('section', 'mc-resources', this.statusHeader);
+    resources.setAttribute('aria-label', 'Camp resources');
     this.toast = el('div', 'mc-alert is-off', this.field);
     this.toast.setAttribute('role', 'status');
     this.pickup = el('div', 'mc-pickup is-off', this.field);
@@ -75,6 +86,7 @@ export class MobileCommandUI implements UiPart {
       button('btn', modes, 'Degen', () => setMobileMode(s, 'units')),
       button('btn', modes, 'Plan', () => setMobileMode(s, 'build')),
     ];
+    this.altars = new MobileAltarIndicators(this.field);
 
     this.menu = el('section', 'mc-menu ix is-off', this.root);
     this.menu.setAttribute('role', 'dialog');
@@ -95,7 +107,8 @@ export class MobileCommandUI implements UiPart {
       const node = source.querySelector<HTMLElement>(selector);
       if (node) this.pages.get(tab)!.appendChild(node);
     };
-    for (const selector of ['.res', '.clock', '.cmi', '.rail', '.gcc-panel', '.feed', '.netpill']) move(selector, 'main');
+    for (const selector of ['.cmi', '.rail', '.gcc-panel', '.feed', '.netpill']) move(selector, 'main');
+    this.status = new MobileFieldStatus(source, resources, timing, this.pages.get('main')!);
     // Network loss must remain visible even when all normal HUD panels are tucked away.
     const reconnect = source.querySelector<HTMLElement>('.reconnect-card');
     if (reconnect) layout.overlay.appendChild(reconnect);
@@ -173,11 +186,12 @@ export class MobileCommandUI implements UiPart {
     const s = this.host.app.session;
     const active = !!world && s.screen === 'playing' && s.view === 'command' && !s.spectator && world.factions[s.playerFaction].alive;
     show(this.root, active);
-    if (!active || !world) return;
+    if (!active || !world) { this.status.restoreOriginal(); this.altars.hide(); return; }
     const pickup = s.tool === 'building' ? null : nearbyPickupTag(world, s.playerFaction, s.hover.entity);
     setText(this.pickup, pickup ?? ''); show(this.pickup, !!pickup);
     const nested = s.panels.settings || s.panels.help || s.panels.codex || s.panels.chakras || s.campChoiceOpen;
     const open = s.mobileMenu !== null;
+    this.status.setField(!open && !nested);
     show(this.menu, open && !nested); show(this.field, !open && !nested);
     this.menu.inert = nested;
     for (const [id, page] of this.pages) {
@@ -214,11 +228,19 @@ export class MobileCommandUI implements UiPart {
     const alert = [...s.feed].reverse().find(x => ['warn', 'danger', 'epic'].includes(x.severity) && now - x.at < 5000);
     show(this.toast, !!alert);
     if (alert) setText(this.toast, alert.text);
+    if (!open && !nested) {
+      setVar(this.field, '--mc-status-bottom', `${this.statusHeader.getBoundingClientRect().bottom + 8}px`);
+      const reserved = [...this.field.querySelectorAll<HTMLElement>('.mc-status-left, .mc-resources, .mc-modes, .mc-selected:not(.is-off), .mc-placement:not(.is-off), .mc-alert:not(.is-off), .mc-pickup:not(.is-off)')]
+        .map(node => node.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+      const style = getComputedStyle(this.field);
+      const inset = Math.max(20, ...[style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(v => (parseFloat(v) || 0) + 13));
+      this.altars.update(world, this.host.app.renderer.camera, s.playerFaction, { width: window.innerWidth, height: window.innerHeight, reserved, inset });
+    } else this.altars.hide();
   }
 
   reset(): void {
     const s = this.host.app.session;
     s.mobileMenu = null; setMobileMode(s, 'units');
   }
-  dispose(): void { this.root.remove(); }
+  dispose(): void { this.status.restoreOriginal(); this.altars.dispose(); this.root.remove(); }
 }

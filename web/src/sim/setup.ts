@@ -76,7 +76,10 @@ export function createMatch(options: MatchOptions): World {
 
   for (const f of FACTION_IDS) {
     const faction = createFaction(f, options.humans.includes(f), options.difficulty);
-    faction.controlMode = options.mode !== 'tutorial' && options.humans.includes(f) && options.rtsFactions?.includes(f) ? 'rts' : 'avatar';
+    // Crow's NPC camp commands from its throne. Human occupants retain their selected mode,
+    // including reconnect/takeover state; tutorial staging keeps its roaming placeholders.
+    const commandOnly = options.humans.includes(f) ? options.rtsFactions?.includes(f) : f === 1;
+    faction.controlMode = options.mode !== 'tutorial' && commandOnly ? 'rts' : 'avatar';
     world.factions.push(faction);
   }
   for (const f of FACTION_IDS) {

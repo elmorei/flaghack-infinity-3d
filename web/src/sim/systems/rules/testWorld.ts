@@ -21,7 +21,8 @@ import { depotSceneryId, depotStock, vehicleCapacity } from '../sceneryDepots';
 import { sceneryById } from '../sceneryBenefits';
 
 export function newMatch(seed: string): World {
-  return createMatch({ seed, difficulty: 'normal', humans: [], mode: 'standard' });
+  // Explicit roaming Crow seat for rules that stage personal avatar actions.
+  return createMatch({ seed, difficulty: 'normal', humans: [1], mode: 'standard' });
 }
 
 /**

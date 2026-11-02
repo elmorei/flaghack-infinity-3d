@@ -361,6 +361,6 @@ describe('command-only RTS controls', () => {
     controls.queue.push({ t: 'order', faction: 0, hippies: [own.id], order: { kind: 'move', to: { x: 1, z: 2 } } });
     controls.tick();
     expect(submitted).toHaveLength(1); expect(submitted[0].t).toBe('order');
-    expect(world.avatars.size).toBe(3);
+    expect(world.avatars.size).toBe(2); // Human Degen seat plus NPC Crow have no roaming bodies.
   });
 });

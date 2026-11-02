@@ -178,7 +178,7 @@ it('authoritatively refuses an RTS player taking an avatar camp', async () => {
   await a.c.next('lobby', m => m.lobby.players.find(p => p.id === a.me.playerId)?.controlMode === 'rts');
   a.c.send({ t: 'start' }); await a.c.next('matchStart');
   await until(() => { a.c.mirror!.catchUp(); return !!a.c.mirror!.world.boss; }, 'active boss');
-  a.c.send({ t: 'bossTakeover', seat: 1 });
+  a.c.send({ t: 'bossTakeover', seat: 2 });
   expect(await a.c.next('bossTakeoverResult')).toMatchObject({ ok: false, reason: expect.stringMatching(/RTS players can only/) });
   expect(staged.match().world.options.humans).toEqual([0]); expect(a.c.take('matchStart')).toEqual([]);
 });
@@ -189,7 +189,23 @@ it('also refuses a generic mid-match seat request from an RTS player into an ava
   await a.c.next('lobby', m => m.lobby.players.find(p => p.id === a.me.playerId)?.controlMode === 'rts');
   a.c.send({ t: 'start' }); await a.c.next('matchStart');
   await until(() => { a.c.mirror!.catchUp(); return !a.c.mirror!.world.factions[0].alive; }, 'ordinary elimination');
-  a.c.send({ t: 'seat', seat: 1 }); a.c.send({ t: 'ping', id: 417, clientTime: 0 });
+  a.c.send({ t: 'seat', seat: 2 }); a.c.send({ t: 'ping', id: 417, clientTime: 0 });
   await a.c.next('pong', m => m.id === 417);
   expect(staged.match().world.options.humans).toEqual([0]); expect(a.c.take('matchStart')).toEqual([]);
+});
+
+
+it('lets a Degen human take over NPC Crow without creating an avatar', async () => {
+  const staged = stagedHost([0]); const h = await host(); const a = await join(h, 'crow-ruler'); a.c.mirrored = true;
+  a.c.send({ t: 'controlMode', mode: 'rts' });
+  await a.c.next('lobby', m => m.lobby.players.find(p => p.id === a.me.playerId)?.controlMode === 'rts');
+  a.c.send({ t: 'start' }); await a.c.next('matchStart');
+  await until(() => { a.c.mirror!.catchUp(); return !!a.c.mirror!.world.boss; }, 'active boss');
+  expect(staged.match().world.factions[1].controlMode).toBe('rts');
+  a.c.send({ t: 'bossTakeover', seat: 1 });
+  expect(await a.c.next('bossTakeoverResult')).toMatchObject({ ok: true });
+  expect((await a.c.next('matchStart')).seat).toBe(1);
+  expect(staged.match().world.factions[1].controlMode).toBe('rts');
+  expect(staged.match().world.avatarOf(1)).toBeUndefined();
+  expect(staged.match().drivenByNpc(1)).toBe(false);
 });

@@ -10,7 +10,7 @@ import { buildAvatarRig } from './avatarModels';
 import type { FactionId } from '../../sim/types';
 
 function fixture() {
-  const world=createMatch({seed:'rts-throne-render',difficulty:'normal',humans:[0],mode:'standard'});
+  const world=createMatch({seed:'rts-throne-render',difficulty:'normal',humans:[0,1,2,3],mode:'standard'});
   const ctx={world,scene:new THREE.Scene(),shared:{groundOffset:()=>7},time:3} as unknown as RenderContext;
   return {world,ctx,renderer:new ThroneRenderer(ctx)};
 }
@@ -44,7 +44,7 @@ describe('RTS throne presentation',()=>{
     const altar=e.world.hearthOf(0)!; altar.pos={x:22,z:33}; altar.yaw=.75;
     const before=JSON.stringify([...e.world.buildings.values()]); const nav=e.world.nav.version;
     e.world.drainEvents(); e.renderer.update();
-    const throne=e.renderer.group.children[0]; expect(throne.position.toArray()).toEqual([22,7,33]); expect(throne.rotation.y).toBe(.75);
+    const throne=e.renderer.group.children[0]; expect(throne.position.toArray()).toEqual([22,7,33]); expect(throne.rotation.y).toBeCloseTo(Math.atan2(-22,-33));
     const ruler=throne.getObjectByName('rts-seated-avatar-0')!; expect(ruler.position.y).toBe(THRONE_PLATFORM_HEIGHT); expect(ruler.scale.x).toBe(THRONE_SCALE);
     expect(JSON.stringify([...e.world.buildings.values()])).toBe(before); expect(e.world.nav.version).toBe(nav); expect(e.world.drainEvents()).toEqual([]);
     e.renderer.dispose(); expect(e.ctx.scene.children).toHaveLength(0);
@@ -82,7 +82,26 @@ it.each(['capture', 'boss'] as const)('moves the existing ruler and desk to the 
   if (cause === 'capture') captureHearth(e.world, first, 1); else consumeBuilding(e.world, first);
   e.renderer.update();
   expect(e.renderer.group.children).toHaveLength(1); expect(e.renderer.group.children[0]).toBe(throne);
-  expect(throne.visible).toBe(true); expect(throne.position.toArray()).toEqual([40, 7, 70]); expect(throne.rotation.y).toBe(.8);
+  expect(throne.visible).toBe(true); expect(throne.position.toArray()).toEqual([40, 7, 70]); expect(throne.rotation.y).toBeCloseTo(Math.atan2(-40,-70));
   if (cause === 'capture') captureHearth(e.world, second, 1); else consumeBuilding(e.world, second);
   e.renderer.update(); expect(throne.visible).toBe(false); e.renderer.dispose();
+});
+
+
+it('faces the actual effigy from every camp without changing altar or roaming-avatar yaw', () => {
+  const e = fixture();
+  e.world.map.effigy = { x: 11, z: -17 };
+  for (const f of e.world.factions) { f.controlMode = 'rts'; e.world.hearthOf(f.id)!.yaw = .123; }
+  const avatarYaws = [...e.world.avatars.values()].map(a => a.yaw);
+  e.renderer.update();
+  for (const f of e.world.factions) {
+    const altar = e.world.hearthOf(f.id)!;
+    const throne = e.renderer.group.getObjectByName(`rts-ruler-${f.id}`)!;
+    const forward = new THREE.Vector3(0,0,1).applyQuaternion(throne.quaternion);
+    const toward = new THREE.Vector3(11-altar.pos.x,0,-17-altar.pos.z).normalize();
+    expect(forward.dot(toward)).toBeCloseTo(1, 8);
+    expect(altar.yaw).toBe(.123);
+  }
+  expect([...e.world.avatars.values()].map(a => a.yaw)).toEqual(avatarYaws);
+  e.renderer.dispose();
 });

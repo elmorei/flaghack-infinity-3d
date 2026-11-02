@@ -257,7 +257,7 @@ export class LobbyScreen implements UiPart {
       setClass(card.root, 'mine', mine);
       setClass(card.root, 'ai', active && !mine);
       for (const cls of ['held', 'ready', 'lost']) setClass(card.root, cls, false);
-      setText(card.occupant, mine ? 'You' : `AI · ${DIFFICULTY_INFO[settings.difficulty].name}`);
+      setText(card.occupant, mine ? 'You' : `AI · ${DIFFICULTY_INFO[settings.difficulty].name}${f === 1 ? ' · Degen' : ''}`);
       setText(card.state, '');
       show(card.action, active);
       setText(card.action, mine ? 'Your seat' : 'Play this character');
@@ -376,7 +376,7 @@ export class LobbyScreen implements UiPart {
       const mine = net.seat === f;
       const active=normalizeMatch(lobby.settings.match).active.includes(f);
       this.renderSeatEnabled(f, active, !!holder);
-      setText(card.occupant, holder ? `${holder.name}${holder.controlMode === 'rts' ? ' · Degen' : ''}` : ai);
+      setText(card.occupant, holder ? `${holder.name}${holder.controlMode === 'rts' ? ' · Degen' : ''}` : `${ai}${f === 1 ? ' · Degen' : ''}`);
       setDisabled(card.action,!active);
       // A Signifier who dropped keeps the seat; the AI plays it until they return (or someone takes it).
       setText(card.state, holder ? (holder.connected ? (holder.ready ? 'ready' : 'not ready') : 'away · the AI holds the camp') : '');

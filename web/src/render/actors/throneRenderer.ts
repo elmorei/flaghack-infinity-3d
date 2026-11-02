@@ -105,7 +105,7 @@ export class ThroneRenderer {
       if(!v) { v=this.create(f.id,f.color); this.views.set(f.id,v); }
       v.group.visible=!(w.boss?.held?.kind==='building' && w.boss.held.id===altar.id);
       const ground=this.ctx.shared.groundOffset?.(altar.pos.x,altar.pos.z) ?? w.collision.groundHeight(altar.pos.x,altar.pos.z);
-      v.group.position.set(altar.pos.x,ground,altar.pos.z); v.group.rotation.y=altar.yaw;
+      v.group.position.set(altar.pos.x,ground,altar.pos.z); v.group.rotation.y=Math.atan2(w.map.effigy.x-altar.pos.x,w.map.effigy.z-altar.pos.z);
       v.u.uTime.value=this.ctx.time; v.u.uBeat.value=0;
       poseSeatedRuler(v.rig,this.ctx.time);
       v.group.updateMatrixWorld(true);

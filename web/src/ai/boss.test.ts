@@ -15,7 +15,7 @@ import { NEUTRAL } from '../sim/types';
 import { createAi } from './index';
 
 function fixture(crouched = false) {
-  const world = createMatch({ seed: 'ai-boss-throws', difficulty: 'normal', humans: [0], mode: 'standard',
+  const world = createMatch({ seed: 'ai-boss-throws', difficulty: 'normal', humans: [0, 1], mode: 'standard',
     match: normalizeMatch({ maxSignifiers: 0 }) });
   world.time = 245; world.effigyRevealedAt = 230; world.tide.nextAt = Infinity;
   world.boss = bossFixture();

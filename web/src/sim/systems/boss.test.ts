@@ -15,7 +15,7 @@ import { bossLoopEdges, sweepBossLoops, sweepCircleSegment } from './boss/barrie
 import type { World } from '../world';
 
 function encounter(bossHp?: number): World {
-  const w = createMatch({ seed: 'boss-combat', difficulty: 'normal', humans: [0], mode: 'standard', match: normalizeMatch({ bossHp }) });
+  const w = createMatch({ seed: 'boss-combat', difficulty: 'normal', humans: [0, 1], mode: 'standard', match: normalizeMatch({ bossHp }) });
   w.time = 1000; w.effigyRevealedAt = 1000; w.suddenDeath = true;
   spawnBoss(w); w.boss!.action = 'idle'; w.boss!.nextAttackAt = 0;
   for (const h of w.hippies.values()) { h.pos.x = 90; h.pos.z = 90; }

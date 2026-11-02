@@ -35,7 +35,7 @@ npm run dev        # http://127.0.0.1:5173
 At the title, pick a rival difficulty (Chill / Normal / Hard / Vexillosaint) and choose
 **Begin the Survey**. Your camp is at the north-west corner. Its rivals are:
 
-- **Dr. Beelzebub Crow**: a surveyor who hunts Crystals and uses Phason Shift.
+- **Dr. Beelzebub Crow**: a command-only Degen surveyor who directs his camp from a throne facing the effigy.
 - **DJ Scarecrow**: a raider who steals Flags early.
 - **President Jaguar**: a warden who hoards Flags and builds one huge enclosure.
 

@@ -21,7 +21,7 @@ describe('configurable matches', () => {
     const w = createMatch(options({ active }));
     expect(w.aliveFactions()).toEqual(active);
     for (const f of FACTION_IDS) {
-      expect(!!w.avatarOf(f)).toBe(active.includes(f));
+      expect(!!w.avatarOf(f)).toBe(active.includes(f) && f !== 1);
       expect(!!w.hearthOf(f)).toBe(active.includes(f));
       if (active.includes(f)) continue;
       expect(w.buildingsOf(f)).toHaveLength(0);
@@ -211,7 +211,7 @@ describe('configurable matches', () => {
       expect(w.aliveFactions()).toHaveLength(4);
       for (const f of FACTION_IDS) {
         expect(w.hearthOf(f)).toBeDefined();
-        expect(w.avatarOf(f)).toBeDefined();
+        expect(!!w.avatarOf(f)).toBe(f !== 1);
       }
     }
   });

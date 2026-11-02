@@ -80,10 +80,14 @@ async function solo(spec) {
     assert.deepEqual(state.rtsFactions, spec.expected === 'rts' ? [state.seat] : []);
     assert.equal(state.modes[state.seat], spec.expected);
     assert.equal(state.avatars[state.seat], spec.expected === 'avatar');
-    for (let i = 0; i < state.modes.length; i++) if (i !== state.seat) assert.equal(state.modes[i], 'avatar', 'AI defaults stay Regular');
+    for (let i = 0; i < state.modes.length; i++) if (i !== state.seat) {
+      const mode = i === 1 ? 'rts' : 'avatar';
+      assert.equal(state.modes[i], mode, 'NPC Crow is Degen; other AI defaults stay Regular');
+      assert.equal(state.avatars[i], mode === 'avatar');
+    }
     await p.page.screenshot({ path: join(OUT, spec.name + '-playing.png') });
     result.scenarios.push({ name: spec.name, state });
-    check(spec.name + ': no selector; actual solo start assigns ' + spec.expected + ' only to human');
+    check(spec.name + ': no selector; actual solo start assigns human ' + spec.expected + ' while NPC Crow commands without a body');
   } finally { await p.context.close(); }
 }
 async function joinHost(p, name) {

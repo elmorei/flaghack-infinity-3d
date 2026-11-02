@@ -16,7 +16,8 @@ export interface Harness {
 }
 
 export function newMatch(seed = 'economy-tests'): Harness {
-  const world = createMatch({ seed, difficulty: 'normal', humans: [], mode: 'standard' });
+  // Explicit roaming Crow seat for tests that stage personal avatar actions.
+  const world = createMatch({ seed, difficulty: 'normal', humans: [1], mode: 'standard' });
   return { world, sim: new Simulation(world), events: [] };
 }
 
