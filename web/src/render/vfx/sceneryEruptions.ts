@@ -12,6 +12,8 @@ export const SCENERY_PARTICLE_CAPACITY = 2048;
 export const SCENERY_ERUPTION_MAX_LIFE = 1.65;
 export const STRUCTURE_FLAME_MAX_LIFE = .95;
 export const STRUCTURE_FLAME_HEIGHT_SCALE = 1.45;
+/** Visual-only linear size multiplier; particle count and simulation blast radii stay unchanged. */
+export const DESTRUCTION_EXPLOSION_SCALE = 2;
 const SMOKE = new THREE.Color(0x493c32);
 const ASH = new THREE.Color(0x302d2b);
 const FIRE = new THREE.Color(0xffb32c);
@@ -54,7 +56,8 @@ export class SceneryEruptions {
     const shrink = Math.min(1, 14 / Math.max(size.x, size.z));
     const width = size.x * shrink, depth = size.z * shrink;
     const span = Math.sqrt(width * depth), height = Math.min(size.y, 12);
-    const radius = Math.min(4.5, 1.25 + span * .2 + height * .07);
+    const scale = DESTRUCTION_EXPLOSION_SCALE;
+    const radius = Math.min(4.5, 1.25 + span * .2 + height * .07) * scale;
     const quality = Number.isFinite(this.density) ? Math.max(.25, Math.min(1, this.density)) : 1;
     const lobes = Math.ceil(Math.min(15, 8 + span * .45) * quality);
     const smoke = Math.ceil(6 * quality);
@@ -62,23 +65,24 @@ export class SceneryEruptions {
     // Smoke is written first so the bright lobes composite over it in this one draw.
     for (let i = 0; i < smoke + lobes; i++) {
       const flame = i >= smoke, angle = rng.next() * TAU;
-      const x = rng.signed() * width * .22, z = rng.signed() * depth * .22;
+      const x = rng.signed() * width * .22 * scale, z = rng.signed() * depth * .22 * scale;
       spec.reset().at(pos.x + x * c + z * s,
-        pos.y + radius * .35 + rng.next() * Math.min(height * .15, .7), pos.z - x * s + z * c);
+        pos.y + radius * .35 + rng.next() * Math.min(height * .15, .7) * scale, pos.z - x * s + z * c);
       if (flame) {
-        // Closely overlapping, outward/upward rolling lobes make one billowing fireball.
+        // Larger lobes shoot up in a narrow cone, rather than rolling sideways.
+        // Keep the original lifetime/count/drag so mass hits still use the same pool.
         const puff = radius * rng.range(.7, 1);
-        spec.vel(Math.cos(angle) * radius * .65, rng.range(2.8, 5.4), Math.sin(angle) * radius * .65)
+        spec.vel(Math.cos(angle) * radius * .22, rng.range(2.8, 5.4) * scale, Math.sin(angle) * radius * .22)
           .time(rng.range(.7, STRUCTURE_FLAME_MAX_LIFE))
-          .size(puff * .16, puff).phys(-.3, 1.8)
+          .size(puff * .16, puff).phys(-.3 * scale, 1.8)
           .from(FIRE, 1, .98).to(FIRE, 1, .5)
           .look(Shape.Fireball, rng.signed() * .65, angle).anim(0, 0, .025)
           .stretchVertical(STRUCTURE_FLAME_HEIGHT_SCALE, pos.y);
       } else {
         const puff = radius * rng.range(.5, .7);
-        spec.vel(Math.cos(angle) * .5, rng.range(.8, 1.6), Math.sin(angle) * .5)
+        spec.vel(Math.cos(angle) * .35, rng.range(.8, 1.6) * scale, Math.sin(angle) * .35)
           .time(rng.range(1.05, SCENERY_ERUPTION_MAX_LIFE))
-          .size(puff * .4, puff * 1.35).phys(-.15, 1.6)
+          .size(puff * .4, puff * 1.35).phys(-.15 * scale, 1.6)
           .from(SMOKE, 1, .38).to(ASH, 1, 0)
           .look(Shape.Smoke, rng.signed() * .4, angle).anim(0, 0, .18);
       }
