@@ -5,7 +5,7 @@
  * - Tarp Wall: a timber frame with a billowing festival tarp (grommets, faction tint) on the
  *   inset Ley edge segment, spanning [L·H, (L+1)·H].
  * - Deck: a rhombus plank platform (sheared planks, rim and inner joists) whose top sits at
- *   (L+1)·H; level-0 decks stand on four scaffold stilts exactly where the sim puts them.
+ *   (L+1)·H; all decks stand on four ground-reaching scaffold posts exactly where the sim puts them.
  * - Ramp: slatted boards on stringers rising one level from the rampEdge side (L·H) to the
  *   opposite edge ((L+1)·H); level-0 ramps get two posts under the high side.
  *
@@ -15,6 +15,7 @@
  * PIECE.popIn; damage darkens per instance; ownership tints the tarp and lightly the wood.
  */
 import * as THREE from 'three';
+import { platformLadders, PLATFORM_LADDER_WIDTH, PLATFORM_LADDER_RAIL_OFFSET } from '../../sim/platformLadders';
 import { groundHeight } from '../../sim/terrain';
 import { LEVEL_HEIGHT, MAP_HALF, NEUTRAL_COLOR, PIECE } from '../../sim/constants';
 import type { Lattice } from '../../sim/lattice/lattice';
@@ -350,6 +351,10 @@ export class PieceRenderer {
   private readonly decks: Batch[] = [];
   private readonly ramps: Batch[] = [];
   private readonly posts: Batch;
+  private readonly ladders: Batch;
+  private readonly rungX = new THREE.Vector3();
+  private readonly rungY = new THREE.Vector3();
+  private readonly rungZ = new THREE.Vector3(0, -1, 0);
   private readonly m = new THREE.Matrix4();
   private readonly color = new THREE.Color();
   private readonly owner = new THREE.Color();
@@ -373,6 +378,8 @@ export class PieceRenderer {
     }
     const post = kit.geometry('piecePost', () => new THREE.CylinderGeometry(STILT_RADIUS * 0.8, STILT_RADIUS, 1, 8).translate(0, 0.5, 0));
     this.posts = new Batch(post, this.mats, 'iron', this.group);
+    const ladderBar = kit.geometry('platformLadderBar', () => new THREE.CylinderGeometry(0.035, 0.035, 1, 6).translate(0, 0.5, 0));
+    this.ladders = new Batch(ladderBar, this.mats, 'iron', this.group);
     scene.add(this.group);
   }
 
@@ -394,8 +401,11 @@ export class PieceRenderer {
     this.wallFrame.count = 0;
     this.wallTarp.count = 0;
     this.posts.count = 0;
+    this.ladders.count = 0;
     for (const b of this.decks) b.count = 0;
     for (const b of this.ramps) b.count = 0;
+    const highestFloor = new Map<number, number>();
+    for (const p of w.pieces.values()) if (p.kind === 'floor' && !(w.boss?.held?.kind === 'piece' && w.boss.held.id === p.id)) highestFloor.set(p.facet, Math.max(p.level, highestFloor.get(p.facet) ?? -1));
     for (const p of w.pieces.values()) {
       const age = (w.time - p.builtAt) / PIECE.popIn;
       if (w.boss?.held?.kind === 'piece' && w.boss.held.id === p.id) continue;
@@ -410,15 +420,16 @@ export class PieceRenderer {
       }
       this.color.copy(WHITE).lerp(this.owner, 0.12).multiplyScalar(dmg);
       (p.kind === 'floor' ? this.decks : this.ramps)[variant].push(this.m, this.color);
-      if (p.level !== 0) continue;
+      if (p.level !== 0 && p.kind !== 'floor') continue;
       this.color.setScalar(dmg);
       const fcGround = lat.facets[p.facet];
       const baseY = groundHeight(fcGround.cx, fcGround.cz, w.map.half);
       if (p.kind === 'floor') {
+        if (highestFloor.get(p.facet) !== p.level) continue; // Shared columns are drawn once, to the highest deck.
         for (let i = 0; i < 4; i++) {
           const [x, z] = stiltFoot(lat, p.facet, i, this.foot);
           const footY = groundHeight(x, z, w.map.half);
-          this.m.makeScale(s, (baseY + H - DECK_THICKNESS - footY) * s, s).setPosition(x, footY, z);
+          this.m.makeScale(s, (baseY + (p.level + 1) * H - DECK_THICKNESS - footY) * s, s).setPosition(x, footY, z);
           this.posts.push(this.m, this.color);
         }
       } else {
@@ -434,6 +445,39 @@ export class PieceRenderer {
         }
       }
     }
+    // Exposed edges share the same derived geometry as authoritative climbing.
+    const visibleLadders = new Map<string, ReturnType<typeof platformLadders>[number]>();
+    for (const ladder of platformLadders(w)) {
+      const key = `${ladder.edge}:${ladder.facet}`;
+      if ((visibleLadders.get(key)?.topY ?? -Infinity) < ladder.topY) visibleLadders.set(key, ladder);
+    }
+    for (const ladder of visibleLadders.values()) {
+      const piece = w.pieces.get(ladder.pieceId);
+      if (!piece || (w.boss?.held?.kind === 'piece' && w.boss.held.id === piece.id)) continue;
+      const dmg = 0.42 + 0.58 * Math.max(0, Math.min(1, piece.hp / piece.maxHp));
+      this.color.setScalar(dmg);
+      const tx = -ladder.nz, tz = ladder.nx;
+      const x = ladder.x + ladder.nx * PLATFORM_LADDER_RAIL_OFFSET;
+      const z = ladder.z + ladder.nz * PLATFORM_LADDER_RAIL_OFFSET;
+      for (const side of [-1, 1]) {
+        const rx = x + tx * PLATFORM_LADDER_WIDTH * .5 * side;
+        const rz = z + tz * PLATFORM_LADDER_WIDTH * .5 * side;
+        const foot = w.collision.groundHeight(rx, rz);
+        this.m.makeScale(1, ladder.topY + .7 - foot, 1).setPosition(rx, foot, rz);
+        this.ladders.push(this.m, this.color);
+      }
+      this.rungX.set(ladder.nx, 0, ladder.nz);
+      this.rungY.set(tx, 0, tz);
+      const rise = ladder.topY - ladder.bottomY;
+      const count = Math.max(1, Math.ceil(rise / .35));
+      for (let i = 1; i <= count; i++) {
+        this.m.makeBasis(this.rungX, this.rungY, this.rungZ);
+        this.m.scale(vS.set(1, PLATFORM_LADDER_WIDTH, 1));
+        this.m.setPosition(x - tx * PLATFORM_LADDER_WIDTH * .5, ladder.bottomY + rise * i / count, z - tz * PLATFORM_LADDER_WIDTH * .5);
+        this.ladders.push(this.m, this.color);
+      }
+    }
+    this.ladders.finish();
     this.wallFrame.finish();
     this.wallTarp.finish();
     this.posts.finish();
@@ -445,6 +489,7 @@ export class PieceRenderer {
     this.wallFrame.dispose();
     this.wallTarp.dispose();
     this.posts.dispose();
+    this.ladders.dispose();
     for (const b of this.decks) b.dispose();
     for (const b of this.ramps) b.dispose();
     this.group.parent?.remove(this.group);

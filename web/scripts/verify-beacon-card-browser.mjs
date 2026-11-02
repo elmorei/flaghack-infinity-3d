@@ -22,7 +22,7 @@ const server=createServer((req,res)=>{
   if(range){const start=Number(range[1]),end=Math.min(body.length-1,range[2]?Number(range[2]):body.length-1);if(start>end||start>=body.length){res.writeHead(416);res.end();return;}headers['Content-Range']=`bytes ${start}-${end}/${body.length}`;body=body.subarray(start,end+1);}
   headers['Content-Length']=body.length;res.writeHead(range?206:200,headers);res.end(body);
 });
-const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. Mobile is emulated Regular-mode, not physical-device or Degen pickup certification.',scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,recordingSpeed:1,fixtureDisclosure:'Public dropped cards, enemy beacons, resources and camp affiliations are staged deterministically for close-up visibility. Desktop card pickup uses real W movement, beacon pickup real E; deck pieces/resources are staged, then real desktop clicks and mobile long-press/menu/Confirm place workshops and wards. Ladder starting position and neighboring floor are staged; ascent/descent use real keyboard or emulated standard-controller input, never injected avatar movement. Mobile is emulated Regular-mode, not physical-device, touch-joystick or Degen pickup certification.',scenarios:[]};
 let browser,page;
 async function stage(){
   return page.evaluate(()=>{
@@ -72,7 +72,7 @@ async function platformScenario(spec,context,check){
       const p=f.factory.spawnPiece(w,'floor',0,-1,fc.id,0,-1);f.pieces.attachPiece(w,p);
       const valid=f.buildings.canPlaceBuilding(w,0,kind,fc.id,1);if(!valid.ok)throw Error(`Platform fixture rejected: ${valid.reason}`);
       a.session.camera.cmdX=fc.cx;a.session.camera.cmdZ=fc.cz;a.session.camera.cmdHeight=32;
-      const target={facet:fc.id,x:fc.cx,z:fc.cz,y:w.collision.groundHeight(fc.cx,fc.cz)+3.2,kind};window.__platformTarget=target;
+      const target={facet:fc.id,x:fc.cx,z:fc.cz,y:w.collision.groundHeight(fc.cx,fc.cz)+6.4,kind};window.__platformTarget=target;
       return target;
     },kind);
     await page.waitForTimeout(1500);
@@ -100,7 +100,7 @@ async function platformScenario(spec,context,check){
       const module=a.renderer.modules.find(m=>m.views?.has(b.id)),root=module?.views.get(b.id).root;
       return{level:b.level,rootY:root?.position.y,ground:a.renderer.ctx.shared.groundOffset(b.pos.x,b.pos.z)};
     });
-    assert.equal(placed.level,1);assert.ok(Math.abs(placed.rootY-placed.ground-3.2)<.001,'Building model remains on its deck');
+    assert.equal(placed.level,1);assert.ok(Math.abs(placed.rootY-placed.ground-6.4)<.001,'Building model remains on its deck');
     await page.screenshot({path:join(OUT,`${spec.name}-${kind}-on-deck.png`)});
     await page.waitForFunction(()=>{const w=window.flaghack.world,t=window.__platformTarget;return Array.from(w.buildings.values()).some(b=>b.kind===t.kind&&b.facet===t.facet&&b.level===1&&b.built>=1);},null,{timeout:60000});
     await page.waitForTimeout(900);
@@ -109,6 +109,68 @@ async function platformScenario(spec,context,check){
     await page.evaluate(()=>{window.flaghack.session.tool='flag';});
   }
 }
+async function ladderScenario(spec,context,check){
+  const fixture=await page.evaluate(()=>{
+    const a=window.flaghack,w=a.world,f=window.fh;
+    const fc=w.lattice.facets.find(fc=>Math.abs(fc.cx)<35&&Math.abs(fc.cz)<35&&fc.edges.every(e=>w.lattice.edges[e].facets.length===2)&&
+      fc.nodes.every(n=>w.nav.isWalkable(w.lattice.nodes[n].x,w.lattice.nodes[n].z))&&
+      ![...w.pieces.values()].some(p=>{const c=w.lattice.facets[p.facet];return c&&Math.hypot(c.cx-fc.cx,c.cz-fc.cz)<20;})&&
+      ![...w.buildings.values()].some(b=>Math.hypot(b.pos.x-fc.cx,b.pos.z-fc.cz)<20));
+    if(!fc)throw Error('No unobstructed ladder fixture facet');
+    const edge=w.lattice.edges[fc.edges[0]],n0=w.lattice.nodes[edge.a],n1=w.lattice.nodes[edge.b];
+    const x=(n0.x+n1.x)/2,z=(n0.z+n1.z)/2,length=Math.hypot(n1.x-n0.x,n1.z-n0.z);
+    let nx=(n1.z-n0.z)/length,nz=-(n1.x-n0.x)/length;if((x-fc.cx)*nx+(z-fc.cz)*nz<0){nx=-nx;nz=-nz;}
+    const floor=f.factory.spawnPiece(w,'floor',0,-1,fc.id,0,-1);f.pieces.attachPiece(w,floor);
+    const av=w.avatarOf(0),bottom=w.collision.groundHeight(x+nx*.63,z+nz*.63),top=w.collision.groundHeight(fc.cx,fc.cz)+6.4;
+    av.pos={x:x+nx*.63,y:bottom,z:z+nz*.63};av.vel={x:0,y:0,z:0};av.hp=200;av.koUntil=0;av.action={kind:'idle'};
+    a.session.view='action';a.session.tool='flag';a.session.camera.yaw=Math.atan2(-nx,-nz);a.session.camera.pitch=.2;a.session.camera.dist=11;
+    const t={facet:fc.id,piece:floor.id,neighbor:edge.facets.find(id=>id!==fc.id),x,z,nx,nz,bottom,top};window.__ladderFixture=t;return t;
+  });
+  await page.waitForTimeout(1300);
+  const geometry=()=>page.evaluate(()=>{
+    const a=window.flaghack,t=window.__ladderFixture,p=a.renderer.modules.find(m=>m.pieces?.ladders)?.pieces;
+    if(!p)throw Error('Actual instanced platform renderer missing');
+    const read=mesh=>{const m=a.renderer.camera.matrixWorld.clone(),out=[];for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,m);const e=m.elements;out.push({x:e[12],y:e[13],z:e[14],height:Math.hypot(e[4],e[5],e[6])});}return out;};
+    const rails=read(p.ladders.mesh).filter(m=>m.height>2&&Math.hypot(m.x-(t.x+t.nx*.08),m.z-(t.z+t.nz*.08))<.5);
+    const fc=a.world.lattice.facets[t.facet];
+    const posts=read(p.posts.mesh).filter(m=>Math.hypot(m.x-fc.cx,m.z-fc.cz)<a.world.lattice.edge);
+    return{rails,posts,allRails:p.ladders.mesh.count};
+  });
+  let rendered=await geometry();assert.equal(rendered.rails.length,2,'Both exposed-edge ladder rails are rendered');
+  assert.equal(rendered.posts.length,4,'Four corner posts support the isolated platform');
+  for(const post of rendered.posts){const ground=await page.evaluate(({x,z})=>window.flaghack.world.collision.groundHeight(x,z),post);assert.ok(Math.abs(post.y-ground)<.001,'Post reaches terrain');assert.ok(post.height>5.5,'Post reaches the raised deck');}
+  await page.screenshot({path:join(OUT,`${spec.name}-ladder-exposed-posts.png`)});
+  await page.evaluate(()=>{const w=window.flaghack.world,t=window.__ladderFixture,f=window.fh;t.joined=f.factory.spawnPiece(w,'floor',0,-1,t.neighbor,0,-1);f.pieces.attachPiece(w,t.joined);});
+  await page.waitForTimeout(900);assert.equal((await geometry()).rails.length,0,'Same-height adjacent floor removes the shared-edge ladder');
+  await page.screenshot({path:join(OUT,`${spec.name}-ladder-joined-edge.png`)});
+  await page.evaluate(()=>{const w=window.flaghack.world,t=window.__ladderFixture;window.fh.pieces.detachPiece(w,t.joined);});
+  await page.waitForTimeout(500);assert.equal((await geometry()).rails.length,2,'Removing neighbor restores the exposed ladder');
+  const drive=async direction=>{
+    if(spec.mobile)await page.evaluate(direction=>{window.__ladderPad.axes[1]=-direction;},direction);
+    else if(direction)await page.keyboard.down(direction>0?'KeyW':'KeyS');
+    else{await page.keyboard.up('KeyW');await page.keyboard.up('KeyS');}
+  };
+  if(spec.mobile){
+    // No touch joystick exists in the Degen UI. Exercise an explicitly emulated
+    // standard controller through the real browser input poll, not avatar commands.
+    await page.evaluate(()=>{window.__ladderPad={id:'QA emulated standard controller',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0})),timestamp:performance.now()};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__ladderPad]});});
+    await page.waitForTimeout(250);
+  }
+  try{
+    await drive(1);
+    await page.waitForFunction(()=>{const av=window.flaghack.world.avatarOf(0),t=window.__ladderFixture;return av.pos.y>=t.top-.05&&(av.pos.x-t.x)*t.nx+(av.pos.z-t.z)*t.nz<-.12;},null,{timeout:15000,polling:16});
+    await drive(0);
+    const atop=await page.evaluate(()=>{const av=window.flaghack.world.avatarOf(0);return{y:av.pos.y,jump:av.input.jump};});
+    assert.ok(Math.abs(atop.y-fixture.top)<.15,'Normal movement climbs and boards the 6.4m deck');assert.equal(atop.jump,false);
+    await page.screenshot({path:join(OUT,`${spec.name}-ladder-climbed-onto-deck.png`)});
+    await drive(-1);
+    await page.waitForFunction(()=>window.flaghack.world.avatarOf(0).pos.y<=window.__ladderFixture.bottom+.08,null,{timeout:15000,polling:16});
+    await drive(0);
+    await page.screenshot({path:join(OUT,`${spec.name}-ladder-descended.png`)});
+    check(`Exposed-edge ladders update on adjacency; ground-reaching posts and real ${spec.mobile?'browser-emulated controller':'keyboard W/S'} climb/board/descend without jump`);
+  }finally{await drive(0);if(spec.mobile)await page.evaluate(()=>{delete navigator.getGamepads;delete window.__ladderPad;});}
+}
+
 async function scenario(spec,url){
   const context=await browser.newContext({viewport:{width:spec.width,height:spec.height},hasTouch:!!spec.mobile,isMobile:!!spec.mobile,...(spec.mobile?{userAgent:'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'}:{}),deviceScaleFactor:1,recordVideo:{dir:join(OUT,'video'),size:{width:spec.width,height:spec.height}}});
   const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);
@@ -153,6 +215,7 @@ async function scenario(spec,url){
       await page.screenshot({path:join(OUT,`${spec.name}-beacon-collected.png`)});
     }else check('Mobile-emulated Regular-mode pickup plaque is visible, wraps within viewport and does not intercept touch or overlap field controls');
     await platformScenario(spec,context,check);
+    await ladderScenario(spec,context,check);
     entry.after=await renderState();
     if(spec.mobile){
       await page.evaluate(()=>window.flaghack.startMatch({seed:'beacon-card-degen',humans:[0],rtsFactions:[0],match:{...window.flaghack.session.settings.match,active:[0],bossMode:false,days:3}}));
@@ -163,7 +226,7 @@ async function scenario(spec,url){
       check('Actual Degen match has no avatar and shows no false pickup action plaque');
     }
     assert.deepEqual(entry.errors,[]);entry.completed=true;await page.waitForTimeout(1000);
-  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
+  }catch(e){entry.error=e.stack||String(e);entry.failureState=await renderState().catch(()=>null);entry.ladderFailure=await page?.evaluate(()=>{const a=window.flaghack,av=a?.world?.avatarOf(0);return{fixture:window.__ladderFixture,position:av?.pos,input:av?.input,view:a?.session.view};}).catch(()=>null);await page?.screenshot({path:join(OUT,`${spec.name}-failure.png`)}).catch(()=>{});throw e;}
   finally{if(page&&!page.isClosed())entry.videoPath=await page.video()?.path();await context.close();}
 }
 async function main(){

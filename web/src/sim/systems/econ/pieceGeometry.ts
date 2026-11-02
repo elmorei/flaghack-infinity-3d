@@ -74,7 +74,7 @@ export function rampHighEdge(lat: Lattice, facet: number, rampEdge: number): num
   return lat.facets[facet].edges[(rampEdge + 2) % 4];
 }
 
-/** Ground position of a level-0 deck's stilt under facet corner i: the corner moved STILT_INSET toward the centre. */
+/** Ground position of a deck's post under facet corner i: the corner moved STILT_INSET toward the centre. */
 export function stiltFoot(lat: Lattice, facet: number, corner: number, out: number[]): number[] {
   const f = lat.facets[facet];
   const n = lat.nodes[f.nodes[corner]];

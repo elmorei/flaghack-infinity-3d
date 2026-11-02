@@ -419,8 +419,14 @@ export class CollisionWorld {
         let pushed = false;
         for (let k = 0; k < count; k++) {
           const s = this.shapes[this.cand[k]];
-          let depth = this.bodyDepth(s, pos.x, pos.z, radius,
-            this.cand[k] === cylinderId ? pos.y : pos.y + stepHeight, pos.y + height);
+          const lo = this.cand[k] === cylinderId ? pos.y : s.kind === SLAB
+            ? this.rampLandingStep(s, pos.x, pos.z, pos.y, stepHeight, count) : pos.y + stepHeight;
+          // A walkable ramp supports the feet at the body's centre. Its uphill
+          // strip can intersect the cylinder radius before the feet cross the low
+          // edge; treating that strip as a wall traps bodies on taller ramps.
+          // Only bypass ramp push-out when this centre-height is an ordinary step.
+          let depth = s.kind === RAMP && this.surfaceAt(s, pos.x, pos.z) <= lo + TOUCH ? 0 :
+            this.bodyDepth(s, pos.x, pos.z, radius, lo, pos.y + height);
           if (depth <= 0) continue;
           if (this.cand[k] === cylinderId) hullContact = true;
           if (this.cand[k] === cylinderId && oldDepth > TOUCH) {
@@ -446,8 +452,10 @@ export class CollisionWorld {
         for (let k = 0; k < count; k++) {
           if (this.cand[k] === cylinderId && oldDepth > TOUCH) continue;
           const s = this.shapes[this.cand[k]];
-          if (this.bodyDepth(s, pos.x, pos.z, radius,
-            this.cand[k] === cylinderId ? pos.y : pos.y + stepHeight, pos.y + height) > TOUCH) {
+          const lo = this.cand[k] === cylinderId ? pos.y : s.kind === SLAB
+            ? this.rampLandingStep(s, pos.x, pos.z, pos.y, stepHeight, count) : pos.y + stepHeight;
+          if (s.kind === RAMP && this.surfaceAt(s, pos.x, pos.z) <= lo + TOUCH) continue;
+          if (this.bodyDepth(s, pos.x, pos.z, radius, lo, pos.y + height) > TOUCH) {
             unsafe = true; break;
           }
         }
@@ -713,6 +721,19 @@ export class CollisionWorld {
       }
     }
     return count;
+  }
+
+  /** A narrow ramp's centre can step higher before its cylinder clears the landing edge. */
+  private rampLandingStep(slab: Shape, x: number, z: number, feet: number, step: number, count: number): number {
+    let low = feet + step;
+    if (step <= 0) return low;
+    for (let k = 0; k < count; k++) {
+      const ramp = this.shapes[this.cand[k]];
+      if (ramp.kind !== RAMP || Math.abs(ramp.topMax - slab.y1) > step || !insidePolygon(ramp.px, ramp.pz, ramp.n, x, z)) continue;
+      const support = this.surfaceAt(ramp, x, z);
+      if (support >= feet - SNAP_DOWN && support <= feet + step) low = Math.max(low, support + step);
+    }
+    return low;
   }
 
   /**

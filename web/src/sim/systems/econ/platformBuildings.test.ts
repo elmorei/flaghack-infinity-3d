@@ -50,10 +50,14 @@ describe('buildings on elevated platforms', () => {
   it('keeps survey, vertical clearance, ground construction and separate vertical occupancy', () => {
     const { world, facet, deck } = fixture();
     expect(canPlaceBuilding(world, 1, 'workshop', facet.id, 1).ok).toBe(false);
-    // Ward is taller than the level-0 deck: ground placement remains rejected.
-    expect(canPlaceBuilding(world, 0, 'ward', facet.id, 0).ok).toBe(false);
+    // The taller platform now has enough headroom for the tallest camp building.
+    expect(canPlaceBuilding(world, 0, 'ward', facet.id, 0).ok).toBe(true);
     const ceiling = spawnPiece(world, 'floor', 0, -1, facet.id, 1, -1); attachPiece(world, ceiling);
+    expect(canPlaceBuilding(world, 0, 'ward', facet.id, 1).ok).toBe(true);
+    const base = world.collision.groundHeight(facet.cx, facet.cz) + LEVEL_HEIGHT;
+    const lowCeiling = world.collision.addBox(facet.cx, facet.cz, 4, 4, 0, base + BUILDING_HEIGHT.ward - .1, base + BUILDING_HEIGHT.ward + .1, -999);
     expect(canPlaceBuilding(world, 0, 'ward', facet.id, 1).ok).toBe(false);
+    world.collision.remove(lowCeiling);
     destroyPiece(world, ceiling);
     const ground = spawnBuilding(world, 'drumcircle', 0, facet.id, 1); registerBuildingShape(world, ground);
     expect(canPlaceBuilding(world, 0, 'workshop', facet.id, 1).ok).toBe(true);

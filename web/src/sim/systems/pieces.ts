@@ -155,12 +155,15 @@ export function canBuildPiece(
     if (polygonHitsBuilding(world, POLY_X, POLY_Z, y0, (level + 1) * LEVEL_HEIGHT)) return NO.building;
     const clear = polygonClearance(world, POLY_X, POLY_Z, y0);
     if (clear !== 'clear') return NO[clear];
-    if (kind === 'floor' && level === 0) {
-      // Level-0 decks stand on stilts reaching the ground.
+    if (kind === 'floor') {
+      // Every deck has physical corner posts reaching the terrain.
       for (let i = 0; i < 4; i++) {
         stiltFoot(lat, facet, i, FOOT);
         const stilt = segmentClearance(world, FOOT[0], FOOT[1], FOOT[0], FOOT[1], STILT_RADIUS, 0);
         if (stilt !== 'clear') return NO[stilt];
+        const fc = lat.facets[facet];
+        const postTop = world.collision.groundHeight(fc.cx, fc.cz) + (level + 1) * LEVEL_HEIGHT - DECK_THICKNESS;
+        if (segmentHitsBuilding(world, FOOT[0], FOOT[1], FOOT[0], FOOT[1], STILT_RADIUS, 0, postTop - world.collision.groundHeight(FOOT[0], FOOT[1]))) return NO.building;
       }
     }
   }
@@ -359,11 +362,10 @@ function registerPieceShapes(world: World, p: Piece): void {
   const fc = lat.facets[p.facet];
   if (p.kind === 'floor') {
     p.shapeIds.push(col.addSlab(xs, zs, top, DECK_THICKNESS, p.id));
-    if (p.level === 0) {
-      for (let i = 0; i < 4; i++) {
-        const [sx, sz] = stiltFoot(lat, p.facet, i, FOOT);
-        p.shapeIds.push(col.addCylinder(sx, sz, STILT_RADIUS, col.groundHeight(sx, sz), top - DECK_THICKNESS, p.id));
-      }
+    for (let i = 0; i < 4; i++) {
+      const [sx, sz] = stiltFoot(lat, p.facet, i, FOOT);
+      p.shapeIds.push(col.addCylinder(sx, sz, STILT_RADIUS, col.groundHeight(sx, sz), top - DECK_THICKNESS, p.id));
+      world.nav.blockCircle(sx, sz, STILT_RADIUS, p.id);
     }
     return;
   }

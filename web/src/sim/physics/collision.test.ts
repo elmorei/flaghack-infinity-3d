@@ -97,24 +97,74 @@ describe('CollisionWorld', () => {
     expect(pos.z).toBeGreaterThan(1);
     expect(pos.z).toBeLessThan(6);
     expect(pos.y).toBeCloseTo((LEVEL_HEIGHT * pos.z) / 6, 1);
-    const res = walk(w, pos, 0, 6, 0.75);
+    // A steeper 6.4 m ramp advances more slowly because each contact respects step height.
+    // Continue driving to the top, with a bounded traversal time rather than the old 3.2 m timing.
+    let res = walk(w, pos, 0, 6, SIM_DT);
+    for (let t = 0; t < 2 && pos.z <= 6.1; t += SIM_DT) res = walk(w, pos, 0, 6, SIM_DT);
     expect(pos.z).toBeGreaterThan(6);
     expect(pos.y).toBeCloseTo(LEVEL_HEIGHT, 6);
     expect(res.onGround).toBe(true);
     expect(w.supportHeight(pos.x, pos.z, pos.y + STEP)).toBeCloseTo(LEVEL_HEIGHT, 6);
   });
 
+  it.each([36, 72])('traverses a tall ramp with the %s-degree lattice facet run', angle => {
+    const w = new CollisionWorld(), run = 8 * Math.sin(angle * Math.PI / 180);
+    const [rx, rz] = rect(-2, 0, 2, run);
+    w.addRamp(rx, rz, 0, 1, 0, LEVEL_HEIGHT, .25, 3);
+    const [dx, dz] = rect(-2, run, 2, run + 4);
+    w.addSlab(dx, dz, LEVEL_HEIGHT, .25, 4);
+    const pos = { x: 0, y: 0, z: -2 };
+    let result = walk(w, pos, 0, 6, SIM_DT);
+    for (let t = 0; t < 5 && pos.z <= run + .2; t += SIM_DT) result = walk(w, pos, 0, 6, SIM_DT);
+    expect(pos.z).toBeGreaterThan(run);
+    expect(pos.y).toBeCloseTo(LEVEL_HEIGHT, 6);
+    expect(result.onGround).toBe(true);
+  });
+
+  it.each(['slab', 'wall'] as const)('does not use tall ramp traversal to climb an oversized adjoining %s', kind => {
+    const w = new CollisionWorld(), run = 8 * Math.sin(Math.PI / 5);
+    const [rx, rz] = rect(-2, 0, 2, run);
+    w.addRamp(rx, rz, 0, 1, 0, LEVEL_HEIGHT, .25, 3);
+    if (kind === 'slab') {
+      const [dx, dz] = rect(-2, run, 2, run + 4);
+      w.addSlab(dx, dz, LEVEL_HEIGHT + 1, .25, 4);
+    } else {
+      w.addBox(0, run + .1, 2, .1, 0, LEVEL_HEIGHT, LEVEL_HEIGHT + 2, 4);
+    }
+    const pos = { x: 0, y: 0, z: -2 };
+    const result = walk(w, pos, 0, 6, 5);
+    expect(result.hitWall).toBe(true);
+    expect(pos.z).toBeLessThan(run);
+    expect(pos.y).toBeLessThanOrEqual(LEVEL_HEIGHT);
+  });
+
+  it.each([36, 72])('keeps the tall %s-degree ramp high edge and underside solid', angle => {
+    const w = new CollisionWorld(), run = 8 * Math.sin(angle * Math.PI / 180);
+    const [rx, rz] = rect(-2, 0, 2, run);
+    w.addRamp(rx, rz, 0, 1, 0, LEVEL_HEIGHT, .25, 3);
+    // A body intersecting the high vertical edge cannot enter from behind it.
+    const side = { x: 0, y: LEVEL_HEIGHT - .75, z: run + 1 };
+    const blocked = w.moveCharacter(side, { x: 0, y: 0, z: -6 }, .2, R, H, STEP);
+    expect(blocked.hitWall).toBe(true);
+    expect(side.z).toBeGreaterThanOrEqual(run + R - .01);
+    // Jumping from underneath still collides with the sloped plank's underside.
+    const under = { x: 0, y: 0, z: run / 2 }, velocity = { x: 0, y: 20, z: 0 };
+    w.moveCharacter(under, velocity, .15, R, H, STEP);
+    expect(under.y + H).toBeLessThanOrEqual(LEVEL_HEIGHT / 2 - .25 + .01);
+    expect(velocity.y).toBe(0);
+  });
+
   it('blocks a ramp from the side where it is at body height, but not under its high end', () => {
     const w = new CollisionWorld();
     const [rx, rz] = rect(-2, 0, 2, 6);
     w.addRamp(rx, rz, 0, 1, 0, LEVEL_HEIGHT, 0.25, 3);
-    // Side approach at mid-ramp (surface ≈ 1.6 m): a wall at chest height.
-    const side = { x: -6, y: 0, z: 3 };
+    // Side approach where the surface is 1.6 m: a wall at chest height.
+    const side = { x: -6, y: 0, z: 6 * 1.6 / LEVEL_HEIGHT };
     const a = walk(w, side, 6, 0, 1.5);
     expect(a.hitWall).toBe(true);
     expect(side.x).toBeLessThan(-2);
     expect(side.y).toBe(0);
-    // Under the high end (underside ≈ 2.7 m > head) a character walks straight through.
+    // Under the high end (underside above the head), a character walks straight through.
     const under = { x: -6, y: 0, z: 5.6 };
     walk(w, under, 6, 0, 2);
     expect(under.x).toBeGreaterThan(4);
@@ -226,7 +276,7 @@ describe('CollisionWorld', () => {
     const [dx, dz] = rect(-4, 2, 4, 10);
     w.addSlab(dx, dz, LEVEL_HEIGHT, 0.25, 5);
     expect(w.blockedCircle(0, 6, 1, 0, 2)).toBe(false);
-    expect(w.blockedCircle(0, 6, 1, 3, 4)).toBe(true);
+    expect(w.blockedCircle(0, 6, 1, LEVEL_HEIGHT - .1, LEVEL_HEIGHT + .1)).toBe(true);
   });
 
   it('moves a character through shapes tagged ignoreTag while every other shape still blocks', () => {

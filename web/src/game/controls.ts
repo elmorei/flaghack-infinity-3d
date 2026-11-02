@@ -33,6 +33,7 @@ import { CommandView, pingKindAt } from './commandView';
 import { Input, LMB, MMB, RMB } from './input';
 import { Picker } from './picking';
 import { droppedCardPrompt } from './cardPickup';
+import { platformLadderPrompt } from './platformLadderPrompt';
 import type { GhostInfo, Screen, Session, ToolKind, ViewMode } from './session';
 
 /** View blend duration (s) for the global Command View toggle. */
@@ -1151,7 +1152,7 @@ export class Controls {
     if (this.ctxKind === 'pull') e = this.pullPrompt(world, s.playerFaction);
     else if (this.ctxKind === 'handFlag' && world.hippies.get(this.ctxTarget)?.wizard) e = 'E  Offer Flag to the Frick-frack Wizard';
     else if (this.ctxKind !== 'none') e = CONTEXT_PROMPT[this.ctxKind];
-    return this.join(this.join(tool, e), droppedCardPrompt(world, s.playerFaction, s.hover.entity));
+    return this.join(this.join(tool, e), droppedCardPrompt(world, s.playerFaction, s.hover.entity)) ?? platformLadderPrompt(world, av.pos);
   }
 
   private pullPrompt(world: World, f: FactionId): string {

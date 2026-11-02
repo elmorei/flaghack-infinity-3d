@@ -1,3 +1,4 @@
+import { stepPlatformLadder } from '../platformLadders';
 import { buildingBaseHeight } from '../buildingGeometry';
 import { isFrickFrackLocked } from './frickFrack';
 /**
@@ -344,6 +345,7 @@ export function stepAvatarMotion(world: World, av: AvatarMotionState, input: Ava
     av.pitch = clamp(input.pitch, -AVATAR.pitchLimit, AVATAR.pitchLimit);
   }
   const held = down || isRooted(av) || hasEffect(world, av, 'stun');
+  if (!held && av.pushing < 0 && !hasEffect(world, av, 'knockback') && stepPlatformLadder(world, av, input, dt)) return;
   let wx = 0;
   let wz = 0;
   if (!held) {

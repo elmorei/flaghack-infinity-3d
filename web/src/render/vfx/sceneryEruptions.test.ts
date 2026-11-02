@@ -1,3 +1,4 @@
+import { LEVEL_HEIGHT } from '../../sim/constants';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventOf } from '../../sim/events';
@@ -130,9 +131,9 @@ describe('large billowing destruction fireballs', () => {
       fx: { wreck, confetti, wardPulse }, shake: vi.fn() };
     const send = (e: Parameters<VfxRenderer['onEvent']>[0]) => VfxRenderer.prototype.onEvent.call(stub as unknown as VfxRenderer, e);
     send({ t: 'buildingDone', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
-    expect(confetti).toHaveBeenCalledWith(30, 12.4, -20, 0xffcc00);
+    expect(confetti).toHaveBeenCalledWith(30, 6 + 2 * LEVEL_HEIGHT, -20, 0xffcc00);
     send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
-    expect(wreck).toHaveBeenLastCalledWith(30, 12.4, -20, 1);
+    expect(wreck).toHaveBeenLastCalledWith(30, 6 + 2 * LEVEL_HEIGHT, -20, 1);
     buildings.clear();
     send({ t: 'buildingDisabled', buildingId: 8, kind: 'workshop', faction: 0, pos: { x: 30, z: -20 } });
     expect(wreck).toHaveBeenLastCalledWith(30, 6, -20, 1);

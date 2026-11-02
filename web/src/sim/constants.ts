@@ -22,7 +22,7 @@ export const CAMP_CENTERS: Record<FactionId, { x: number; z: number }> = {
   2: { x: 90, z: -90 },
   3: { x: -90, z: -90 },
 };
-export const LEVEL_HEIGHT = 3.2; // build level height (m)
+export const LEVEL_HEIGHT = 6.4; // construction spacing: platforms, connecting ramps and support walls (m)
 export const MAX_BUILD_LEVEL = 3;
 
 // ── Factions ──────────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ export const PIECE = {
   cost: 10,
   hp: 150,
   refund: 5,
-  wallHeight: 3.2,
+  wallHeight: LEVEL_HEIGHT,
   wallThickness: 0.35,
   wallInset: 0.5,
   popIn: 0.4,
