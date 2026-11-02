@@ -28,7 +28,7 @@ let browser,page;
 const specs=[{name:'phone-portrait',width:390,height:844},{name:'small-phone',width:320,height:568},{name:'phone-landscape',width:844,height:390}];
 async function geometry(){return page.evaluate(()=>{
   const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom,overflow:e.scrollWidth>e.clientWidth+1};};
-  return {width:innerWidth,height:innerHeight,resources:rect(document.querySelector('.mc-resources .res')),timing:rect(document.querySelector('.mc-timing')),buttons:[...document.querySelectorAll('.mc-top button')].map(rect),reserved:[...document.querySelectorAll('.mc-status-left,.mc-resources,.mc-modes,.mc-selected:not(.is-off),.mc-placement:not(.is-off),.mc-alert:not(.is-off),.mc-pickup:not(.is-off)')].map(rect).filter(r=>r.w&&r.h),rows:[...document.querySelectorAll('.mc-resources .res-row,.mc-resources .attn')].map(e=>({text:e.textContent,...rect(e)})),arrows:[...document.querySelectorAll('.mc-altar-arrow')].map(e=>({id:Number(e.dataset.altarId),color:e.style.color,expectedColor:(()=>{const b=window.flaghack.world.buildings.get(Number(e.dataset.altarId)),n=document.createElement('i');n.style.color=window.flaghack.world.factions[b.faction].css;return n.style.color;})(),pointer:getComputedStyle(e).pointerEvents,...rect(e)}))};
+  return {width:innerWidth,height:innerHeight,resources:rect(document.querySelector('.mc-resources .res')),timing:rect(document.querySelector('.mc-timing')),buttons:[...document.querySelectorAll('.mc-top button')].map(rect),reserved:[...document.querySelectorAll('.mc-status-left,.mc-resources,.mc-modes,.mc-selected:not(.is-off),.mc-placement:not(.is-off),.mc-alert:not(.is-off),.mc-pickup:not(.is-off)')].map(rect).filter(r=>r.w&&r.h),rows:[...document.querySelectorAll('.mc-resources .res-row,.mc-resources .attn')].map(e=>({text:e.textContent,...rect(e)})),arrows:[...document.querySelectorAll('.mc-altar-arrow')].map(e=>({id:Number(e.dataset.altarId??e.dataset.bossId),kind:e.dataset.targetKind,allegiance:e.dataset.allegiance,cx:parseFloat(e.style.left),cy:parseFloat(e.style.top),color:e.style.color,expectedColor:(()=>{const b=window.flaghack.world.buildings.get(Number(e.dataset.altarId)),n=document.createElement('i');n.style.color=e.dataset.targetKind==='boss'?'#fff0d0':window.flaghack.world.factions[b.faction].css;return n.style.color;})(),pointer:getComputedStyle(e).pointerEvents,...rect(e)}))};
 });}
 function checkLayout(g){
   assert.ok(g.resources.x+g.resources.w/2>g.width/2,'Camp resources occupy upper right');
@@ -38,7 +38,7 @@ function checkLayout(g){
   assert.ok(g.buttons.every(r=>r.h>=44),'Touch controls retain 44px targets');
   assert.ok(g.rows.every(r=>!r.overflow),'Camp labels and values do not overflow');
   assert.ok(g.arrows.length>0,'Offscreen enemy altars have arrows');
-  for(const r of g.arrows){assert.equal(r.pointer,'none');assert.equal(r.color,r.expectedColor,'Arrow uses the live owner color');for(const o of g.reserved)assert.ok(r.right<=o.x||r.x>=o.right||r.bottom<=o.y||r.y>=o.bottom,'Arrows avoid HUD panels and controls');for(const o of g.arrows)if(o.id!==r.id)assert.ok(r.right<=o.x||r.x>=o.right||r.bottom<=o.y||r.y>=o.bottom,'Arrows remain separate');}
+  for(const r of g.arrows){assert.ok(Math.min(Math.abs(r.cx-20),Math.abs(r.cx-(g.width-20)),Math.abs(r.cy-20),Math.abs(r.cy-(g.height-20)))<.05,'Arrow center remains on the exact safe perimeter');assert.equal(r.pointer,'none');assert.equal(r.color,r.expectedColor,'Arrow uses the live owner color');for(const o of g.reserved)assert.ok(r.right<=o.x||r.x>=o.right||r.bottom<=o.y||r.y>=o.bottom,'Arrows avoid HUD panels and controls');for(const o of g.arrows)if(o.id!==r.id)assert.ok(r.right<=o.x||r.x>=o.right||r.bottom<=o.y||r.y>=o.bottom,'Arrows remain separate');}
 }
 try{
   mkdirSync(OUT,{recursive:true});await new Promise(done=>server.listen(0,'127.0.0.1',done));
@@ -56,6 +56,7 @@ try{
     assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),'mobile');
     await page.evaluate(()=>{const w=window.flaghack.world;w.factions[0].lumber=778;w.factions[0].ritual=42;});
     await page.waitForFunction(()=>document.querySelector('.mc-resources [data-tutorial="hud-lumber"] .res-val').textContent===String(Math.floor(window.flaghack.world.factions[0].lumber))&&document.querySelector('.mc-resources [data-tutorial="hud-ritual"] .res-val').textContent===String(Math.floor(window.flaghack.world.factions[0].ritual)));
+    assert.equal(await page.locator('[data-target-kind="boss"]').count(),0,'No boss location before emergence');
     let g=await geometry();checkLayout(g);entry.geometry=g;entry.checks.push('Five live camp resources, compact day/Tide/Burn clock and faction-colored noninteractive arrows fit mobile field');
     assert.match(await page.locator('.mc-timing .clock').innerText(),/Day 1/);
     assert.ok(await page.locator('.mc-timing .tide').isVisible());assert.ok(await page.locator('.mc-timing .burn').isVisible());
@@ -68,6 +69,19 @@ try{
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();
     await page.waitForFunction(p=>Math.hypot(window.flaghack.session.camera.cmdX-p.x,window.flaghack.session.camera.cmdZ-p.z)>.05,beforePan);
     entry.checks.push('Resource panel passes real touch drags through to field camera input');
+    const motion=await page.evaluate(async()=>{
+      const a=window.flaghack,s=a.session.camera,frames=[];
+      for(let i=0;i<36;i++){
+        s.cmdX+=.4;s.cmdZ+=.25;
+        await new Promise(requestAnimationFrame);
+        frames.push([...document.querySelectorAll('.mc-altar-arrow')].map(e=>({id:e.dataset.altarId,x:parseFloat(e.style.left),y:parseFloat(e.style.top)})));
+      }
+      return frames;
+    });
+    assert.ok(motion.some((frame,i)=>i&&frame.some(p=>{const old=motion[i-1].find(o=>o.id===p.id);return old&&Math.hypot(p.x-old.x,p.y-old.y)>.01;})),'Indicators move with continuously panned rendered camera');
+    const movedFrames=motion.filter((frame,i)=>i&&frame.some(p=>{const old=motion[i-1].find(o=>o.id===p.id);return old&&Math.hypot(p.x-old.x,p.y-old.y)>.01;})).length;
+    assert.ok(movedFrames>=12,`Per-frame camera tracking, not 10Hz HUD snapshots: ${movedFrames}/36 moved`);
+    checkLayout(await geometry());entry.checks.push('Actual rendered camera pan moves arrows continuously along the exact perimeter outside HUD panes');
     for(let i=0;i<3;i++){
       await page.locator('.mc-top').getByRole('button',{name:'Menu',exact:true}).tap();
       await page.locator('.mc-page[data-tab="main"] .res').waitFor({state:'visible'});
@@ -86,13 +100,19 @@ try{
       return{mode:w.factions[1].controlMode,avatar:!!w.avatarOf(1),facing:forward.dot(toward)};
     });
     assert.equal(throne.mode,'rts');assert.equal(throne.avatar,false);assert.ok(throne.facing>.9999);
+    await page.locator('.mc-altar-arrow[data-allegiance="own"]').waitFor({state:'visible'});
+    checkLayout(await geometry());
     await page.screenshot({path:join(OUT,`${spec.name}-crow-throne.png`)});
     entry.checks.push('NPC Dr. Crow has no roaming body and the actual rendered throne faces the effigy');
     await page.locator('.mc-top').getByRole('button',{name:'Home',exact:true}).tap();
     await page.locator(`.mc-altar-arrow[data-altar-id="${target.id}"]`).waitFor({state:'visible'});
+    await page.waitForFunction(()=>!document.querySelector('.mc-altar-arrow[data-allegiance="own"]'));
     await page.evaluate(id=>{window.flaghack.world.buildings.get(id).faction=0;},target.id);
+    await page.waitForFunction(id=>document.querySelector(`.mc-altar-arrow[data-altar-id="${id}"]`)?.dataset.allegiance==='own',target.id);
+    checkLayout(await geometry());
+    await page.evaluate(id=>{window.flaghack.world.buildings.get(id).hp=0;},target.id);
     await page.waitForFunction(id=>!document.querySelector(`.mc-altar-arrow[data-altar-id="${id}"]`),target.id);
-    entry.checks.push('Camera pan/Home updates bearings; captured altar is removed immediately despite stale ownership lists');
+    entry.checks.push('Own altar appears offscreen, enemy capture changes to own color, destroyed altar disappears');
     await page.evaluate(()=>{const a=window.flaghack;a.session.panels.settings=true;});
     await page.locator('.mc-field').waitFor({state:'hidden'});await page.evaluate(()=>{window.flaghack.session.panels.settings=false;});await page.locator('.mc-resources .res').waitFor({state:'visible'});
     await page.evaluate(()=>{window.flaghack.session.spectator=true;});await page.locator('.fh-hud .clock').waitFor({state:'visible'});
@@ -110,6 +130,17 @@ try{
       const boss=await page.locator('.mc-timing .boss-hud').boundingBox();assert.ok(boss.x>=0&&boss.x+boss.width<=390);
       await page.screenshot({path:join(OUT,'phone-boss-health.png')});
       entry.checks.push('Actual awakening switches the shared compact clock to bounded authoritative boss health');
+      await page.evaluate(()=>{const a=window.flaghack,b=a.world.boss;a.session.camera.cmdX=b.pos.x+120;a.session.camera.cmdZ=b.pos.z+100;});
+      await page.locator('.mc-altar-arrow[data-target-kind="boss"]').waitFor({state:'visible'});
+      await page.waitForTimeout(500);checkLayout(await geometry());
+      await page.screenshot({path:join(OUT,'phone-boss-perimeter.png')});
+      await page.evaluate(()=>{const a=window.flaghack,b=a.world.boss;a.session.camera.cmdX=b.pos.x;a.session.camera.cmdZ=b.pos.z;});
+      await page.waitForFunction(()=>!document.querySelector('.mc-altar-arrow[data-target-kind="boss"]'));
+      await page.evaluate(()=>{const a=window.flaghack,b=a.world.boss;a.session.camera.cmdX=b.pos.x+120;a.session.camera.cmdZ=b.pos.z+100;});
+      await page.locator('.mc-altar-arrow[data-target-kind="boss"]').waitFor({state:'visible'});
+      await page.evaluate(()=>{window.flaghack.world.boss.hp=0;window.flaghack.world.boss.action='dead';});
+      await page.waitForFunction(()=>!document.querySelector('.mc-altar-arrow[data-target-kind="boss"]'));
+      entry.checks.push('Distinct emerged boss marker tracks offscreen, hides onscreen and disappears when dead');
     }
     assert.deepEqual(entry.errors,[]);await context.close();
   }

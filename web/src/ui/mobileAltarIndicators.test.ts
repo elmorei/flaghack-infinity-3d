@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OrthographicCamera, PerspectiveCamera, Vector4 } from 'three';
 import type { World } from '../sim/world';
 import type { Building } from '../sim/types';
-import { enemyAltars, layoutAltarIndicators, MobileAltarIndicators, type AltarClipTarget } from './mobileAltarIndicators';
+import { liveAltars, emergedBoss, layoutAltarIndicators, MobileAltarIndicators, type AltarClipTarget } from './mobileAltarIndicators';
 
 const target = (id: number, x: number, y = 0, z = 0, w = 1): AltarClipTarget => ({ id, x, y, z, w, color: '#ff0000' });
 const portrait = { width: 390, height: 844 };
@@ -70,12 +70,12 @@ class Node {
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(n => n !== this); }
 }
 afterEach(() => vi.unstubAllGlobals());
-it('uses live ownership and excludes neutral, own, dead, missing-component and destroyed altars', () => {
+it('uses live ownership and includes own and excludes neutral, dead, missing-component and destroyed altars', () => {
   const w = world();
   for (const b of [altar(2, 0), altar(3, -1), altar(4, 2), altar(5, 1, { hp: 0 }), altar(6, 1, { hearth: null }), altar(7, 1, { kind: 'workshop' })]) w.buildings.set(b.id, b);
-  expect(enemyAltars(w, 0).map(b => b.id)).toEqual([1]);
+  expect(liveAltars(w).map(b => b.id)).toEqual([1, 2]);
   w.buildings.get(1)!.faction = 0;
-  expect(enemyAltars(w, 0)).toEqual([]);
+  expect(liveAltars(w).map(b => b.id)).toEqual([1, 2]);
 });
 it('updates colored, noninteractive DOM and removes stale arrows on capture/death/disposal', () => {
   vi.stubGlobal('document', { createElement: () => new Node() });
@@ -87,11 +87,32 @@ it('updates colored, noninteractive DOM and removes stale arrows on capture/deat
   expect(root.children[0].style.color).toBe('#f00');
   expect(root.children[0].style.pointerEvents).toBe('none');
   w.buildings.get(1)!.faction = 0; ui.update(w, c, 0, portrait);
-  expect(root.children).toHaveLength(0);
+  expect(root.children).toHaveLength(1);
+  expect(root.children[0].style.color).toBe('#aaa');
+  expect(root.children[0].dataset.allegiance).toBe('own');
   w.buildings.get(1)!.faction = 1; ui.update(w, c, 0, portrait);
   expect(root.children).toHaveLength(1);
   w.buildings.clear(); ui.update(w, c, 0, portrait);
   expect(root.children).toHaveLength(0);
   ui.hide(); expect(root.style.display).toBe('none');
   ui.dispose(); expect(parent.children).toHaveLength(0);
+});
+
+it('reveals a distinct boss indicator only after emergence and removes it on death/removal', () => {
+  vi.stubGlobal('document', { createElement: () => new Node() });
+  const w = world(); w.buildings.clear(); w.time = 100; w.effigyRevealedAt = null;
+  const boss = { id: 9, pos: { x: 100, z: -10 }, spawnedAt: 90, hp: 100, deathAt: null, action: 'idle' } as NonNullable<World['boss']>;
+  w.boss = boss;
+  const parent = new Node(), ui = new MobileAltarIndicators(parent as unknown as HTMLElement), c = new PerspectiveCamera(60, 390 / 844, .1, 1000);
+  expect(emergedBoss(w)).toBeNull(); ui.update(w, c, 0, portrait); expect(parent.children[0].children).toHaveLength(0);
+  w.effigyRevealedAt = 110; expect(emergedBoss(w)).toBeNull();
+  w.effigyRevealedAt = 90; boss.spawnedAt = 110; expect(emergedBoss(w)).toBeNull();
+  boss.spawnedAt = 90; ui.update(w, c, 0, portrait);
+  const arrow = parent.children[0].children[0]; expect(arrow.dataset.targetKind).toBe('boss');
+  expect(arrow.dataset.bossId).toBe('9'); expect(arrow.dataset.altarId).toBeUndefined(); expect(arrow.innerHTML).toContain('#b3284f');
+  c.position.set(100, 16, 0); ui.update(w, c, 0, portrait); expect(parent.children[0].children).toHaveLength(0);
+  c.position.set(0, 0, 0); boss.hp = 0; ui.update(w, c, 0, portrait); expect(parent.children[0].children).toHaveLength(0);
+  boss.hp = 100; boss.deathAt = 100; expect(emergedBoss(w)).toBeNull();
+  boss.deathAt = null; boss.action = 'dead'; expect(emergedBoss(w)).toBeNull();
+  w.boss = null; expect(emergedBoss(w)).toBeNull();
 });

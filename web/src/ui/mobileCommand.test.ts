@@ -35,3 +35,21 @@ describe('mobile command menu intent', () => {
     expect(s.mobileBuildConfirm).toBe(false); expect(s.mobileMode).toBe('build');
   });
 });
+
+it('refreshes bearings at rendered-frame cadence and hides them immediately behind menus', async () => {
+  const { MobileCommandUI } = await import('./mobileCommand');
+  const s = new Session(); s.screen = 'playing'; s.view = 'command'; s.mobileMenu = null;
+  const world = { factions: [{ alive: true }] }, camera = {}, calls: string[] = [];
+  const ui = Object.create(MobileCommandUI.prototype);
+  Object.assign(ui, { host: { app: { world, session: s, renderer: { camera } } },
+    indicatorViewport: { width: 390, height: 844 }, altars: { update: () => calls.push('update'), hide: () => calls.push('hide') } });
+  const prior = globalThis.window;
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { innerWidth: 390, innerHeight: 844 } });
+  try {
+    ui.frame(); ui.frame(); ui.frame();
+    expect(calls).toEqual(['update', 'update', 'update']);
+    s.mobileMenu = 'main'; ui.frame(); expect(calls.at(-1)).toBe('hide');
+    s.mobileMenu = null; s.panels.chakras = true; ui.frame(); expect(calls.at(-1)).toBe('hide');
+    s.panels.chakras = false; window.innerWidth = 844; ui.frame(); expect(calls.at(-1)).toBe('hide');
+  } finally { Object.defineProperty(globalThis, 'window', { configurable: true, value: prior }); }
+});

@@ -9,7 +9,7 @@ import { CHAKRA_INFO } from './catalog';
 import type { UiHost, UiLayout, UiPart } from './core';
 import { button, el, setAttr, setClass, setText, setVar, show } from './dom';
 import { MobileFieldStatus } from './mobileFieldStatus';
-import { MobileAltarIndicators } from './mobileAltarIndicators';
+import { MobileAltarIndicators, type IndicatorViewport } from './mobileAltarIndicators';
 
 type MobileTab = NonNullable<Session['mobileMenu']>;
 export function cancelMobileTarget(s: Session): void {
@@ -51,6 +51,7 @@ export class MobileCommandUI implements UiPart {
   private status: MobileFieldStatus;
   private statusHeader: HTMLElement;
   private altars: MobileAltarIndicators;
+  private indicatorViewport: IndicatorViewport | null = null;
 
   constructor(private host: UiHost, layout: UiLayout, source: HTMLElement) {
     const s = host.app.session;
@@ -186,7 +187,7 @@ export class MobileCommandUI implements UiPart {
     const s = this.host.app.session;
     const active = !!world && s.screen === 'playing' && s.view === 'command' && !s.spectator && world.factions[s.playerFaction].alive;
     show(this.root, active);
-    if (!active || !world) { this.status.restoreOriginal(); this.altars.hide(); return; }
+    if (!active || !world) { this.status.restoreOriginal(); this.indicatorViewport = null; this.altars.hide(); return; }
     const pickup = s.tool === 'building' ? null : nearbyPickupTag(world, s.playerFaction, s.hover.entity);
     setText(this.pickup, pickup ?? ''); show(this.pickup, !!pickup);
     const nested = s.panels.settings || s.panels.help || s.panels.codex || s.panels.chakras || s.campChoiceOpen;
@@ -234,8 +235,21 @@ export class MobileCommandUI implements UiPart {
         .map(node => node.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
       const style = getComputedStyle(this.field);
       const inset = Math.max(20, ...[style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(v => (parseFloat(v) || 0) + 13));
-      this.altars.update(world, this.host.app.renderer.camera, s.playerFaction, { width: window.innerWidth, height: window.innerHeight, reserved, inset });
-    } else this.altars.hide();
+      this.indicatorViewport = { width: window.innerWidth, height: window.innerHeight, reserved, inset };
+    } else { this.indicatorViewport = null; this.altars.hide(); }
+  }
+
+  /** Camera bearings refresh after every rendered frame, not the slower text HUD tick. */
+  frame(): void {
+    const { world, session: s, renderer } = this.host.app;
+    if (!world || !this.indicatorViewport || s.screen !== 'playing' || s.view !== 'command' ||
+      s.spectator || !world.factions[s.playerFaction].alive || s.mobileMenu !== null ||
+      s.panels.settings || s.panels.help || s.panels.codex || s.panels.chakras || s.campChoiceOpen) {
+      this.altars.hide(); return;
+    }
+    // Avoid one stale-layout frame during rotation; the next HUD tick measures the new safe bounds.
+    if (this.indicatorViewport.width !== window.innerWidth || this.indicatorViewport.height !== window.innerHeight) { this.altars.hide(); return; }
+    this.altars.update(world, renderer.camera, s.playerFaction, this.indicatorViewport);
   }
 
   reset(): void {

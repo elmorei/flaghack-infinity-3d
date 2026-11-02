@@ -69,6 +69,7 @@ export class GameUI {
   private parts: UiPart[] = [];
   private hud: HudPart;
   private minimap: Minimap;
+  private mobileCommand: MobileCommandUI | null = null;
   private banners: Banners;
   private veil: LoadingVeil;
   private chat: ChatOverlay;
@@ -161,7 +162,8 @@ export class GameUI {
     this.seats = new SeatChooser(host, layout.overlay);
     this.parts.push(this.seats);
     if (document.documentElement.dataset.deviceLayout === 'mobile') {
-      this.parts.push(new MobileCommandUI(host, layout, this.rootEl));
+      this.mobileCommand = new MobileCommandUI(host, layout, this.rootEl);
+      this.parts.push(this.mobileCommand);
     }
 
     this.frickFrack = new FrickFrackUI(host, layout.raw);
@@ -211,6 +213,7 @@ export class GameUI {
       setClass(root, 'modal-open', s.campChoiceOpen || s.panels.codex || s.panels.settings || s.panels.chakras || s.panels.help);
       for (const p of this.parts) p.update(world, t0);
     }
+    this.mobileCommand?.frame();
     if (t0 - this.lastMap >= MAP_MS) {
       this.lastMap = t0;
       this.minimap.draw(world, t0);
