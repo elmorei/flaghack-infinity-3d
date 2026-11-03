@@ -6,20 +6,25 @@
 import type { World } from '../sim/world';
 import type { BannerSpec, UiPart } from './core';
 import { el } from './dom';
+import { MobileAnnouncements, type MobileAnnouncementContext } from './mobileAnnouncements';
 
 const MAX_QUEUE = 4;
 
 export class Banners implements UiPart {
   private layer: HTMLElement;
+  private mobile: MobileAnnouncements | null;
   private queue: BannerSpec[] = [];
   private current: HTMLElement | null = null;
   private currentUntil = 0;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, mobile?: MobileAnnouncementContext) {
+    this.mobile = mobile ? new MobileAnnouncements(parent, mobile) : null;
     this.layer = el('div', 'banners', parent);
+    if (mobile) this.layer.classList.add('is-off');
   }
 
   push(b: BannerSpec): void {
+    if (this.mobile) { this.mobile.push(b); return; }
     if (b.urgent) {
       // The match is over: nothing queued earlier matters more, and the end screen is waiting.
       this.queue.length = 0;
@@ -33,12 +38,18 @@ export class Banners implements UiPart {
   }
 
   reset(_world: World): void {
+    this.mobile?.reset();
     this.queue.length = 0;
     this.current?.remove();
     this.current = null;
   }
 
   update(_world: World | null, now: number): void {
+    if (this.mobile) {
+      if (!_world) this.mobile.reset();
+      else this.mobile.update(now);
+      return;
+    }
     if (this.current && now >= this.currentUntil) {
       this.current.remove();
       this.current = null;
@@ -59,6 +70,7 @@ export class Banners implements UiPart {
   }
 
   dispose(): void {
+    this.mobile?.dispose();
     this.layer.remove();
   }
 }

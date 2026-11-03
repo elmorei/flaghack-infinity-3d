@@ -1,0 +1,1 @@
+Mobile interface fonts are vendored from official Fontsource packages @fontsource/vt323 5.3.0 and @fontsource/press-start-2p 5.3.0, retrieved from registry.npmjs.org. Only Latin regular WOFF2 subsets are shipped. Each font's unmodified SIL Open Font License is included alongside it. Pixel frame artwork is original code-native SVG.

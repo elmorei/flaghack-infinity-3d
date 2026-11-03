@@ -1,0 +1,221 @@
+/* Mobile presentation only. Device layout, not viewport width, selects this skin.
+   Font faces register globally but are requested only by mobile-scoped rules. */
+@font-face {
+  font-family: 'FH Pixel Body';
+  src: url('./assets/pixel/vt323-latin-400-normal.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'FH Pixel Heading';
+  src: url('./assets/pixel/press-start-2p-latin-400-normal.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+html[data-device-layout='mobile'] {
+  --mp-body: 'FH Pixel Body', monospace;
+  --mp-heading: 'FH Pixel Heading', monospace;
+  --mp-frame: url('./assets/pixel/frame.svg');
+  --mp-navy: #14213c;
+  --mp-cream: #fff0ce;
+  --mp-gold: #e5bd70;
+}
+html[data-device-layout='mobile'] :is(.fh-root, .ff-overlay) {
+  --font-ui: var(--mp-body);
+  --font-display: var(--mp-body);
+  --frame-img: var(--mp-frame);
+  --wood-bg: #14213c;
+  --cream: var(--mp-cream);
+  --cream-dim: #d1c5b1;
+  --brass: #d1a352;
+  --brass-hi: #ffe4a1;
+  font-family: var(--mp-body);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+html[data-device-layout='mobile'] :is(.frame, .plaque) {
+  border-radius: 0;
+  box-shadow: 0 4px 0 #080e2099;
+}
+html[data-device-layout='mobile'] :is(.panel, .mp-card, .seat-card, .lobby-notice, .mc-placement, .mc-selected, .mc-pickup, .mc-modes) {
+  border: 2px solid #c99c55;
+  border-radius: 0;
+  background: #14213cf5;
+  box-shadow: inset 0 0 0 2px #080e20, 0 3px 0 #080e2080;
+}
+html[data-device-layout='mobile'] :is(.btn, .panel-x, .seg button, .mp-advance, .mp-close) {
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 44px;
+  border: 2px solid #cfa357;
+  border-radius: 0;
+  background: #27334d;
+  color: #fff0ce;
+  box-shadow: inset 2px 2px 0 #536078, inset -2px -2px 0 #0a1327, 0 2px 0 #080e20;
+  font: 400 20px/1.05 var(--mp-body);
+  letter-spacing: 0;
+  text-shadow: none;
+  white-space: normal;
+  transition: none;
+}
+html[data-device-layout='mobile'] :is(.btn-primary, .btn-gold, .mc-modes [aria-pressed='true'], .mc-tabs [aria-pressed='true']) {
+  border-color: #ffedba;
+  background: #d6ae61;
+  color: #1d2130;
+  box-shadow: inset 2px 2px 0 #ffedba, inset -2px -2px 0 #88602f, 0 2px 0 #080e20;
+}
+html[data-device-layout='mobile'] :is(.btn, .mp-advance, .mp-close):disabled {
+  background: #353a46;
+  color: #a9a9a2;
+  border-color: #757a82;
+  box-shadow: inset 2px 2px 0 #4a4e57;
+  opacity: .75;
+  filter: none;
+}
+html[data-device-layout='mobile'] :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #9ce6ff;
+  outline-offset: 3px;
+}
+html[data-device-layout='mobile'] :is(.field-in, .chat-input, .lobby-seed, .seg, .set-grid select) {
+  border-radius: 0;
+  border-color: #c99c55;
+  background: #0c162b;
+  color: #fff0ce;
+  font-family: var(--mp-body);
+  font-size: 20px;
+  min-height: 44px;
+}
+html[data-device-layout='mobile'] :is(.panel-title, .mc-menu-head h2, .modal-head h2, .pause-title, .lobby-kicker) {
+  font: 400 11px/1.6 var(--mp-heading);
+  letter-spacing: 0;
+  color: #ffe4a1;
+  overflow-wrap: anywhere;
+}
+html[data-device-layout='mobile'] :is(.panel-hint, .panel-meta, .lobby-status, .pause-sub, .pause-tip, .set-l, .setup-field, .lobby-label) {
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+html[data-device-layout='mobile'] :is(.title-shade, .lobby-shade) { background: #0a1327c9; }
+html[data-device-layout='mobile'] .mc-menu { background: #0b1429; }
+html[data-device-layout='mobile'] .mc-menu-head { border-bottom: 2px solid #a67d40; padding-bottom: 8px; }
+html[data-device-layout='mobile'] .mc-tabs { gap: 6px; }
+html[data-device-layout='mobile'] .mc-page :is(.panel-title, .job-name, .bb-name, .pb-name) { letter-spacing: 0; }
+html[data-device-layout='mobile'] .mc-page :is(.panel-hint, .panel-meta, .build-status, .sel-info, .job-name, .bb-name, .pb-name) { font-size: 18px; line-height: 1.15; }
+/* Keep the existing resource/timer DOM and measured arrow exclusion bounds. */
+html[data-device-layout='mobile'] .mc-status :is(.res, .clock, .boss-hud) { background: #2a211e; }
+html[data-device-layout='mobile'] .mc-status .num { font-family: var(--mp-body); font-weight: 400; }
+html[data-device-layout='mobile'] .mc-top .btn { font-size: 18px; padding-inline: 3px; }
+html[data-device-layout='mobile'] .mc-resources :is(.res-row, .attn) { font-size: 16px; line-height: 1; }
+html[data-device-layout='mobile'] .mc-resources .res-val { font-size: 18px; }
+html[data-device-layout='mobile'] .mc-timing .clock-t { font-size: 18px; line-height: 1; }
+html[data-device-layout='mobile'] .mc-timing .chip :is(b, .chip-l) { font: 400 14px/1 var(--mp-body); }
+html[data-device-layout='mobile'] .mc-timing .boss-hud-name { font: 400 16px/1 var(--mp-body); letter-spacing: 0; }
+html[data-device-layout='mobile'] .mc-timing :is(.boss-hud-value, .boss-hud-status) { font-size: 14px; line-height: 1.1; }
+html[data-device-layout='mobile'] :is(.mc-alert, .mc-pickup, .mc-selected, .mc-placement-label) { font: 400 18px/1.1 var(--mp-body); }
+html[data-device-layout='mobile'] .mc-alert { background: #14213cf5; border-color: #e5bd70; }
+html[data-device-layout='mobile'] :is(.mc-modes, .mc-selected) { border-radius: 0; }
+/* Frick Frack's live table/card hit targets remain untouched. */
+html[data-device-layout='mobile'] .ff-in-world .ff-panel {
+  border: 12px solid transparent;
+  border-image: var(--mp-frame) 16 / 12px / 0 stretch;
+  border-radius: 0;
+  background: #14213c;
+  color: #fff0ce;
+  font-family: var(--mp-body);
+}
+html[data-device-layout='mobile'] .ff-in-world :is(.ff-status, .ff-dialogue) { font-size: 20px; line-height: 1.15; }
+html[data-device-layout='mobile'] .ff-in-world .ff-button {
+  min-height: 44px;
+  border: 2px solid #d1a352;
+  border-radius: 0;
+  background: #27334d;
+  color: #fff0ce;
+  font: 400 20px/1.1 var(--mp-body);
+}
+/* Nonmodal, event-driven JRPG announcements. Field controls keep their own space. */
+html[data-device-layout='mobile'] .mobile-announcements { position: absolute; inset: 0; pointer-events: none; }
+html[data-device-layout='mobile'] .mp-dialogue {
+  position: absolute;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: calc(126px + env(safe-area-inset-bottom));
+  width: auto;
+  max-width: 560px;
+  max-height: min(300px, 44dvh);
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 8px 12px;
+  border: 12px solid transparent;
+  border-image: var(--mp-frame) 16 / 12px / 0 stretch;
+  background: #14213cf7;
+  color: #fff0ce;
+  box-shadow: 0 5px 0 #080e2099;
+  font: 400 22px/1.1 var(--mp-body);
+  letter-spacing: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+html[data-device-layout='mobile'] .mp-dialogue.is-off { display: none; }
+html[data-device-layout='mobile'] .mp-portrait {
+  width: 56px;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 2px solid #a7834e;
+  background: #0b1429;
+  image-rendering: pixelated;
+}
+html[data-device-layout='mobile'] .mp-portrait svg { width: 100%; height: 100%; shape-rendering: crispEdges; }
+html[data-device-layout='mobile'] .mp-copy { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+html[data-device-layout='mobile'] .mp-speaker {
+  display: inline-block;
+  max-width: 100%;
+  padding: 5px 6px;
+  margin-bottom: 6px;
+  border: 2px solid #a7834e;
+  background: #31251f;
+  color: #ffe4a1;
+  font: 400 9px/1.3 var(--mp-heading);
+  overflow-wrap: anywhere;
+}
+html[data-device-layout='mobile'] .mp-title { margin: 0 0 4px; color: #ffe4a1; font: 400 22px/1.1 var(--mp-body); }
+html[data-device-layout='mobile'] .mp-ghost { visibility: hidden; }
+html[data-device-layout='mobile'] .mp-announcement-accessible { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+html[data-device-layout='mobile'] .mp-text { min-height: 0; margin: 0; overflow-wrap: anywhere; white-space: pre-line; overflow-y: auto; overscroll-behavior: contain; }
+html[data-device-layout='mobile'] .mp-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+html[data-device-layout='mobile'] :is(.mp-advance, .mp-close) { padding: 6px 12px; cursor: pointer; }
+html[data-device-layout='mobile'] .mp-close { background: #172139; }
+@media (max-width: 360px) {
+  html[data-device-layout='mobile'] .mc-status { gap: 6px; grid-template-columns: minmax(0, 1fr) minmax(0, 154px); }
+  html[data-device-layout='mobile'] .mc-top .btn { font-size: 16px; }
+  html[data-device-layout='mobile'] .mp-dialogue { grid-template-columns: 40px minmax(0, 1fr); padding: 6px; gap: 6px; font-size: 20px; }
+  html[data-device-layout='mobile'] .mp-portrait { width: 40px; height: 52px; padding: 3px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  html[data-device-layout='mobile'] .mp-dialogue {
+    left: 25%; right: max(8px, env(safe-area-inset-right));
+    bottom: calc(126px + env(safe-area-inset-bottom));
+    max-height: 40dvh; min-height: 136px;
+    grid-template-columns: 60px minmax(0, 1fr) 100px;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 6px; gap: 4px 8px; font-size: 20px; overflow: hidden;
+  }
+  html[data-device-layout='mobile'] .mp-copy { display: contents; }
+  html[data-device-layout='mobile'] .mp-portrait { grid-column: 1; grid-row: 2; width: 40px; height: 48px; justify-self: center; }
+  html[data-device-layout='mobile'] .mp-speaker { grid-column: 1; grid-row: 1; align-self: start; padding: 3px; margin: 0; font-size: 8px; }
+  html[data-device-layout='mobile'] .mp-title { grid-column: 2; grid-row: 1; font-size: 20px; }
+  html[data-device-layout='mobile'] .mp-text { grid-column: 2; grid-row: 2; }
+  html[data-device-layout='mobile'] .mp-actions { grid-column: 3; grid-row: 1 / 3; flex-direction: column; justify-content: center; flex-wrap: nowrap; gap: 6px; padding: 0; }
+  html[data-device-layout='mobile'] :is(.mp-advance, .mp-close) { width: 100%; padding: 4px; font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-device-layout='mobile'] :is(.btn, .mp-dialogue, .mp-portrait, .mp-advance, .mp-close) { animation: none; transition: none; }
+}

@@ -1,3 +1,4 @@
+import { frickFrackInputLocked } from '../game/frickFrackControls';
 /**
  * DOM UI root: title screen (with the host's join panel), the online lobby, HUD (Flags/stock
  * frame, lumber, ritual, hippies, attention, clock, tide/Burn timers, ability bar, drug slots,
@@ -49,6 +50,7 @@ import { TitleScreen } from './title';
 import { TutorialOverlay } from './tutorial/index';
 import { LoadingVeil } from './veil';
 import './ui.css';
+import './mobilePixel.css';
 
 const TICK_MS = 100;
 const MAP_MS = 1000 / 15;
@@ -99,7 +101,15 @@ export class GameUI {
     this.zoomed = el('div', 'fh-ui', this.rootEl);
     this.hudLayer = el('div', 'fh-hud', this.zoomed);
     // Banners sit between the HUD and the modal layer.
-    this.banners = new Banners(this.zoomed);
+    this.banners = new Banners(this.zoomed, document.documentElement.dataset.deviceLayout === 'mobile' ? {
+      visible: () => {
+        const s = this.app.session;
+        return s.screen === 'playing' && s.mobileMenu === null && !s.campChoiceOpen &&
+          !s.panels.degen && !s.panels.codex && !s.panels.settings && !s.panels.chakras && !s.panels.help &&
+          !this.app.tutorial && !frickFrackInputLocked(this.world, s);
+      },
+      reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    } : undefined);
     const region = (cls: string): HTMLElement => el('div', `region ${cls}`, this.hudLayer);
     const layout: UiLayout = {
       colLeft: region('col-left'),
