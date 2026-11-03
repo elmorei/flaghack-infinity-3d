@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Session } from '../game/session';
-import { cancelMobileTarget, chooseMobileBuilding, setMobileMode } from './mobileCommand';
+import { cancelMobileTarget, chooseMobileBuilding, setMobileMode, mobileIndicatorReservedRects } from './mobileCommand';
 
 describe('mobile command menu intent', () => {
   it('cancel clears incomplete actions while preserving the selected units', () => {
@@ -52,4 +52,27 @@ it('refreshes bearings at rendered-frame cadence and hides them immediately behi
     s.mobileMenu = null; s.panels.chakras = true; ui.frame(); expect(calls.at(-1)).toBe('hide');
     s.panels.chakras = false; window.innerWidth = 844; ui.frame(); expect(calls.at(-1)).toBe('hide');
   } finally { Object.defineProperty(globalThis, 'window', { configurable: true, value: prior }); }
+});
+
+
+it('reserves sibling dialogue and original controls within only the same game root', () => {
+  const top = { x: 220, y: 8, width: 160, height: 120 } as DOMRect;
+  const panel = { x: 8, y: 500, width: 374, height: 200 } as DOMRect;
+  const zero = { width: 0, height: 0 } as DOMRect;
+  let visible = true;
+  const root = { querySelectorAll: (selector: string) => {
+    expect(selector).toBe('.mobile-announcements:not(.is-off) .mp-dialogue');
+    return visible ? [{ getBoundingClientRect: () => panel }, { getBoundingClientRect: () => zero }] : [];
+  } };
+  const field = {
+    querySelectorAll: (selector: string) => {
+      expect(selector).toContain('.mc-status-left, .mc-resources, .mc-modes');
+      expect(selector).toContain('.mc-placement:not(.is-off)');
+      return [{ getBoundingClientRect: () => top }];
+    },
+    closest: (selector: string) => { expect(selector).toBe('.fh-root'); return root; },
+  } as unknown as HTMLElement;
+  expect(mobileIndicatorReservedRects(field)).toEqual([top, panel]);
+  visible = false;
+  expect(mobileIndicatorReservedRects(field)).toEqual([top]);
 });

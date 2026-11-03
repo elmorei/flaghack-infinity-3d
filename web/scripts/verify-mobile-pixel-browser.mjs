@@ -44,8 +44,8 @@ try{
  browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
  for(const spec of [{name:'portrait',w:390,h:844},{name:'small',w:320,h:568},{name:'landscape',w:844,h:390}]){
   const context=await browser.newContext({viewport:{width:spec.w,height:spec.h},userAgent:MOBILE_UA,isMobile:true,hasTouch:true,deviceScaleFactor:1,recordVideo:spec.name==='portrait'?{dir:join(OUT,'video'),size:{width:390,height:844}}:undefined});
-  const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);
-  await boot(context,true,entry.errors);
+  const entry={name:spec.name,checks:[],errors:[]};results.scenarios.push(entry);const recordingStartedAt=Date.now();
+  await boot(context,true,entry.errors);entry.demoStartSeconds=(Date.now()-recordingStartedAt)/1000;
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),'mobile');
   fit(await bounds('.mc-resources,.mc-timing,.mc-top button,.mc-modes button'),spec.w,spec.h);
   await page.screenshot({path:join(OUT,`${spec.name}-field.png`)});
@@ -57,13 +57,14 @@ try{
   assert.ok(await page.locator('.mp-actions button').evaluateAll(buttons=>buttons.every(b=>{const r=b.getBoundingClientRect(),p=b.closest('.mp-dialogue').getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.x>=p.x&&r.y>=p.y&&r.right<=p.right&&r.bottom<=p.bottom&&(hit===b||b.contains(hit));})), 'Both dialogue actions are visible and receive touches without scrolling');
   assert.ok(panel.slice(-2).every(r=>r.h>=44),'Dialogue actions have touch-safe heights');
   entry.dialogue=panel;
+  const arrowClear=await page.locator('.mc-altar-arrow').evaluateAll(arrows=>{const p=document.querySelector('.mp-dialogue').getBoundingClientRect();return arrows.every(a=>{const r=a.getBoundingClientRect();return r.right<=p.left||r.left>=p.right||r.bottom<=p.top||r.top>=p.bottom;});});assert.ok(arrowClear,'Perimeter arrows avoid the dialogue panel');
   const before=await page.evaluate(()=>window.flaghack.world.time);await page.waitForTimeout(500);
   assert.ok(await page.evaluate(()=>window.flaghack.world.time)>before,'Announcements do not pause simulation');
-  await page.screenshot({path:join(OUT,`${spec.name}-dialogue.png`)});
+  await page.screenshot({path:join(OUT,`${spec.name}-dialogue.png`)});if(spec.name==='portrait')await page.waitForTimeout(2500);
   await page.locator('.mc-top').getByRole('button',{name:'Menu',exact:true}).tap();
   await page.locator('.mc-menu').waitFor({state:'visible'});await page.locator('.mobile-announcements').waitFor({state:'hidden'});
-  await page.screenshot({path:join(OUT,`${spec.name}-menu.png`)});
-  fit(await bounds('.mc-menu,.mc-menu-head,.mc-tabs'),spec.w,spec.h);
+  await page.screenshot({path:join(OUT,`${spec.name}-menu.png`)});if(spec.name==='portrait')await page.waitForTimeout(2200);
+  fit(await bounds('.mc-menu,.mc-menu-head,.mc-tabs'),spec.w,spec.h);const tabs=await bounds('.mc-tabs .btn');assert.equal(tabs.length,5);fit(tabs,spec.w,spec.h);
   await page.getByRole('button',{name:'Back to field',exact:true}).tap();
   await page.evaluate(()=>window.flaghack.ui.banners.reset(window.flaghack.world));await tide();
   await page.locator('.mp-dialogue').waitFor({state:'visible'});
@@ -71,11 +72,11 @@ try{
   await page.locator('.mobile-announcements').waitFor({state:'hidden'});
   await page.evaluate(()=>window.flaghack.ui.onEvents([{t:'notify',faction:'all',text:'Routine resource notice',severity:'info'}]));
   await page.waitForTimeout(300);assert.equal(await page.locator('.mp-dialogue').count(),0,'Routine feed stays compact');
-  await context.emulateMedia({reducedMotion:'reduce'});await tide();await page.locator('.mp-dialogue').waitFor({state:'visible'});
+  await page.emulateMedia({reducedMotion:'reduce'});await tide();await page.locator('.mp-dialogue').waitFor({state:'visible'});
   assert.equal(await page.locator('.mp-ghost').textContent(),'','Reduced motion reveals immediately');
   await page.getByRole('button',{name:'Close announcements',exact:true}).tap();
   entry.checks.push('Mobile pixel HUD and dialogue fit viewport; reveal/close work; menu suppresses dialogue; world runs; routine feed stays compact; reduced motion reveals immediately');
-  assert.deepEqual(entry.errors,[]);await context.close();
+  entry.demoEndSeconds=(Date.now()-recordingStartedAt)/1000;assert.deepEqual(entry.errors,[]);await context.close();
  }
  const desktop=await browser.newContext({viewport:{width:1440,height:900},deviceScaleFactor:1});const desktopErrors=[];await boot(desktop,false,desktopErrors);
  assert.notEqual(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),'mobile');

@@ -28,4 +28,16 @@ describe('mobile pixel presentation boundary', () => {
     expect(css).toContain('prefers-reduced-motion: reduce');
     expect(css).not.toMatch(/(?:canvas|\.mc-bearing)[^{]*\{/);
   });
+  it('bounds the original tutorial panel and enlarges its existing touch controls', () => {
+    expect(css).toContain('width: min(560px, calc(100vw - 32px))');
+    expect(css).toContain("html[data-device-layout='mobile'] .tb-tool");
+    expect(css).toContain("html[data-device-layout='mobile'] .tb-next");
+    expect(css).toContain("html[data-device-layout='mobile'] .tb-panel .tb-line");
+    expect(css).toContain('flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px');
+  });
+  it('keeps every command tab in a wrapping grid and themes the GCC title', () => {
+    expect(css).toContain(".mc-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible;");
+    expect(css).toContain(".mc-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }");
+    expect(css).toContain("html[data-device-layout='mobile'] .gb-main { font: 400 20px/1.1 var(--mp-body)");
+  });
 });

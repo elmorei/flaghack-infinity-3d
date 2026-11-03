@@ -12,6 +12,13 @@ import { MobileFieldStatus } from './mobileFieldStatus';
 import { MobileAltarIndicators, type IndicatorViewport } from './mobileAltarIndicators';
 
 type MobileTab = NonNullable<Session['mobileMenu']>;
+/** Screen-space exclusion boxes belong to this game's root, including sibling overlays. */
+export function mobileIndicatorReservedRects(field: HTMLElement): DOMRect[] {
+  const controls = field.querySelectorAll<HTMLElement>('.mc-status-left, .mc-resources, .mc-modes, .mc-selected:not(.is-off), .mc-placement:not(.is-off), .mc-alert:not(.is-off), .mc-pickup:not(.is-off)');
+  const dialogue = field.closest('.fh-root')?.querySelectorAll<HTMLElement>('.mobile-announcements:not(.is-off) .mp-dialogue') ?? [];
+  return [...controls, ...dialogue].map(node => node.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+}
+
 export function cancelMobileTarget(s: Session): void {
   s.tool = 'flag'; s.mobileBuildFacet = -1; s.mobileBuildConfirm = false;
   s.mobileAbility = null; s.mobileBoxSelect = false; s.recruitTargeting = false;
@@ -231,8 +238,7 @@ export class MobileCommandUI implements UiPart {
     if (alert) setText(this.toast, alert.text);
     if (!open && !nested) {
       setVar(this.field, '--mc-status-bottom', `${this.statusHeader.getBoundingClientRect().bottom + 8}px`);
-      const reserved = [...this.field.querySelectorAll<HTMLElement>('.mc-status-left, .mc-resources, .mc-modes, .mc-selected:not(.is-off), .mc-placement:not(.is-off), .mc-alert:not(.is-off), .mc-pickup:not(.is-off)')]
-        .map(node => node.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+      const reserved = mobileIndicatorReservedRects(this.field);
       const style = getComputedStyle(this.field);
       const inset = Math.max(20, ...[style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(v => (parseFloat(v) || 0) + 13));
       this.indicatorViewport = { width: window.innerWidth, height: window.innerHeight, reserved, inset };
