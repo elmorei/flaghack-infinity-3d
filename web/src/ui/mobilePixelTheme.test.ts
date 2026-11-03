@@ -17,7 +17,9 @@ describe('mobile pixel presentation boundary', () => {
       expect(statSync(new URL(`./assets/pixel/${name}`, import.meta.url)).size).toBeGreaterThan(1000);
     }
     for (const name of ['VT323-LICENSE.txt', 'PressStart2P-LICENSE.txt']) {
-      expect(readFileSync(new URL(`./assets/pixel/${name}`, import.meta.url), 'utf8')).toContain('SIL OPEN FONT LICENSE');
+      const license = readFileSync(new URL(`./assets/pixel/${name}`, import.meta.url), 'utf8');
+      expect(license).toContain('SIL OPEN FONT LICENSE');
+      expect(readFileSync(new URL(`../../public/licenses/pixel-fonts/${name}`, import.meta.url), 'utf8')).toBe(license);
     }
   });
   it('provides touch targets, focus, safe areas and bounded nonmodal dialogue', () => {
