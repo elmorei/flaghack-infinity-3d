@@ -82,7 +82,7 @@ try{
  assert.notEqual(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),'mobile');
  await tide();await page.locator('.banner').waitFor({state:'visible'});
  assert.equal(await page.locator('.mobile-announcements').count(),0,'Desktop keeps original banner implementation');
- const snapshot=()=>page.evaluate(()=>[...document.querySelectorAll('.res,.banner,.banner-title,.clock,.btn')].filter(e=>e.getBoundingClientRect().width).map(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {cls:e.className,font:s.fontFamily,color:s.color,background:s.background,border:s.border,borderImage:s.borderImage,width:r.width,height:r.height};}));
+ const snapshot=()=>page.evaluate(()=>[...document.querySelectorAll('.res,.banner,.banner-title,.clock,.btn')].filter(e=>e.getBoundingClientRect().width).map(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {cls:e.className,font:s.fontFamily,color:s.color,background:s.background,border:s.border,borderImage:s.borderImage,width:s.width,height:s.height};}));
  const original=await snapshot();
  // Removing only explicitly mobile-scoped rules must not affect desktop presentation.
  await page.evaluate(()=>{function strip(sheet){try{for(let i=sheet.cssRules.length-1;i>=0;i--){const r=sheet.cssRules[i];if(r.selectorText?.includes('[data-device-layout="mobile"]'))sheet.deleteRule(i);else if(r.cssRules)strip(r);}}catch{}}for(const sheet of document.styleSheets)strip(sheet);});
