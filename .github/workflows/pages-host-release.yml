@@ -130,6 +130,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-hud-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-ley-browser.mjs
       - name: Upload mobile, Crow and explosion browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -139,6 +140,7 @@ jobs:
             web/host-release/mobile-hud-smoke/
             web/host-release/auto-style-smoke/
             web/host-release/explosion-smoke/
+            web/host-release/mobile-ley-smoke/
           if-no-files-found: warn
           retention-days: 14
 

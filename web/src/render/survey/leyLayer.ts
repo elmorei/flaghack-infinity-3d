@@ -55,7 +55,11 @@ void main() {
     float dist = length(toCam);
     // Up close one beam can fill the frame: it thins here (and dims below) near the camera.
     vNear = smoothstep(2.0, 16.0, dist);
-    float w = max(0.3 * (1.0 + uViewBlend * 1.4) * mix(0.4, 1.0, vNear), 2.5 * uPx * dist / fhProjScale());
+    // Orthographic pixels already have a fixed world scale; multiplying by camera distance
+    // would turn the 2.5 CSS-pixel minimum into a screen-filling band on phones.
+    // Keep the original distance factor for desktop perspective views.
+    float pixelDepth = projectionMatrix[3][3] > 0.5 ? 1.0 : dist;
+    float w = max(0.3 * (1.0 + uViewBlend * 1.4) * mix(0.4, 1.0, vNear), 2.5 * uPx * pixelDepth / fhProjScale());
     P += sd * side * w * 0.5;
   } else {
     A = vec3(na.x, ${LIFT.leyGround}, na.y);

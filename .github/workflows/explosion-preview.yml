@@ -1,7 +1,7 @@
-name: Verify upward explosion preview
+name: Verify taller explosions and flag-loop preview
 on:
   push:
-    branches: ['qa/upward-explosions-20261102']
+    branches: ['qa/upward-explosions-20261102', 'qa/explosion-height-ley-20261103']
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,13 +51,17 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
-      - name: Verify two-times upward destruction plumes and bounded pool
+      - name: Verify triple-height destruction plumes and bounded pool
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
+      - name: Verify flag-loop widths and before-after native pixels
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-ley-browser.mjs
       - name: Upload native screenshots and normal-speed recordings
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: explosion-native-smoke
-          path: web/host-release/explosion-smoke/
+          path: |
+            web/host-release/explosion-smoke/
+            web/host-release/mobile-ley-smoke/
           if-no-files-found: warn
           retention-days: 14

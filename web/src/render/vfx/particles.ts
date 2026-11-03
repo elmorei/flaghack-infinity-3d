@@ -169,7 +169,7 @@ export class ParticleSpec {
     return this;
   }
 
-  /** Fireball only: stretch in WORLD vertical about the ground, never horizontal width. */
+  /** Ballistic particles: stretch in WORLD vertical about the source base, never horizontal width. */
   stretchVertical(scale: number, groundY: number): this {
     this.verticalScale = scale;
     this.groundY = groundY;
@@ -276,7 +276,7 @@ void main() {
   }
   vec2 ay = vec2(-ax.y, ax.x);
   mv.xy = center + ax * (position.x * sx) + ay * (position.y * sy);
-  if (a5.x > 7.5) {
+  if (a7.w > 0.0) {
     // Stretch the entire lobe, including its rise, about ground in world Y. Scaling
     // screen Y would skew the shape sideways when the billboard spins or camera tilts.
     vec3 worldUpInView = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
@@ -447,12 +447,13 @@ export class ParticlePool {
     d[o++] = s.streak;
     d[o++] = s.motion;
     d[o++] = s.theta;
-    d[o++] = s.shape === Shape.Fireball ? s.groundY : s.shrink;
+    const stretched = s.motion === Motion.Ballistic && (s.shape === Shape.Fireball || s.verticalScale !== 1);
+    d[o++] = stretched ? s.groundY : s.shrink;
     d[o++] = this.seedSeq;
     d[o++] = s.flicker;
     d[o++] = s.flutter;
     d[o++] = s.fadeIn;
-    d[o] = s.shape === Shape.Fireball ? s.verticalScale : 0;
+    d[o] = stretched ? s.verticalScale : 0;
     this.buf.mark(i, i + 1);
     this.cursor = i + 1 === this.buf.capacity ? 0 : i + 1;
     if (i + 1 > this.used) this.used = i + 1;

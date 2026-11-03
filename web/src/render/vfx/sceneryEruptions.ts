@@ -11,7 +11,9 @@ import { Prng } from './prng';
 export const SCENERY_PARTICLE_CAPACITY = 2048;
 export const SCENERY_ERUPTION_MAX_LIFE = 1.65;
 export const STRUCTURE_FLAME_MAX_LIFE = .95;
-export const STRUCTURE_FLAME_HEIGHT_SCALE = 1.45;
+/** Height-only change relative to the existing upward destruction plumes. */
+export const DESTRUCTION_EXPLOSION_HEIGHT_MULTIPLIER = 3;
+export const STRUCTURE_FLAME_HEIGHT_SCALE = 1.45 * DESTRUCTION_EXPLOSION_HEIGHT_MULTIPLIER;
 /** Visual-only linear size multiplier; particle count and simulation blast radii stay unchanged. */
 export const DESTRUCTION_EXPLOSION_SCALE = 2;
 const SMOKE = new THREE.Color(0x493c32);
@@ -84,7 +86,8 @@ export class SceneryEruptions {
           .time(rng.range(1.05, SCENERY_ERUPTION_MAX_LIFE))
           .size(puff * .4, puff * 1.35).phys(-.15 * scale, 1.6)
           .from(SMOKE, 1, .38).to(ASH, 1, 0)
-          .look(Shape.Smoke, rng.signed() * .4, angle).anim(0, 0, .18);
+          .look(Shape.Smoke, rng.signed() * .4, angle).anim(0, 0, .18)
+          .stretchVertical(DESTRUCTION_EXPLOSION_HEIGHT_MULTIPLIER, pos.y);
       }
       this.pool.emit(spec);
     }

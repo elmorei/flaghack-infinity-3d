@@ -2,8 +2,8 @@ import { LEVEL_HEIGHT } from '../../sim/constants';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventOf } from '../../sim/events';
-import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, STRUCTURE_FLAME_MAX_LIFE, STRUCTURE_FLAME_HEIGHT_SCALE, DESTRUCTION_EXPLOSION_SCALE, SceneryEruptions } from './sceneryEruptions';
-import { Shape } from './particles';
+import { SCENERY_ERUPTION_MAX_LIFE, SCENERY_PARTICLE_CAPACITY, STRUCTURE_FLAME_MAX_LIFE, STRUCTURE_FLAME_HEIGHT_SCALE, DESTRUCTION_EXPLOSION_SCALE, DESTRUCTION_EXPLOSION_HEIGHT_MULTIPLIER, SceneryEruptions } from './sceneryEruptions';
+import { Motion, ParticlePool, ParticleSpec, Shape } from './particles';
 import { Prng } from './prng';
 import { VfxRenderer } from './vfxRenderer';
 
@@ -187,12 +187,14 @@ describe('large billowing destruction fireballs', () => {
     expect(wreck).toHaveBeenLastCalledWith(30, 6, -20, 1);
   });
 
-  it('stretches flames 45% in world vertical, preserving width, age and ground anchor', () => {
-    expect(STRUCTURE_FLAME_HEIGHT_SCALE).toBe(1.45);
+  it('triples the prior fireball and smoke height in world vertical about their source base', () => {
+    expect(DESTRUCTION_EXPLOSION_HEIGHT_MULTIPLIER).toBe(3);
+    expect(STRUCTURE_FLAME_HEIGHT_SCALE).toBeCloseTo(1.45 * 3);
     const fx = make(), e = event(); fx.onEvent(e, 10); fx.update(10);
     const shapes = rows(fx, 5).map(r => r[0]);
     for (let i = 0; i < shapes.length; i++) {
-      if (shapes[i] !== Shape.Fireball) { expect(attr(fx, 7).getW(i)).toBe(0); continue; }
+      const oldScale = shapes[i] === Shape.Fireball ? 1.45 : 1;
+      expect(attr(fx, 7).getW(i)).toBeCloseTo(oldScale * 3);
       const scale = attr(fx, 7).getW(i), ground = attr(fx, 6).getZ(i), initialY = attr(fx, 0).getY(i);
       expect(ground + (initialY - ground) * scale).toBeGreaterThan(initialY);
       expect(attr(fx, 0).getW(i)).toBe(10);
@@ -207,5 +209,49 @@ describe('large billowing destruction fireballs', () => {
     for (const fx of [low, high]) { fx.onEvent(event(), 0); fx.update(0); }
     expect(low.mesh.geometry.instanceCount).toBeGreaterThan(0);
     expect(low.mesh.geometry.instanceCount).toBeLessThan(high.mesh.geometry.instanceCount); low.dispose(); high.dispose();
+  });
+
+  it('triples every world-space lobe vertex height but never its XZ footprint, across camera tilts and ages', () => {
+    const fx = make(), e = event(); fx.onEvent(e, 0); fx.update(0);
+    for (const pitch of [.2, .8, 1.4]) {
+      const camera = new THREE.PerspectiveCamera(55, 1, .1, 500);
+      camera.position.set(30 + Math.sin(.4) * 30, 6 + Math.sin(pitch) * 30, -20 + Math.cos(.4) * 30);
+      camera.lookAt(30, 6, -20); camera.updateMatrixWorld();
+      const up = new THREE.Vector3(0, 1, 0).transformDirection(camera.matrixWorldInverse);
+      for (let i = 0; i < fx.mesh.geometry.instanceCount; i++) {
+        const a = Array.from({ length: 8 }, (_, j) => rows(fx, j)[i]);
+        const baselineScale = a[5][0] === Shape.Fireball ? 1.45 : 1;
+        for (const fraction of [.01, .2, .6, .95]) for (const corner of [-1, 1]) {
+          const age = a[1][3] * fraction, k = (1 - Math.exp(-a[2][3] * age)) / a[2][3];
+          const center = new THREE.Vector3(a[0][0] + a[1][0] * k, a[0][1] + a[1][1] * k - .5 * a[2][2] * age ** 2, a[0][2] + a[1][2] * k);
+          const size = THREE.MathUtils.lerp(a[2][0], a[2][1], a[5][0] === Shape.Fireball ? 1 - Math.exp(-7 * fraction) : fraction);
+          const offset = new THREE.Vector3(corner * size, -corner * size, 0);
+          const view = center.clone().applyMatrix4(camera.matrixWorldInverse).add(offset);
+          const height = center.y - e.pos.y + offset.dot(up);
+          const previous = view.clone().addScaledVector(up, height * (baselineScale - 1)).applyMatrix4(camera.matrixWorld);
+          const current = view.clone().addScaledVector(up, height * (a[7][3] - 1)).applyMatrix4(camera.matrixWorld);
+          expect(current.x).toBeCloseTo(previous.x, 5);
+          expect(current.z).toBeCloseTo(previous.z, 5);
+          expect(current.y - e.pos.y).toBeCloseTo((previous.y - e.pos.y) * 3, 4);
+        }
+      }
+    }
+    fx.dispose();
+  });
+
+  it('keeps ordinary smoke, sparks and orbit shrink attributes unchanged unless ballistic height scaling is requested', () => {
+    const pool = new ParticlePool(8, false, { uTime: { value: 0 }, uViewportH: { value: 720 }, uLight: { value: 1 } }, 14);
+    const ordinary = new ParticleSpec().reset().look(Shape.Smoke);
+    const spark = new ParticleSpec().reset().look(Shape.Spark);
+    const orbit = new ParticleSpec().reset().look(Shape.Smoke).orbit(2, 3, 4, .5, .8).stretchVertical(3, 50);
+    const plume = new ParticleSpec().reset().look(Shape.Smoke).stretchVertical(3, 50);
+    for (const s of [ordinary, spark, orbit, plume]) pool.emit(s);
+    pool.flush();
+    const a6 = pool.mesh.geometry.getAttribute('a6'), a7 = pool.mesh.geometry.getAttribute('a7');
+    for (const i of [0, 1, 2]) expect(a7.getW(i)).toBe(0);
+    expect(a6.getX(2)).toBe(Motion.Orbit); expect(a6.getZ(2)).toBeCloseTo(.8);
+    expect(a6.getX(3)).toBe(Motion.Ballistic); expect(a6.getZ(3)).toBe(50); expect(a7.getW(3)).toBe(3);
+    expect(pool.mesh.material.vertexShader).toContain('if (a7.w > 0.0)');
+    pool.dispose();
   });
 });

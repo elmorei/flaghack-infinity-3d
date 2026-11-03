@@ -73,6 +73,6 @@ test('host package smoke launches the configured branded executable, not the leg
   const runs = browser.steps.map(step => step.run || '').join('\n');
   assert.match(runs, /npm run build:server/);
   assert.match(runs, /artifact\.tar/);
-  for (const script of ['verify-mobile-hud-browser.mjs', 'verify-auto-style-browser.mjs', 'verify-explosion-browser.mjs']) assert.ok(runs.includes(script));
+  for (const script of ['verify-mobile-hud-browser.mjs', 'verify-auto-style-browser.mjs', 'verify-explosion-browser.mjs', 'verify-mobile-ley-browser.mjs']) assert.ok(runs.includes(script));
   assert.doesNotMatch(runs, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
 });

@@ -51,7 +51,11 @@ try{
     await page.evaluate(()=>{const a=window.flaghack;a.session.settings.quality='high';a.startMatch({seed:'upward-explosions-native',humans:[0],rtsFactions:[0],match:{...a.session.settings.match,active:[0],bossMode:false,days:3,maxSignifiers:0}});});
     await page.waitForFunction(()=>window.flaghack.session.screen==='playing'&&window.flaghack.renderer.ctx);
     await page.waitForTimeout(1800);
-    const pos=await page.evaluate(()=>{const a=window.flaghack,w=a.world,h=w.hearthOf(0);const x=h.pos.x+15,z=h.pos.z;Object.assign(a.session.camera,{cmdX:x,cmdZ:z,cmdHeight:42});return{x,y:w.collision.groundHeight(x,z),z};});
+    const pos=await page.evaluate(()=>{const a=window.flaghack,w=a.world,h=w.hearthOf(0);const x=h.pos.x+15,z=h.pos.z;Object.assign(a.session.camera,{cmdX:x,cmdZ:z,cmdHeight:110});return{x,y:w.collision.groundHeight(x,z),z};});
+    await page.waitForTimeout(1200);
+    // Frame the plume's upper half, rather than centering its ground anchor. This
+    // changes only the QA camera, so tall flames fit below the real HUD on both layouts.
+    entry.camera=await page.evaluate(pos=>{const a=window.flaghack,c=a.renderer.ctx.camera,d=c.position.clone().set(0,0,-1).applyQuaternion(c.quaternion),t=20/Math.max(.1,-d.y);Object.assign(a.session.camera,{cmdX:pos.x+d.x*t,cmdZ:pos.z+d.z*t});return{...a.session.camera};},pos);
     await page.waitForTimeout(1200);
     assert.equal((await snapshot()).quality,spec.touch?'low':'high');
     const fixtures=[
@@ -68,7 +72,16 @@ try{
       }
       const rise=initial.rows.map(row=>{
         const at=age=>row[0][1]+row[1][1]*(1-Math.exp(-row[2][3]*age))/row[2][3]-.5*row[2][2]*age*age;
-        return{shape:row[5][0],early:at(.12),late:at(.5),up:row[1][1],side:Math.hypot(row[1][0],row[1][2])};
+        const priorScale=row[5][0]===8?1.45:1,scale=row[7][3],ground=row[6][2];
+        near(scale,priorScale*3);
+        // The production shader scales complete billboard world-Y displacement
+        // about this ground anchor. Check multiple ages and corner offsets, not
+        // just launch speed (which intentionally stays unchanged).
+        const heightSamples=[.12,.5].flatMap(age=>[-row[2][1],0,row[2][1]].map(offset=>{
+          const previous=(at(age)-ground+offset)*priorScale,current=(at(age)-ground+offset)*scale;
+          near(current,previous*3);return{age,offset,previous,current};
+        }));
+        return{shape:row[5][0],early:ground+(at(.12)-ground)*scale,late:ground+(at(.5)-ground)*scale,up:row[1][1],side:Math.hypot(row[1][0],row[1][2]),scale,ground,heightSamples};
       });
       assert.ok(rise.every(p=>p.late>p.early&&p.up>p.side*2),'Every lobe/smoke trajectory shoots upward');
       await page.waitForTimeout(100);await page.screenshot({path:join(OUT,`${spec.name}-${fixture.name}-early.png`)});
@@ -76,7 +89,7 @@ try{
       await page.waitForTimeout(1600);const expired=await snapshot();assert.equal(expired.count,0);assert.equal(expired.visible,false);
       entry.events.push({name:fixture.name,initial,rise,expired});
     }
-    entry.checks.push('Small/large scenery GPU size endpoints exactly 2x pre-change recipe; launch speed 2x; every plume upward; building/piece share live effect; all expire');
+    entry.checks.push('Small/large scenery retain prior 2x base sizes and launch speeds; flames and smoke now exactly 3x prior world-Y height about ground; building/piece share height-only effect; all expire');
     const before=await snapshot();
     const mass=Array.from({length:400},(_,i)=>({t:'sceneryDestroyed',sceneryId:910000+i,pos:{...pos,x:pos.x+(i%9-4)*3,z:pos.z+(Math.floor(i/9)%9-4)*3},size:{x:3,y:4,z:3},yaw:0}));
     await page.evaluate(()=>{const q={gaps:[],done:false,last:performance.now()};window.__explosionFrameObservation=q;function tick(t){q.gaps.push(t-q.last);q.last=t;if(q.gaps.reduce((a,b)=>a+b,0)<1800)requestAnimationFrame(tick);else q.done=true;}requestAnimationFrame(tick);});
