@@ -29,6 +29,7 @@ async function fixture(cached: boolean, mobile = false, landscape = false) {
   vi.stubGlobal('performance', { now: () => Date.now(), getEntriesByType: () => entries });
   await import('./startup');
   expect(root.inert).toBe(true); expect(captured.boot).not.toHaveBeenCalled();
+  expect(document.title).toBe(mobile ? 'Flaghack Gaiden' : 'FLAGHACK∞3D');
   cache.resolve(cached);
   await vi.waitFor(() => expect(captured.boot).toHaveBeenCalledOnce());
   return { app, overlay, readiness, intro, fontReady, root, html, entries };

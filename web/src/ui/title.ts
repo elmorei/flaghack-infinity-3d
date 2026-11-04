@@ -16,6 +16,8 @@ import { button, el, html, setClass, setDisabled, setText, show } from './dom';
 import { iconSvg } from './icons';
 import { QUOTES } from './lore';
 import titleWordmarkUrl from './assets/title-wordmark.svg';
+import mobileTitleWordmarkUrl from './assets/mobile-title-wordmark.svg';
+import { gameDisplayName } from '../startup/branding';
 
 const QUOTE_MS = 8000;
 const FADE_MS = 650;
@@ -107,13 +109,15 @@ export class TitleScreen implements UiPart {
     html('div', 'title-edition', 'game of the<br>millennium<br>edition', this.root);
     const col = el('div', 'title-col', this.root);
     html('div', 'title-sigil', sigilSvg('sigil spin'), col);
-    // Keep the title and subtitle in one outlined, font-independent lockup.
+    const mobile = document.documentElement.dataset.deviceLayout === 'mobile';
+    const gameName = gameDisplayName(mobile ? 'mobile' : 'desktop');
+    // Both editions use outlined, font-independent artwork. Only presentation differs.
     const logo = el('h1', 'logo', col);
     const wordmark = el('img', 'title-wordmark', logo);
-    wordmark.src = titleWordmarkUrl;
-    wordmark.alt = 'FLAGHACK∞3D — SURVEY FLAGS';
-    wordmark.width = 918;
-    wordmark.height = 252;
+    wordmark.src = mobile ? mobileTitleWordmarkUrl : titleWordmarkUrl;
+    wordmark.alt = `${gameName} — SURVEY FLAGS`;
+    wordmark.width = mobile ? 512 : 918;
+    wordmark.height = mobile ? 176 : 252;
     wordmark.draggable = false;
 
     this.quote = el('blockquote', 'quote', col);
@@ -187,7 +191,7 @@ export class TitleScreen implements UiPart {
     if (host.app.remoteHostsAvailable) {
       const versions = el('nav', 'version-switch', col);
       versions.setAttribute('aria-label', 'Page layout');
-      for (const [view, label] of [['mobile', 'Mobile version'], ['desktop', 'PC version']] as const) {
+      for (const [view, label] of [['mobile', 'Flaghack Gaiden · Mobile'], ['desktop', 'FLAGHACK∞3D · PC']] as const) {
         const link = el('a', 'btn btn-tiny', versions, label);
         const target = new URL(location.href);
         target.searchParams.set('view', view);
@@ -198,7 +202,7 @@ export class TitleScreen implements UiPart {
 
     const foot = el('footer', 'title-foot', this.root);
     el('div', 'transmission', foot, 'A transmission from the Geomantic Command Center');
-    el('div', 'warning-label', foot, 'Under no conditions should you attempt to play a game that claims to be FLAGHACK∞3D.');
+    el('div', 'warning-label', foot, `Under no conditions should you attempt to play a game that claims to be ${gameName}.`);
     this.showHost(host.app.hostInfo);
   }
 

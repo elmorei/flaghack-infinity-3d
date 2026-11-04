@@ -6,6 +6,7 @@ import { PROTOCOL_VERSION } from '../net/protocol';
 import { BUILD_ID } from '../net/build';
 
 class Node {
+  src = ''; alt = ''; width = 0; height = 0;
   className = ''; textContent = ''; innerHTML = ''; type = ''; value = ''; href = ''; rel = ''; target = ''; focused = false;
   children: Node[] = []; parentElement: Node | null = null;
   dataset: Record<string, string> = {}; attributes = new Map<string, string>();
@@ -25,8 +26,8 @@ class Node {
 const all = (node: Node): Node[] => [node, ...node.children.flatMap(all)];
 const text = (node: Node): string => [node.textContent, node.innerHTML.replace(/<[^>]*>/g, ''), ...node.children.map(text)].join(' ').trim();
 const visible = (node: Node): boolean => !node.classList.contains('is-off') && (!node.parentElement || visible(node.parentElement));
-function setup(invite = false, hosted = false, remote = true) {
-  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag), documentElement: { dataset: { deviceLayout: 'mobile' } } });
+function setup(invite = false, hosted = false, remote = true, layout: 'mobile' | 'desktop' | null = 'mobile') {
+  vi.stubGlobal('document', { createElement: (tag: string) => new Node(tag), documentElement: { dataset: { deviceLayout: layout ?? undefined } } });
   vi.stubGlobal('location', { protocol: 'https:', origin: 'https://pages.example', href: 'https://pages.example/game/?other=1#host=invite', reload: vi.fn() });
   const store = { getItem: vi.fn(() => ''), setItem: vi.fn() }; vi.stubGlobal('localStorage', store);
   const root = new Node(), session = new Session(); session.screen = 'title';
@@ -46,6 +47,17 @@ function setup(invite = false, hosted = false, remote = true) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Pages Join screen', () => {
+  it.each(['mobile', 'desktop', null] as const)('uses only the resolved %s edition branding', layout => {
+    const { root } = setup(false, false, true, layout);
+    const wordmark = all(root).find(node => node.classList.contains('title-wordmark'))!;
+    const name = layout === 'mobile' ? 'Flaghack Gaiden' : 'FLAGHACK∞3D';
+    expect(wordmark.alt).toBe(`${name} — SURVEY FLAGS`);
+    expect(wordmark.src).toContain(layout === 'mobile' ? '/mobile-title-wordmark.svg' : '/title-wordmark.svg');
+    expect(wordmark.width).toBe(layout === 'mobile' ? 512 : 918);
+    expect(wordmark.height).toBe(layout === 'mobile' ? 176 : 252);
+    expect(text(all(root).find(node => node.classList.contains('warning-label'))!)).toContain(`claims to be ${name}.`);
+    expect(all(root).filter(node => node.tagName === 'a').map(node => node.textContent)).toEqual(['Flaghack Gaiden · Mobile', 'FLAGHACK∞3D · PC']);
+  });
   it('preserves the offline launcher solo-first title with no Join or dead download link', () => {
     const { app, root, button, fields } = setup(true, false, false);
     expect(visible(button('Join the burn'))).toBe(false);

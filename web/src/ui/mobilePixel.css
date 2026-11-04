@@ -274,3 +274,7 @@ html[data-device-layout='mobile'] .gb-sub { font: 400 14px/1.1 var(--mp-body); l
 @media (orientation: landscape) {
   html[data-device-layout='mobile'] .mc-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* The mobile edition has its own outlined pixel wordmark; desktop art is unchanged. */
+html[data-device-layout='mobile'] .logo { margin: 0 auto; max-width: 420px; }
+html[data-device-layout='mobile'] .title-wordmark { animation: none; }

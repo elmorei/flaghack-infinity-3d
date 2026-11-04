@@ -5,11 +5,13 @@ import { INTRO_VIDEO_URL, MOBILE_INTRO_VIDEO_URL, INTRO_VIDEO_HAS_AUDIO } from '
 import { StartupOverlay } from './startup/overlay';
 
 import { browserDeviceLayout, useMobileIntro } from './startup/device';
+import { applyPageBranding, gameDisplayName } from './startup/branding';
 
 /** Small entry point: paints before the game bundle, fonts, world and GPU are prepared. */
 async function start(): Promise<void> {
   const layout = browserDeviceLayout();
   document.documentElement.dataset.deviceLayout = layout;
+  applyPageBranding(layout);
   const introUrl = useMobileIntro(layout)
     ? MOBILE_INTRO_VIDEO_URL : INTRO_VIDEO_URL;
   const root = document.getElementById('app')!;
@@ -35,7 +37,7 @@ async function start(): Promise<void> {
     root.inert = false;
     overlay.dispose();
   } catch (error) {
-    console.error('FLAGHACK∞3D could not start', error);
+    console.error(`${gameDisplayName(layout)} could not start`, error);
     overlay.fail();
   }
 }
