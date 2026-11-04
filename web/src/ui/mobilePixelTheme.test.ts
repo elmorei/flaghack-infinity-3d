@@ -42,4 +42,8 @@ describe('mobile pixel presentation boundary', () => {
     expect(css).toContain(".mc-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }");
     expect(css).toContain("html[data-device-layout='mobile'] .gb-main { font: 400 20px/1.1 var(--mp-body)");
   });
+  it('keeps the card-game Flag counter on the same mobile pixel font and weight as gameplay', () => {
+    expect(css).toContain("html[data-device-layout='mobile'] :is(.mc-status, .ff-flag-counter) .num { font-family: var(--mp-body); font-weight: 400; }");
+  });
+
 });

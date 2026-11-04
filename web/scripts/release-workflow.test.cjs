@@ -94,4 +94,9 @@ test('mobile preview keeps Pages and native checks without enforcing legacy solo
   const nativeRuns = native.steps.map(step => step.run || '').join('\n');
   for (const name of ['startup', 'mobile-sprites', 'mobile-pixel', 'mobile-hud', 'mobile-command', 'auto-style', 'explosion', 'mobile-ley']) assert.match(nativeRuns, new RegExp(`verify-${name}-browser\\.(?:mjs|cjs)`));
   assert.doesNotMatch(nativeRuns, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
+  const legacy = preview.jobs['legacy-card-browser'];
+  assert.equal(legacy['runs-on'], 'macos-15');
+  const legacyRuns = legacy.steps.map(step => step.run || '').join('\n');
+  for (const name of ['frick-dice', 'frick-engine', 'frick-frack', 'frick-sleeve', 'beacon-card', 'intro']) assert.ok(legacyRuns.includes(`verify-${name}-browser.mjs`));
+  assert.doesNotMatch(legacyRuns, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
 });
