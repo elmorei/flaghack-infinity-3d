@@ -62,7 +62,8 @@ async function natural(page) {
     return {quivers,atlasReady:s.atlasReady,atlasError:s.atlasError,sprites:s.spriteCount,layers:s.layerCount,batches:s.batchCount,changedPixels:window.__spriteProbe.contribution(),gpu:{vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR),renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)},viewport:{width:innerWidth,height:innerHeight},depthTest:s.mesh.material.depthTest,depthWrite:s.mesh.material.depthWrite};
   });
 }
-// All fixture mutations are confined to an offline page and restored before return.
+// Fixtures run only offline. Composition/occlusion restore camera and scene state;
+// fallback restores world actors/RNG/IDs. The paused crowd page is closed after capture.
 async function composition(page) {
   return page.evaluate(()=>{
     const a=window.flaghack,g=a.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
@@ -87,35 +88,41 @@ async function composition(page) {
 async function occlusion(page) {
   return page.evaluate(()=>{
     const g=window.flaghack.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
-    const children=ctx.scene.children.map(o=>[o,o.visible]),saved={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom};
+    const renderOrder=s.mesh.renderOrder,children=ctx.scene.children.map(o=>[o,o.visible]),saved={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom};
     const ground=ctx.scene.getObjectByName('ground');
     const structures=g.modules.find(m=>m.views instanceof Map&&m.kit&&m.table);
-    const root=structures&&[...structures.views.values()].find(v=>v.root.visible)?.root;
-    if(!ground||!root)throw Error('Real ground and building geometry required for occlusion proof');
+    const root=structures&&[...structures.views.values()].find(v=>v.kind==='gcc'&&v.root.visible)?.root;
+    if(!ground||!root)throw Error('Real ground and command-cart geometry required for occlusion proof');
     const cases=[];
     try {
+      // Draw after opaque occluders in BOTH passes. Without this, the depth-disabled
+      // control can be overwritten by subsequently drawn geometry and is not a control.
+      s.mesh.renderOrder=10000;
       for(const [label,object] of [['terrain',ground],['building',root]]) {
         for(const [o] of children)o.visible=false;
         for(let o=object;o;o=o.parent)o.visible=true;
         s.mesh.visible=true;
         const origin=object.getWorldPosition(c.position.clone());
         // Place the sprite inside/below the actual rendered occluder, not a synthetic overlay.
-        const y=label==='terrain'?(ctx.shared.groundOffset?.(0,0)??0)-4:origin.y-1;
+        // GCC has a solid body from local y=.3 to .96. A small probe inside it
+        // avoids mistaking the open centre of a Hearth for an opaque building.
+        const y=label==='terrain'?(ctx.shared.groundOffset?.(0,0)??0)-4:origin.y+.32;
+        const height=label==='terrain'?2:.6,extent=label==='terrain'?4:1.5;
         const x=label==='terrain'?0:origin.x,z=label==='terrain'?0:origin.z;
-        c.position.set(x,y+10,z+12);c.lookAt(x,y+1,z);c.left=-4;c.right=4;c.top=4*innerHeight/innerWidth;c.bottom=-c.top;c.updateProjectionMatrix();c.updateMatrixWorld();
-        s.begin();s.signifier({id:0,x,y,z,yaw:0,height:2,moving:false},0,0);s.end();
+        c.position.set(x,y+10,z+12);c.lookAt(x,y+height*.5,z);c.left=-extent;c.right=extent;c.top=extent*innerHeight/innerWidth;c.bottom=-c.top;c.updateProjectionMatrix();c.updateMatrixWorld();
+        s.begin();s.signifier({id:0,x,y,z,yaw:0,height,moving:false},0,0);s.end();
         const depthPixels=p.contribution();s.mesh.material.depthTest=false;const throughPixels=p.contribution();s.mesh.material.depthTest=true;
         cases.push({label,depthPixels,throughPixels});
       }
       return cases;
-    } finally {s.mesh.material.depthTest=true;for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);}
+    } finally {s.mesh.renderOrder=renderOrder;s.mesh.material.depthTest=true;for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);}
   });
 }
 async function fallback(page) {
   return page.evaluate(()=>{
     const a=window.flaghack,w=a.world,g=a.renderer,s=g.ctx.shared.mobileSprites;
     if(a.net)throw Error('Offline fixture only');
-    const original=new Map(w.hippies),screen=a.session.screen;a.setPaused(true);w.hippies.clear();
+    const original=new Map(w.hippies),screen=a.session.screen,rng={...w.rng},nextEntityId=w.nextEntityId;a.setPaused(true);w.hippies.clear();
     const center=a.session.camera;
     const h=window.fh.factory.spawnHippie(w,0,{x:center.cmdX,z:center.cmdZ});
     const actors=g.modules.find(m=>m.hippies&&m.avatars),states=[];
@@ -125,7 +132,7 @@ async function fallback(page) {
         states.push({status,sprite:s.samples.some(v=>v.id===h.id),fallbackCount:s.fallbackCount,modelInstances:actors.hippies.levels.reduce((n,l)=>n+l.mesh.count,0)});
       }
       return states;
-    } finally {w.hippies.clear();for(const [id,h] of original)w.hippies.set(id,h);a.session.screen=screen;g.render(0);}
+    } finally {w.hippies.clear();for(const [id,h] of original)w.hippies.set(id,h);Object.assign(w.rng,rng);w.nextEntityId=nextEntityId;a.session.screen=screen;g.render(0);}
   });
 }
 async function crowd(page) {
@@ -137,8 +144,31 @@ async function crowd(page) {
   });
   await page.waitForTimeout(1500);
   const timing=await page.evaluate(async()=>{
-    const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,intervals=[],renderMs=[],calls=[],spriteCalls=[];const previousReset=g.renderer.info.autoReset,previousBefore=s.mesh.onBeforeRender;g.renderer.info.autoReset=false;
-    let previous=performance.now();try{for(let i=0;i<121;i++){await new Promise(requestAnimationFrame);const now=performance.now();if(i)intervals.push(now-previous);previous=now;let draws=0;s.mesh.onBeforeRender=function(...args){draws++;previousBefore.apply(this,args);};g.renderer.info.reset();const t=performance.now();g.render(0);renderMs.push(performance.now()-t);calls.push(g.renderer.info.render.calls);spriteCalls.push(draws);}}finally{g.renderer.info.autoReset=previousReset;s.mesh.onBeforeRender=previousBefore;}
+    const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,intervals=[],renderMs=[],calls=[],spriteCalls=[];
+    const previousReset=g.renderer.info.autoReset,previousBefore=s.mesh.onBeforeRender,previousRender=g.render;
+    let previousStart,activeDraws=0,timer;
+    try {
+      g.renderer.info.autoReset=false;
+      s.mesh.onBeforeRender=function(...args){activeDraws++;return previousBefore.apply(this,args);};
+      // Observe the app's one real render per frame. Calling render again from a rAF
+      // probe would double GPU/CPU work and misrepresent ordinary frame intervals.
+      await new Promise((done,reject)=>{
+        timer=setTimeout(()=>reject(Error('Timed out collecting 120 actual app frame intervals')),90000);
+        g.render=function(...args){
+          activeDraws=0;g.renderer.info.reset();const start=performance.now();
+          try {
+            const drawn=previousRender.apply(this,args);
+            if(drawn){
+              if(previousStart!==undefined)intervals.push(start-previousStart);
+              previousStart=start;renderMs.push(performance.now()-start);
+              calls.push(g.renderer.info.render.calls);spriteCalls.push(activeDraws);
+              if(intervals.length>=120)done();
+            }
+            return drawn;
+          }catch(error){reject(error);throw error;}
+        };
+      });
+    } finally {clearTimeout(timer);g.render=previousRender;g.renderer.info.autoReset=previousReset;s.mesh.onBeforeRender=previousBefore;}
     const percentile=(xs,p)=>[...xs].sort((a,b)=>a-b)[Math.min(xs.length-1,Math.floor(xs.length*p))];
     return {sprites:s.spriteCount,layers:s.layerCount,batches:s.batchCount,capacity:s.capacity,frameMs:{median:percentile(intervals,.5),p95:percentile(intervals,.95),max:Math.max(...intervals)},renderCpuMs:{median:percentile(renderMs,.5),p95:percentile(renderMs,.95)},wholeFrameDrawCalls:{min:Math.min(...calls),max:Math.max(...calls)},spriteDrawCalls:{min:Math.min(...spriteCalls),max:Math.max(...spriteCalls)},sampleCount:intervals.length};
   });
@@ -161,7 +191,7 @@ try {
     entry.occlusion=await occlusion(page);for(const o of entry.occlusion){assert.ok(o.throughPixels>20,o.label+' control pixels');assert.ok(o.depthPixels<o.throughPixels*.8,o.label+' must genuinely occlude sprites');}
     entry.fallback=await fallback(page);assert.equal(entry.fallback[0].sprite,true,'Idle fixture uses atlas');for(const f of entry.fallback.slice(1)){assert.equal(f.sprite,false,f.status+' rejects sprite');assert.ok(f.modelInstances>0,f.status+' retains actual 3D instances');}
     entry.crowd=await crowd(page);assert.ok(entry.crowd.sprites>=200,'200+ actual integrated visible sprites');assert.equal(entry.crowd.batches,1);assert.equal(entry.crowd.spriteDrawCalls.max,1,'Crowd uses one real GPU sprite draw per frame');assert.ok(entry.crowd.layers<=entry.crowd.capacity);assert.ok(Number.isFinite(entry.crowd.frameMs.p95));
-    await page.screenshot({path:join(OUT,spec.name+'-256-unit-fixture.png')});await context.close();
+    await page.screenshot({path:join(OUT,spec.name+'-256-unit-fixture.png')});await page.evaluate(()=>window.__spriteProbe.dispose());await context.close();
   }
   const desktop=await boot({name:'desktop',w:1440,h:900,mobile:false});result.desktop=await desktop.page.evaluate(()=>{const a=window.flaghack;return {layout:document.documentElement.dataset.deviceLayout,spriteSystem:!!a.renderer.ctx.shared.mobileSprites,spriteMesh:!!a.renderer.ctx.scene.getObjectByName('mobile-sprite-batch'),avatarMeshes:[...a.world.avatars.values()].length};});assert.equal(result.desktop.layout,'desktop');assert.equal(result.desktop.spriteSystem,false);assert.equal(result.desktop.spriteMesh,false);assert.deepEqual(desktop.atlasRequests,[],'Desktop must never load the atlas');assert.ok(result.desktop.avatarMeshes>0);await desktop.page.screenshot({path:join(OUT,'desktop-3d.png')});await desktop.context.close();
   const failed=await boot({name:'atlas-failure',w:390,h:844,mobile:true,blockAtlas:true});await failed.page.waitForFunction(()=>window.flaghack.renderer.ctx.shared.mobileSprites.atlasError);result.atlasFailure=await failed.page.evaluate(()=>{const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,actors=g.modules.find(m=>m.hippies&&m.avatars);return {atlasReady:s.atlasReady,sprites:s.spriteCount,fallbacks:s.fallbackCount,modelInstances:actors.hippies.levels.reduce((n,l)=>n+l.mesh.count,0)};});assert.equal(result.atlasFailure.atlasReady,false);assert.equal(result.atlasFailure.sprites,0);assert.ok(result.atlasFailure.fallbacks>0);assert.ok(result.atlasFailure.modelInstances>0);await failed.page.screenshot({path:join(OUT,'atlas-failure-3d-fallback.png')});await failed.context.close();
