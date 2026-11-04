@@ -191,9 +191,22 @@ try {
     entry.occlusion=await occlusion(page);for(const o of entry.occlusion){assert.ok(o.throughPixels>20,o.label+' control pixels');assert.ok(o.depthPixels<o.throughPixels*.8,o.label+' must genuinely occlude sprites');}
     entry.fallback=await fallback(page);assert.equal(entry.fallback[0].sprite,true,'Idle fixture uses atlas');for(const f of entry.fallback.slice(1)){assert.equal(f.sprite,false,f.status+' rejects sprite');assert.ok(f.modelInstances>0,f.status+' retains actual 3D instances');}
     entry.crowd=await crowd(page);assert.ok(entry.crowd.sprites>=200,'200+ actual integrated visible sprites');assert.equal(entry.crowd.batches,1);assert.equal(entry.crowd.spriteDrawCalls.max,1,'Crowd uses one real GPU sprite draw per frame');assert.ok(entry.crowd.layers<=entry.crowd.capacity);assert.ok(Number.isFinite(entry.crowd.frameMs.p95));
-    const crowdCapture=await page.evaluate(()=>({changedPixels:window.__spriteProbe.contribution(),png:window.__spriteProbe.png(window.__spriteProbe.draw())}));
-    entry.crowd.changedPixels=crowdCapture.changedPixels;assert.ok(crowdCapture.changedPixels>500,'Crowd must contribute actual framebuffer pixels');
-    writeFileSync(join(OUT,spec.name+'-256-unit-fixture.png'),Buffer.from(crowdCapture.png,'base64'));
+    const crowdCapture=await page.evaluate(()=>{
+      const g=window.flaghack.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
+      const captures={scene:p.png(p.draw())},changedPixels=p.contribution();
+      const children=ctx.scene.children.map(o=>[o,o.visible]),depth=s.mesh.material.depthTest;
+      let spriteOnlyPixels,throughPixels;
+      try {
+        s.mesh.material.depthTest=false;throughPixels=p.contribution();captures.through=p.png(p.draw());s.mesh.material.depthTest=depth;
+        for(const [o] of children)o.visible=o===s.mesh;
+        spriteOnlyPixels=p.contribution();captures.sprites=p.png(p.draw());
+      } finally {s.mesh.material.depthTest=depth;for(const [o,v] of children)o.visible=v;}
+      const projected=window.__crowdIds.map(id=>{const h=ctx.world.hippies.get(id),v=c.position.clone().set(h.pos.x,ctx.shared.groundOffset(h.pos.x,h.pos.z)+1,h.pos.z).project(c);return {x:v.x,y:v.y,z:v.z};});
+      return {changedPixels,spriteOnlyPixels,throughPixels,captures,camera:{type:c.type,position:c.position.toArray(),quaternion:c.quaternion.toArray(),left:c.left,right:c.right,top:c.top,bottom:c.bottom},projected};
+    });
+    for(const [name,png] of Object.entries(crowdCapture.captures))writeFileSync(join(OUT,spec.name+'-256-unit-fixture-'+name+'.png'),Buffer.from(png,'base64'));
+    delete crowdCapture.captures;Object.assign(entry.crowd,crowdCapture);
+    assert.ok(crowdCapture.changedPixels>500,'Crowd must contribute actual framebuffer pixels');
     await page.screenshot({path:join(OUT,spec.name+'-crowd-paused-ui.png')});await page.evaluate(()=>window.__spriteProbe.dispose());await context.close();
   }
   const desktop=await boot({name:'desktop',w:1440,h:900,mobile:false});result.desktop=await desktop.page.evaluate(()=>{const a=window.flaghack;return {layout:document.documentElement.dataset.deviceLayout,spriteSystem:!!a.renderer.ctx.shared.mobileSprites,spriteMesh:!!a.renderer.ctx.scene.getObjectByName('mobile-sprite-batch'),avatarMeshes:[...a.world.avatars.values()].length};});assert.equal(result.desktop.layout,'desktop');assert.equal(result.desktop.spriteSystem,false);assert.equal(result.desktop.spriteMesh,false);assert.deepEqual(desktop.atlasRequests,[],'Desktop must never load the atlas');assert.ok(result.desktop.avatarMeshes>0);await desktop.page.screenshot({path:join(OUT,'desktop-3d.png')});await desktop.context.close();
