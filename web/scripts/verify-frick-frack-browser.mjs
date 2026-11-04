@@ -247,12 +247,23 @@ async function main(){
         }
         async function deal(amount){
           const input=dialog.getByLabel('Flags to wager');
-          await input.fill(String(amount));await input.dispatchEvent('change');
+          // Fixture resource/revision changes can replace the input. Wait for
+          // the actual available count, then enter and commit on one DOM node.
+          await page.waitForFunction(()=>{
+            const a=window.flaghack,i=document.querySelector('.ff-wager input');
+            return i&&!i.disabled&&Number(i.max)===a.world.avatarOf(0).carried.length;
+          });
+          const chosen=await input.evaluate((i,amount)=>{
+            if(i.disabled)throw Error('Wager input is not ready');
+            i.value=String(amount);i.dispatchEvent(new Event('change',{bubbles:true}));
+            return Number(i.value);
+          },amount);
+          assert.equal(chosen,amount,'Actual wager control commits the requested fixture amount');
           await tap(button('Deal'));
           await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='rolling');
           // Disclosed legacy card/payout fixture: preserve the original shuffled deck
           // and target after the real production roll has committed this wager.
-          await page.evaluate(()=>{const s=window.flaghack.world.frickFrack.sessions[0];if(s.phase!=='rolling')throw Error('Missed rolling fixture window');window.fh.frickFrack.resetEntropy(window.__frickQa.handSeed);s.dieResult=1;s.target=21;});
+          await page.evaluate(amount=>{const s=window.flaghack.world.frickFrack.sessions[0];if(s.phase!=='rolling')throw Error('Missed rolling fixture window');if(s.wager!==amount)throw Error('Committed wager '+s.wager+' differs from requested '+amount);window.fh.frickFrack.resetEntropy(window.__frickQa.handSeed);s.dieResult=1;s.target=21;},amount);
           await page.waitForFunction(()=>['playing','result','empty'].includes(window.flaghack.world.frickFrack.sessions[0]?.phase));
         }
         await seedAndQuiver('frick-136-25',10);
@@ -364,18 +375,22 @@ async function main(){
         // Observe settlement before the live world can consume stock again.
         await page.evaluate(()=>{
           const w=window.flaghack.world,s=w.frickFrack.sessions[0];
-          const stock=()=>[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(0)?.id).length;
+          const stockIds=()=>[...w.flags.values()].filter(fl=>fl.state==='stock'&&fl.holder===w.hearthOf(0)?.id).map(fl=>fl.id);
+          const capture=()=>({wager:s.wager,quiver:w.avatarOf(0).carried.length,stockIds:stockIds()});
           let phase=s.phase;window.__frickQa.overflow={};
           Object.defineProperty(s,'phase',{enumerable:true,configurable:true,get:()=>phase,set(value){
             phase=value;
-            if(value==='playing')window.__frickQa.overflow.before=stock();
-            if(value==='result')window.__frickQa.overflow.after=stock();
+            if(value==='playing'){const c=capture();window.__frickQa.overflow.before=c.stockIds.length;window.__frickQa.overflow.beforeState=c;}
+            if(value==='result'){const c=capture();window.__frickQa.overflow.after=c.stockIds.length;window.__frickQa.overflow.afterState=c;}
           }});
         });
         await deal(10);
         await page.waitForFunction(()=>window.flaghack.world.frickFrack.sessions[0]?.phase==='result');
         const overflow=await state();assert.equal(overflow.session.result,'win');assert.equal(overflow.carried.length,10);
         const settlement=await page.evaluate(()=>window.__frickQa.overflow);
+        results.overflowSettlement=settlement;
+        assert.equal(overflow.session.wager,10,'All-in overflow fixture actually committed ten Flags');
+        assert.equal(settlement.beforeState.wager,10);assert.equal(settlement.afterState.wager,10);
         assert.equal(settlement.after-settlement.before,10,'Ten overflow winnings are real altar-stock flags at settlement');
         await shot('desktop-overflow-win');await holdForDemo('overflow-win',2500);
         check('desktop: selectable all-in wager, 1:1 natural payout, quiver cap and altar overflow');
