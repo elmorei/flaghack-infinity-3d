@@ -1,6 +1,7 @@
 /** Native browser QA. Explicit public destruction-event fixtures, not an organic playthrough.
  * Live engine rendering and unmodified 1x browser footage; mobile is browser emulation. */
 import assert from 'node:assert/strict';
+import { captureExplosionFrame } from './explosion-frame-snapshot.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, join, extname, dirname } from 'node:path';
@@ -32,12 +33,8 @@ function oldRecipe(id,size,density){
   return Array.from({length:count},(_,i)=>{const flame=i>=smoke;next();next();next();next();const puff=radius*(flame?.7+next()*.3:.5+next()*.2),vy=flame?2.8+next()*2.6:.8+next()*.8;next();next();return{size0:puff*(flame?.16:.4),size1:puff*(flame?1:1.35),vy};});
 }
 const near=(a,b)=>assert.ok(Math.abs(a-b)<.00002,`${a} != ${b}`);
-async function snapshot(){return page.evaluate(()=>{
-  const r=window.flaghack.renderer,m=r.ctx.scene.getObjectByName('structure-destruction-flame-poofs'),g=m.geometry;
-  const rows=Array.from({length:g.instanceCount},(_,i)=>Array.from({length:8},(_,j)=>{const a=g.getAttribute('a'+j);return[a.getX(i),a.getY(i),a.getZ(i),a.getW(i)];}));
-  return{rows,visible:m.visible,count:g.instanceCount,capacity:g.getAttribute('a0').count,bytes:g.getAttribute('a0').data.array.byteLength,geometry:g.uuid,material:m.material.uuid,time:m.material.uniforms.uTime.value,quality:r.ctx.quality,calls:r.renderer.info.render.calls,triangles:r.renderer.info.render.triangles};
-});}
-async function fire(events){await page.evaluate(events=>{window.flaghack.renderer.onEvents(events);},events);await page.waitForTimeout(40);}
+async function snapshot(){return page.evaluate(captureExplosionFrame);}
+async function fire(events){return page.evaluate(captureExplosionFrame,events);}
 try{
   mkdirSync(OUT,{recursive:true});await new Promise((done,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',done);});
   browser=await chromium.launch({channel:'chrome',headless:false,chromiumSandbox:true,args:[]});
@@ -65,7 +62,7 @@ try{
       {name:'piece',event:{t:'pieceDestroyed',pieceId:900004,kind:'wall',faction:0,pos,bossDestroyed:true}},
     ];
     for(const fixture of fixtures){
-      await fire([fixture.event]);const initial=await snapshot();assert.ok(initial.visible&&initial.count>0);assert.equal(initial.capacity,2048);assert.ok(initial.calls>0&&initial.triangles>0);
+      const initial=await fire([fixture.event]);assert.ok(initial.visible&&initial.count>0);assert.equal(initial.capacity,2048);assert.ok(initial.calls>0&&initial.triangles>0);
       if(fixture.event.t==='sceneryDestroyed'){
         const old=oldRecipe(fixture.event.sceneryId,fixture.event.size,spec.touch?.45:1);assert.equal(initial.count,old.length);
         initial.rows.forEach((row,i)=>{near(row[2][0],old[i].size0*2);near(row[2][1],old[i].size1*2);near(row[1][1],old[i].vy*2);});
@@ -93,7 +90,7 @@ try{
     const before=await snapshot();
     const mass=Array.from({length:400},(_,i)=>({t:'sceneryDestroyed',sceneryId:910000+i,pos:{...pos,x:pos.x+(i%9-4)*3,z:pos.z+(Math.floor(i/9)%9-4)*3},size:{x:3,y:4,z:3},yaw:0}));
     await page.evaluate(()=>{const q={gaps:[],done:false,last:performance.now()};window.__explosionFrameObservation=q;function tick(t){q.gaps.push(t-q.last);q.last=t;if(q.gaps.reduce((a,b)=>a+b,0)<1800)requestAnimationFrame(tick);else q.done=true;}requestAnimationFrame(tick);});
-    await fire(mass);const peak=await snapshot();assert.equal(peak.count,2048);assert.equal(peak.capacity,2048);assert.equal(peak.bytes,before.bytes);assert.equal(peak.geometry,before.geometry);assert.equal(peak.material,before.material);
+    const peak=await fire(mass);assert.equal(peak.count,2048);assert.equal(peak.capacity,2048);assert.equal(peak.bytes,before.bytes);assert.equal(peak.geometry,before.geometry);assert.equal(peak.material,before.material);
     const meshes=await page.evaluate(()=>{let n=0;window.flaghack.renderer.ctx.scene.traverse(o=>{if(o.name==='structure-destruction-flame-poofs')n++;});return n;});assert.equal(meshes,1);
     await page.screenshot({path:join(OUT,`${spec.name}-mass-destruction.png`)});await page.waitForTimeout(1900);assert.equal((await snapshot()).count,0);
     await page.waitForFunction(()=>window.__explosionFrameObservation.done);

@@ -180,3 +180,16 @@ it('reports CPU-only 256/512-unit batch preparation diagnostics without FPS clai
     expect(Number.isFinite(millisecondsPerFrame)).toBe(true);
   }
 });
+
+
+it('ships a compact lossless WebP atlas at the exact runtime URL', () => {
+  const bytes = readFileSync(new URL('../../../public/assets/mobile-sprites/atlas.webp', import.meta.url));
+  expect(bytes.subarray(0, 4).toString()).toBe('RIFF');
+  expect(bytes.subarray(8, 12).toString()).toBe('WEBP');
+  expect(bytes.includes(Buffer.from('VP8L'))).toBe(true);
+  expect(bytes.length).toBeLessThan(2_100_000);
+  expect(atlas.image).toBe('/assets/mobile-sprites/atlas.webp');
+  expect(atlas.sampling.alphaThreshold).toBe(.5);
+  setup();
+  expect(THREE.TextureLoader.prototype.load).toHaveBeenCalledWith(expect.stringContaining('assets/mobile-sprites/atlas.webp'), expect.any(Function), undefined, expect.any(Function));
+});

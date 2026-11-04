@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "image": "/assets/mobile-sprites/atlas.png",
+  "image": "/assets/mobile-sprites/atlas.webp",
   "width": 2048,
   "height": 4096,
   "padding": 2,
@@ -497,6 +497,8 @@
   "sampling": {
     "filter": "nearest",
     "mipmaps": false,
-    "note": "Whole sheets are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells."
+    "alphaThreshold": 0.5,
+    "encoding": "lossless WebP, shader-equivalent cutout alpha",
+    "note": "All visible source RGB and cutout coverage are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells."
   }
 }

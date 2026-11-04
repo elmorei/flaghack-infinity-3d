@@ -1,9 +1,9 @@
-name: Publish selected-branch game bundles
+name: Manually publish legacy solo game bundles
 
-# Only prebuilt browser assets are distributed. No player-side build or Node code.
+# Legacy solo feeds stay available, but new game changes need not support them.
+# No push/scheduled publication. A manual run must explicitly opt in and still
+# pass the unchanged payload and native-browser checks before updating a feed.
 on:
-  push:
-    branches: [main, iteration]
   workflow_dispatch:
     inputs:
       branch:
@@ -11,28 +11,33 @@ on:
         required: true
         default: iteration
         options: [main, iteration]
+      publish_legacy_bundle:
+        description: Publish to the legacy solo feed; current launcher compatibility is not maintained
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: game-bundle-${{ github.event_name == 'push' && github.ref_name || inputs.branch }}
+  group: game-bundle-${{ inputs.branch }}
   cancel-in-progress: false
 
 jobs:
   build:
-    if: github.repository == 'elmorei/flaghack-infinity-3d'
+    if: github.repository == 'elmorei/flaghack-infinity-3d' && github.event_name == 'workflow_dispatch' && inputs.publish_legacy_bundle == true
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     outputs:
       branch: ${{ steps.identity.outputs.branch }}
       commit: ${{ steps.identity.outputs.commit }}
     env:
-      GAME_BRANCH: ${{ github.event_name == 'push' && github.ref_name || inputs.branch }}
+      GAME_BRANCH: ${{ inputs.branch }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event_name == 'push' && github.sha || inputs.branch }}
+          ref: ${{ inputs.branch }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -50,8 +55,12 @@ jobs:
         working-directory: web
       - run: npm test -- --maxWorkers=2
         working-directory: web
+      - run: npm run desktop:test
+        working-directory: web
       - run: npm run build
         working-directory: web
+        env:
+          FLAGHACK_BUILD_ID: ${{ steps.identity.outputs.commit }}
       - name: Package game assets with hashes and license notices
         shell: bash
         env:
@@ -65,8 +74,135 @@ jobs:
           retention-days: 14
           compression-level: 0
 
+  native-browser:
+    needs: [build]
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: web
+    env:
+      GAME_BRANCH: ${{ needs.build.outputs.branch }}
+      GAME_COMMIT: ${{ needs.build.outputs.commit }}
+      FLAGHACK_BUILD_ID: ${{ needs.build.outputs.commit }}
+      BROWSER_DIST: ${{ github.workspace }}/web/dist
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Require the exact source used to package this bundle
+        run: test "$(git rev-parse HEAD)" = "$GAME_COMMIT"
+      - run: npm ci
+      # Build only the production Node host from the exact client source. Never
+      # rebuild the browser here: all checks use the payload that will be published.
+      - run: npm run build:server
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: verified-game-build
+          path: ${{ runner.temp }}/game-bundle
+      - name: Prepare an exact verified bundle copy for browser checks
+        id: prepare-browser
+        working-directory: .
+        run: |
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const { validateBundle, installBundle, inspectBundle } = require('./web/desktop/game-bundle.cjs');
+          async function main() {
+            const branch = process.env.GAME_BRANCH, commit = process.env.GAME_COMMIT;
+            assert.ok(['main', 'iteration'].includes(branch));
+            assert.match(commit, /^[a-f0-9]{40}$/);
+            const temporary = fs.realpathSync(process.env.RUNNER_TEMP);
+            const artifact = path.join(temporary, 'game-bundle');
+            const manifest = JSON.parse(fs.readFileSync(path.join(artifact, 'latest.json'), 'utf8'));
+            assert.equal(manifest.branch, branch, 'Artifact must match the selected branch');
+            assert.equal(manifest.commit, commit, 'Artifact must match the exact build commit');
+            assert.equal(manifest.bundle, `game-${branch}-${commit}.json.gz`);
+            const bytes = fs.readFileSync(path.join(artifact, manifest.bundle));
+            // Use the installed launcher's unchanged schema, path and size limits.
+            // Both compressed bytes and every contained file are hash-checked.
+            const bundle = validateBundle(bytes, manifest);
+            const installed = await installBundle({ bytes, expected: manifest, cacheRoot: path.join(temporary, 'verified-game-cache') });
+            await inspectBundle(installed.dir, manifest);
+            const dist = path.resolve(process.env.BROWSER_DIST);
+            assert.ok(!fs.existsSync(dist), 'Browser test output must start empty, never merge a rebuilt client');
+            fs.mkdirSync(dist);
+            const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+            for (const file of bundle.files) {
+              const target = path.join(dist, file.path);
+              fs.mkdirSync(path.dirname(target), { recursive: true });
+              fs.copyFileSync(path.join(installed.dir, file.path), target);
+              const copied = fs.readFileSync(target);
+              assert.equal(copied.length, file.size);
+              assert.equal(hash(copied), file.sha256, `Copied payload changed: ${file.path}`);
+            }
+            assert.ok(bundle.files.some(file => /^assets\/[^/]+\.js$/.test(file.path) && file.data.includes(Buffer.from(commit))), 'Packaged JavaScript must embed the exact build commit');
+            // This synthetic metadata exists ONLY in the disposable browser-test
+            // copy. It is not a shipped asset, not added to the validated install,
+            // and never uploaded as part of verified-game-build. The unchanged
+            // sprite verifier also checks the real JavaScript's embedded SHA.
+            fs.writeFileSync(path.join(dist, 'build.json'), JSON.stringify({ build: commit }) + '\n', { flag: 'wx' });
+            function fileList(directory, prefix = '') {
+              return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+                const name = prefix + entry.name;
+                assert.ok(!entry.isSymbolicLink(), 'No symlinks in browser-test copy');
+                if (entry.isDirectory()) return fileList(path.join(directory, entry.name), name + '/');
+                assert.ok(entry.isFile(), 'Only regular browser-test files');
+                return [name];
+              }).sort();
+            }
+            assert.deepEqual(fileList(dist), [...bundle.files.map(file => file.path), 'build.json'].sort());
+            await inspectBundle(installed.dir, manifest);
+            assert.equal(hash(fs.readFileSync(path.join(artifact, manifest.bundle))), manifest.sha256);
+            console.log(JSON.stringify({ branch, commit, bundleSha256: manifest.sha256, verifiedFileCount: bundle.files.length, testOnlyMetadata: 'build.json' }));
+          }
+          main().catch(error => { console.error(error); process.exitCode = 1; });
+          JS
+      - name: Prepare native Chrome recording tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+          node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+      - name: Verify the packaged browser bytes in stock sandboxed Chrome
+        run: |
+          # workflow_dispatch can select a branch other than github.sha. Pass the
+          # actual build output explicitly; retain the verifier's clean-source check.
+          export GITHUB_SHA="$GAME_COMMIT"
+          export NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules"
+          node scripts/verify-mobile-sprites-browser.mjs
+          node scripts/verify-mobile-pixel-browser.mjs
+          node scripts/verify-mobile-hud-browser.mjs
+          node scripts/verify-mobile-command-browser.cjs
+          node scripts/verify-auto-style-browser.mjs
+          node scripts/verify-explosion-browser.mjs
+          node scripts/verify-mobile-ley-browser.mjs
+      - name: Upload packaged-game native browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: game-bundle-native-smoke
+          path: |
+            web/host-release/mobile-sprites-smoke/
+            web/host-release/mobile-pixel-smoke/
+            web/host-release/mobile-hud-smoke/
+            web/host-release/mobile-command-smoke/
+            web/host-release/auto-style-smoke/
+            web/host-release/explosion-smoke/
+            web/host-release/mobile-ley-smoke/
+            ${{ runner.temp }}/game-bundle/latest.json
+          if-no-files-found: warn
+          retention-days: 14
+
   publish:
-    needs: build
+    needs: [build, native-browser]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_legacy_bundle == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

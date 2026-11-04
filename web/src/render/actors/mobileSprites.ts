@@ -85,7 +85,7 @@ export class MobileSprites {
     this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = 'mobile-sprite-batch'; this.mesh.frustumCulled = false;
     ctx.scene.add(this.mesh); this.grow(768);
     // No DOM overlays, canvases, or per-actor textures. Keep 3D until decode succeeds.
-    this.texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/mobile-sprites/atlas.png`, texture => {
+    this.texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/mobile-sprites/atlas.webp`, texture => {
       if (this.disposed) { texture.dispose(); return; }
       if (texture.image.width !== atlas.width || texture.image.height !== atlas.height || ctx.renderer.capabilities.maxTextureSize < atlas.height) {
         this.atlasError = true; return;
@@ -151,7 +151,7 @@ export class MobileSprites {
     this.grow(this.layerCount + 1); const i = this.layerCount++;
     this.centers.setXYZ(i, p.x, p.y, p.z); this.sizes.setXY(i, s.cellWidth * scale, s.cellHeight * scale);
     this.offsets.setXYZ(i, dx * scale, (footY - s.cellHeight - dy) * scale, order * .003);
-    // TextureLoader flips PNG rows; atlas metadata is top-left origin.
+    // TextureLoader flips image rows; atlas metadata is top-left origin.
     this.rects.setXYZW(i, (s.x + col * s.cellWidth + .5) / atlas.width,
       1 - (s.y + (row + 1) * s.cellHeight - .5) / atlas.height,
       (s.cellWidth - 1) / atlas.width, (s.cellHeight - 1) / atlas.height);

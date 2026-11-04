@@ -82,11 +82,17 @@ try{
  assert.notEqual(await page.evaluate(()=>document.documentElement.dataset.deviceLayout),'mobile');
  await tide();await page.locator('.banner').waitFor({state:'visible'});
  assert.equal(await page.locator('.mobile-announcements').count(),0,'Desktop keeps original banner implementation');
- const snapshot=()=>page.evaluate(()=>[...document.querySelectorAll('.res,.banner,.banner-title,.clock,.btn')].filter(e=>e.getBoundingClientRect().width).map(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {cls:e.className,font:s.fontFamily,color:s.color,background:s.background,border:s.border,borderImage:s.borderImage,width:s.width,height:s.height};}));
- const original=await snapshot();
- // Removing only explicitly mobile-scoped rules must not affect desktop presentation.
- await page.evaluate(()=>{function strip(sheet){try{for(let i=sheet.cssRules.length-1;i>=0;i--){const r=sheet.cssRules[i];if(r.selectorText?.includes('[data-device-layout="mobile"]'))sheet.deleteRule(i);else if(r.cssRules)strip(r);}}catch{}}for(const sheet of document.styleSheets)strip(sheet);});
- assert.deepEqual(await snapshot(),original,'Mobile stylesheet does not change desktop computed appearance');
+ // Compare in one JavaScript turn so a live clock tick cannot change content width
+ // between measurements and masquerade as a mobile-style regression.
+ const comparison=await page.evaluate(()=>{
+  const snapshot=()=>[...document.querySelectorAll('.res,.banner,.banner-title,.clock,.btn')].filter(e=>e.getBoundingClientRect().width).map(e=>{const s=getComputedStyle(e);return {cls:e.className,font:s.fontFamily,color:s.color,background:s.background,border:s.border,borderImage:s.borderImage,width:s.width,height:s.height};});
+  const original=snapshot();
+  function strip(sheet){try{for(let i=sheet.cssRules.length-1;i>=0;i--){const r=sheet.cssRules[i];if(r.selectorText?.includes('[data-device-layout="mobile"]'))sheet.deleteRule(i);else if(r.cssRules)strip(r);}}catch{}}
+  for(const sheet of document.styleSheets)strip(sheet);
+  return {original,withoutMobile:snapshot()};
+ });
+ assert.deepEqual(comparison.withoutMobile,comparison.original,'Mobile stylesheet does not change desktop computed appearance');
+ const original=comparison.original;
  await page.screenshot({path:join(OUT,'desktop-unchanged.png')});results.desktop=original;
  assert.deepEqual(desktopErrors,[]);await desktop.close();results.completed=true;
 }catch(error){results.error=String(error?.stack||error);if(page)await page.screenshot({path:join(OUT,'failure.png')}).catch(()=>{});throw error;

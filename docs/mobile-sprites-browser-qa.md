@@ -6,11 +6,11 @@ This preview workflow only builds, tests and uploads short-lived artifacts. It d
 
 The existing mobile presentation switch selects one instanced, depth-tested, depth-writing sprite batch. Desktop does not create the batch or request its image. Simulation, network messages, hit detection and cross-play rules are unchanged.
 
-The 2048 × 4096 RGBA atlas contains the four faction leaders, Frick/Frack wizard, skeletal boss and the front/rear modular Signifier sheets. Body, head and rear Flag foreground stay in one batch. Camera-relative facing uses hysteresis, walking uses four deterministic frames, and idle stays on its first frame. Pixel-derived foot baselines keep layered figures grounded without editing the approved source pixels.
+The 2048 × 4096 RGBA atlas contains the four faction leaders, Frick/Frack wizard, skeletal boss and the front/rear modular Signifier sheets. Body, head and rear Flag foreground stay in one batch. Camera-relative facing uses hysteresis, walking uses four deterministic frames, and idle stays on its first frame. Pixel-derived foot baselines keep layered figures grounded with unchanged visible source RGB.
 
 Original procedural animation still runs for anchors and immediate fallback. Unsupported attack, KO, reveal, airborne and effect states use their original 3D animation. Seated leaders retain their 3D thrones because no seated sprite art exists. Leaders' carried Flag bundles remain separate 3D equipment so inventory is never hidden. Sprite loading or decoding failure, or a GPU texture limit below 4096, retains the 3D models.
 
-Regenerate the atlas from the unpacked approved Mobile Sprite Pack with `python3 scripts/tools/build_mobile_sprite_atlas.py /absolute/path/to/unpacked-pack`. The script uses Pillow, verifies dimensions and every copied source pixel, and writes the PNG plus source hashes and layout metadata. The PNG is about 3 MB; an uncompressed RGBA texture is 32 MiB. No mipmaps are allocated.
+Regenerate the atlas from the unpacked approved Mobile Sprite Pack with `python3 scripts/tools/build_mobile_sprite_atlas.py /absolute/path/to/unpacked-pack`. The script uses Pillow, verifies dimensions and every copied source pixel, and writes a lossless WebP plus source hashes and layout metadata. Alpha values are normalized exactly to the existing shader cutout: discarded pixels become transparent, surviving RGB is unchanged. The runtime atlas is about 2 MB; an uncompressed RGBA texture is 32 MiB. No mipmaps are allocated.
 
 ## Verification
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Pack the approved mobile sprite PNGs without resampling or changing pixels.
+"""Pack approved sprite sheets with identical visible RGB and cutout coverage.
 
 Requires Pillow. Run from any directory:
   python scripts/tools/build_mobile_sprite_atlas.py /path/to/unpacked-asset-pack
-The input contains manifest.json and signifiers/metadata.json. PNG encoding and
-JSON order are deterministic for a fixed Pillow version. No source is modified.
+The input contains manifest.json and signifiers/metadata.json. Lossless WebP encoding and JSON order are deterministic for a fixed Pillow
+version. Only shader-discarded pixels/unused alpha are normalized; source files
+and every visible RGB value are unchanged.
 """
 from __future__ import annotations
 
@@ -76,7 +77,7 @@ def build(source: Path, root: Path = ROOT) -> dict:
     ]:
         add(key, 'signifiers/' + filename, 1030, y, width, height, 160, [80, 150])
 
-    manifest = dict(schemaVersion=1, image='/assets/mobile-sprites/atlas.png',
+    manifest = dict(schemaVersion=1, image='/assets/mobile-sprites/atlas.webp',
                     width=WIDTH, height=HEIGHT, padding=PADDING,
                     frameDurationMs=140, sheets=sheets,
                     signifiers=dict(neckAnchor=modular['neckAnchor'],
@@ -87,18 +88,31 @@ def build(source: Path, root: Path = ROOT) -> dict:
                                     headOffsets={direction: data['headOffsets'] for direction, data in modular['directions'].items()},
                                     drawOrder={direction: data['drawOrder'] for direction, data in modular['directions'].items()}),
                     sampling=dict(filter='nearest', mipmaps=False,
-                                  note='Whole sheets are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells.'))
-    png_path = root / 'web/public/assets/mobile-sprites/atlas.png'
+                                  alphaThreshold=0.5, encoding='lossless WebP, shader-equivalent cutout alpha',
+                                  note='All visible source RGB and cutout coverage are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells.'))
+    image_path = root / 'web/public/assets/mobile-sprites/atlas.webp'
     json_path = root / 'web/src/render/actors/mobileSpriteAtlas.json'
-    png_path.parent.mkdir(parents=True, exist_ok=True)
+    image_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(png_path, format='PNG', optimize=False, compress_level=9)
+    # Shader discards alpha < .5 and emits alpha=1 for every surviving texel.
+    # Normalize only those unused values, then encode losslessly. No quantization.
+    mask = canvas.getchannel('A').point(lambda alpha: 255 if alpha >= 128 else 0)
+    opaque = canvas.copy()
+    opaque.putalpha(255)
+    cutout = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+    cutout.paste(opaque, (0, 0), mask)
+    assert cutout.getchannel('A').tobytes() == mask.tobytes()
+    original_bytes, packed_bytes = canvas.tobytes(), cutout.tobytes()
+    for i in range(0, len(original_bytes), 4):
+        if original_bytes[i + 3] >= 128:
+            assert original_bytes[i:i + 3] == packed_bytes[i:i + 3]
+    cutout.save(image_path, format='WEBP', lossless=True, method=6, exact=True)
     json_path.write_text(json.dumps(manifest, indent=2) + '\n')
-    # Verify saved pixels, including transparent margins, survived PNG encoding.
-    with Image.open(png_path) as saved:
+    # Verify lossless decode preserves every normalized pixel exactly.
+    with Image.open(image_path) as saved:
         assert saved.mode == 'RGBA' and saved.size == (WIDTH, HEIGHT)
-        assert saved.tobytes() == canvas.tobytes()
-    print(f'Packed {len(sheets)} sheets into {WIDTH}x{HEIGHT}: {png_path.stat().st_size:,} bytes')
+        assert saved.tobytes() == cutout.tobytes()
+    print(f'Packed {len(sheets)} sheets into {WIDTH}x{HEIGHT}: {image_path.stat().st_size:,} bytes')
     return manifest
 
 

@@ -102,7 +102,7 @@ jobs:
   update-browser:
     needs: [client]
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: web
@@ -121,12 +121,14 @@ jobs:
         with:
           name: github-pages
           path: ${{ runner.temp }}/flaghack-pages
-      - name: Verify mobile HUD, Crow and upward explosions in exact built artifact
+      - name: Verify mobile sprites, pixel HUD, Crow and explosions in exact built artifact
         run: |
           mkdir -p dist
           tar -xf "$RUNNER_TEMP/flaghack-pages/artifact.tar" -C dist
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-pixel-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-hud-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
@@ -137,6 +139,8 @@ jobs:
         with:
           name: update-browser-smoke
           path: |
+            web/host-release/mobile-sprites-smoke/
+            web/host-release/mobile-pixel-smoke/
             web/host-release/mobile-hud-smoke/
             web/host-release/auto-style-smoke/
             web/host-release/explosion-smoke/

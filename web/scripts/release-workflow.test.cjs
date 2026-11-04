@@ -64,7 +64,7 @@ test('host package smoke launches the configured branded executable, not the leg
   assert.equal(host.portable.artifactName, 'Flaghack-Host-Windows-x64.${ext}');
 });
 
- test('new mobile, Crow and explosion checks gate publication against the built Pages artifact', () => {
+test('mobile sprites, pixel HUD, Crow and explosion checks gate publication against the built Pages artifact', () => {
   const browser = workflow.jobs['update-browser'];
   assert.deepEqual(browser.needs, ['client']);
   assert.equal(browser['runs-on'], 'macos-15');
@@ -73,6 +73,25 @@ test('host package smoke launches the configured branded executable, not the leg
   const runs = browser.steps.map(step => step.run || '').join('\n');
   assert.match(runs, /npm run build:server/);
   assert.match(runs, /artifact\.tar/);
-  for (const script of ['verify-mobile-hud-browser.mjs', 'verify-auto-style-browser.mjs', 'verify-explosion-browser.mjs', 'verify-mobile-ley-browser.mjs']) assert.ok(runs.includes(script));
+  assert.doesNotMatch(runs, /npm run build(?:\s|:pages)/);
+  assert.ok(browser['timeout-minutes'] >= 60);
+  const evidence = browser.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'));
+  assert.equal(evidence.if, 'always()');
+  for (const directory of ['mobile-sprites-smoke', 'mobile-pixel-smoke', 'mobile-hud-smoke', 'auto-style-smoke', 'explosion-smoke', 'mobile-ley-smoke']) assert.ok(evidence.with.path.includes(`web/host-release/${directory}/`));
+  for (const script of ['verify-mobile-sprites-browser.mjs', 'verify-mobile-pixel-browser.mjs', 'verify-mobile-hud-browser.mjs', 'verify-auto-style-browser.mjs', 'verify-explosion-browser.mjs', 'verify-mobile-ley-browser.mjs']) assert.ok(runs.includes(script));
   assert.doesNotMatch(runs, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
+});
+
+
+test('mobile preview keeps Pages and native checks without enforcing legacy solo bundle limits', () => {
+  const preview = yaml.load(readFileSync(join(__dirname, '../../.github/workflows/mobile-sprites-preview.yml'), 'utf8'));
+  const fullRuns = preview.jobs['full-checks'].steps.map(step => step.run || '').join('\n');
+  for (const command of ['npm run build:pages', 'npm run build:server', 'npm run host-app:test', 'npm run host-app:build', 'node scripts/verify-pages-build.cjs']) assert.ok(fullRuns.includes(command));
+  const allRuns = Object.values(preview.jobs).flatMap(job => job.steps.map(step => step.run || '')).join('\n');
+  assert.doesNotMatch(allRuns, /build-game-bundle|preview-main-bundle|preview-iteration-bundle/);
+  const native = preview.jobs['native-browser'];
+  assert.equal(native['runs-on'], 'macos-15');
+  const nativeRuns = native.steps.map(step => step.run || '').join('\n');
+  for (const name of ['startup', 'mobile-sprites', 'mobile-pixel', 'mobile-hud', 'mobile-command', 'auto-style', 'explosion', 'mobile-ley']) assert.match(nativeRuns, new RegExp(`verify-${name}-browser\\.(?:mjs|cjs)`));
+  assert.doesNotMatch(nativeRuns, /--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
 });

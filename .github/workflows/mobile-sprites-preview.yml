@@ -31,7 +31,7 @@ jobs:
       - run: node scripts/verify-pages-build.cjs
   native-browser:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: web
@@ -57,6 +57,8 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+      - name: Verify native startup and restored boss model
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
       - name: Verify mobile sprites, real pixels, occlusion and crowd timings
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
       - name: Verify mobile pixel dialogue and desktop isolation
@@ -67,12 +69,19 @@ jobs:
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Verify automatic human styles and NPC Crow through real lobbies
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
+      - name: Verify live explosion fixes and mobile ley presentation
+        run: |
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-ley-browser.mjs
       - name: Upload native screenshots and normal-speed recordings
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mobile-sprites-native-smoke
           path: |
+            web/host-release/startup-smoke/
+            web/host-release/explosion-smoke/
+            web/host-release/mobile-ley-smoke/
             web/host-release/mobile-sprites-smoke/
             web/host-release/mobile-pixel-smoke/
             web/host-release/mobile-hud-smoke/
