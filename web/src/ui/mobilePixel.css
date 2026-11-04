@@ -106,7 +106,8 @@ html[data-device-layout='mobile'] .mc-tabs { gap: 6px; }
 html[data-device-layout='mobile'] .mc-page :is(.panel-title, .job-name, .bb-name, .pb-name) { letter-spacing: 0; }
 html[data-device-layout='mobile'] .mc-page :is(.panel-hint, .panel-meta, .build-status, .sel-info, .job-name, .bb-name, .pb-name) { font-size: 18px; line-height: 1.15; }
 /* Keep the existing resource/timer DOM and measured arrow exclusion bounds. */
-html[data-device-layout='mobile'] .mc-status :is(.res, .clock, .boss-hud) { background: #2a211e; }
+html[data-device-layout='mobile'] .mc-status :is(.res, .clock, .boss-hud),
+html[data-device-layout='mobile'] .ff-flag-counter { background: #2a211e; }
 html[data-device-layout='mobile'] :is(.mc-status, .ff-flag-counter) .num { font-family: var(--mp-body); font-weight: 400; }
 html[data-device-layout='mobile'] .mc-top .btn { font-size: 18px; padding-inline: 3px; }
 html[data-device-layout='mobile'] .mc-resources :is(.res-row, .attn) { font-size: 16px; line-height: 1; }

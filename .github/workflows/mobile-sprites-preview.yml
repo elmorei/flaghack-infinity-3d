@@ -114,12 +114,14 @@ jobs:
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
       - name: Verify shared Flag-counter typography and card-table regressions
         run: |
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-sleeve-browser.mjs
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-beacon-card-browser.mjs
-          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs
+          status=0
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-sleeve-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-beacon-card-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs || status=1
+          exit "$status"
       - name: Upload native card-game and intro evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

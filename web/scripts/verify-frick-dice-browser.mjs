@@ -231,7 +231,18 @@ async function verifyDice(spec,url){
       const settled=await roll(spec,seeds[result],result);entry.rolls.push(settled);
       assert.equal(settled.snapshot.backdropReady,true,'Approved clean scenery loaded');
       assert.equal(settled.snapshot.backdropKind,spec.name==='small-phone'?'portrait':'landscape','Responsive scenery uses the appropriate composition');
-      await page.locator('.ff-die-stage').scrollIntoViewIfNeeded();
+      // The table is fixed and already visible. Measure the current node in
+      // one turn: a live revision can replace it during async scroll stability.
+      const dieView=await page.evaluate(()=>{
+        const stage=document.querySelector('.ff-die-stage');
+        if(!stage)throw Error('Settled die stage is missing');
+        const r=stage.getBoundingClientRect();
+        return {x:r.x,y:r.y,width:r.width,height:r.height,viewport:{width:innerWidth,height:innerHeight},die:window.flaghack.renderer.frickScene.snapshot().die};
+      });
+      assert.ok(dieView.width>0&&dieView.height>0,'Settled die stage has positive dimensions');
+      assert.ok(dieView.x>=-1&&dieView.y>=-1&&dieView.x+dieView.width<=dieView.viewport.width+1&&dieView.y+dieView.height<=dieView.viewport.height+1,'Settled die stage remains wholly visible without scrolling');
+      assert.equal(dieView.die.face,result);assert.equal(dieView.die.result,result);assert.equal(dieView.die.progress,1);
+      settled.dieView=dieView;
       await page.screenshot({path:join(OUT,spec.name+'-die-'+result+'.png')});
       await act('Exit · forfeit wager',spec);await page.locator('.ff-overlay').waitFor({state:'hidden'});
     }
@@ -297,7 +308,7 @@ async function verifyDice(spec,url){
     assert.equal((await state()).session,null,'Exit during roll never auto deals later');
     assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),funds-2,'Committed roll exit forfeits exactly one stake');
     assert.deepEqual(entry.errors,[]);check(spec.name+': physical die, all host gating, stable scene/control bounds, HUD Flag styling/count, disabled actions, physical die and another-hand lifecycle');
-  }catch(error){entry.error=error.stack||String(error);entry.failureState=await state().catch(()=>null);await page.screenshot({path:join(OUT,spec.name+'-failure.png')}).catch(()=>{});throw error;}
+  }catch(error){entry.error=error.stack||String(error);entry.failureState=await state().catch(()=>null);entry.failureLayout=await page.evaluate(()=>window.__readStableTable()).catch(()=>null);await page.screenshot({path:join(OUT,spec.name+'-failure.png')}).catch(()=>{});throw error;}
   finally{await context.close();}
 }
 async function diceDemo(url){
