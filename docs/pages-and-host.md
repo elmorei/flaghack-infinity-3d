@@ -5,6 +5,10 @@ GitHub Pages serves only the browser game. It does **not** run a match server.
 Solo play runs in the browser; multiplayer stays distributed, with one player's computer
 running one authoritative match. Other players need only their browser and an invite.
 
+The old **solo desktop launcher is deprecated**; use the browser game for solo play too.
+The separate Windows match host described here is not deprecated. Existing solo-launcher
+installations and local data are preserved; see the [legacy launcher notice](desktop-launcher.md).
+
 ## Host a match (Windows x64)
 
 1. Open the game page and choose **Download Windows host**. That link downloads the host

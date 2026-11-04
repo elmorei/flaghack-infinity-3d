@@ -20,7 +20,9 @@ This iteration adds camp toggles, 0–5 days or Unlimited, advanced match settin
 Play the [browser version](https://elmorei.github.io/flaghack-infinity-3d/) without installing anything.
 For multiplayer, one player downloads the separate Windows host from the game page and shares an invite.
 See the [Pages and standalone host guide](docs/pages-and-host.md), including experimental tunnel limitations.
-The existing offline launcher remains a separate option.
+The old Windows **solo launcher is deprecated**. Use the browser version for current play;
+the separate multiplayer host remains supported. Existing solo-launcher installs, cached games,
+and saved preferences are retained. See [legacy launcher details](docs/desktop-launcher.md).
 
 ### Develop locally
 

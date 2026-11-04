@@ -1,4 +1,28 @@
-# FLAGHACK desktop launcher
+# FLAGHACK solo desktop launcher (deprecated)
+
+**The offline single-player Windows launcher is deprecated.** For current play, open the
+[browser game](https://elmorei.github.io/flaghack-infinity-3d/). For multiplayer hosting, use the
+separate [Windows match host](pages-and-host.md), which is not deprecated.
+
+## What this means for existing players
+
+- New players should use the browser game rather than install the solo launcher.
+- Existing installations can still play their bundled or verified cached game offline.
+  Deprecation does not uninstall the app, delete downloaded builds, reset preferences, or
+  remove Training Burn progress. Browser storage is separate; progress is not automatically
+  transferred to the browser.
+- Published versioned installers, blockmaps, update manifests, and game bundles are retained
+  for compatibility. This deprecation notice does not freeze or redirect the update feeds,
+  increase bundle limits, or change the launcher's security boundary.
+- The in-game notice reaches installed launchers when players install a compatible game-content
+  update. A launcher-window notice is also included in source for future maintenance builds;
+  this change does not require or publish a replacement installer.
+
+The implementation and maintenance reference below describes the legacy launcher. It is not
+an installation recommendation or a promise of future feature updates. Any future feed
+retirement must be explicit and preserve the last working assets and existing local data.
+
+## Legacy update paths
 
 The Windows x64 Electron launcher has two independent update paths:
 

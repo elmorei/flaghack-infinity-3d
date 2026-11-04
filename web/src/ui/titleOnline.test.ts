@@ -46,7 +46,7 @@ function setup(invite = false, hosted = false, remote = true) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Pages Join screen', () => {
-  it('preserves the offline launcher solo-first title with no Join or dead download link', () => {
+  it('deprecates the solo launcher without removing offline play or adding blocked links', () => {
     const { app, root, button, fields } = setup(true, false, false);
     expect(visible(button('Join the burn'))).toBe(false);
     expect(visible(button('Begin the Survey'))).toBe(true);
@@ -54,7 +54,12 @@ describe('Pages Join screen', () => {
     expect(all(root).find(node => node.classList.contains('title'))!.classList.contains('hosted')).toBe(false);
     expect(visible(all(root).find(node => node.classList.contains('quote'))!)).toBe(true);
     expect(all(root).filter(node => node.tagName === 'a')).toHaveLength(0);
-    expect(text(root)).toContain('Offline edition');
+    const notice = all(root).find(node => node.classList.contains('mp-card'))!;
+    expect(visible(notice)).toBe(true);
+    expect(text(notice)).toContain('Solo launcher deprecated');
+    expect(text(notice)).toContain('elmorei.github.io/flaghack-infinity-3d/');
+    expect(text(notice)).toContain('Saved progress stays in this launcher.');
+    expect(text(notice)).toContain('Training Burn still work here');
     fields[1].input('Alice'); button('Join the burn').click(); expect(app.joinHost).not.toHaveBeenCalled();
     button('Begin the Survey').click(); expect(app.session.screen).toBe('lobby');
   });
@@ -67,7 +72,7 @@ describe('Pages Join screen', () => {
     const links = all(root).filter(node => node.tagName === 'a');
     expect(links.map(link => link.href)).toEqual(['https://pages.example/game/?other=1&view=mobile#host=invite', 'https://pages.example/game/?other=1&view=desktop#host=invite']);
     expect(links[0].getAttribute('aria-current')).toBe('page');
-    expect(text(root)).not.toMatch(/Windows|launcher|standalone.*app/i);
+    expect(text(root)).not.toMatch(/Windows|launcher|deprecated|standalone.*app/i);
   });
   it('requires handle/target, and never joins as a side effect of typing or pasting', () => {
     const { app, fields, button, status } = setup();
@@ -104,7 +109,8 @@ describe('Pages Join screen', () => {
     screen.dispose(); expect(app.cancelJoin).toHaveBeenCalled();
   });
   it('preserves host-served defaults and displays build mismatch with a reload option', () => {
-    const { app, fields, status, button, update } = setup(false, true);
+    const { app, fields, status, button, update, root } = setup(false, true);
+    expect(text(root)).not.toContain('deprecated');
     expect(fields[0].value).toBe('https://pages.example');
     app.joinError = 'The page and host use different game builds. Reload this page and update the hosting app to the same release.'; update();
     expect(status()).toMatch(/different game builds/); expect(visible(button('Reload'))).toBe(true);

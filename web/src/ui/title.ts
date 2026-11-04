@@ -179,7 +179,7 @@ export class TitleScreen implements UiPart {
       'mp-card panel',
       host.app.remoteHostsAvailable
         ? '<div class="panel-title">Multiplayer</div><p>Have an invite? Paste your host’s HTTPS address above, then choose Join. Solo play needs no host.</p>'
-        : '<div class="panel-title">Offline edition</div><p>Solo play and the Training Burn work here without a host. For multiplayer, open the online page in your web browser.</p>',
+        : '<div class="panel-title">Solo launcher deprecated</div><p>Use the current browser game at elmorei.github.io/flaghack-infinity-3d/. Offline play and the Training Burn still work here. Saved progress stays in this launcher.</p>',
       col,
     );
 
