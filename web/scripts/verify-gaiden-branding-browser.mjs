@@ -67,10 +67,13 @@ async function title(page, mobile, label) {
   const fits = box.x >= -1 && box.y >= -1 && box.x + box.width <= viewport.width + 1 && box.y + box.height <= viewport.height + 1;
   // Forcing the unchanged 560px desktop column onto a phone is a routing test,
   // not a claim that this branding change redesigns the desktop layout.
-  if (mobile || viewport.width >= 600) assert.ok(fits, `${label}: logo fits without clipping`);
+  if (mobile) assert.ok(fits, `${label}: mobile logo fits without clipping`);
+  // Original desktop art deliberately absorbs transparent glow padding above its
+  // box via negative margins. Check its horizontal extent, then inspect the PNG.
+  if (!mobile && viewport.width >= 600) assert.ok(box.x >= -1 && box.x + box.width <= viewport.width + 1, `${label}: desktop art fits horizontally`);
   if (mobile) assert.equal(await page.locator('.title-wordmark').evaluate(image => getComputedStyle(image).animationName), 'none');
   await page.screenshot({ path:join(OUT, `${label}.png`) });
-  return { ...data, artwork:art, bounds:box, fitsViewport:fits };
+  return { ...data, artwork:art, bounds:box, artboardFitsViewport:fits };
 }
 const cases = [
   {name:'phone-portrait',w:390,h:844,ua:PHONE,touch:true,mobile:true,fallback:true},
