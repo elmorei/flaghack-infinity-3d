@@ -102,7 +102,15 @@ try{
     await page.locator('#startup').waitFor({state:'detached'});
     await page.evaluate(()=>{const a=window.flaghack;a.startMatch({seed:'mobile-hud-native',humans:[0],rtsFactions:[0],match:{...a.session.settings.match,active:[0,1,2,3],bossMode:false,days:3,maxSignifiers:0}});});
     await page.waitForFunction(()=>{const a=window.flaghack;return a.session.screen==='playing'&&a.world.time>1&&a.session.viewBlend===1&&!a.controls.freshWorld&&a.renderer.ctx;});
-    await page.waitForTimeout(800);entry.comparisons.push(await compare(spec.name,spec.mobile));
+    // A wall-clock delay can expire while the native renderer is still finishing
+    // the title-to-command camera transition, especially on a high-DPR viewport.
+    // Observe the production rig/projection instead of sampling a perspective frame.
+    await page.waitForFunction(expected=>{
+      const a=window.flaghack,c=a.renderer.ctx.camera,rig=a.controls.rig;
+      return rig.mode==='play'&&rig.transT>=rig.transDur
+        &&(c.projectionMatrix.elements[15]>.5)===expected;
+    },spec.mobile,{timeout:30000});
+    entry.comparisons.push(await compare(spec.name,spec.mobile));
     if(spec.name==='phone-portrait'){
       await page.setViewportSize({width:844,height:390});await page.waitForTimeout(900);
       const resized=await compare('phone-resized-landscape',true);entry.comparisons.push(resized);
