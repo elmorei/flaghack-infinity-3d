@@ -308,7 +308,7 @@ async function verifyDice(spec,url){
     assert.equal((await state()).session,null,'Exit during roll never auto deals later');
     assert.equal(await page.evaluate(()=>window.flaghack.world.avatarOf(0).carried.length),funds-2,'Committed roll exit forfeits exactly one stake');
     assert.deepEqual(entry.errors,[]);check(spec.name+': physical die, all host gating, stable scene/control bounds, HUD Flag styling/count, disabled actions, physical die and another-hand lifecycle');
-  }catch(error){entry.error=error.stack||String(error);entry.failureState=await state().catch(()=>null);await page.screenshot({path:join(OUT,spec.name+'-failure.png')}).catch(()=>{});throw error;}
+  }catch(error){entry.error=error.stack||String(error);entry.failureState=await state().catch(()=>null);entry.failureLayout=await page.evaluate(()=>window.__readStableTable()).catch(()=>null);await page.screenshot({path:join(OUT,spec.name+'-failure.png')}).catch(()=>{});throw error;}
   finally{await context.close();}
 }
 async function diceDemo(url){
