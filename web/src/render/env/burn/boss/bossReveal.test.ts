@@ -1,7 +1,9 @@
 import * as fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { createBossEyeState, type BossState } from '../../../../sim/boss';
+import type { MobileSprites } from '../../../actors/mobileSprites';
 import { BOSS_GAMEPLAY_SCALE } from '../../../../sim/bossDimensions';
 import { normalizeMatch } from '../../../../sim/matchSettings';
 import { BOSS_HEIGHT, BOSS_SCALE, disposeBossModel, prepareBossModel } from './bossModel';
@@ -216,5 +218,37 @@ describe('boss reveal presentation', () => {
     const model = new THREE.Group(); resolve(model); await effect.ready;
     expect(model.parent).toBeNull();
     expect(environment.root.children).toHaveLength(0);
+  });
+});
+
+
+describe('mobile boss sprite integration', () => {
+  it('uses sprites only for standing idle/walk after emergence, preserving reveal, attacks and death', async () => {
+    const environment = env();
+    const cast = vi.fn((_index: number, _pose: unknown, supported = true) => supported);
+    environment.ctx.shared = {mobileSprites: {cast} as unknown as MobileSprites};
+    Object.assign(environment.ctx.world, {lattice: {version: 0, nodes: [], edges: []}, survey: {version: 0, edgeLey: new Int8Array()}, factions: []});
+    const boss: BossState = {lightning: [], id: 88, pos: {x: 0, z: 0}, yaw: 0, hp: 5000, maxHp: 5000,
+      spawnedAt: 590, action: 'emerge', actionAt: 590, eye: createBossEyeState(590), actionSeq: 0, hitSeq: -1,
+      target: null, focusFaction: null, objectiveAltarId: null, routeStartStride: 0, nextSceneryStompStride: 0,
+      opportunisticAfter: 0, retaliateId: null, retaliateUntil: 0, nextAttackAt: 0, interruptImmuneUntil: 0,
+      deathAt: null, barrier: null, stride: 0, held: null, crouched: false};
+    environment.ctx.world.boss = boss;
+    const effect = new Effigy(environment, async () => prepareBossModel(await sourceModel()));
+    await effect.ready;
+    const model = environment.root.getObjectByName('boss-model-32m')!;
+    try {
+      at(environment, effect, 90.5); expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      for (const action of ['idle', 'walk'] as const) {
+        boss.action = action; at(environment, effect, 92);
+        expect(cast).toHaveBeenLastCalledWith(5, expect.objectContaining({moving: action === 'walk'}), true); expect(model.visible).toBe(false);
+      }
+      boss.action = 'swipe'; boss.actionAt = 592; at(environment, effect, 92.1);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      boss.action = 'idle'; boss.crouched = true; at(environment, effect, 92.2);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      boss.crouched = false; boss.action = 'death'; boss.deathAt = 592; boss.hp = 0; at(environment, effect, 93);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+    } finally { effect.dispose(); }
   });
 });

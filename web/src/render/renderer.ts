@@ -14,6 +14,7 @@ import type { WorldCamera } from './cameraProjection';
 import { FESTIVAL_BPM } from '../sim/constants';
 import type { GameEvent } from '../sim/events';
 import type { World } from '../sim/world';
+import { MobileSprites } from './actors/mobileSprites';
 import { ActorsRenderer } from './actors/actorsRenderer';
 import type { PostFxState, RenderContext, RenderModule } from './context';
 import { EnvRenderer } from './env/envRenderer';
@@ -111,6 +112,7 @@ export class GameRenderer {
       shared: { fx: this.fx },
     };
     this.ctx = ctx;
+    if (this.mobilePresentation) ctx.shared.mobileSprites = new MobileSprites(ctx);
     this.modules = [
       new EnvRenderer(ctx),
       new SurveyRenderer(ctx),
@@ -118,6 +120,7 @@ export class GameRenderer {
       new WreckageRenderer(ctx),
       new ActorsRenderer(ctx),
       new VfxRenderer(ctx),
+      ...(ctx.shared.mobileSprites ? [{update: () => {}, dispose: () => ctx.shared.mobileSprites!.dispose()}] : []),
     ];
     // Mobile keeps the actual world/telegraphs but skips bloom, grain, parchment and drug grading.
     if (!this.mobilePresentation) this.post = new PostFx(ctx);
@@ -167,7 +170,9 @@ export class GameRenderer {
     ctx.time += dt;
     ctx.beat = this.beatSource?.() ?? (ctx.time * FESTIVAL_BPM) / 60;
     this.updateFx(dt);
+    ctx.shared.mobileSprites?.begin();
     for (const m of this.modules) m.update(dt);
+    ctx.shared.mobileSprites?.end();
     const table = getFrickFrackView();
     const encounter = ctx.world.frickFrack?.sessions[ctx.session.playerFaction];
     if (table && encounter && frickFrackInputLocked(ctx.world, ctx.session)

@@ -4,7 +4,7 @@ import type {RenderContext} from '../context';
 import {buildFrickFrackWizard, cheatCardLabel, FrickFrackRenderer, WIZARD_HEIGHT} from './frickFrackRenderer';
 
 function fixture() {
-  const h = {id: 42, pos: {x: 10, z: 20}, facing: .8, koUntil: 0, status: 'idle'};
+  const h = {id: 42, pos: {x: 10, z: 20}, facing: .8, koUntil: 0, status: 'idle', effects: []};
   const world = {frickFrack: {wizardId: h.id, drops: [] as any[]}, hippies: new Map([[h.id, h]]), time: 2, collision: {groundHeight: () => 3}};
   const ctx = {world, time: 4, shared: {unitAnchors: new Map()}, scene: new THREE.Scene()} as unknown as RenderContext;
   const rings = {push: vi.fn()}, icons = {push: vi.fn()};
@@ -63,4 +63,25 @@ describe('Frick-frack actors', () => {
     const e = fixture(); e.h.koUntil = 5; e.renderer.update(.5); expect(e.renderer.wizard.rotation.x).toBeLessThan(-1.5);
     e.world.time = 6; e.renderer.update(.5); expect(e.renderer.wizard.rotation.x).toBeGreaterThan(-.02); e.renderer.dispose();
   });
+  it('uses mobile art only for supported wizard poses and preserves the KO body', () => {
+    const e = fixture();
+    const cast = vi.fn((_index: number, _pose: unknown, supported: boolean) => supported);
+    e.ctx.shared.mobileSprites = {cast} as unknown as NonNullable<RenderContext['shared']['mobileSprites']>;
+    const before = JSON.stringify(e.h);
+    e.renderer.update(.1);
+    expect(cast).toHaveBeenLastCalledWith(4, expect.objectContaining({id: 42, height: WIZARD_HEIGHT}), true);
+    expect(e.renderer.wizard.visible).toBe(false);
+    expect(JSON.stringify(e.h)).toBe(before);
+    e.h.koUntil = 5; e.renderer.update(.5);
+    expect(cast.mock.lastCall?.[2]).toBe(false);
+    expect(e.renderer.wizard.visible).toBe(true);
+    expect(e.renderer.wizard.rotation.x).toBeLessThan(-1.5);
+    e.world.time = 6; e.renderer.update(1);
+    expect(cast.mock.lastCall?.[2]).toBe(true);
+    expect(e.renderer.wizard.visible).toBe(false);
+    cast.mockReturnValue(false); e.renderer.update(.1);
+    expect(e.renderer.wizard.visible).toBe(true); // Atlas unavailable.
+    e.renderer.dispose();
+  });
+
 });

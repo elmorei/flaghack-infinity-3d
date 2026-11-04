@@ -44,6 +44,7 @@ import {
 } from './hippieModel';
 import { InstanceSet, PLACE, castShadowPrefix, showInstances, type ActorView } from './lod';
 import { RING, STATUS_ICON, type StatusIcons, type UnitRings } from './overlays';
+import { signifierHead, signifierBody, supportsSignifierAnimation } from './mobileSprites';
 import { clamp01, damp, hash01b, writeTransform } from './util';
 
 const INITIAL_CAPACITY = 256;
@@ -284,7 +285,8 @@ export class HippieRenderer {
       look[HL.buff] = buff * (0.6 + 0.4 * Math.sin(t * 5 + v.seed * 6));
       const place = this.view.place(v.x, gy + airborneY + HIPPIE_MID_Y, v.z, HIPPIE_RADIUS, HIPPIE_DETAIL_RANGE, v.detailed);
       v.detailed = place === PLACE.detailed;
-      if (place !== PLACE.skip) {
+      const sprite = place !== PLACE.skip && !!ctx.shared.mobileSprites?.signifier({id: h.id, x: v.x, y: gy + airborneY, z: v.z, yaw: v.yaw, height: HIPPIE_HEAD_TOP * v.scale, moving: v.speed > .6}, signifierHead(look), signifierBody(h.carryingFlag >= 0, h.carryingLumber > 0, h.status, h.faction !== NEUTRAL), supportsSignifierAnimation(anim) && !stun && !wobble && !jitter && !knock && airborneY === 0 && h.koUntil <= w.time && look[HL.flash] === 0 && buff === 0);
+      if (place !== PLACE.skip && !sprite) {
         const set = this.levels[v.detailed ? 0 : 1].set;
         const slot = place === PLACE.coarse ? set.plain() : set.caster();
         const attrs = set.attrs;
@@ -302,7 +304,7 @@ export class HippieRenderer {
       this.mPivot.premultiply(this.mRoot);
       v.anchor.set(0, HIPPIE_HEAD_TOP - 0.1, 0).applyMatrix4(this.mPivot);
 
-      if (h.carryingFlag >= 0) {
+      if (h.carryingFlag >= 0 && !sprite) {
         const f = w.flags.get(h.carryingFlag);
         const ribbon = this.flags.ribbonColor(f ? f.owner : h.faction);
         const ph = hash01b(h.carryingFlag, 3);

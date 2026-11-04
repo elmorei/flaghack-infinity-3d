@@ -754,7 +754,15 @@ export class AvatarRenderer {
     const hidden = v.down && v.u.uDissolve.value >= 1;
     v.group.position.set(av.pos.x, av.pos.y + gy, av.pos.z);
     v.group.rotation.set(0, v.yaw, 0);
-    v.rig.mesh.visible = !hidden;
+    const sprite = !hidden && !!ctx.shared.mobileSprites?.cast(v.slot, {
+      id: av.id, x: av.pos.x, y: av.pos.y, z: av.pos.z, yaw: v.yaw,
+      height: v.rig.style.crown, moving: v.speed > .6,
+    }, av.action.kind === 'idle' && av.onGround && av.pushing < 0 && !av.input.throwMode
+      && !v.down && v.u.uDissolve.value === 0 && v.air < .01 && v.hold < .01
+      && t - v.swingAt >= SWING_TIME && t - v.throwAt >= THROW_TIME && t - v.plantAt >= PLANT_TIME
+      && t - v.hitAt >= HIT_TIME && t - v.landAt >= .25 && av.effects.every(e => e.until <= ctx.world.time)
+      && !acid);
+    v.rig.mesh.visible = !hidden && !sprite;
     v.rig.mesh.castShadow = v.u.uDissolve.value < 0.5 && this.view.casts(av.pos.x, av.pos.y + 1, av.pos.z);
     v.xray.visible = acid && !hidden && v.slot !== ctx.session.playerFaction;
     v.group.updateMatrixWorld(true);
@@ -766,6 +774,7 @@ export class AvatarRenderer {
     if (!hidden) {
       this.rings.push(av.pos.x, av.pos.y + gy + 0.035, av.pos.z, 0.95, color, 0.85 + 0.8 * v.channel, RING.avatar, v.slot * 0.25);
       this.fx.aura(av.pos.x, av.pos.y + gy, av.pos.z, v.channel, color, 0.85);
+      // The actual carried inventory remains a 3D equipment layer over the mobile body.
       this.pushQuiver(v, av);
     }
 

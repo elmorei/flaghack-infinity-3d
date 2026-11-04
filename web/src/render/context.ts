@@ -34,6 +34,8 @@ export interface RenderContext {
 
 /** Documented cross-module presentation hooks. */
 export interface SharedRender {
+  /** Mobile-only renderer and read-only presentation diagnostics; absent on desktop. */
+  mobileSprites?: import('./actors/mobileSprites').MobileSprites;
   /** Set by actors: world-space head positions of units by entity id (for VFX/labels). */
   unitAnchors?: Map<number, THREE.Vector3>;
   /** Set by structures: the GCC tabletop map texture size/updates use this canvas/texture. */

@@ -136,6 +136,15 @@ export class BossReveal {
     this.eyeFx?.aim(eyeBoss, world.time);
     this.eyeFx?.update(eyeBoss, world.time);
     this.combatFx?.update(this.age >= 0 ? boss : null, world.time);
+    if (boss && this.model.visible) {
+      const sprite = this.env.ctx.shared?.mobileSprites?.cast(5, {id: boss.id, x: at.x,
+        y: groundHeight(at.x, at.z, world.map.half ?? MAP_HALF), z: at.z, yaw: boss.yaw,
+        height: BOSS_HEIGHT, moving: boss.action === 'walk'},
+        this.age >= BOSS_COMBAT_TIMING.emerge && (boss.action === 'idle' || boss.action === 'walk')
+        && !boss.crouched && boss.hp > 0 && boss.deathAt === null && boss.eye?.chargeAt == null
+        && boss.eye?.firedAt == null && !boss.held && !boss.barrier && boss.lightning.length === 0);
+      if (sprite) this.model.visible = false;
+    }
   }
 
   update(burnElapsed: number): void {

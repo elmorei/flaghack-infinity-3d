@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "image": "/assets/mobile-sprites/atlas.png",
+  "width": 2048,
+  "height": 4096,
+  "padding": 2,
+  "frameDurationMs": 140,
+  "sheets": {
+    "dr-beef-supreme": {
+      "x": 2,
+      "y": 2,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "dr-beef-supreme-walk.png",
+      "sourceSha256": "24a2886e9966da7f12c052e588303a8f987adae0963ba6f3e0bbac60be7213bd",
+      "footYByCell": [
+        [
+          240,
+          240,
+          240,
+          240
+        ],
+        [
+          240,
+          240,
+          240,
+          240
+        ]
+      ],
+      "sourceModelKey": "avatar:faction0",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "beelzebub-crow": {
+      "x": 2,
+      "y": 518,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "beelzebub-crow-walk.png",
+      "sourceSha256": "085d12b40d8ac1430db3c3890fe146b7bd7913f4fcc2dc5fc0e3a19d62a3c908",
+      "footYByCell": [
+        [
+          240,
+          240,
+          240,
+          240
+        ],
+        [
+          240,
+          240,
+          240,
+          240
+        ]
+      ],
+      "sourceModelKey": "avatar:faction1",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "dj-scarecrow": {
+      "x": 2,
+      "y": 1034,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "dj-scarecrow-walk.png",
+      "sourceSha256": "db9db119271974035e23ec16fc59bb061bd65763373763e1036247da676d9a41",
+      "footYByCell": [
+        [
+          240,
+          240,
+          240,
+          240
+        ],
+        [
+          240,
+          240,
+          240,
+          240
+        ]
+      ],
+      "sourceModelKey": "avatar:faction2",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "president-jaguar": {
+      "x": 2,
+      "y": 1550,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "president-jaguar-walk.png",
+      "sourceSha256": "ecb5f590e3d3532d6fda46ff73aab9d510f1c4df8dc1f15840ae5c85626f4ac6",
+      "footYByCell": [
+        [
+          240,
+          240,
+          240,
+          240
+        ],
+        [
+          240,
+          240,
+          240,
+          240
+        ]
+      ],
+      "sourceModelKey": "avatar:faction3",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "frick-frack-wizard": {
+      "x": 2,
+      "y": 2066,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "frick-frack-wizard-walk.png",
+      "sourceSha256": "f7f7227bd727619f90fd4dcc9eb965ccb5ac3ffc88b765c364f0f02809a98dee",
+      "footYByCell": [
+        [
+          238,
+          238,
+          238,
+          238
+        ],
+        [
+          238,
+          238,
+          238,
+          238
+        ]
+      ],
+      "sourceModelKey": "frickFrackWizard",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "skeletal-boss": {
+      "x": 2,
+      "y": 2582,
+      "w": 1024,
+      "h": 512,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        128,
+        240
+      ],
+      "source": "skeletal-boss-walk.png",
+      "sourceSha256": "9088d3f8544da38ff0bd0a91c54ee31d1a2a9b7e6654c3729d47dc886aa5b034",
+      "footYByCell": [
+        [
+          238,
+          238,
+          238,
+          238
+        ],
+        [
+          238,
+          238,
+          238,
+          238
+        ]
+      ],
+      "sourceModelKey": "skeletalBoss",
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      }
+    },
+    "bodies-front": {
+      "x": 1030,
+      "y": 2,
+      "w": 640,
+      "h": 1120,
+      "cellWidth": 160,
+      "cellHeight": 160,
+      "columns": 4,
+      "rows": 7,
+      "anchor": [
+        80,
+        150
+      ],
+      "source": "signifiers/FLAGHACK-Signifier-Walk-Bodies.png",
+      "sourceSha256": "55fe952291668832bb5cb75c43a50b4217afe5a24a763c78162167b73c5ac51c",
+      "footYByCell": [
+        [
+          147,
+          148,
+          148,
+          148
+        ],
+        [
+          147,
+          148,
+          148,
+          148
+        ],
+        [
+          147,
+          148,
+          148,
+          149
+        ],
+        [
+          148,
+          148,
+          148,
+          149
+        ],
+        [
+          147,
+          148,
+          148,
+          148
+        ],
+        [
+          147,
+          148,
+          148,
+          149
+        ],
+        [
+          146,
+          146,
+          146,
+          146
+        ]
+      ]
+    },
+    "bodies-away": {
+      "x": 1030,
+      "y": 1126,
+      "w": 640,
+      "h": 1120,
+      "cellWidth": 160,
+      "cellHeight": 160,
+      "columns": 4,
+      "rows": 7,
+      "anchor": [
+        80,
+        150
+      ],
+      "source": "signifiers/FLAGHACK-Signifier-Rear-Walk-Bodies.png",
+      "sourceSha256": "22c8cb95f4fba92f012004b37b31b02227c8fbfcd6a64c1631bd4bb0da1877f6",
+      "footYByCell": [
+        [
+          143,
+          141,
+          143,
+          140
+        ],
+        [
+          144,
+          141,
+          144,
+          142
+        ],
+        [
+          144,
+          141,
+          144,
+          141
+        ],
+        [
+          142,
+          140,
+          143,
+          139
+        ],
+        [
+          148,
+          144,
+          141,
+          139
+        ],
+        [
+          145,
+          142,
+          145,
+          144
+        ],
+        [
+          141,
+          138,
+          140,
+          139
+        ]
+      ]
+    },
+    "heads-front": {
+      "x": 1030,
+      "y": 2250,
+      "w": 960,
+      "h": 480,
+      "cellWidth": 160,
+      "cellHeight": 160,
+      "columns": 6,
+      "rows": 3,
+      "anchor": [
+        80,
+        150
+      ],
+      "source": "signifiers/FLAGHACK-Signifier-Heads.png",
+      "sourceSha256": "c72ec3430befa2be5c80935e30be6a353a5624702d0ddfca55dc5de290665fc3"
+    },
+    "heads-away": {
+      "x": 1030,
+      "y": 2734,
+      "w": 960,
+      "h": 480,
+      "cellWidth": 160,
+      "cellHeight": 160,
+      "columns": 6,
+      "rows": 3,
+      "anchor": [
+        80,
+        150
+      ],
+      "source": "signifiers/FLAGHACK-Signifier-Rear-Heads.png",
+      "sourceSha256": "83776abf4f63a6d1216a6245058a80bcfef536bd0d594687b871e603ae57ce95"
+    },
+    "flag-away": {
+      "x": 1030,
+      "y": 3218,
+      "w": 640,
+      "h": 160,
+      "cellWidth": 160,
+      "cellHeight": 160,
+      "columns": 4,
+      "rows": 1,
+      "anchor": [
+        80,
+        150
+      ],
+      "source": "signifiers/FLAGHACK-Signifier-Rear-Flag-Foreground.png",
+      "sourceSha256": "e5dfc34ee9da3b2fcb3178c69d48646b9d817014ebfb9f607c9007244d7d36e3"
+    }
+  },
+  "signifiers": {
+    "neckAnchor": [
+      80,
+      78
+    ],
+    "footAnchor": [
+      80,
+      150
+    ],
+    "heads": [
+      "shag",
+      "long-hair",
+      "afro",
+      "buzz-cut",
+      "dreads",
+      "beard",
+      "headband",
+      "flower-crown",
+      "bucket-hat",
+      "top-hat",
+      "beanie",
+      "led-shades",
+      "round-sunglasses",
+      "axe",
+      "hammer",
+      "bongos",
+      "lumber",
+      "faction-markers"
+    ],
+    "bodyRows": [
+      "plain",
+      "axe",
+      "hammer",
+      "bongos",
+      "lumber",
+      "faction",
+      "flag"
+    ],
+    "bodyMap": {
+      "shag": "plain",
+      "long-hair": "plain",
+      "afro": "plain",
+      "buzz-cut": "plain",
+      "dreads": "plain",
+      "beard": "plain",
+      "headband": "plain",
+      "flower-crown": "plain",
+      "bucket-hat": "plain",
+      "top-hat": "plain",
+      "beanie": "plain",
+      "led-shades": "plain",
+      "round-sunglasses": "plain",
+      "axe": "axe",
+      "hammer": "hammer",
+      "bongos": "bongos",
+      "lumber": "lumber",
+      "faction-markers": "faction",
+      "flag-carrier": "flag"
+    },
+    "headOffsets": {
+      "front": [
+        [
+          -3,
+          4
+        ],
+        [
+          -3,
+          2
+        ],
+        [
+          -3,
+          4
+        ],
+        [
+          -3,
+          2
+        ]
+      ],
+      "away": [
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          2
+        ]
+      ]
+    },
+    "drawOrder": {
+      "front": [
+        "body",
+        "head"
+      ],
+      "away": [
+        "body",
+        "head",
+        "foreground"
+      ]
+    }
+  },
+  "sampling": {
+    "filter": "nearest",
+    "mipmaps": false,
+    "note": "Whole sheets are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells."
+  }
+}
