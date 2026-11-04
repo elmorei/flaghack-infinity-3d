@@ -1,6 +1,6 @@
 /** Native, sandboxed Chrome QA of the exact dist build. Never deploys.
  * Natural UI-started matches are tested first. Explicit offline render fixtures then
- * stage animation, composition, occlusion and a 256-unit crowd. They are not gameplay
+ * stage animation, composition, occlusion and a 256-unit neutral crowd. They are not gameplay
  * captures. Browser mobile emulation and runner timings are NOT physical-phone QA.
  */
 import assert from 'node:assert/strict';
@@ -17,7 +17,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..'), DIST = join
 const OUT = join(ROOT, 'host-release/mobile-sprites-smoke'), PROJECT = '/flaghack-infinity-3d/';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const types = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.mp4':'video/mp4','.woff2':'font/woff2','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.json':'application/json'};
-const result = {completed:false, physicalDeviceTest:false, fixtureDisclosure:'Natural production title/lobby starts precede explicitly staged offline renderer composition, occlusion and 256-unit crowd fixtures. Pixel checks read the real native WebGL scene render target, before post-processing. Timings measure this runner, not a phone. Separate real mixed-client protocol verifier is required by the workflow.',environment:{platform:platform(),arch:arch(),cpu:cpus()[0]?.model,commit:process.env.GITHUB_SHA ?? null},scenarios:[],errors:[]};
+const result = {completed:false, physicalDeviceTest:false, fixtureDisclosure:'Natural production title/lobby starts precede explicitly staged offline renderer composition, occlusion and 256-unit neutral crowd fixtures. Pixel checks read the real native WebGL scene render target, before post-processing. Timings measure this runner, not a phone. Separate real mixed-client protocol verifier is required by the workflow.',environment:{platform:platform(),arch:arch(),cpu:cpus()[0]?.model,commit:process.env.GITHUB_SHA ?? null},scenarios:[],errors:[]};
 const server = createServer((req,res) => {
   const path = new URL(req.url,'http://localhost').pathname;
   if (!path.startsWith(PROJECT)) {res.writeHead(404).end();return;}
@@ -135,13 +135,17 @@ async function fallback(page) {
     } finally {w.hippies.clear();for(const [id,h] of original)w.hippies.set(id,h);Object.assign(w.rng,rng);w.nextEntityId=nextEntityId;a.session.screen=screen;g.render(0);}
   });
 }
-async function crowd(page) {
-  const staged=await page.evaluate(()=>{
+async function crowd(page,faction=-1) {
+  const staged=await page.evaluate(faction=>{
     const a=window.flaghack,w=a.world;if(a.net)throw Error('Offline fixture only');a.setPaused(true);
     const center={x:a.session.camera.cmdX,z:a.session.camera.cmdZ};
-    const ids=[];for(let i=0;i<256;i++){const h=window.fh.factory.spawnHippie(w,0,{x:center.x+(i%16-7.5)*.65,z:center.z+(Math.floor(i/16)-7.5)*.65});h.status='idle';ids.push(h.id);}
-    window.__crowdIds=ids;return {count:ids.length,center};
-  });
+    for(const id of window.__crowdIds??[])w.hippies.delete(id);
+    // Use the real neutral-unit factory: a dense grid of recruited units stacks
+    // 256 always-visible D.E.G.E.N. status badges over the sprites being measured.
+    // Neutral units are an ordinary gameplay state with no beacon badge.
+    const ids=[];for(let i=0;i<256;i++){const h=window.fh.factory.spawnHippie(w,faction,{x:center.x+(i%16-7.5)*.65,z:center.z+(Math.floor(i/16)-7.5)*.65});h.status='idle';ids.push(h.id);}
+    window.__crowdIds=ids;return {count:ids.length,center,faction:faction===-1?'neutral':'friendly',beaconBadges:faction!==-1};
+  },faction);
   await page.waitForTimeout(1500);
   const timing=await page.evaluate(async()=>{
     const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,intervals=[],renderMs=[],calls=[],spriteCalls=[];
@@ -207,7 +211,22 @@ try {
     for(const [name,png] of Object.entries(crowdCapture.captures))writeFileSync(join(OUT,spec.name+'-256-unit-fixture-'+name+'.png'),Buffer.from(png,'base64'));
     delete crowdCapture.captures;Object.assign(entry.crowd,crowdCapture);
     assert.ok(crowdCapture.changedPixels>500,'Crowd must contribute actual framebuffer pixels');
-    await page.screenshot({path:join(OUT,spec.name+'-crowd-paused-ui.png')});await page.evaluate(()=>window.__spriteProbe.dispose());await context.close();
+    await page.screenshot({path:join(OUT,spec.name+'-crowd-paused-ui.png')});
+    // Also retain the actual friendly/beacon workload. Dense badges intentionally
+    // overlap; prove their full-scene contribution rather than require hidden pixels.
+    entry.beaconCrowd=await crowd(page,0);
+    assert.ok(entry.beaconCrowd.sprites>=200);assert.equal(entry.beaconCrowd.batches,1);
+    assert.equal(entry.beaconCrowd.spriteDrawCalls.max,1);assert.ok(Number.isFinite(entry.beaconCrowd.frameMs.p95));
+    const beaconCapture=await page.evaluate(()=>{
+      const g=window.flaghack.renderer,p=window.__spriteProbe,icons=g.ctx.scene.getObjectByName('actors-status-icons');
+      const pixels=p.draw(),visible=icons.visible;let badgePixels;
+      try{icons.visible=false;badgePixels=p.diff(pixels,p.draw());}finally{icons.visible=visible;}
+      return {badges:icons.geometry.instanceCount,badgePixels,png:p.png(pixels),spritePixels:p.contribution()};
+    });
+    writeFileSync(join(OUT,spec.name+'-256-friendly-beacon-fixture.png'),Buffer.from(beaconCapture.png,'base64'));
+    delete beaconCapture.png;Object.assign(entry.beaconCrowd,beaconCapture);
+    assert.ok(beaconCapture.badges>=256);assert.ok(beaconCapture.badgePixels>500,'Friendly crowd retains visible status badges');
+    await page.evaluate(()=>window.__spriteProbe.dispose());await context.close();
   }
   const desktop=await boot({name:'desktop',w:1440,h:900,mobile:false});result.desktop=await desktop.page.evaluate(()=>{const a=window.flaghack;return {layout:document.documentElement.dataset.deviceLayout,spriteSystem:!!a.renderer.ctx.shared.mobileSprites,spriteMesh:!!a.renderer.ctx.scene.getObjectByName('mobile-sprite-batch'),avatarMeshes:[...a.world.avatars.values()].length};});assert.equal(result.desktop.layout,'desktop');assert.equal(result.desktop.spriteSystem,false);assert.equal(result.desktop.spriteMesh,false);assert.deepEqual(desktop.atlasRequests,[],'Desktop must never load the atlas');assert.ok(result.desktop.avatarMeshes>0);await desktop.page.screenshot({path:join(OUT,'desktop-3d.png')});await desktop.context.close();
   const failed=await boot({name:'atlas-failure',w:390,h:844,mobile:true,blockAtlas:true});await failed.page.waitForFunction(()=>window.flaghack.renderer.ctx.shared.mobileSprites.atlasError);result.atlasFailure=await failed.page.evaluate(()=>{const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,actors=g.modules.find(m=>m.hippies&&m.avatars);return {atlasReady:s.atlasReady,sprites:s.spriteCount,fallbacks:s.fallbackCount,modelInstances:actors.hippies.levels.reduce((n,l)=>n+l.mesh.count,0)};});assert.equal(result.atlasFailure.atlasReady,false);assert.equal(result.atlasFailure.sprites,0);assert.ok(result.atlasFailure.fallbacks>0);assert.ok(result.atlasFailure.modelInstances>0);await failed.page.screenshot({path:join(OUT,'atlas-failure-3d-fallback.png')});await failed.context.close();
