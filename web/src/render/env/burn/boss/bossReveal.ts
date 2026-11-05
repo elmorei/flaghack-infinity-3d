@@ -136,13 +136,18 @@ export class BossReveal {
     this.eyeFx?.aim(eyeBoss, world.time);
     this.eyeFx?.update(eyeBoss, world.time);
     this.combatFx?.update(this.age >= 0 ? boss : null, world.time);
-    if (boss && this.model.visible) {
-      const sprite = this.env.ctx.shared?.mobileSprites?.cast(5, {id: boss.id, x: at.x,
-        y: groundHeight(at.x, at.z, world.map.half ?? MAP_HALF), z: at.z, yaw: boss.yaw,
-        height: BOSS_HEIGHT, moving: boss.action === 'walk'},
-        this.age >= BOSS_COMBAT_TIMING.emerge && (boss.action === 'idle' || boss.action === 'walk')
-        && !boss.crouched && boss.hp > 0 && boss.deathAt === null && boss.eye?.chargeAt == null
-        && boss.eye?.firedAt == null && !boss.held && !boss.barrier && boss.lightning.length === 0);
+    if (this.model.visible) {
+      const animation = boss?.deathAt != null ? 'death' : boss?.eye?.firedAt != null ? 'eye-fire'
+        : boss?.eye?.chargeAt != null ? 'eye-charge'
+        : boss?.crouched && boss.action === 'idle' ? 'crouch'
+        : boss?.crouched && boss.action === 'walk' ? 'crouchWalk' : boss?.action ?? 'emerge';
+      const animationAt = animation === 'eye-fire' ? boss?.eye?.firedAt : animation === 'eye-charge' ? boss?.eye?.chargeAt
+        : animation === 'death' ? boss?.deathAt : boss?.actionAt;
+      const sprite = this.env.ctx.shared?.mobileSprites?.cast(5, {
+        id: boss?.id ?? -6, x: at.x, y: this.model.position.y, z: at.z, yaw: boss?.yaw ?? 0,
+        height: BOSS_HEIGHT, moving: boss?.action === 'walk',
+        animationTime: animationAt != null ? Math.max(0, world.time - animationAt) : Math.max(0, this.age),
+      }, animation);
       if (sprite) this.model.visible = false;
     }
   }

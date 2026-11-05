@@ -1,7 +1,7 @@
 name: Verify mobile sprite preview
 on:
   push:
-    branches: ['qa/mobile-sprites-20261104']
+    branches: ['qa/mobile-sprites-20261104', 'preview/sprite-expansion-20261105']
   workflow_dispatch:
 permissions:
   contents: read
@@ -61,6 +61,16 @@ jobs:
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
       - name: Verify mobile sprites, real pixels, occlusion and crowd timings
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
+      - name: Upload the requested mobile gameplay demo promptly
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-flat-sprites-demo
+          path: |
+            web/host-release/mobile-sprites-smoke/mobile-flat-sprites-demo.png
+            web/host-release/mobile-sprites-smoke/portrait-natural.png
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify mobile pixel dialogue and desktop isolation
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-pixel-browser.mjs
       - name: Verify mobile field resources, timer and altar directions

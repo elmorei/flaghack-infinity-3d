@@ -1,0 +1,4745 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    {
+      "image": "/assets/mobile-sprites/actions-0.webp",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "image": "/assets/mobile-sprites/actions-1.webp",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "image": "/assets/mobile-sprites/actions-2.webp",
+      "width": 2048,
+      "height": 2048
+    }
+  ],
+  "clips": {
+    "dr-beef-supreme:seated": {
+      "page": 0,
+      "x": 0,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 144,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561",
+      "includesFurniture": false
+    },
+    "dr-beef-supreme:swing": {
+      "page": 0,
+      "x": 512,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:throw": {
+      "page": 0,
+      "x": 1024,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:plant": {
+      "page": 0,
+      "x": 1536,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:pull": {
+      "page": 0,
+      "x": 0,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:align": {
+      "page": 0,
+      "x": 512,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:channel": {
+      "page": 0,
+      "x": 1024,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:push": {
+      "page": 0,
+      "x": 1536,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-actions.webp",
+      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561"
+    },
+    "dr-beef-supreme:sprint": {
+      "page": 0,
+      "x": 0,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:jump": {
+      "page": 0,
+      "x": 512,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:fall": {
+      "page": 0,
+      "x": 1024,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:land": {
+      "page": 0,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:guard": {
+      "page": 0,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:hit": {
+      "page": 0,
+      "x": 512,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:stun": {
+      "page": 0,
+      "x": 1024,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "dr-beef-supreme:ko": {
+      "page": 0,
+      "x": 1536,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8"
+    },
+    "beelzebub-crow:seated": {
+      "page": 0,
+      "x": 0,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 144,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87",
+      "includesFurniture": false
+    },
+    "beelzebub-crow:swing": {
+      "page": 0,
+      "x": 512,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:throw": {
+      "page": 0,
+      "x": 1024,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:plant": {
+      "page": 0,
+      "x": 1536,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:pull": {
+      "page": 0,
+      "x": 0,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:align": {
+      "page": 0,
+      "x": 512,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:channel": {
+      "page": 0,
+      "x": 1024,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:push": {
+      "page": 0,
+      "x": 1536,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-actions.webp",
+      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87"
+    },
+    "beelzebub-crow:sprint": {
+      "page": 0,
+      "x": 0,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:jump": {
+      "page": 0,
+      "x": 512,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:fall": {
+      "page": 0,
+      "x": 1024,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:land": {
+      "page": 0,
+      "x": 1536,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:guard": {
+      "page": 0,
+      "x": 0,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:hit": {
+      "page": 0,
+      "x": 512,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:stun": {
+      "page": 0,
+      "x": 1024,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "beelzebub-crow:ko": {
+      "page": 0,
+      "x": 1536,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45"
+    },
+    "dj-scarecrow:seated": {
+      "page": 1,
+      "x": 0,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 144,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512",
+      "includesFurniture": false
+    },
+    "dj-scarecrow:swing": {
+      "page": 1,
+      "x": 512,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:throw": {
+      "page": 1,
+      "x": 1024,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:plant": {
+      "page": 1,
+      "x": 1536,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:pull": {
+      "page": 1,
+      "x": 0,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:align": {
+      "page": 1,
+      "x": 512,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:channel": {
+      "page": 1,
+      "x": 1024,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:push": {
+      "page": 1,
+      "x": 1536,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-actions.webp",
+      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512"
+    },
+    "dj-scarecrow:sprint": {
+      "page": 1,
+      "x": 0,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:jump": {
+      "page": 1,
+      "x": 512,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:fall": {
+      "page": 1,
+      "x": 1024,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:land": {
+      "page": 1,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:guard": {
+      "page": 1,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:hit": {
+      "page": 1,
+      "x": 512,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:stun": {
+      "page": 1,
+      "x": 1024,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "dj-scarecrow:ko": {
+      "page": 1,
+      "x": 1536,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982"
+    },
+    "president-jaguar:seated": {
+      "page": 1,
+      "x": 0,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 144,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc",
+      "includesFurniture": false
+    },
+    "president-jaguar:swing": {
+      "page": 1,
+      "x": 512,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:throw": {
+      "page": 1,
+      "x": 1024,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:plant": {
+      "page": 1,
+      "x": 1536,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:pull": {
+      "page": 1,
+      "x": 0,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:align": {
+      "page": 1,
+      "x": 512,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:channel": {
+      "page": 1,
+      "x": 1024,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:push": {
+      "page": 1,
+      "x": 1536,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-actions.webp",
+      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc"
+    },
+    "president-jaguar:sprint": {
+      "page": 1,
+      "x": 0,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:jump": {
+      "page": 1,
+      "x": 512,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:fall": {
+      "page": 1,
+      "x": 1024,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:land": {
+      "page": 1,
+      "x": 1536,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:guard": {
+      "page": 1,
+      "x": 0,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:hit": {
+      "page": 1,
+      "x": 512,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:stun": {
+      "page": 1,
+      "x": 1024,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "president-jaguar:ko": {
+      "page": 1,
+      "x": 1536,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed"
+    },
+    "signifier:chop": {
+      "page": 2,
+      "x": 0,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            72,
+            57
+          ],
+          [
+            74,
+            62
+          ],
+          [
+            66,
+            63
+          ],
+          [
+            76,
+            54
+          ]
+        ],
+        [
+          [
+            55,
+            59
+          ],
+          [
+            58,
+            61
+          ],
+          [
+            57,
+            58
+          ],
+          [
+            59,
+            56
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:kneel": {
+      "page": 2,
+      "x": 512,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            71,
+            58
+          ],
+          [
+            72,
+            72
+          ],
+          [
+            68,
+            73
+          ],
+          [
+            72,
+            59
+          ]
+        ],
+        [
+          [
+            73,
+            60
+          ],
+          [
+            72,
+            76
+          ],
+          [
+            69,
+            77
+          ],
+          [
+            72,
+            64
+          ]
+        ]
+      ],
+      "includesFlag": true
+    },
+    "signifier:tug": {
+      "page": 2,
+      "x": 1024,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            71,
+            55
+          ],
+          [
+            84,
+            59
+          ],
+          [
+            92,
+            62
+          ],
+          [
+            87,
+            69
+          ]
+        ],
+        [
+          [
+            63,
+            58
+          ],
+          [
+            88,
+            57
+          ],
+          [
+            93,
+            64
+          ],
+          [
+            89,
+            67
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:shove": {
+      "page": 2,
+      "x": 1536,
+      "y": 0,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            63,
+            58
+          ],
+          [
+            59,
+            61
+          ],
+          [
+            59,
+            61
+          ],
+          [
+            52,
+            62
+          ]
+        ],
+        [
+          [
+            63,
+            60
+          ],
+          [
+            65,
+            60
+          ],
+          [
+            63,
+            60
+          ],
+          [
+            56,
+            64
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:kick": {
+      "page": 2,
+      "x": 0,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            64,
+            62
+          ],
+          [
+            63,
+            60
+          ],
+          [
+            45,
+            60
+          ],
+          [
+            61,
+            62
+          ]
+        ],
+        [
+          [
+            64,
+            59
+          ],
+          [
+            60,
+            56
+          ],
+          [
+            42,
+            58
+          ],
+          [
+            60,
+            59
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:drum": {
+      "page": 2,
+      "x": 512,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            64,
+            62
+          ],
+          [
+            65,
+            62
+          ],
+          [
+            65,
+            68
+          ],
+          [
+            63,
+            63
+          ]
+        ],
+        [
+          [
+            63,
+            70
+          ],
+          [
+            69,
+            66
+          ],
+          [
+            68,
+            70
+          ],
+          [
+            63,
+            70
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:dance": {
+      "page": 2,
+      "x": 1024,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            63,
+            64
+          ],
+          [
+            62,
+            62
+          ],
+          [
+            65,
+            63
+          ],
+          [
+            64,
+            64
+          ]
+        ],
+        [
+          [
+            62,
+            67
+          ],
+          [
+            64,
+            66
+          ],
+          [
+            69,
+            62
+          ],
+          [
+            65,
+            64
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:hammer": {
+      "page": 2,
+      "x": 1536,
+      "y": 256,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            71,
+            64
+          ],
+          [
+            68,
+            68
+          ],
+          [
+            70,
+            67
+          ],
+          [
+            78,
+            67
+          ]
+        ],
+        [
+          [
+            55,
+            63
+          ],
+          [
+            58,
+            69
+          ],
+          [
+            64,
+            66
+          ],
+          [
+            77,
+            66
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:ko": {
+      "page": 2,
+      "x": 0,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 130,
+      "source": "signifier-actions.webp",
+      "sourceSha256": "08ee3e5da7d2e2fb4c5d0071f1402cb2cda3d599833a6bcc570b5007d8c46753",
+      "headAnchorByCell": [
+        [
+          [
+            65,
+            66
+          ],
+          [
+            51,
+            59
+          ],
+          [
+            58,
+            79
+          ],
+          [
+            62,
+            88
+          ]
+        ],
+        [
+          [
+            64,
+            69
+          ],
+          [
+            53,
+            65
+          ],
+          [
+            62,
+            83
+          ],
+          [
+            61,
+            93
+          ]
+        ]
+      ],
+      "includesFlag": false,
+      "headRotationByCell": [
+        [
+          0,
+          -0.25,
+          -0.75,
+          -1.57
+        ],
+        [
+          0,
+          0.25,
+          0.75,
+          1.57
+        ]
+      ]
+    },
+    "signifier:stun": {
+      "page": 2,
+      "x": 512,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 175,
+      "source": "signifier-effects.webp",
+      "sourceSha256": "6fccf9ced33563cea1e5da493833589e30f2424ebe57949f4b786296e7a4e27e",
+      "headAnchorByCell": [
+        [
+          [
+            64,
+            35
+          ],
+          [
+            53,
+            33
+          ],
+          [
+            76,
+            33
+          ],
+          [
+            62,
+            33
+          ]
+        ],
+        [
+          [
+            64,
+            35
+          ],
+          [
+            52,
+            32
+          ],
+          [
+            74,
+            33
+          ],
+          [
+            63,
+            35
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:jump": {
+      "page": 2,
+      "x": 1024,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 175,
+      "source": "signifier-effects.webp",
+      "sourceSha256": "6fccf9ced33563cea1e5da493833589e30f2424ebe57949f4b786296e7a4e27e",
+      "headAnchorByCell": [
+        [
+          [
+            63,
+            47
+          ],
+          [
+            58,
+            30
+          ],
+          [
+            64,
+            43
+          ],
+          [
+            62,
+            47
+          ]
+        ],
+        [
+          [
+            64,
+            51
+          ],
+          [
+            63,
+            33
+          ],
+          [
+            65,
+            41
+          ],
+          [
+            63,
+            53
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:hit": {
+      "page": 2,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 175,
+      "source": "signifier-effects.webp",
+      "sourceSha256": "6fccf9ced33563cea1e5da493833589e30f2424ebe57949f4b786296e7a4e27e",
+      "headAnchorByCell": [
+        [
+          [
+            62,
+            37
+          ],
+          [
+            50,
+            32
+          ],
+          [
+            77,
+            35
+          ],
+          [
+            62,
+            35
+          ]
+        ],
+        [
+          [
+            63,
+            40
+          ],
+          [
+            49,
+            32
+          ],
+          [
+            75,
+            36
+          ],
+          [
+            64,
+            40
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "signifier:wobble": {
+      "page": 2,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 175,
+      "source": "signifier-effects.webp",
+      "sourceSha256": "6fccf9ced33563cea1e5da493833589e30f2424ebe57949f4b786296e7a4e27e",
+      "headAnchorByCell": [
+        [
+          [
+            58,
+            38
+          ],
+          [
+            67,
+            34
+          ],
+          [
+            56,
+            31
+          ],
+          [
+            65,
+            35
+          ]
+        ],
+        [
+          [
+            67,
+            41
+          ],
+          [
+            65,
+            28
+          ],
+          [
+            56,
+            29
+          ],
+          [
+            66,
+            35
+          ]
+        ]
+      ],
+      "includesFlag": false
+    },
+    "skeletal-boss:emerge": {
+      "page": 2,
+      "x": 512,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:crouch": {
+      "page": 2,
+      "x": 1024,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:crouchWalk": {
+      "page": 2,
+      "x": 1536,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:rise": {
+      "page": 2,
+      "x": 0,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:swipe": {
+      "page": 2,
+      "x": 512,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:stomp": {
+      "page": 2,
+      "x": 1024,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:grab": {
+      "page": 2,
+      "x": 1536,
+      "y": 1024,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:recoil": {
+      "page": 2,
+      "x": 0,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:death": {
+      "page": 2,
+      "x": 512,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:dead": {
+      "page": 2,
+      "x": 1024,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:eye-charge": {
+      "page": 2,
+      "x": 1536,
+      "y": 1280,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "skeletal-boss:eye-fire": {
+      "page": 2,
+      "x": 0,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "skeletal-boss-actions.webp",
+      "sourceSha256": "8e39543818450c06a15b8f47098acba5cb638b7da416c044ab60453a98bb369e"
+    },
+    "frick-frack-wizard:ko": {
+      "page": 2,
+      "x": 512,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "frick-frack-wizard-actions.webp",
+      "sourceSha256": "1893843705365d44ed84d31d5a04f05c791fbac4293400ec28d2771b9422104a"
+    },
+    "frick-frack-wizard:stun": {
+      "page": 2,
+      "x": 1024,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "frick-frack-wizard-actions.webp",
+      "sourceSha256": "1893843705365d44ed84d31d5a04f05c791fbac4293400ec28d2771b9422104a"
+    },
+    "frick-frack-wizard:jump": {
+      "page": 2,
+      "x": 1536,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "frick-frack-wizard-actions.webp",
+      "sourceSha256": "1893843705365d44ed84d31d5a04f05c791fbac4293400ec28d2771b9422104a"
+    },
+    "frick-frack-wizard:channel": {
+      "page": 2,
+      "x": 0,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "frick-frack-wizard-actions.webp",
+      "sourceSha256": "1893843705365d44ed84d31d5a04f05c791fbac4293400ec28d2771b9422104a"
+    },
+    "flag:planted": {
+      "page": 2,
+      "x": 512,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 115,
+      "source": "flag-actions.webp",
+      "sourceSha256": "1b6ccfc2ddd9f3aec6fba08b1f87af1a228ad8d119b22c9f8c2f234fe5a73ce0",
+      "poleTipByCell": [
+        [
+          [
+            64.0,
+            124
+          ],
+          [
+            64.0,
+            124
+          ],
+          [
+            65.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ]
+        ],
+        [
+          [
+            64.5,
+            124
+          ],
+          [
+            64.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ],
+          [
+            65.0,
+            124
+          ]
+        ]
+      ]
+    },
+    "flag:ground": {
+      "page": 2,
+      "x": 1024,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 87,
+      "source": "flag-actions.webp",
+      "sourceSha256": "1b6ccfc2ddd9f3aec6fba08b1f87af1a228ad8d119b22c9f8c2f234fe5a73ce0"
+    },
+    "flag:carried": {
+      "page": 2,
+      "x": 1536,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 115,
+      "source": "flag-actions.webp",
+      "sourceSha256": "1b6ccfc2ddd9f3aec6fba08b1f87af1a228ad8d119b22c9f8c2f234fe5a73ce0",
+      "poleTipByCell": [
+        [
+          [
+            64.0,
+            124
+          ],
+          [
+            65.0,
+            124
+          ],
+          [
+            65.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ]
+        ],
+        [
+          [
+            64.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ],
+          [
+            63.5,
+            124
+          ],
+          [
+            64.5,
+            124
+          ]
+        ]
+      ]
+    },
+    "dr-beef-supreme:respawn": {
+      "page": 0,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8",
+      "aliasOf": "dr-beef-supreme:land"
+    },
+    "dr-beef-supreme:aim": {
+      "page": 0,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dr-beef-supreme-motion.webp",
+      "sourceSha256": "690d139d4f6182e55f43e6e79b29377a5c5b58fc654e8deba3b0c8bf237f18d8",
+      "aliasOf": "dr-beef-supreme:guard"
+    },
+    "beelzebub-crow:respawn": {
+      "page": 0,
+      "x": 1536,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45",
+      "aliasOf": "beelzebub-crow:land"
+    },
+    "beelzebub-crow:aim": {
+      "page": 0,
+      "x": 0,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "beelzebub-crow-motion.webp",
+      "sourceSha256": "a0b0ea8992f07697ce892235417cff9b1f73fe2742172269d077139ec60afd45",
+      "aliasOf": "beelzebub-crow:guard"
+    },
+    "dj-scarecrow:respawn": {
+      "page": 1,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982",
+      "aliasOf": "dj-scarecrow:land"
+    },
+    "dj-scarecrow:aim": {
+      "page": 1,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "dj-scarecrow-motion.webp",
+      "sourceSha256": "391b0bf0fabadcec68165f2b23fd3e83f52b51e64de12dd4c75391bfc2565982",
+      "aliasOf": "dj-scarecrow:guard"
+    },
+    "president-jaguar:respawn": {
+      "page": 1,
+      "x": 1536,
+      "y": 1536,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": false,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed",
+      "aliasOf": "president-jaguar:land"
+    },
+    "president-jaguar:aim": {
+      "page": 1,
+      "x": 0,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 112,
+      "source": "president-jaguar-motion.webp",
+      "sourceSha256": "4d23213362f7b52d4156eca28fd7ff529eec85a80b83a8dffb07a62f68ea20ed",
+      "aliasOf": "president-jaguar:guard"
+    },
+    "signifier:jitter": {
+      "page": 2,
+      "x": 0,
+      "y": 768,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 175,
+      "source": "signifier-effects.webp",
+      "sourceSha256": "6fccf9ced33563cea1e5da493833589e30f2424ebe57949f4b786296e7a4e27e",
+      "headAnchorByCell": [
+        [
+          [
+            58,
+            38
+          ],
+          [
+            67,
+            34
+          ],
+          [
+            56,
+            31
+          ],
+          [
+            65,
+            35
+          ]
+        ],
+        [
+          [
+            67,
+            41
+          ],
+          [
+            65,
+            28
+          ],
+          [
+            56,
+            29
+          ],
+          [
+            66,
+            35
+          ]
+        ]
+      ],
+      "includesFlag": false,
+      "aliasOf": "signifier:wobble"
+    },
+    "flag:thrown": {
+      "page": 2,
+      "x": 1536,
+      "y": 1792,
+      "w": 512,
+      "h": 256,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        64,
+        124
+      ],
+      "footYByCell": [
+        [
+          124,
+          124,
+          124,
+          124
+        ],
+        [
+          124,
+          124,
+          124,
+          124
+        ]
+      ],
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "away": 1
+      },
+      "heightPixels": 115,
+      "source": "flag-actions.webp",
+      "sourceSha256": "1b6ccfc2ddd9f3aec6fba08b1f87af1a228ad8d119b22c9f8c2f234fe5a73ce0",
+      "poleTipByCell": [
+        [
+          [
+            64.0,
+            124
+          ],
+          [
+            65.0,
+            124
+          ],
+          [
+            65.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ]
+        ],
+        [
+          [
+            64.0,
+            124
+          ],
+          [
+            64.5,
+            124
+          ],
+          [
+            63.5,
+            124
+          ],
+          [
+            64.5,
+            124
+          ]
+        ]
+      ],
+      "aliasOf": "flag:carried"
+    }
+  },
+  "sampling": {
+    "filter": "nearest",
+    "mipmaps": false,
+    "alphaThreshold": 0.5,
+    "note": "Exact cell-edge UVs. All anchors use pixel-edge coordinates; transparent cell margins prevent neighboring-frame sampling."
+  },
+  "provenance": "art/mobile-sprites/sources.json"
+}

@@ -9,9 +9,9 @@ import type { UnitRings } from './overlays';
 import type { Nameplates } from './nameplates';
 
 describe('avatar mobile sprite integration', () => {
-  it('keeps starter carried flags as 3D equipment and falls back during swings', () => {
+  it('keeps actual carried inventory and hides models throughout actions', () => {
     const world = createMatch({seed: 'mobile-avatar-equipment', difficulty: 'normal', humans: [0,1,2,3], mode: 'standard'});
-    const cast = vi.fn((_index: number, _pose: unknown, supported: boolean) => supported);
+    const cast = vi.fn((_index: number, _pose: unknown, _animation: string) => true);
     const ctx = {world, scene: new THREE.Scene(), shared: {mobileSprites: {cast}}, time: 5, beat: 0,
       session: {playerFaction: 0, spectator: false, viewBlend: 1}} as unknown as RenderContext;
     const pushMatrix = vi.fn();
@@ -24,16 +24,26 @@ describe('avatar mobile sprite integration', () => {
     const before = JSON.stringify(avatars);
     renderer.update(.1);
     expect(cast.mock.calls).toHaveLength(avatars.length);
-    expect(cast.mock.calls.every(call => call[2])).toBe(true);
+    expect(cast.mock.calls.every(call => call[2] === 'idle')).toBe(true);
     expect(pushMatrix).toHaveBeenCalledTimes(carried);
     for (const a of avatars) expect(ctx.scene.getObjectByName(`actors-avatar-${a.faction}`)?.visible).toBe(false);
     expect(JSON.stringify(avatars)).toBe(before);
     const a = avatars[0];
     renderer.onEvent({t: 'swing', by: a.id} as Parameters<AvatarRenderer['onEvent']>[0]);
     ctx.time += .1; pushMatrix.mockClear(); renderer.update(.1);
-    expect(cast.mock.calls.filter(call => call[0] === a.faction).at(-1)?.[2]).toBe(false);
-    expect(ctx.scene.getObjectByName(`actors-avatar-${a.faction}`)?.visible).toBe(true);
+    expect(cast.mock.calls.filter(call => call[0] === a.faction).at(-1)?.[2]).toBe('swing');
+    expect(ctx.scene.getObjectByName(`actors-avatar-${a.faction}`)?.visible).toBe(false);
     expect(pushMatrix).toHaveBeenCalledTimes(carried);
+    world.factions[0].drugActive.acidcop = world.time + 100;
+    ctx.time += 1; a.onGround = false; a.vel.y = 1; renderer.update(.1);
+    expect(cast.mock.calls.filter(call => call[0] === a.faction).at(-1)?.[2]).toBe('jump');
+    for (const av of avatars) {
+      expect(ctx.scene.getObjectByName(`actors-avatar-${av.faction}`)?.visible).toBe(false);
+      expect(ctx.scene.getObjectByName(`actors-avatar-${av.faction}-xray`)?.visible).toBe(false);
+    }
+    a.effects.push({kind: 'stun', until: world.time + 100, mag: 1, source: -1}); renderer.update(.1);
+    expect(cast.mock.calls.filter(call => call[0] === a.faction).at(-1)?.[2]).toBe('stun');
+    expect(ctx.scene.getObjectByName(`actors-avatar-${a.faction}`)?.visible).toBe(false);
     renderer.dispose();
   });
 });

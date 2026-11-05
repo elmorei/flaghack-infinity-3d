@@ -11,6 +11,8 @@
  * Two levels of detail, each three InstancedMeshes sharing one InstanceSet: the full model in
  * view within FLAG_DETAIL_RANGE, and a coarse one (8×4 cloth, prism pole, short ribbon) for
  * the rest. Only Flags near the eye cast shadows; Flags off screen and far away are skipped.
+ * Mobile presentation replaces each emitted Flag with an atlas sprite after culling.
+ * MobileSprites supplies a flat placeholder while textures load; desktop keeps the model.
  */
 import * as THREE from 'three';
 import { FLAG_YELLOW } from '../../sim/constants';
@@ -20,6 +22,8 @@ import type { EntityId, FlagState, Owner } from '../../sim/types';
 import type { RenderContext } from '../context';
 import { InstanceSet, PLACE, castShadowPrefix, showInstances, type ActorView, type Placement } from './lod';
 import { MeshBuilder, weld } from './meshBuilder';
+import { flagSpriteRotation } from './flagSpriteTransform';
+import { LIFT } from '../survey/glsl';
 import { GLSL_COMMON, METAL_CAP, clamp01, easeOutBack, easeOutBounce, hash01, hash01b, writeTransform } from './util';
 
 /** Pole length from ground to finial top (m). */
@@ -44,6 +48,7 @@ const YANK_TIME = 0.42;
 const VANISH_TIME = 0.6;
 const DECOHERE_GLITCH_TIME = 0.9;
 const TRANSIENTS = 48;
+type FlagSpriteState = 'planted' | 'ground' | 'thrown' | 'carried';
 
 interface FlagVis {
   state: FlagState;
@@ -441,6 +446,7 @@ export class FlagRenderer {
   private readonly tmpX = new THREE.Vector3();
   private readonly tmpY = new THREE.Vector3();
   private readonly tmpZ = new THREE.Vector3();
+  private readonly tmpNode = new THREE.Vector3();
 
   constructor(ctx: RenderContext, view: ActorView) {
     this.ctx = ctx;
@@ -519,7 +525,7 @@ export class FlagRenderer {
   /** Append a Flag instance with an arbitrary transform (carried Flags). */
   pushMatrix(m: THREE.Matrix4, phase: number, wave: number, trail: number, droop: number, highlight: number, ribbon: THREE.Color): void {
     m.toArray(this.m16);
-    this.commit(phase, wave, trail, droop, 0, highlight, ribbon, false);
+    this.commit(phase, wave, trail, droop, 0, highlight, ribbon, false, 'carried');
   }
 
   onEvent(e: GameEvent): void {
@@ -604,6 +610,13 @@ export class FlagRenderer {
       const gy = 0; // Flag positions are absolute simulation coordinates.
 
       if (f.state === 'planted') {
+        const node = w.lattice.nodes[f.node];
+        // Mobile artwork is anchored by the pole's bottom tip. Keep that tip at the
+        // displayed node even during rise/pull or a phason position tween; waving and
+        // screen-plane rotation happen about this exact point.
+        const spriteAnchor = node
+          ? this.nodeSpriteAnchor(f.node, node.x, w.collision.groundHeight(node.x, node.z), node.z)
+          : f.pos;
         const age = t - v.plantAt;
         let rise = 0;
         let wob = 0;
@@ -620,13 +633,13 @@ export class FlagRenderer {
         const yaw = windYaw - Math.PI / 2 + (v.phase - 0.5) * 0.4 + 0.1 * Math.sin(t * 0.6 + v.phase * 9);
         const wave = ws * (0.8 + 0.4 * v.gust);
         writeTransform(m16, 0, f.pos.x, f.pos.y + gy + rise, f.pos.z, yaw, wob, wob * 0.6, 1);
-        v.detailed = this.commit(v.phase, wave, 0, plantedDroop, glitch, highlight, ribbon, v.detailed) === PLACE.detailed;
+        v.detailed = this.commit(v.phase, wave, 0, plantedDroop, glitch, highlight, ribbon, v.detailed, 'planted', spriteAnchor) === PLACE.detailed;
         if (f.altNode >= 0) {
           const twin = w.lattice.nodes[f.altNode];
           if (twin) {
             const ty = w.collision.groundHeight(twin.x, twin.z);
             writeTransform(m16, 0, twin.x, ty + rise, twin.z, yaw + 0.3, wob, -wob * 0.6, 1);
-            this.commit((v.phase + 0.37) % 1, wave, 0, plantedDroop, glitch, highlight, ribbon, false);
+            this.commit((v.phase + 0.37) % 1, wave, 0, plantedDroop, glitch, highlight, ribbon, false, 'planted', this.nodeSpriteAnchor(f.altNode, twin.x, ty, twin.z));
           }
         }
       } else if (f.state === 'loose') {
@@ -634,10 +647,10 @@ export class FlagRenderer {
         const target = clamp01(f.tilt) * 1.5;
         const fall = k < 1 ? target * easeOutBounce(k) : target;
         writeTransform(m16, 0, f.pos.x, f.pos.y + gy + 0.045, f.pos.z, v.fallYaw, fall, 0, 1);
-        v.detailed = this.commit(v.phase, 0.1 + 0.08 * ws, 0, 0, glitch, highlight, ribbon, v.detailed) === PLACE.detailed;
+        v.detailed = this.commit(v.phase, 0.1 + 0.08 * ws, 0, 0, glitch, highlight, ribbon, v.detailed, 'ground') === PLACE.detailed;
       } else {
         this.writeFlying(f.holder, f.pos.x, f.pos.y, f.pos.z, v, dt);
-        v.detailed = this.commit(v.phase, 1.6, 0.75, 0, 0, highlight, ribbon, v.detailed) === PLACE.detailed;
+        v.detailed = this.commit(v.phase, 1.6, 0.75, 0, 0, highlight, ribbon, v.detailed, 'thrown') === PLACE.detailed;
       }
     }
 
@@ -664,7 +677,7 @@ export class FlagRenderer {
       if (tr.kind === 0) {
         const up = 1 - (1 - k) * (1 - k) * (1 - k);
         writeTransform(m16, 0, tr.x, tr.y + up * 1.7, tr.z, tr.yaw + k * 5, 0.4 * k, 0, 1 - k * k * k);
-        this.commit(tr.phase, 1.4, 0.5 * k, 0, 0, 0, tr.color, false);
+        this.commit(tr.phase, 1.4, 0.5 * k, 0, 0, 0, tr.color, false, 'thrown');
       } else {
         const jx = (hash01(Math.floor(t * 30) + j) - 0.5) * 0.4 * k;
         writeTransform(m16, 0, tr.x + jx, tr.y, tr.z, tr.yaw, 0, 0, Math.max(0.01, 1 - k * k));
@@ -746,18 +759,36 @@ export class FlagRenderer {
     highlight: number,
     ribbon: THREE.Color,
     wasDetailed: boolean,
+    spriteState: FlagSpriteState = 'planted',
+    spriteAnchor?: Readonly<{x: number; y: number; z: number}>,
   ): Placement {
     const m = this.m16;
     const scale = Math.hypot(m[4], m[5], m[6]);
+    const mobile = !!this.ctx.shared.mobileSprites;
+    const anchor = mobile ? spriteAnchor : undefined;
+    const x = anchor?.x ?? m[12], y = anchor?.y ?? m[13], z = anchor?.z ?? m[14];
     const place = this.view.place(
-      m[4] * FLAG_MID_Y + m[12],
-      m[5] * FLAG_MID_Y + m[13],
-      m[6] * FLAG_MID_Y + m[14],
-      FLAG_RADIUS * scale,
+      mobile ? x : m[4] * FLAG_MID_Y + x,
+      mobile ? y : m[5] * FLAG_MID_Y + y,
+      mobile ? z : m[6] * FLAG_MID_Y + z,
+      // A screen-parallel Flag keeps full apparent height at steep camera pitch.
+      // The old world-pole sphere could cull its visible upper half at the screen edge.
+      (mobile ? FLAG_POLE_HEIGHT * 1.5 : FLAG_RADIUS) * scale,
       FLAG_DETAIL_RANGE,
       wasDetailed,
     );
     if (place === PLACE.skip) return place;
+    // One replacement per visible Flag, including carried quiver entries and transient
+    // copies. Use a negative deterministic key so direction history cannot collide with
+    // actors. A loose Flag uses its own ground art at full pole scale, not a tiny upright
+    // Flag; all modes keep the same simulation-grounded presentation anchor.
+    if (this.ctx.shared.mobileSprites?.flag({
+      id: -1 - Math.floor(phase * 0x7fffffff),
+      x, y, z,
+      yaw: Math.atan2(m[8], m[10]), height: FLAG_POLE_HEIGHT * scale, moving: true,
+    }, spriteState, {ribbon, highlight, glitch,
+      rotation: spriteState === 'ground' ? 0 : flagSpriteRotation(m, this.ctx.camera),
+    })) return place;
     const set = this.levels[place === PLACE.detailed ? 0 : 1].set;
     const i = place === PLACE.coarse ? set.plain() : set.caster();
     const attrs = set.attrs;
@@ -775,6 +806,11 @@ export class FlagRenderer {
     r[i * 3 + 1] = ribbon.g;
     r[i * 3 + 2] = ribbon.b;
     return place;
+  }
+
+  private nodeSpriteAnchor(node: number, x: number, y: number, z: number): THREE.Vector3 {
+    if (!this.ctx.shared.nodeMarkerPosition?.(node, this.tmpNode)) this.tmpNode.set(x, y + LIFT.marker, z);
+    return this.tmpNode;
   }
 
   /** A thrown Flag's transform into m16: spike first along its velocity, spinning. */

@@ -3,27 +3,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { RenderContext } from '../context';
 import atlas from './mobileSpriteAtlas.json';
+import actionAtlas from './mobileSpriteActions.json';
 import { HL } from './hippieModel';
 import { CAST_SHEETS, MobileSprites, signifierBody, signifierHead, signifierLayers, spriteDirection, spriteFrame, supportsSignifierAnimation, type SpritePose } from './mobileSprites';
 const pose = (id = 0, yaw = 0): SpritePose => ({id, x: 0, y: 0, z: 0, yaw, height: 2.24, moving: false});
 let texture: THREE.Texture<HTMLImageElement>, loaded: (texture: THREE.Texture<HTMLImageElement>) => void, failed: () => void;
 const instances: MobileSprites[] = [];
+const loads: {texture: THREE.Texture<HTMLImageElement>; loaded: () => void}[] = [];
 function setup(ready = true, maxTextureSize = 4096, ortho = false) {
   const camera = ortho ? new THREE.OrthographicCamera(-20, 20, 20, -20, .1, 100) : new THREE.PerspectiveCamera(60, 1, .1, 100);
   camera.position.set(0, 8, 12); camera.lookAt(0, 0, 0);
   const ctx = {scene: new THREE.Scene(), camera, renderer: {capabilities: {maxTextureSize}}, time: 0} as unknown as RenderContext;
   const sprites = new MobileSprites(ctx); instances.push(sprites);
-  if (ready) loaded(texture); sprites.begin(); return {sprites, ctx};
+  if (ready) loads.forEach(load => load.loaded()); sprites.begin(); return {sprites, ctx};
 }
 function expectCell(sprites: MobileSprites, index: number, key: keyof typeof atlas.sheets, column: number, row: number) {
   const s = atlas.sheets[key], a = sprites.mesh.geometry.getAttribute('aRect');
-  const expected = [(s.x + column * s.cellWidth + .5) / atlas.width, 1 - (s.y + (row + 1) * s.cellHeight - .5) / atlas.height, (s.cellWidth - 1) / atlas.width, (s.cellHeight - 1) / atlas.height];
+  const expected = [(s.x + column * s.cellWidth) / atlas.width, 1 - (s.y + (row + 1) * s.cellHeight) / atlas.height, s.cellWidth / atlas.width, s.cellHeight / atlas.height];
   [a.getX(index), a.getY(index), a.getZ(index), a.getW(index)].forEach((n, i) => expect(n).toBeCloseTo(expected[i], 6));
 }
 beforeEach(() => {
-  texture = new THREE.Texture<HTMLImageElement>(); texture.image = {width: atlas.width, height: atlas.height} as HTMLImageElement;
-  vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation((_url, onLoad, _progress, onError) => {
-    loaded = onLoad!; failed = () => onError?.(new Error('decode failed')); return texture;
+  loads.length = 0;
+  vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation((url, onLoad, _progress, onError) => {
+    const base = url.endsWith('/atlas.webp');
+    const page = (actionAtlas.pages as {image: string; width: number; height: number}[]).find(page => url.endsWith(page.image));
+    const next = new THREE.Texture<HTMLImageElement>();
+    next.image = {width: base ? atlas.width : page?.width, height: base ? atlas.height : page?.height} as HTMLImageElement;
+    if (base) { texture = next; loaded = onLoad!; failed = () => onError?.(new Error('decode failed')); }
+    loads.push({texture: next, loaded: () => onLoad?.(next)}); return next;
   });
 });
 afterEach(() => { for (const s of instances.splice(0)) s.dispose(); vi.restoreAllMocks(); });
@@ -55,11 +62,13 @@ describe('mobile sprite mapping', () => {
     for (const [status, body] of [['chopping', 1], ['building', 2], ['repairing', 2], ['drumming', 3]] as const) expect(signifierBody(false, false, status, true)).toBe(body);
     expect(signifierBody(false, false, 'idle', true)).toBe(5); expect(signifierBody(false, false, 'idle', false)).toBe(0);
   });
-  it('supports locomotion and falls back for action or unknown animations', () => {
+  it('keeps a default sprite for unknown and legacy unsupported animations', () => {
     for (const anim of ['idle', 'walk', 'run', 'flee', 'carry', 'haul', 'guard']) expect(supportsSignifierAnimation(anim)).toBe(true);
-    for (const anim of ['attack', 'chop', 'build', 'drum', 'dance', 'death', 'unknown']) expect(supportsSignifierAnimation(anim)).toBe(false);
-    const {sprites} = setup(); expect(sprites.signifier(pose(), 0, 0, false)).toBe(false); expect(sprites.cast(0, pose(), false)).toBe(false);
-    expect(sprites.layerCount).toBe(0); expect(sprites.fallbackCount).toBe(2);
+    expect(supportsSignifierAnimation('unknown')).toBe(false);
+    const {sprites} = setup(); expect(sprites.signifier(pose(), 0, 0, false)).toBe(true); expect(sprites.cast(0, pose(), false)).toBe(true);
+    expect(sprites.layerCount).toBe(3); expect(sprites.fallbackCount).toBe(2);
+    expect(sprites.cast(0, pose(), 'future-unknown-action')).toBe(true);
+    expect(sprites.samples.at(-1)).toMatchObject({clip: 'idle', requestedClip: 'future-unknown-action'});
   });
 });
 describe('directions and layered composition', () => {
@@ -96,17 +105,20 @@ describe('directions and layered composition', () => {
   });
 });
 describe('batch fallback and lifecycle', () => {
-  it('keeps models until texture decode succeeds', () => {
+  it('uses flat placeholders until texture decode succeeds', () => {
     const {sprites} = setup(false);
-    expect(sprites.cast(0, pose())).toBe(false); expect(sprites.signifier(pose(), 0, 0)).toBe(false); expect(sprites.layerCount).toBe(0);
+    expect(sprites.cast(0, pose())).toBe(true); expect(sprites.signifier(pose(), 0, 0)).toBe(true); expect(sprites.layerCount).toBe(2);
+    expect(sprites.samples.every(s => s.placeholder)).toBe(true);
     loaded(texture); expect(sprites.cast(0, pose())).toBe(true);
   });
-  it('falls back on texture failure', () => {
+  it('keeps flat placeholders on texture failure, never revealing models', () => {
     const {sprites} = setup(false); failed(); expect(sprites.atlasError).toBe(true); expect(sprites.atlasReady).toBe(false);
-    expect(sprites.cast(0, pose())).toBe(false); expect(sprites.signifier(pose(), 0, 0)).toBe(false);
+    expect(sprites.cast(0, pose())).toBe(true); expect(sprites.signifier(pose(), 0, 0)).toBe(true);
+    expect(sprites.samples.every(s => s.placeholder)).toBe(true);
   });
   it.each([2048, 1024])('falls back on max texture size %i', size => {
-    const {sprites} = setup(true, size); expect(sprites.atlasError).toBe(true); expect(sprites.cast(0, pose())).toBe(false);
+    const {sprites} = setup(true, size); expect(sprites.atlasError).toBe(true); expect(sprites.cast(0, pose())).toBe(true);
+    expect(sprites.samples.at(-1)?.placeholder).toBe(true);
   });
   it('rejects a decoded image of unexpected size', () => {
     const {sprites} = setup(false); texture.image = {width: 1024, height: 1024} as HTMLImageElement; loaded(texture);
@@ -115,7 +127,7 @@ describe('batch fallback and lifecycle', () => {
   it('rejects invalid sheet, head and body indexes', () => {
     const {sprites} = setup(); expect(sprites.cast(6, pose())).toBe(false); expect(sprites.cast(-1, pose())).toBe(false);
     for (const [head, body] of [[18, 0], [0, 7], [-1, 0], [0, -1]]) expect(sprites.signifier(pose(), head, body)).toBe(false);
-    expect(sprites.layerCount).toBe(0); expect(sprites.fallbackCount).toBe(6);
+    expect(sprites.layerCount).toBe(0); expect(sprites.fallbackCount).toBe(0);
   });
   it('grows past 200 sprites and 600 layers, preserving all earlier attributes', () => {
     const {sprites} = setup(true, 4096, true), capacity = sprites.capacity;
@@ -192,4 +204,65 @@ it('ships a compact lossless WebP atlas at the exact runtime URL', () => {
   expect(atlas.sampling.alphaThreshold).toBe(.5);
   setup();
   expect(THREE.TextureLoader.prototype.load).toHaveBeenCalledWith(expect.stringContaining('assets/mobile-sprites/atlas.webp'), expect.any(Function), undefined, expect.any(Function));
+});
+
+
+describe('screen-facing foot anchors', () => {
+  it.each([false, true])('keeps source feet on the exact world anchor at all camera angles (orthographic=%s)', ortho => {
+    const {sprites, ctx} = setup(true, 4096, ortho);
+    const point = new THREE.Vector3(4, 2, -3);
+    for (const pitch of [.05, .65, 1.53]) for (const roll of [0, .7, -1.2]) {
+      ctx.camera.position.set(point.x + 9, point.y + Math.tan(pitch) * 9, point.z + 7);
+      ctx.camera.lookAt(point); ctx.camera.rotateZ(roll); ctx.camera.updateMatrixWorld();
+      sprites.begin();
+      for (let i = 0; i < CAST_SHEETS.length; i++) {
+        sprites.cast(i, {...pose(i), x: point.x, y: point.y, z: point.z});
+        const sample = sprites.samples[i], sheet = atlas.sheets[CAST_SHEETS[i]];
+        const row = sample.direction === 'front' ? 0 : 1, footY = sheet.footYByCell[row][sample.frame];
+        const geometry = sprites.mesh.geometry, size = geometry.getAttribute('aSize'), offset = geometry.getAttribute('aOffset');
+        // The visible source foot, rather than the padded cell edge, is the zero offset.
+        expect((sheet.anchor[0] / sheet.cellWidth - .5) * size.getX(i) + offset.getX(i)).toBeCloseTo(0, 6);
+        expect((1 - footY / sheet.cellHeight) * size.getY(i) + offset.getY(i)).toBeCloseTo(0, 6);
+        const viewAnchor = point.clone().applyMatrix4(ctx.camera.matrixWorldInverse);
+        const top = viewAnchor.clone().add(new THREE.Vector3(0, size.getY(i), 0));
+        const right = viewAnchor.clone().add(new THREE.Vector3(size.getX(i), 0, 0));
+        const projected = viewAnchor.clone().applyMatrix4(ctx.camera.projectionMatrix);
+        const projectedTop = top.applyMatrix4(ctx.camera.projectionMatrix), projectedRight = right.applyMatrix4(ctx.camera.projectionMatrix);
+        expect(projectedTop.x).toBeCloseTo(projected.x, 8);
+        expect(projectedRight.y).toBeCloseTo(projected.y, 8);
+        expect(point.clone().project(ctx.camera).distanceTo(projected)).toBeLessThan(1e-10);
+      }
+    }
+    expect(sprites.mesh.material.vertexShader).toContain('vec4 p=viewMatrix*vec4(aCenter,1.)');
+    expect(sprites.mesh.material.vertexShader).not.toContain('vec3(0.');
+  });
+  it('always emits a flat flag placeholder before flag art is ready', () => {
+    const {sprites} = setup(false);
+    for (const state of ['planted', 'ground', 'thrown', 'carried'] as const) expect(sprites.flag(pose(), state)).toBe(true);
+    sprites.end();
+    expect(sprites.spriteCount).toBe(4); expect(sprites.layerCount).toBe(4);
+    expect(sprites.meshes.some(mesh => mesh.visible && mesh.name === 'mobile-sprite-placeholders')).toBe(true);
+  });
+});
+
+it('selects every shipped action, alias, frame and facing without model fallback', () => {
+  const {sprites, ctx} = setup();
+  expect(Object.keys(actionAtlas.clips).length).toBeGreaterThan(0);
+  expect(sprites.actionAtlasReady).toBe(true);
+  for (const [key, clip] of Object.entries(actionAtlas.clips)) {
+    const [kind, animation] = key.split(':');
+    for (const direction of ['front', 'away'] as const) for (let frame = 0; frame < clip.columns; frame++) {
+      const time = frame * clip.frameDurationMs / 1000 + .001;
+      const p = {...pose(0, direction === 'front' ? 0 : Math.PI), moving: true, animationTime: time};
+      ctx.time = time; sprites.begin();
+      const accepted = kind === 'signifier' ? sprites.signifier(p, 7, 0, animation)
+        : kind === 'flag' ? sprites.flag(p, animation as 'planted' | 'ground' | 'carried' | 'thrown')
+        : sprites.cast(CAST_SHEETS.indexOf(kind as typeof CAST_SHEETS[number]), p, animation);
+      expect(accepted, key).toBe(true); expect(sprites.fallbackCount, key).toBe(0);
+      expect(sprites.samples[0], key).toMatchObject({clip: animation, frame, direction});
+      const page = actionAtlas.pages[clip.page], rect = sprites.meshes[clip.page + 1].geometry.getAttribute('aRect');
+      expect(rect.getX(0), key).toBeCloseTo((clip.x + frame * clip.cellWidth) / page.width, 7);
+      expect(rect.getY(0), key).toBeCloseTo(1 - (clip.y + (clip.directionRows[direction] + 1) * clip.cellHeight) / page.height, 7);
+    }
+  }
 });

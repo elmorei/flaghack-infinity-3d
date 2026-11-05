@@ -63,24 +63,24 @@ describe('Frick-frack actors', () => {
     const e = fixture(); e.h.koUntil = 5; e.renderer.update(.5); expect(e.renderer.wizard.rotation.x).toBeLessThan(-1.5);
     e.world.time = 6; e.renderer.update(.5); expect(e.renderer.wizard.rotation.x).toBeGreaterThan(-.02); e.renderer.dispose();
   });
-  it('uses mobile art only for supported wizard poses and preserves the KO body', () => {
+  it('keeps the wizard in sprite presentation through KO and recovery', () => {
     const e = fixture();
-    const cast = vi.fn((_index: number, _pose: unknown, supported: boolean) => supported);
+    const cast = vi.fn((_index: number, _pose: unknown, _animation: string) => true);
     e.ctx.shared.mobileSprites = {cast} as unknown as NonNullable<RenderContext['shared']['mobileSprites']>;
     const before = JSON.stringify(e.h);
     e.renderer.update(.1);
-    expect(cast).toHaveBeenLastCalledWith(4, expect.objectContaining({id: 42, height: WIZARD_HEIGHT}), true);
+    expect(cast).toHaveBeenLastCalledWith(4, expect.objectContaining({id: 42, height: WIZARD_HEIGHT}), 'idle');
     expect(e.renderer.wizard.visible).toBe(false);
     expect(JSON.stringify(e.h)).toBe(before);
     e.h.koUntil = 5; e.renderer.update(.5);
-    expect(cast.mock.lastCall?.[2]).toBe(false);
-    expect(e.renderer.wizard.visible).toBe(true);
+    expect(cast.mock.lastCall?.[2]).toBe('ko');
+    expect(e.renderer.wizard.visible).toBe(false);
     expect(e.renderer.wizard.rotation.x).toBeLessThan(-1.5);
     e.world.time = 6; e.renderer.update(1);
-    expect(cast.mock.lastCall?.[2]).toBe(true);
+    expect(cast.mock.lastCall?.[2]).toBe('idle');
     expect(e.renderer.wizard.visible).toBe(false);
-    cast.mockReturnValue(false); e.renderer.update(.1);
-    expect(e.renderer.wizard.visible).toBe(true); // Atlas unavailable.
+    delete e.ctx.shared.mobileSprites; e.renderer.update(.1);
+    expect(e.renderer.wizard.visible).toBe(true); // Desktop presentation.
     e.renderer.dispose();
   });
 

@@ -45,6 +45,8 @@ export interface SharedRender {
   groundOffset?: (x: number, z: number) => number;
   /** Set by Survey: screen-sized marked-node symbols, drawn after the final map grade. */
   commandOverlay?: THREE.Scene;
+  /** Survey's actual displayed node-marker center, including flip tween and depth lift. */
+  nodeMarkerPosition?: (node: number, out: THREE.Vector3) => boolean;
   /** Post-processing drive values, written by the orchestrator, read by post. */
   fx?: PostFxState;
   /** Camera trauma 0..1: VFX adds on impacts/captures; controls applies and decays it. */

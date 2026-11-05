@@ -21,7 +21,7 @@ const server=createServer((req,res)=>{
   if(range){const start=Number(range[1]),end=Math.min(body.length-1,range[2]?Number(range[2]):body.length-1);if(start>end||start>=body.length){res.writeHead(416);res.end();return;}headers['Content-Range']=`bytes ${start}-${end}/${body.length}`;body=body.subarray(start,end+1);}
   headers['Content-Length']=body.length;res.writeHead(range?206:200,headers);res.end(body);
 });
-const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Real seeded starting flag loops. Before/after captures swap only the old distance term in the actual LeyLayer vertex shader, synchronously at identical world/camera/time. Numeric pixel comparison isolates the production LeyLayer mesh on black; screenshots show the full production canvas.',scenarios:[]};
+const results={completed:false,physicalDeviceTest:false,fixtureDisclosure:'Real seeded starting flag loops. Before/after captures swap only the old distance term in the actual LeyLayer vertex shader, synchronously at identical world/camera/time. Numeric pixel comparison isolates the production LeyLayer mesh on black; screenshots show the full production canvas. Opacity fixtures switch production mode state at a fixed camera/time, verify visible dimmed output outside Plan, and compare full Plan pixels with the legacy fragment shader.',scenarios:[]};
 const specs=[
   {name:'phone-portrait',width:390,height:844,dpr:1,mobile:true},
   {name:'small-phone',width:320,height:568,dpr:2,mobile:true},
@@ -29,6 +29,56 @@ const specs=[
   {name:'desktop-command',width:1280,height:800,dpr:1,mobile:false},
 ];
 let browser,page;
+/** Fixed-camera production-mesh check: mode changes alone must control opacity. */
+async function verifyModeOpacity(mobile){
+  const result=await page.evaluate(mobile=>{
+    const app=window.flaghack,r=app.renderer,renderer=r.renderer,ctx=r.ctx,s=app.session;
+    const survey=r.modules.find(m=>m.ley&&m.u&&m.data),mesh=survey.ley.mesh,material=mesh.material;
+    const shader=material.fragmentShader,opacityLine='gl_FragColor *= uLeyOpacity;';
+    if(!shader.includes(opacityLine))throw Error('Production ley opacity multiplier missing');
+    const saved={view:s.view,mobileMode:s.mobileMode,planTool:s.planTool,tool:s.tool};
+    const scene=ctx.scene,target=renderer.getRenderTarget(),background=scene.background;
+    const alpha=renderer.getClearAlpha(),color=renderer.getClearColor(survey.u.uFactionColor.value[0].clone());
+    const visible=scene.children.map(o=>[o,o.visible]),shadowAuto=renderer.shadowMap.autoUpdate;
+    const width=survey.u.uResolution.value.x,height=survey.u.uResolution.value.y;
+    const rt=r.warmTarget.clone();rt.setSize(width,height);
+    const draw=()=>{renderer.setRenderTarget(rt);renderer.clear();renderer.render(scene,ctx.camera);const pixels=new Uint8Array(width*height*4);renderer.readRenderTargetPixels(rt,0,0,width,height,pixels);return pixels;};
+    try{
+      renderer.shadowMap.autoUpdate=false;
+      for(const [o]of visible)o.visible=o===mesh;
+      scene.background=null;renderer.setClearColor(0,1);
+      // Legacy shader baseline differs only by removing the new opacity multiplier.
+      material.fragmentShader=shader.replace(opacityLine,'');material.needsUpdate=true;
+      const baseline=draw();
+      material.fragmentShader=shader;material.needsUpdate=true;
+      const modes=mobile
+        ?[{mobileMode:'units',expected:.5},{mobileMode:'build',expected:1},{mobileMode:'units',expected:.5},{mobileMode:'build',expected:1}]
+        :[{planTool:'select',expected:.5},...['node','enclose','pentacle','ring'].map(planTool=>({planTool,expected:1})),{tool:'building',expected:1},{planTool:'select',expected:.5},{view:'action',planTool:'node',expected:.5}];
+      const checks=[];
+      for(const mode of modes){
+        const {expected,...state}=mode;
+        Object.assign(s,{view:'command',mobileMode:'units',planTool:'select',tool:'flag'},state);
+        survey.ley.update(s,mobile);
+        const pixels=draw();let baselineEnergy=0,energy=0,maxDifference=0;
+        for(let i=0;i<pixels.length;i+=4)for(let j=0;j<3;j++){baselineEnergy+=baseline[i+j];energy+=pixels[i+j];maxDifference=Math.max(maxDifference,Math.abs(pixels[i+j]-baseline[i+j]));}
+        checks.push({view:s.view,mobileMode:s.mobileMode,planTool:s.planTool,tool:s.tool,expected,opacity:material.uniforms.uLeyOpacity.value,visible:mesh.visible,baselineEnergy,energy,maxDifference});
+      }
+      return{checks,glError:renderer.getContext().getError()};
+    }finally{
+      Object.assign(s,saved);survey.ley.update(s,mobile);
+      material.fragmentShader=shader;material.needsUpdate=true;
+      for(const [o,v]of visible)o.visible=v;
+      scene.background=background;renderer.setClearColor(color,alpha);renderer.shadowMap.autoUpdate=shadowAuto;renderer.setRenderTarget(target);rt.dispose();
+    }
+  },mobile);
+  assert.equal(result.glError,0);
+  for(const check of result.checks){
+    assert.equal(check.opacity,check.expected);assert.equal(check.visible,true);assert.ok(check.energy>0,'Ley lines must remain visible outside Plan');
+    if(check.expected===1)assert.equal(check.maxDifference,0,'Plan pixels must match the legacy shader exactly');
+    else assert.ok(check.energy<check.baselineEnergy,'Non-plan ley contribution must dim');
+  }
+  return result;
+}
 async function compare(label,mobile){
   const result=await page.evaluate(()=>{
     const app=window.flaghack,r=app.renderer,renderer=r.renderer,ctx=r.ctx,camera=ctx.camera;
@@ -111,6 +161,7 @@ try{
         &&(c.projectionMatrix.elements[15]>.5)===expected;
     },spec.mobile,{timeout:30000});
     entry.comparisons.push(await compare(spec.name,spec.mobile));
+    entry.opacity=await verifyModeOpacity(spec.mobile);
     if(spec.name==='phone-portrait'){
       await page.setViewportSize({width:844,height:390});await page.waitForTimeout(900);
       const resized=await compare('phone-resized-landscape',true);entry.comparisons.push(resized);

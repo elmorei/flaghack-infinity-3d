@@ -4,6 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { RenderContext } from '../context';
 import { angleDiff } from '../../sim/math';
 import { damp, hash01 } from './util';
+import { hippieAnimFor } from './hippieAnim';
 import { makeFace, disposeFace, faceSignature, type Face } from '../frickFrackScene';
 import { sleeveCardDetails } from '../../ui/frickFrackSleeve';
 import type { StatusIcons, UnitRings } from './overlays';
@@ -136,8 +137,13 @@ export class FrickFrackRenderer {
       this.wizard.rotation.z = ko ? 0 : .012 * Math.sin(time * 1.7);
       this.wizard.updateMatrixWorld(true);
       this.anchor.set(0, 1.8, 0).applyMatrix4(this.wizard.matrixWorld); shared.unitAnchors?.set(h.id, this.anchor);
-      this.wizard.visible = !shared.mobileSprites?.cast(4, {id: h.id, x: this.wizard.position.x, y: targetY, z: this.wizard.position.z, yaw: this.wizard.rotation.y, height: WIZARD_HEIGHT, moving: Math.hypot(h.pos.x - this.wizard.position.x, h.pos.z - this.wizard.position.z) > .03},
-        !ko && Math.abs(this.wizard.rotation.x) < .01 && (h.status === 'idle' || h.status === 'walking') && !h.airborne?.y && h.effects.every(e => e.until <= world.time));
+      const moving = Math.hypot(h.pos.x - this.wizard.position.x, h.pos.z - this.wizard.position.z) > .03;
+      const animation = ko ? 'ko' : h.effects.some(e => e.kind === 'stun' && e.until > world.time) ? 'stun'
+        : h.airborne?.y ? 'jump' : hippieAnimFor(h, moving ? 2 : 0);
+      this.wizard.visible = !shared.mobileSprites?.cast(4, {
+        id: h.id, x: this.wizard.position.x, y: this.wizard.position.y, z: this.wizard.position.z,
+        yaw: this.wizard.rotation.y, height: WIZARD_HEIGHT, moving,
+      }, animation);
     }
     this.wasVisible = !!h;
     const seen = new Set<number>();

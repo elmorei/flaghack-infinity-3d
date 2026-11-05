@@ -33,6 +33,7 @@ import { ImpliedPlanFeature } from './impliedPlan';
 import { LatticeLayer } from './latticeLayer';
 import { LeyLayer } from './leyLayer';
 import { MarkedNodeLayer } from './markedNodes';
+import { nodeMarkerPosition } from './nodeMarkerPosition';
 import { ObjectiveFeature } from './objectives';
 import { PhasonFeature } from './phasonFx';
 import { SpriteLayer } from './sprites';
@@ -69,6 +70,8 @@ export class SurveyRenderer implements RenderModule {
   private readonly bossVision: BossVisionFeature;
   private readonly res = new THREE.Vector2();
   private readonly viewDir = new THREE.Vector3();
+  private readonly markerPosition = (node: number, out: THREE.Vector3): boolean =>
+    nodeMarkerPosition(this.data, this.ctx.world.map.half, node, out);
   private grid = 1;
   private dust = 0;
   private acid = 0;
@@ -79,6 +82,7 @@ export class SurveyRenderer implements RenderModule {
     this.ctx = ctx;
     const { scene, world, session } = ctx;
     this.data = new SurveyData(world);
+    ctx.shared.nodeMarkerPosition = this.markerPosition;
     const d = this.data;
     this.u = createSurveyUniforms({ node: d.nodeTex, aux: d.auxTex, edge: d.edgeTex, facet: d.facetTex }, world.map.half);
     const palette = this.u.uFactionColor.value;
@@ -191,7 +195,7 @@ export class SurveyRenderer implements RenderModule {
     this.data.update(now);
     this.lattice.setTargetingVisible(!isMobileCommandLayout() || s.mobileMode === 'build');
     this.lattice.update();
-    this.ley.update();
+    this.ley.update(s, isMobileCommandLayout());
     this.facets.update();
     this.ground.update();
 
@@ -249,6 +253,7 @@ export class SurveyRenderer implements RenderModule {
   }
 
   dispose(): void {
+    if (this.ctx.shared.nodeMarkerPosition === this.markerPosition) delete this.ctx.shared.nodeMarkerPosition;
     this.ground.dispose();
     this.facets.dispose();
     this.lattice.dispose();

@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "created": "2026-11-05",
+  "method": "AI-generated matching action art. Existing approved atlas is unchanged. Source grids have only renderer-equivalent cutout alpha normalization; packing preserves visible RGB and uses nearest-neighbour scaling.",
+  "sources": [
+    {
+      "file": "dr-beef-supreme-actions.webp",
+      "actor": "dr-beef-supreme",
+      "clips": [
+        "seated",
+        "swing",
+        "throw",
+        "plant",
+        "pull",
+        "align",
+        "channel",
+        "push"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "9c0320f59b69838b4f82e3048090f14c723525e8d90b72e6ef014cf515bd543f",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "dr-beef-supreme-motion.webp",
+      "actor": "dr-beef-supreme",
+      "clips": [
+        "sprint",
+        "jump",
+        "fall",
+        "land",
+        "guard",
+        "hit",
+        "stun",
+        "ko"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "7e22cc345207a67d7431a33c7fc81f2b28d22aea010fcecf82dc84df05774007",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "beelzebub-crow-actions.webp",
+      "actor": "beelzebub-crow",
+      "clips": [
+        "seated",
+        "swing",
+        "throw",
+        "plant",
+        "pull",
+        "align",
+        "channel",
+        "push"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "119ac304eb7ef9b962bbe6e7dd04ecc2a029b5e0ca3650b210f7de3019227dd4",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "beelzebub-crow-motion.webp",
+      "actor": "beelzebub-crow",
+      "clips": [
+        "sprint",
+        "jump",
+        "fall",
+        "land",
+        "guard",
+        "hit",
+        "stun",
+        "ko"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1263,
+      "height": 1246,
+      "originalSha256": "76a878d4bffbfccb2d82160300072e3e0d3c0139ba0ed44bf6051b044f6d889f",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "dj-scarecrow-actions.webp",
+      "actor": "dj-scarecrow",
+      "clips": [
+        "seated",
+        "swing",
+        "throw",
+        "plant",
+        "pull",
+        "align",
+        "channel",
+        "push"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "493302e641a06a0733e2224bb6c060d87bdd06b3aee696678293701b0ba6751e",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "dj-scarecrow-motion.webp",
+      "actor": "dj-scarecrow",
+      "clips": [
+        "sprint",
+        "jump",
+        "fall",
+        "land",
+        "guard",
+        "hit",
+        "stun",
+        "ko"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1263,
+      "height": 1246,
+      "originalSha256": "37d5308cb522df8d575e4979149dc0877838c150888625143a3660e607b9d5d5",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "president-jaguar-actions.webp",
+      "actor": "president-jaguar",
+      "clips": [
+        "seated",
+        "swing",
+        "throw",
+        "plant",
+        "pull",
+        "align",
+        "channel",
+        "push"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "bdd86c3d37695001eb9c73ef5485172a575fcd98975d93f3e364a43dd898d6fc",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "president-jaguar-motion.webp",
+      "actor": "president-jaguar",
+      "clips": [
+        "sprint",
+        "jump",
+        "fall",
+        "land",
+        "guard",
+        "hit",
+        "stun",
+        "ko"
+      ],
+      "columns": 8,
+      "rows": 8,
+      "width": 1261,
+      "height": 1247,
+      "originalSha256": "34873d38d5103bca961f8d91255f293d4e83a935dabf65864a93b292f2f3ddb3",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "signifier-actions.webp",
+      "actor": "signifier",
+      "clips": [
+        "chop",
+        "kneel",
+        "tug",
+        "shove",
+        "kick",
+        "drum",
+        "dance",
+        "hammer",
+        "ko"
+      ],
+      "columns": 8,
+      "rows": 9,
+      "width": 1322,
+      "height": 1190,
+      "originalSha256": "6e7f804356cdbc635405935dd73db374e3dfa90817119897b9c1cc0ed2336b0f",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp",
+      "modularHead": true,
+      "heightPixels": 142,
+      "referenceRow": 3
+    },
+    {
+      "file": "signifier-effects.webp",
+      "actor": "signifier",
+      "clips": [
+        "stun",
+        "jump",
+        "hit",
+        "wobble"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "width": 1774,
+      "height": 887,
+      "originalSha256": "c59dd4e3d36c8d340fc1cd38b457d7fe05391d22eae32a99db074036f79ac8c6",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp",
+      "modularHead": true,
+      "heightPixels": 142
+    },
+    {
+      "file": "skeletal-boss-actions.webp",
+      "actor": "skeletal-boss",
+      "clips": [
+        "emerge",
+        "crouch",
+        "crouchWalk",
+        "rise",
+        "swipe",
+        "stomp",
+        "grab",
+        "recoil",
+        "death",
+        "dead",
+        "eye-charge",
+        "eye-fire"
+      ],
+      "columns": 8,
+      "rows": 12,
+      "width": 1024,
+      "height": 1536,
+      "originalSha256": "11f87553a87055ae634cd2aae020d4c18cd74d6a776f0d0e745f7799317d1f2d",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "frick-frack-wizard-actions.webp",
+      "actor": "frick-frack-wizard",
+      "clips": [
+        "ko",
+        "stun",
+        "jump",
+        "channel"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "width": 1774,
+      "height": 887,
+      "originalSha256": "9072010ec46012c0b552bbc4c62a7a335b0d54d3631ef8b952ba2ebdc689dddf",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp"
+    },
+    {
+      "file": "flag-actions.webp",
+      "actor": "flag",
+      "clips": [
+        "planted",
+        "ground",
+        "_diagonal-unused",
+        "carried"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "058756961f4f9450df70eb29afd252168105de6ea9fe78fe764b97559822eb30",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp",
+      "heightPixels": 112,
+      "userRevision": "Removed all finial balls; plain wood pole tips. Precise per-frame bottom-tip anchor."
+    }
+  ],
+  "aliases": {
+    "dr-beef-supreme:respawn": "dr-beef-supreme:land",
+    "dr-beef-supreme:aim": "dr-beef-supreme:guard",
+    "beelzebub-crow:respawn": "beelzebub-crow:land",
+    "beelzebub-crow:aim": "beelzebub-crow:guard",
+    "dj-scarecrow:respawn": "dj-scarecrow:land",
+    "dj-scarecrow:aim": "dj-scarecrow:guard",
+    "president-jaguar:respawn": "president-jaguar:land",
+    "president-jaguar:aim": "president-jaguar:guard",
+    "signifier:jitter": "signifier:wobble",
+    "flag:thrown": "flag:carried"
+  }
+}

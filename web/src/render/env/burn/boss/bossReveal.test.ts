@@ -223,9 +223,9 @@ describe('boss reveal presentation', () => {
 
 
 describe('mobile boss sprite integration', () => {
-  it('uses sprites only for standing idle/walk after emergence, preserving reveal, attacks and death', async () => {
+  it('keeps emergence, attacks, crouch and death in sprite presentation', async () => {
     const environment = env();
-    const cast = vi.fn((_index: number, _pose: unknown, supported = true) => supported);
+    const cast = vi.fn((_index: number, _pose: unknown, _animation: string) => true);
     environment.ctx.shared = {mobileSprites: {cast} as unknown as MobileSprites};
     Object.assign(environment.ctx.world, {lattice: {version: 0, nodes: [], edges: []}, survey: {version: 0, edgeLey: new Int8Array()}, factions: []});
     const boss: BossState = {lightning: [], id: 88, pos: {x: 0, z: 0}, yaw: 0, hp: 5000, maxHp: 5000,
@@ -238,17 +238,17 @@ describe('mobile boss sprite integration', () => {
     await effect.ready;
     const model = environment.root.getObjectByName('boss-model-32m')!;
     try {
-      at(environment, effect, 90.5); expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      at(environment, effect, 90.5); expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), 'emerge'); expect(model.visible).toBe(false);
       for (const action of ['idle', 'walk'] as const) {
         boss.action = action; at(environment, effect, 92);
-        expect(cast).toHaveBeenLastCalledWith(5, expect.objectContaining({moving: action === 'walk'}), true); expect(model.visible).toBe(false);
+        expect(cast).toHaveBeenLastCalledWith(5, expect.objectContaining({moving: action === 'walk'}), action); expect(model.visible).toBe(false);
       }
       boss.action = 'swipe'; boss.actionAt = 592; at(environment, effect, 92.1);
-      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), 'swipe'); expect(model.visible).toBe(false);
       boss.action = 'idle'; boss.crouched = true; at(environment, effect, 92.2);
-      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), 'crouch'); expect(model.visible).toBe(false);
       boss.crouched = false; boss.action = 'death'; boss.deathAt = 592; boss.hp = 0; at(environment, effect, 93);
-      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), false); expect(model.visible).toBe(true);
+      expect(cast).toHaveBeenLastCalledWith(5, expect.any(Object), 'death'); expect(model.visible).toBe(false);
     } finally { effect.dispose(); }
   });
 });

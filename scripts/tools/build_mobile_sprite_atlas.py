@@ -89,7 +89,7 @@ def build(source: Path, root: Path = ROOT) -> dict:
                                     drawOrder={direction: data['drawOrder'] for direction, data in modular['directions'].items()}),
                     sampling=dict(filter='nearest', mipmaps=False,
                                   alphaThreshold=0.5, encoding='lossless WebP, shader-equivalent cutout alpha',
-                                  note='All visible source RGB and cutout coverage are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells.'))
+                                  note='All visible source RGB and cutout coverage are preserved. Use exact cell-edge UVs with nearest sampling; transparent cell margins prevent neighboring-frame sampling. Anchors use pixel-edge coordinates.'))
     image_path = root / 'web/public/assets/mobile-sprites/atlas.webp'
     json_path = root / 'web/src/render/actors/mobileSpriteAtlas.json'
     image_path.parent.mkdir(parents=True, exist_ok=True)

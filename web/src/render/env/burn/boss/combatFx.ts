@@ -12,6 +12,7 @@ import { smooth } from './revealTimeline';
 import { createCrater } from './revealFx';
 import { bossForcefieldContacts } from './forcefieldContact';
 import type { BossForcefieldContact } from './forcefieldContact';
+import { flagSpriteRotation } from '../../../actors/flagSpriteTransform';
 
 const ADD = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending };
 const PLANE_VERTEX = `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
@@ -158,6 +159,20 @@ export class BossCombatFx {
       const owner = boss.held.faction; this.heldColor.color.set(owner === -1 ? 0xe4dfce : this.env.ctx.world.factions[owner].color);
       this.heldFlag.visible = boss.held.kind === 'flag'; this.heldPiece.visible = boss.held.kind === 'piece'; this.heldBuilding.visible = boss.held.kind === 'building';
       this.held.scale.setScalar(1 - smooth(2.55, 2.8, actionAge));
+      const sprites = this.env.ctx.shared?.mobileSprites;
+      if (boss.held.kind === 'flag' && sprites) {
+        // The carried world Flag is intentionally skipped by FlagRenderer. Replace this
+        // hand-attached proxy separately, using the same pose and consumption shrink.
+        this.heldFlag.updateWorldMatrix(true, false);
+        const m = this.heldFlag.matrixWorld.elements;
+        const scale = Math.hypot(m[4], m[5], m[6]);
+        if (sprites.flag({
+          id: -1 - boss.held.id, x: m[12] - m[4] * 1.8, y: m[13] - m[5] * 1.8, z: m[14] - m[6] * 1.8,
+          yaw: Math.atan2(m[8], m[10]), height: 3.6 * scale, moving: true,
+        }, 'carried', {ribbon: this.heldColor.color, rotation: flagSpriteRotation(m, this.env.ctx.camera)})) {
+          this.heldFlag.visible = false;
+        }
+      }
     }
   }
   private updateShields(boss: BossState | null | undefined, now: number): void {

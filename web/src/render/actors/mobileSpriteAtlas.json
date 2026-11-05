@@ -499,6 +499,6 @@
     "mipmaps": false,
     "alphaThreshold": 0.5,
     "encoding": "lossless WebP, shader-equivalent cutout alpha",
-    "note": "All visible source RGB and cutout coverage are preserved. Select individual cell UVs with half-texel insets to prevent sampling neighboring cells."
+    "note": "All visible source RGB and cutout coverage are preserved. Use exact cell-edge UVs with nearest sampling; transparent cell margins prevent neighboring-frame sampling. Anchors use pixel-edge coordinates."
   }
 }

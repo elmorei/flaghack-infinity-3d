@@ -754,17 +754,25 @@ export class AvatarRenderer {
     const hidden = v.down && v.u.uDissolve.value >= 1;
     v.group.position.set(av.pos.x, av.pos.y + gy, av.pos.z);
     v.group.rotation.set(0, v.yaw, 0);
+    const stunned = av.effects.some(e => e.kind === 'stun' && e.until > ctx.world.time);
+    const animation = v.down ? 'ko' : t - v.respawnAt < RESPAWN_TIME ? 'respawn'
+      : stunned ? 'stun' : t - v.hitAt < HIT_TIME ? 'hit'
+      : t - v.swingAt < SWING_TIME ? 'swing' : t - v.throwAt < THROW_TIME ? 'throw'
+      : t - v.plantAt < PLANT_TIME ? 'plant' : !av.onGround ? (av.vel.y > 0 ? 'jump' : 'fall')
+      : t - v.landAt < .25 ? 'land' : av.action.kind !== 'idle' ? av.action.kind
+      : av.pushing >= 0 ? 'push' : v.hold > .01 ? 'guard'
+      : av.input.throwMode ? 'aim' : v.speed > 6.6 ? 'sprint' : v.speed > .6 ? 'walk' : 'idle';
+    const started = animation === 'ko' ? v.koAt : animation === 'respawn' ? v.respawnAt
+      : animation === 'hit' ? v.hitAt : animation === 'swing' ? (t - v.swingAt < SWING_TIME ? v.swingAt : v.actionStart)
+      : animation === 'throw' ? v.throwAt : animation === 'plant' ? (t - v.plantAt < PLANT_TIME ? v.plantAt : v.actionStart)
+      : animation === 'land' ? v.landAt : v.actionStart;
     const sprite = !hidden && !!ctx.shared.mobileSprites?.cast(v.slot, {
       id: av.id, x: av.pos.x, y: av.pos.y, z: av.pos.z, yaw: v.yaw,
-      height: v.rig.style.crown, moving: v.speed > .6,
-    }, av.action.kind === 'idle' && av.onGround && av.pushing < 0 && !av.input.throwMode
-      && !v.down && v.u.uDissolve.value === 0 && v.air < .01 && v.hold < .01
-      && t - v.swingAt >= SWING_TIME && t - v.throwAt >= THROW_TIME && t - v.plantAt >= PLANT_TIME
-      && t - v.hitAt >= HIT_TIME && t - v.landAt >= .25 && av.effects.every(e => e.until <= ctx.world.time)
-      && !acid);
+      height: v.rig.style.crown, moving: v.speed > .6, animationTime: Math.max(0, t - started),
+    }, animation);
     v.rig.mesh.visible = !hidden && !sprite;
-    v.rig.mesh.castShadow = v.u.uDissolve.value < 0.5 && this.view.casts(av.pos.x, av.pos.y + 1, av.pos.z);
-    v.xray.visible = acid && !hidden && v.slot !== ctx.session.playerFaction;
+    v.rig.mesh.castShadow = !sprite && v.u.uDissolve.value < 0.5 && this.view.casts(av.pos.x, av.pos.y + 1, av.pos.z);
+    v.xray.visible = acid && !hidden && !sprite && v.slot !== ctx.session.playerFaction;
     v.group.updateMatrixWorld(true);
     const bones = v.rig.mesh.skeleton.bones;
 
@@ -774,7 +782,7 @@ export class AvatarRenderer {
     if (!hidden) {
       this.rings.push(av.pos.x, av.pos.y + gy + 0.035, av.pos.z, 0.95, color, 0.85 + 0.8 * v.channel, RING.avatar, v.slot * 0.25);
       this.fx.aura(av.pos.x, av.pos.y + gy, av.pos.z, v.channel, color, 0.85);
-      // The actual carried inventory remains a 3D equipment layer over the mobile body.
+      // FlagRenderer keeps actual carried inventory as sprites in mobile presentation.
       this.pushQuiver(v, av);
     }
 

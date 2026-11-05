@@ -7,12 +7,21 @@
  * snap-out breaks it at the middle and retracts the halves with a flicker.
  */
 import * as THREE from 'three';
+import type { Session } from '../../game/session';
 import { BEAM_Y, GLSL_COMMON, GLSL_FRAG, GLSL_VERT, GLSL_OUTPUT, LIFT, surveyMaterial } from './glsl';
 import type { SurveyUniforms } from './glsl';
 import type { SurveyData } from './surveyData';
 
 export const LEY_ZIP = 0.38;
 export const LEY_SNAP = 0.45;
+
+/** Mobile Plan and desktop planning tools retain the full-strength ley overlay. */
+export function leyOpacity(session: Pick<Session, 'view' | 'mobileMode' | 'planTool' | 'tool'>, mobileLayout: boolean): number {
+  const planning = session.view === 'command' && (mobileLayout
+    ? session.mobileMode === 'build'
+    : session.planTool !== 'select' || session.tool === 'building');
+  return planning ? 1 : 0.5;
+}
 
 const VERT = /* glsl */ `
 ${GLSL_COMMON}
@@ -85,6 +94,7 @@ void main() {
 const FRAG = /* glsl */ `
 ${GLSL_COMMON}
 ${GLSL_FRAG}
+uniform float uLeyOpacity;
 varying vec2 vUv;
 varying float vLen;
 varying float vVariant;
@@ -142,6 +152,9 @@ void main() {
     gl_FragColor = vec4(c * a, a * 0.25);
   }
   ${GLSL_OUTPUT}
+  // Scale premultiplied colour as well as alpha: the elevated beam is additive (alpha 0).
+  // Applying this after the output conversion halves both beam and ground contribution.
+  gl_FragColor *= uLeyOpacity;
 }
 `;
 
@@ -152,6 +165,7 @@ export class LeyLayer {
   private readonly geo: THREE.InstancedBufferGeometry;
   private readonly mat: THREE.ShaderMaterial;
   private readonly ends: THREE.InstancedBufferAttribute;
+  private readonly opacity = { value: 0.5 };
   private builtTopology = -1;
 
   constructor(scene: THREE.Scene, data: SurveyData, shared: SurveyUniforms) {
@@ -168,7 +182,10 @@ export class LeyLayer {
     g.setAttribute('iEnds', this.ends);
     g.instanceCount = data.edgeCount;
     this.geo = g;
-    this.mat = surveyMaterial(shared, { vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide });
+    this.mat = surveyMaterial(shared, {
+      vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide,
+      uniforms: { uLeyOpacity: this.opacity },
+    });
     this.mat.forceSinglePass = true;
     this.mesh = new THREE.Mesh(g, this.mat);
     this.mesh.frustumCulled = false;
@@ -176,7 +193,9 @@ export class LeyLayer {
     scene.add(this.mesh);
   }
 
-  update(): void {
+  update(session: Pick<Session, 'view' | 'mobileMode' | 'planTool' | 'tool'>, mobileLayout: boolean): void {
+    // Mode changes do not rebuild the lattice, so update before the topology early return.
+    this.opacity.value = leyOpacity(session, mobileLayout);
     if (this.builtTopology === this.data.topology) return;
     this.builtTopology = this.data.topology;
     const edges = this.data.lat.edges;

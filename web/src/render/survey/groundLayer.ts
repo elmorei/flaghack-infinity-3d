@@ -1,9 +1,10 @@
 /**
- * Command View ground tint: an homage to the 2017 Survey Flags board — a drifting cyan/red
+ * Desktop Command View ground tint: an homage to the 2017 Survey Flags board — a drifting cyan/red
  * noise field with twinkling speckle, laid under the fine white lattice and kept translucent
  * so the burn still reads beneath it. Fades in with session.viewBlend.
  */
 import * as THREE from 'three';
+import { isMobileCommandLayout } from '../../game/mobileTouch';
 import { GLSL_COMMON, GLSL_FRAG, GLSL_VERT, GLSL_OUTPUT, LIFT, surveyMaterial } from './glsl';
 import type { SurveyUniforms } from './glsl';
 
@@ -51,6 +52,7 @@ void main() {
 `;
 
 export class GroundLayer {
+  private readonly mobilePresentation = isMobileCommandLayout();
   private readonly scene: THREE.Scene;
   private readonly mesh: THREE.Mesh;
   private readonly geo: THREE.PlaneGeometry;
@@ -65,6 +67,7 @@ export class GroundLayer {
     this.geo.translate(0, LIFT.noise, 0);
     this.mat = surveyMaterial(shared, { vertexShader: VERT, fragmentShader: FRAG, uniforms: { uHalf: { value: half } }, hdrCap: 0.8 });
     this.mesh = new THREE.Mesh(this.geo, this.mat);
+    this.mesh.name = 'command-ground-static';
     this.mesh.frustumCulled = false; // Vertex shader lifts the sheet above its flat CPU bounds.
     this.mesh.renderOrder = 1;
     this.mesh.visible = false;
@@ -72,7 +75,8 @@ export class GroundLayer {
   }
 
   update(): void {
-    this.mesh.visible = this.shared.uViewBlend.value > 0.002;
+    // Mobile keeps the terrain and tactical markers without this decorative noise sheet.
+    this.mesh.visible = !this.mobilePresentation && this.shared.uViewBlend.value > 0.002;
   }
 
   dispose(): void {

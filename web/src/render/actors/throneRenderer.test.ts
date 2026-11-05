@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { spawnBuilding } from '../../sim/factory';
 import { captureHearth } from '../../sim/systems/capture';
 import { consumeBuilding } from '../../sim/systems/boss';
@@ -103,5 +103,22 @@ it('faces the actual effigy from every camp without changing altar or roaming-av
     expect(altar.yaw).toBe(.123);
   }
   expect([...e.world.avatars.values()].map(a => a.yaw)).toEqual(avatarYaws);
+  e.renderer.dispose();
+});
+
+
+it('replaces only the seated ruler with a foot-anchored sprite and preserves throne furniture', () => {
+  const e = fixture(), cast = vi.fn(() => true);
+  e.ctx.shared.mobileSprites = {cast} as unknown as NonNullable<RenderContext['shared']['mobileSprites']>;
+  e.world.factions[0].controlMode = 'rts'; e.renderer.update();
+  const altar = e.world.hearthOf(0)!;
+  const throne = e.renderer.group.getObjectByName('rts-ruler-0')!;
+  expect(cast).toHaveBeenCalledWith(0, expect.objectContaining({
+    x: altar.pos.x, y: 7 + THRONE_PLATFORM_HEIGHT, z: altar.pos.z, moving: false,
+  }), 'seated');
+  expect(throne.getObjectByName('rts-seated-avatar-0')?.visible).toBe(false);
+  expect(throne.getObjectByName('rts-throne')?.visible).toBe(true);
+  e.world.factions[0].controlMode = 'avatar'; cast.mockClear(); e.renderer.update();
+  expect(throne.visible).toBe(false); expect(cast).not.toHaveBeenCalled();
   e.renderer.dispose();
 });
