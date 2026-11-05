@@ -25,6 +25,7 @@ export const CHAKRA_ABILITY: Record<ChakraId, AbilityId> = {
   field: 'phason',
   finial: 'omega',
 };
+export type RitualId = 'redtape' | 'patchwork';
 export type DrugId = 'saffron' | 'dust' | 'acidcop';
 export const DRUGS: readonly DrugId[] = ['saffron', 'dust', 'acidcop'];
 
@@ -93,7 +94,7 @@ export interface FactionState {
   plan: Set<number>;
   jobWeights: Record<JobKind, number>; // 0..4
   chakras: Record<ChakraId, number>; // level 0..3
-  cooldowns: Record<AbilityId | GccAction | 'retransmit', number>; // world.time when ready
+  cooldowns: Record<AbilityId | RitualId | GccAction | 'retransmit', number>; // world.time when ready
   drugs: Record<DrugId, number>; // doses in inventory
   /** Faction-wide drug timers: world.time when the effect ends (0 = inactive). */
   drugActive: Record<DrugId, number>;
@@ -297,7 +298,7 @@ export interface Building {
   /** Independent Survey capture; never carries Hearth elimination semantics. */
   capture?: StructureCaptureState | null;
   lab: { brewing: DrugId | null; progress: number; queue: DrugId[] } | null;
-  gcc: { destroyedUntil: number; channelUntil: number; pushedBy: EntityId | -1 } | null;
+  gcc: { destroyedUntil: number; channelUntil: number; pushedBy: EntityId | -1; moveTarget?: V2 | null } | null;
 }
 
 export interface Piece {
@@ -357,7 +358,7 @@ export interface Projectile {
   bornAt: number;
 }
 
-export type ZoneKind = 'stabilize' | 'beacon' | 'omega' | 'phason';
+export type ZoneKind = 'stabilize' | 'beacon' | 'omega' | 'phason' | 'redtape' | 'patchwork' | 'omegaCharge' | 'alignment';
 export interface Zone {
   id: EntityId;
   type: 'zone';

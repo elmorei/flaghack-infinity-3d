@@ -4,6 +4,7 @@
  * be "x-ray" (no depth test, drawn last) so threat markers read through walls.
  */
 import * as THREE from 'three';
+import { drawGroundInkBeforeSprites } from './groundInk';
 import { GLSL_COMMON, GLSL_FRAG, GLSL_VERT, GLSL_OUTPUT, cornerQuad, surveyMaterial } from './glsl';
 import type { SurveyUniforms, Uniform } from './glsl';
 import { InstanceSet } from './instances';
@@ -163,6 +164,7 @@ export class SpriteLayer {
     renderOrder: number,
     xray: boolean,
     atlas?: THREE.CanvasTexture,
+    spriteForeground = false,
   ) {
     this.scene = scene;
     this.ownsAtlas = atlas === undefined;
@@ -177,6 +179,7 @@ export class SpriteLayer {
       uCells: { value: GLYPH_TEXT.length },
     };
     this.mat = surveyMaterial(shared, { vertexShader: VERT, fragmentShader: FRAG, uniforms: atlasUniforms, depthTest: !xray });
+    if (spriteForeground) drawGroundInkBeforeSprites(this.mat);
     this.mesh = new THREE.Mesh(this.set.geo, this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = renderOrder;

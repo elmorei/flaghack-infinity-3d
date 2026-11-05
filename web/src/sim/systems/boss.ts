@@ -1,3 +1,4 @@
+import { isIndestructibleBuilding } from '../buildingGeometry';
 import { leaveBuildingWreckage } from '../wreckage';
 import { groundHeight } from '../terrain';
 /** Host-only giant AI, movement and once-per-action impact windows. */
@@ -139,9 +140,9 @@ function target(world: World, b: BossState): BossTarget | null {
   if (altar) {
     let obstacle: BossTarget | null = null, gap = GRAB_REACH - 0.5;
     for (const s of world.buildings.values()) {
-      // Every gameplay structure is edible, including another altar, unfinished
-      // construction and the remains of a collapsed GCC.
-      if (s.id === altar.id) continue;
+      // Invulnerable carts must not trap the giant in an endless grab/eat loop.
+      // Other altars and unfinished construction remain edible.
+      if (s.id === altar.id || isIndestructibleBuilding(s)) continue;
       const d = distance(s.pos, b.pos);
       if (d < gap && distToSegment(s.pos.x, s.pos.z, b.pos.x, b.pos.z, altar.pos.x, altar.pos.z) < 3 * SIZE) { gap = d; obstacle = { kind: 'building', id: s.id }; }
     }
@@ -306,6 +307,7 @@ function advanceBoss(world: World, b: BossState, dt: number): void {
 function holdTarget(world: World, b: BossState): void {
   const t = b.target, pos = bossTargetPosition(world, t);
   if (!t || !pos || distance(pos, b.pos) > GRAB_REACH + 0.5) return;
+  if (t.kind === 'building' && world.buildings.get(t.id)?.kind === 'gcc') return;
   if (t.kind !== 'flag' && !attackReaches(world, b, pos)) return;
   let faction: Owner = -1;
   if (t.kind === 'flag') faction = world.flags.get(t.id)?.owner ?? -1;
@@ -322,6 +324,7 @@ function consumeTarget(world: World, b: BossState): void {
   else if (t.kind === 'piece') { const p = world.pieces.get(t.id); if (p) destroyPiece(world, p); }
   else if (t.kind === 'building') {
     const building = world.buildings.get(t.id);
+    if (building && isIndestructibleBuilding(building)) { b.held = null; return; }
     if (building) consumeBuilding(world, building);
   }
   // Keep the held cue until the animation finishes swallowing.
@@ -334,7 +337,7 @@ export function consumeFlag(world: World, id: EntityId): void {
 }
 
 export function consumeBuilding(world: World, building: Building, destroyed = false): void {
-  if (world.buildings.get(building.id) !== building) return;
+  if (isIndestructibleBuilding(building) || world.buildings.get(building.id) !== building) return;
   // Altars are consumed only by the eating path, never any destructive impact.
   if (destroyed && building.kind === 'hearth') return;
   for (const f of [...world.flags.values()]) if (f.holder === building.id) consumeFlag(world, f.id);

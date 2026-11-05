@@ -63,7 +63,7 @@ export function createFaction(id: FactionId, isPlayer: boolean, difficulty: Diff
     plan: new Set<number>(),
     jobWeights: { survey: 3, gather: 2, defend: 1, raid: 0, ritual: 1 },
     chakras: { hoist: 0, fly: 0, canton: 0, field: 0, finial: 0 },
-    cooldowns: { beacon: 0, march: 0, stabilize: 0, phason: 0, omega: 0, dialectics: 0, simulacra: 0, retransmit: 0 },
+    cooldowns: { beacon: 0, march: 0, stabilize: 0, phason: 0, omega: 0, dialectics: 0, simulacra: 0, retransmit: 0, redtape: 0, patchwork: 0 },
     drugs: { saffron: 0, dust: 0, acidcop: 0 },
     drugActive: { saffron: 0, dust: 0, acidcop: 0 },
     saffronCrashUntil: 0,

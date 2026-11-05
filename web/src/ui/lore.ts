@@ -30,6 +30,7 @@ import {
   DRUM_RITUAL_PER_SEC,
   DRUMMERS_PER_CIRCLE,
   GCC,
+  GCC_RECRUIT_INTERVAL,
   HEARTH_FLAG_COST,
   HEARTH_FLAG_INTERVAL,
   HEARTH_OBSERVE_RADIUS,
@@ -66,6 +67,7 @@ import {
   WARD_RADIUS,
   WORKSHOP_FLAG_COST,
   WORKSHOP_FLAG_INTERVAL,
+  WORKSHOP_RECRUIT_INTERVAL,
 } from '../sim/constants';
 import { EFFIGY_HEIGHT } from '../sim/map/mapgen';
 import type { FactionId } from '../sim/types';
@@ -279,7 +281,7 @@ export const CODEX_SURVEY: readonly CodexBlock[] = [
       'On capture the Hearth becomes the captor\'s **outpost Hearth**.',
       'The loser\'s buildings become the captor\'s, disabled until repaired.',
       'Their planted Flags turn neutral, pullable by anyone.',
-      'Their hippies turn neutral. Their GCC is destroyed.',
+      'Their hippies turn neutral. Their indestructible GCC stays intact; it stops operating if the camp is eliminated.',
     ],
   },
   {
@@ -475,7 +477,7 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
     head: ['Building', 'Lumber', 'Effect'],
     rows: [
       ['**Flag Hearth**', '—', `${BUILDINGS.hearth.hp} HP. Crafts 1 Flag every ${HEARTH_FLAG_INTERVAL} s for ${HEARTH_FLAG_COST} lumber and keeps your stock. Cannot be destroyed, only overwritten.`],
-      ['**Flag Workshop**', `${BUILDINGS.workshop.cost}`, `+1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber. Holds 10 for local pickup; production pauses while full. +10 camp hoarding threshold. Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`],
+      ['**Flag Workshop**', `${BUILDINGS.workshop.cost}`, `+1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber. Holds 10 for local pickup; production pauses while full. +10 camp hoarding threshold. Recruits a nearby neutral every ${WORKSHOP_RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`],
       [
         '**Drum Circle**',
         `${BUILDINGS.drumcircle.cost}`,
@@ -497,14 +499,14 @@ export const CODEX_CAMP: readonly CodexBlock[] = [
   { kind: 'h', text: 'The Geomantic Command Center' },
   {
     kind: 'p',
-    text: `A black pentagonal cart with Flag-spoked wheels and a tabletop map of the burn. Press Tab anywhere to open the Command View. Hold E at the cart to push it at ${GCC.pushSpeed} m/s. If it collapses it is rebuilt at your Hearth after ${GCC.rebuildTime} s.`,
+    text: `A black pentagonal cart with Flag-spoked wheels and a tabletop map of the burn. Press Tab anywhere to open the Command View. Hold E at the cart to push it at ${GCC.pushSpeed} m/s. The cart is indestructible, even against the Effigy. Losing your last Hearth still ends your camp.`,
   },
   {
     kind: 'list',
     items: [
       `**Geomantic Advice**: reveals the lattice and focus points within ${GCC.adviceRadius} m and observes those nodes.`,
       `**Flag Repair**: every ${GCC.repairInterval} s re-plants one loose Flag of yours within ${GCC.repairRadius} m and mends your pieces and buildings there.`,
-      `**Recruitment**: like a Drum Circle, automatically recruits one existing neutral within ${RECRUIT_RADIUS} m every ${RECRUIT_INTERVAL} s, without a Flag or lumber cost.`,
+      `**Recruitment**: automatically recruits one existing neutral within ${RECRUIT_RADIUS} m every ${GCC_RECRUIT_INTERVAL} s, without a Flag or lumber cost.`,
     ],
   },
   { kind: 'h', text: 'Drugs' },

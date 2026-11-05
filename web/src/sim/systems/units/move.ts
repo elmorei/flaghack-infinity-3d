@@ -9,6 +9,7 @@ import type { PathOptions } from '../../nav/navgrid';
 import type { Hippie } from '../../types';
 import type { World } from '../../world';
 import { hasEffect, speedMultiplier } from '../effects';
+import { redTapeMovementMultiplier } from '../rituals';
 import { brainOf } from './brain';
 import type { Brain } from './brain';
 import type { UnitsState } from './state';
@@ -157,7 +158,7 @@ export function servicePathQueue(world: World, sys: UnitsState): void {
 
 /** Effect, terrain and load speed factor (mud is sampled a few times a second, not every tick). */
 function speedFactor(world: World, h: Hippie, b: Brain): number {
-  let m = speedMultiplier(world, h);
+  let m = speedMultiplier(world, h) * redTapeMovementMultiplier(world, h);
   if (h.carryingLumber > 0) m *= HIPPIE.carryLumberSpeed;
   if (world.time >= b.mudCheckAt) {
     b.inMud = world.map.groundAt(h.pos.x, h.pos.z) === 'mud';

@@ -37,6 +37,14 @@ describe('production mobile command actions',()=>{
     expect(f.queue).toEqual([{t:'order',faction:0,hippies:[f.own.id],order:{kind:'recruit',target:neutral.id}}]);
     expect(f.s.selection.has(f.own.id)).toBe(true);
   });
+  it('wizard tap starts a conversation rather than recruiting or replacing selected units', () => {
+    const f = setup(), wizard = [...f.world.hippies.values()].find(h => h.faction === -1)!;
+    wizard.wizard = true; f.world.frickFrack.wizardId = wizard.id; f.s.selection.add(f.own.id);
+    f.s.hover.entity = wizard.id; f.s.hover.point = { x: wizard.pos.x, y: 0, z: wizard.pos.z };
+    f.action('tap', -10000, -10000); f.frame();
+    expect(f.queue).toEqual([{ t: 'talkWizard', faction: 0, wizardId: wizard.id }]);
+    expect([...f.s.selection]).toEqual([f.own.id]);
+  });
   it('pan release cannot change mode, selection, plan or issue an order',()=>{
     const f=setup(); f.s.selection.add(f.own.id);f.s.hover.entity=f.own.id;f.action('drag');f.frame();
     expect(f.queue).toEqual([]);expect(f.s.mobileMode).toBe('units');expect(f.s.selection.has(f.own.id)).toBe(true);
@@ -57,25 +65,23 @@ describe('production mobile command actions',()=>{
     f.action('hold',p.x,p.y);f.frame();expect(f.s.mobileMode).toBe('build');expect(f.s.mobileMenu).toBe('build');
     expect(f.s.mobileBuildFacet).toBe(facet.id);expect(f.queue).toEqual([]);
   });
-  it('holds an elevated center and retains its level through explicit confirmation',()=>{
+  it('holds an elevated center and retains its level for the immediate building picker',()=>{
     const f=setup();const facet=f.world.lattice.facets.find(fc=>fc.thick&&!fc.boundary&&f.world.inSurvey(fc.id,0))!;
     const y=f.world.collision.groundHeight(facet.cx,facet.cz)+2*LEVEL_HEIGHT;
     f.s.hover.facet=facet.id;f.s.hover.node=-1;f.s.hover.point={x:facet.cx,y,z:facet.cz};
     const p=f.project(facet.cx,y,facet.cz);f.action('hold',p.x,p.y);f.frame();
     expect(f.s.mobileBuildLevel).toBe(2);expect(f.s.mobileBuildFacet).toBe(facet.id);expect(f.queue).toEqual([]);
-    f.s.mobileMenu=null;f.s.tool='building';f.s.buildingKind='ward';f.s.mobileBuildConfirm=true;
-    f.frame({valid:true,facet:facet.id,level:2});f.frame({valid:true,facet:facet.id,level:2});
-    expect(f.queue).toEqual([{t:'placeBuilding',faction:0,kind:'ward',facet:facet.id,level:2}]);
+    expect(f.s.mobileMenu).toBe('build');
   });
   it('open menu cancels touch and blocks pending build confirmation',()=>{
     const f=setup();f.s.mobileMenu='build';f.s.mobileBuildFacet=5;f.s.mobileBuildConfirm=true;f.s.tool='building';
     f.touch.down(1,100,100,0);f.touch.poll(1000);f.frame({valid:true,facet:5});
     expect(f.queue).toEqual([]);expect(f.touch.active).toBe(false);expect(f.s.mobileBuildConfirm).toBe(false);
   });
-  it('building requires explicit matching valid confirmation and consumes it once',()=>{
+  it('legacy confirmation signals cannot place buildings outside the picker',()=>{
     const f=setup();f.s.mobileBuildFacet=5;f.s.tool='building';f.s.buildingKind='workshop';f.action('tap',-1000,-1000);f.frame({valid:true,facet:5});expect(f.queue).toEqual([]);
     f.s.mobileBuildConfirm=true;f.frame({valid:true,facet:6});expect(f.queue).toEqual([]);
     f.s.mobileBuildConfirm=true;f.frame({valid:true,facet:5});f.frame({valid:true,facet:5});
-    expect(f.queue).toEqual([{t:'placeBuilding',faction:0,kind:'workshop',facet:5}]);expect(f.s.mobileBuildFacet).toBe(-1);
+    expect(f.queue).toEqual([]);expect(f.s.mobileBuildFacet).toBe(5);
   });
 });

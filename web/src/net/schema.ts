@@ -38,6 +38,7 @@ import type {
   DroppedBeacon,
   DrugId,
   EffectKind,
+  RitualId,
   EntityId,
   FactionId,
   FactionState,
@@ -323,13 +324,13 @@ const HIPPIE_STATUSES = keysOf<HippieStatus>({
 const BUILDING_KINDS = keysOf<BuildingKind>({ hearth: true, workshop: true, drumcircle: true, ward: true, druglab: true, gcc: true });
 const PIECE_KINDS = keysOf<PieceKind>({ wall: true, floor: true, ramp: true });
 const PILE_KINDS = keysOf<Pile['kind']>({ pallets: true, moop: true, lumber: true });
-const ZONE_KINDS = keysOf<ZoneKind>({ stabilize: true, beacon: true, omega: true, phason: true });
+const ZONE_KINDS = keysOf<ZoneKind>({ stabilize: true, beacon: true, omega: true, phason: true, redtape: true, patchwork: true, omegaCharge: true, alignment: true });
 const PING_KINDS = keysOf<PingKind>({ rally: true, attack: true, flag: true, sos: true, shot: true });
 const CAPTURE_STAGES = keysOf<CaptureStage>({ safe: true, threatened: true, contained: true, contested: true, overwritten: true, captured: true });
 const PERSONALITIES = keysOf<Personality>({ player: true, surveyor: true, raider: true, warden: true });
 const DIFFICULTIES = keysOf<Difficulty>({ chill: true, normal: true, hard: true, vexillosaint: true });
 const PHASES = keysOf<MatchPhase>({ playing: true, ended: true });
-type CooldownKey = AbilityId | GccAction | 'retransmit';
+type CooldownKey = AbilityId | RitualId | GccAction | 'retransmit';
 const COOLDOWN_KEYS = keysOf<CooldownKey>({
   beacon: true,
   march: true,
@@ -339,6 +340,8 @@ const COOLDOWN_KEYS = keysOf<CooldownKey>({
   dialectics: true,
   simulacra: true,
   retransmit: true,
+  redtape: true,
+  patchwork: true,
 });
 const STAT_KEYS = keysOf<keyof FactionStats>({
   flagsPlanted: true,
@@ -594,11 +597,11 @@ const labField: Field<Building> = {
 /** GCC: [destroyedUntil, channelUntil, pushedBy]. */
 const gccField: Field<Building> = {
   key: 'gcc',
-  enc: (b) => (b.gcc ? [quant(b.gcc.destroyedUntil, MS), quant(b.gcc.channelUntil, MS), b.gcc.pushedBy] : null),
+  enc: (b) => (b.gcc ? [quant(b.gcc.destroyedUntil, MS), quant(b.gcc.channelUntil, MS), b.gcc.pushedBy, b.gcc.moveTarget ? quant(b.gcc.moveTarget.x, CM) : null, b.gcc.moveTarget ? quant(b.gcc.moveTarget.z, CM) : null] : null),
   same: (b, p) => {
     const g = b.gcc;
     if (!g) return p === null;
-    return Array.isArray(p) && p[0] === quant(g.destroyedUntil, MS) && p[1] === quant(g.channelUntil, MS) && p[2] === g.pushedBy;
+    return Array.isArray(p) && p[0] === quant(g.destroyedUntil, MS) && p[1] === quant(g.channelUntil, MS) && p[2] === g.pushedBy && p[3] === (g.moveTarget ? quant(g.moveTarget.x, CM) : null) && p[4] === (g.moveTarget ? quant(g.moveTarget.z, CM) : null);
   },
   dec: (b, v) => {
     if (!Array.isArray(v)) {
@@ -609,6 +612,7 @@ const gccField: Field<Building> = {
     g.destroyedUntil = dequant(v[0], MS);
     g.channelUntil = dequant(v[1], MS);
     g.pushedBy = int(v[2], -1);
+    g.moveTarget = typeof v[3] === 'number' && typeof v[4] === 'number' ? { x: dequant(v[3], CM), z: dequant(v[4], CM) } : null;
     b.gcc = g;
   },
 };

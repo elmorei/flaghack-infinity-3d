@@ -1,11 +1,11 @@
+import { canPlaceBuilding } from '../sim/systems/buildings';
+import type { Command } from '../sim/commands';
 /** Mobile command chrome: the field stays clear; existing panels live in one full-screen menu. */
 import type { Session } from '../game/session';
 import { nearbyPickupTag } from '../game/cardPickup';
-import { abilityBlocker } from '../sim/systems/abilities';
-import { CHAKRAS } from '../sim/types';
 import type { BuildingKind } from '../sim/types';
 import type { World } from '../sim/world';
-import { CHAKRA_INFO } from './catalog';
+import { MobilePowers, MOBILE_POWER_NAMES } from './mobilePowers';
 import type { UiHost, UiLayout, UiPart } from './core';
 import { button, el, setAttr, setClass, setText, setVar, show } from './dom';
 import { MobileFieldStatus } from './mobileFieldStatus';
@@ -21,7 +21,7 @@ export function mobileIndicatorReservedRects(field: HTMLElement): DOMRect[] {
 
 export function cancelMobileTarget(s: Session): void {
   s.tool = 'flag'; s.mobileBuildFacet = -1; s.mobileBuildConfirm = false;
-  s.mobileAbility = null; s.mobileBoxSelect = false; s.recruitTargeting = false;
+  s.mobileAbility = null; s.mobileRitual = null; s.mobileBoxSelect = false; s.recruitTargeting = false;
   s.planPreview = []; s.planTool = s.mobileMode === 'build' ? 'node' : 'select';
   s.mobileCancelSerial++;
 }
@@ -29,10 +29,15 @@ export function setMobileMode(s: Session, mode: Session['mobileMode']): void {
   cancelMobileTarget(s); s.mobileMode = mode; s.mobileMenu = null;
   s.planTool = mode === 'build' ? 'node' : 'select';
 }
-export function chooseMobileBuilding(s: Session, kind: BuildingKind): boolean {
+export function chooseMobileBuilding(s: Session, kind: BuildingKind, world: World, submit: (command: Command) => void): boolean {
   if (s.mobileBuildFacet < 0) return false;
-  s.mobileMode = 'build'; s.buildingKind = kind; s.tool = 'building';
-  s.mobileMenu = null; s.mobileBuildConfirm = false; s.mobileCancelSerial++;
+  const facet = s.mobileBuildFacet, level = s.mobileBuildLevel;
+  const check = canPlaceBuilding(world, s.playerFaction, kind, facet, level);
+  if (!check.ok) { s.post(check.reason, 'warn'); return true; }
+  // Consume the locked location before submitting so rapid duplicate taps cannot place twice.
+  s.mobileMode = 'build'; s.buildingKind = kind; s.tool = 'flag'; s.mobileBuildFacet = -1;
+  s.mobileMenu = null; s.mobileBuildConfirm = false; s.mobileCancelSerial++; s.ghost = null;
+  submit({ t: 'placeBuilding', faction: s.playerFaction, kind, facet, ...(level ? { level } : {}) });
   return true;
 }
 
@@ -46,14 +51,13 @@ export class MobileCommandUI implements UiPart {
   private selectionLabel: HTMLElement;
   private placement: HTMLElement;
   private placementLabel: HTMLElement;
-  private confirm: HTMLButtonElement;
   private cancel: HTMLButtonElement;
   private toast: HTMLElement;
   private pickup: HTMLElement;
   private modeButtons: HTMLButtonElement[];
   private buildHint: HTMLElement;
-  private powers: HTMLElement;
-  private abilities = new Map<string, HTMLButtonElement>();
+  private powers: MobilePowers;
+  private switchMode: HTMLButtonElement;
   private lastOpen: MobileTab | null = null;
   private status: MobileFieldStatus;
   private statusHeader: HTMLElement;
@@ -72,7 +76,6 @@ export class MobileCommandUI implements UiPart {
     timing.setAttribute('aria-label', 'Match time');
     const top = el('div', 'mc-top', statusLeft);
     button('btn ix', top, 'Menu', () => this.open('main'));
-    button('btn ix', top, 'Home', () => this.home());
     const resources = el('section', 'mc-resources', this.statusHeader);
     resources.setAttribute('aria-label', 'Camp resources');
     this.toast = el('div', 'mc-alert is-off', this.field);
@@ -86,14 +89,14 @@ export class MobileCommandUI implements UiPart {
     this.placement = el('div', 'mc-placement ix is-off', this.field);
     this.placementLabel = el('div', 'mc-placement-label', this.placement);
     const placementActions = el('div', 'mc-actions', this.placement);
-    this.confirm = button('btn btn-primary', placementActions, 'Confirm', () => { s.mobileBuildConfirm = true; });
     this.cancel = button('btn', placementActions, 'Cancel', () => cancelMobileTarget(s));
     const modes = el('nav', 'mc-modes ix', this.field);
     modes.setAttribute('aria-label', 'Field mode');
-    this.modeButtons = [
-      button('btn', modes, 'Degen', () => setMobileMode(s, 'units')),
-      button('btn', modes, 'Plan', () => setMobileMode(s, 'build')),
-    ];
+    const degen = button('btn', modes, 'Degen', () => setMobileMode(s, 'units'));
+    const home = button('btn mc-home', modes, '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5.5 9v12h5v-7h3v7h5V9"/></svg>', () => this.home());
+    home.setAttribute('aria-label', 'Home'); home.title = 'Return to your camp';
+    const plan = button('btn', modes, 'Plan', () => setMobileMode(s, 'build'));
+    this.modeButtons = [degen, plan];
     this.altars = new MobileAltarIndicators(this.field);
 
     this.menu = el('section', 'mc-menu ix is-off', this.root);
@@ -105,7 +108,7 @@ export class MobileCommandUI implements UiPart {
     button('btn', header, 'Back to field', () => this.close());
     const nav = el('nav', 'mc-tabs', this.menu);
     nav.setAttribute('aria-label', 'Command sections');
-    for (const [id, label] of [['main', 'Overview'], ['units', 'Units'], ['plan', 'Plan'], ['build', 'Build'], ['settings', 'Settings']] as const) {
+    for (const [id, label] of [['main', 'Overview'], ['units', 'Units'], ['plan', 'Plan'], ['build', 'Build'], ['powers', 'Powers'], ['settings', 'Settings']] as const) {
       const tab = button('btn', nav, label, () => this.open(id));
       this.tabs.set(id, tab);
       const page = el('div', 'mc-page is-off', this.menu);
@@ -134,22 +137,14 @@ export class MobileCommandUI implements UiPart {
     button('btn', selectActions, 'Box select', () => {
       setMobileMode(s, 'units'); s.mobileBoxSelect = true;
     });
-    this.powers = el('section', 'mc-powers', this.pages.get('plan')!);
-    el('h3', '', this.powers, 'Powers');
-    const powerButtons = el('div', 'mc-power-buttons', this.powers);
-    for (const chakra of CHAKRAS) {
-      const info = CHAKRA_INFO[chakra];
-      const b = button('btn', powerButtons, info.abilityName, () => {
-        const w = host.app.world;
-        const why = w ? abilityBlocker(w, s.playerFaction, info.ability) : 'No burn in progress.';
-        if (why) { host.blocked(why); return; }
-        cancelMobileTarget(s); s.mobileAbility = info.ability; this.close();
-      });
-      this.abilities.set(chakra, b);
-    }
-    // Drug use and ritual details remain reachable for avatar factions; RTS cannot use them.
-    move('.abar', 'plan');
+    this.powers = new MobilePowers(host, this.pages.get('powers')!);
+    move('.abar', 'powers');
     const settings = this.pages.get('settings')!;
+    this.switchMode = button('btn', settings, 'Switch control mode', () => {
+      const world = host.app.world; if (!world) return;
+      if (host.app.setControlMode?.(world.factions[s.playerFaction].controlMode === 'rts' ? 'avatar' : 'rts')) this.close();
+    });
+    this.switchMode.title = 'Switch between Regular and Degen. Mode-specific spell upgrades refund their Ritual costs.';
     button('btn', settings, 'Game settings', () => { s.panels.settings = true; s.mobileCancelSerial++; });
     button('btn', settings, 'Help', () => { s.panels.help = true; s.mobileCancelSerial++; });
     button('btn', settings, 'Liber HH', () => { s.panels.codex = true; s.mobileCancelSerial++; });
@@ -173,7 +168,7 @@ export class MobileCommandUI implements UiPart {
     const s = this.host.app.session;
     if (s.mobileMenu !== tab) s.mobileCancelSerial++;
     s.mobileMenu = tab; s.mobileBuildConfirm = false;
-    s.mobileAbility = null; s.mobileBoxSelect = false;
+    s.mobileAbility = null; s.mobileRitual = null; s.mobileBoxSelect = false;
   }
   private close(): void {
     const s = this.host.app.session;
@@ -183,6 +178,7 @@ export class MobileCommandUI implements UiPart {
   private home(): void {
     const w = this.host.app.world, s = this.host.app.session;
     if (!w) return;
+    s.mobileAbility = null; s.mobileRitual = null;
     for (const id of w.factions[s.playerFaction].hearthIds) {
       const b = w.buildings.get(id);
       if (b && b.faction === s.playerFaction) { s.camera.cmdX = b.pos.x; s.camera.cmdZ = b.pos.z; break; }
@@ -213,26 +209,21 @@ export class MobileCommandUI implements UiPart {
     setAttr(this.modeButtons[0], 'aria-pressed', String(s.mobileMode === 'units'));
     setAttr(this.modeButtons[1], 'aria-pressed', String(s.mobileMode === 'build'));
     const selected = s.selection.size;
-    show(this.selected, selected > 0 && s.mobileBuildFacet < 0 && !s.mobileAbility && !s.mobileBoxSelect);
+    show(this.selected, selected > 0 && s.mobileBuildFacet < 0 && !s.mobileAbility && !s.mobileRitual && !s.mobileBoxSelect);
     setText(this.selectionLabel, `${selected} selected`);
     const preview = s.mobileBuildFacet >= 0 && s.tool === 'building';
-    const targeting = preview || !!s.mobileAbility || s.mobileBoxSelect || s.recruitTargeting || (s.planTool !== 'select' && s.planTool !== 'node');
+    const targeting = preview || !!s.mobileAbility || !!s.mobileRitual || s.mobileBoxSelect || s.recruitTargeting || (s.planTool !== 'select' && s.planTool !== 'node');
     show(this.placement, targeting);
-    show(this.confirm, preview);
-    this.confirm.disabled = preview && !s.ghost?.valid;
     setText(this.placementLabel, preview
-      ? (s.ghost?.valid ? 'Place building here?' : s.ghost?.reason || 'Checking placement…')
-      : s.mobileAbility ? 'Tap the field to target this power.'
+      ? (s.ghost?.valid ? 'Choose a building from the menu.' : s.ghost?.reason || 'Checking placement…')
+      : (s.mobileAbility || s.mobileRitual) ? `Tap the field for ${MOBILE_POWER_NAMES[(s.mobileAbility || s.mobileRitual)!]}.`
       : s.mobileBoxSelect ? 'Drag a box around your units.'
       : s.recruitTargeting ? 'Tap a neutral Signifier to recruit.' : 'Tap the field to set this plan.');
-    setText(this.buildHint, s.mobileBuildFacet >= 0 ? 'Choose a building for this space. Review its preview on the field before confirming.' : 'Switch to Plan, then long-press the center of a buildable space to choose what goes there.');
+    setText(this.buildHint, s.mobileBuildFacet >= 0 ? 'Choose a building to start construction here immediately. Grey choices are unavailable.' : 'Switch to Plan, then long-press the center of a buildable space to choose what goes there.');
     setClass(this.root, 'mc-rts', world.factions[s.playerFaction].controlMode === 'rts');
-    show(this.powers, world.factions[s.playerFaction].controlMode !== 'rts');
-    for (const chakra of CHAKRAS) {
-      const b = this.abilities.get(chakra)!;
-      const why = abilityBlocker(world, s.playerFaction, CHAKRA_INFO[chakra].ability);
-      b.disabled = why !== ''; b.title = why || CHAKRA_INFO[chakra].abilityName;
-    }
+    this.powers.update(world);
+    setText(this.switchMode, world.factions[s.playerFaction].controlMode === 'rts' ? 'Switch to Regular (Avatar)' : 'Switch to Degen (RTS)');
+    this.switchMode.disabled = !this.host.app.setControlMode;
     const alert = [...s.feed].reverse().find(x => ['warn', 'danger', 'epic'].includes(x.severity) && now - x.at < 5000);
     show(this.toast, !!alert);
     if (alert) setText(this.toast, alert.text);

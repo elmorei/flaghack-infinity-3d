@@ -1,3 +1,5 @@
+import { applyNpcTakeover, npcTakeoverSeats } from '../sim/npcTakeover';
+import { setFactionControlMode } from '../sim/controlMode';
 import { frickFrackInputLocked } from './frickFrackControls';
 /**
  * App: owns the lifecycle and the frame loop. Local burns (title attract, single player, the
@@ -20,7 +22,6 @@ import type { HostInfo, LobbyState } from '../net/protocol';
 import type { NetSession } from '../net/session';
 import { GameRenderer } from '../render/renderer';
 import type { Command } from '../sim/commands';
-import { applyBossTakeover, bossTakeoverSeats } from '../sim/bossTakeover';
 import { SIM_DT } from '../sim/constants';
 import { normalizeMatch } from '../sim/matchSettings';
 import type { GameEvent } from '../sim/events';
@@ -76,8 +77,9 @@ export interface AppApi {
   readonly tutorial: TutorialRun | null;
   /** Start the Training Burn (tutorial mission). */
   startTutorial(): void;
-  /** Claim a surviving AI camp after elimination during the encounter. No optimistic seat switch online. */
+  /** Claim an available surviving NPC camp after elimination or as an online spectator. No optimistic switch. */
   takeBossCamp(seat: FactionId): boolean;
+  setControlMode?(mode: 'avatar' | 'rts'): boolean;
 }
 
 /** What boot learned before the App started (main.ts). */
@@ -335,16 +337,16 @@ export class App implements AppApi {
   takeBossCamp(seat: FactionId): boolean {
     if (this.startupPending) return false;
     const world = this.world, s = this.session;
-    if (!world || s.spectator || !world.options.humans.includes(s.playerFaction)) return false;
+    if (!world || (s.spectator && !this.mirror) || (!s.spectator && !world.options.humans.includes(s.playerFaction))) return false;
     if (this.mirror) {
       const client = this.client;
       if (!client || !client.connected || client.status !== 'match' || client.pendingBossTakeover !== null) return false;
       const aiSeats = client.lobby?.seats.filter((slot) => slot.playerId === null).map((slot) => slot.faction) ?? [];
-      if (!bossTakeoverSeats(world, s.playerFaction, aiSeats).includes(seat)) return false;
+      if (!npcTakeoverSeats(world, s.spectator ? null : s.playerFaction, aiSeats).includes(seat)) return false;
       client.requestBossTakeover(seat);
       return true;
     }
-    if (!applyBossTakeover(world, s.playerFaction, seat, [...this.ai.keys()])) return false;
+    if (!applyNpcTakeover(world, s.playerFaction, seat, [...this.ai.keys()], world.factions[s.playerFaction].controlMode)) return false;
     this.ai.delete(seat);
     s.playerFaction = seat;
     s.campChoiceOpen = false;
@@ -352,6 +354,15 @@ export class App implements AppApi {
     this.tickFresh = false;
     this.acc = 0;
     this.controls.resetForSeat();
+    return true;
+  }
+
+  setControlMode(mode: 'avatar' | 'rts'): boolean {
+    const world = this.world, s = this.session;
+    if (this.startupPending || !world || s.spectator || !world.factions[s.playerFaction].alive) return false;
+    if (this.mirror) { this.client?.setControlMode(mode); return !!this.client; }
+    if (!setFactionControlMode(world, s.playerFaction, mode)) return false;
+    this.tickCmds.length = 0; this.tickFresh = false; this.controls.resetForSeat();
     return true;
   }
 
@@ -495,7 +506,7 @@ export class App implements AppApi {
       const av = world.avatars.get(avatarId);
       this.tickInput.yaw = av ? av.yaw : 0;
       this.tickInput.pitch = 0;
-      if (this.predictionOn && playerId !== null) this.predictor = new AvatarPredictor(world, avatarId, playerId);
+      if (av && this.predictionOn && playerId !== null) this.predictor = new AvatarPredictor(world, avatarId, playerId);
     }
     mirror.setPredicted(this.predictor ? this.predictor.avatarId : null);
     this.renderer.attach(world, s);

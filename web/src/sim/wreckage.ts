@@ -1,3 +1,4 @@
+import { isIndestructibleBuilding } from './buildingGeometry';
 /** Cosmetic, authoritative remnants. Never register collision or navigation blocking. */
 import { BUILDINGS, BUILDING_HEIGHT, LEVEL_HEIGHT, PIECE } from './constants';
 import type { V3 } from './math';
@@ -20,7 +21,7 @@ export function addWreckage(world: World, record: Wreckage): void {
   if (world.wreckage.length > MAX_WRECKAGE) world.wreckage.splice(0, world.wreckage.length - MAX_WRECKAGE);
 }
 export function leaveBuildingWreckage(world: World, b: Building): void {
-  if (b.kind === 'hearth') return;
+  if (b.kind === 'hearth' || isIndestructibleBuilding(b)) return;
   const span = BUILDINGS[b.kind].radius * 2;
   addWreckage(world, { id: `building:${b.id}`, kind: b.kind,
     pos: { x: b.pos.x, y: world.collision.groundHeight(b.pos.x, b.pos.z), z: b.pos.z },

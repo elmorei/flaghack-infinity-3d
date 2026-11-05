@@ -1,18 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { HEARTH_FLAG_COST, HEARTH_FLAG_INTERVAL, PILE_COUNT, PILE_RESPAWN_INTERVAL, RECRUIT_INTERVAL } from '../../constants';
+import { HEARTH_FLAG_COST, HEARTH_FLAG_INTERVAL, PILE_COUNT, PILE_RESPAWN_INTERVAL, RECRUIT_INTERVAL, WORKSHOP_RECRUIT_INTERVAL, GCC_RECRUIT_INTERVAL } from '../../constants';
 import { spawnBuilding, spawnHippie } from '../../factory';
 import { FACTION_IDS } from '../../types';
+import type { World } from '../../world';
 import { registerBuildingShape } from '../buildings';
 import { popCap, population } from '../economy';
 import { dismissHippies, eventsOf, freeThickFacet, newMatch, parkAvatarAway, run } from './testkit';
 
+/** Isolate the tested producer: indestructible carts cannot be disabled as a fixture shortcut. */
+function removeOtherCarts(world: World, keep = -1): void {
+  for (const b of world.buildings.values()) {
+    if (b.kind !== 'gcc' || b.id === keep) continue;
+    world.buildings.delete(b.id);
+    registerBuildingShape(world, b);
+    if (b.faction !== -1) world.factions[b.faction].gccId = null;
+  }
+}
+
 describe('economy', () => {
+  it('keeps Drum Circles at 14 seconds and Workshop/Command Center recruitment at 5 seconds', () => {
+    expect(RECRUIT_INTERVAL).toBe(14);
+    expect(WORKSHOP_RECRUIT_INTERVAL).toBe(5);
+    expect(GCC_RECRUIT_INTERVAL).toBe(5);
+  });
+
   it('a Hearth turns HEARTH_FLAG_COST lumber into one stock Flag every HEARTH_FLAG_INTERVAL, and stops when lumber runs out', () => {
     const h = newMatch();
     const { world } = h;
     dismissHippies(world, 0);
     // This crafting fixture must not admit replacement workers who spend the stock.
-    world.gccOf(0)!.disabled = true;
+    removeOtherCarts(world);
     parkAvatarAway(world, 0);
     const fac = world.factions[0];
     fac.lumber = HEARTH_FLAG_COST * 3 + 2;
@@ -30,7 +47,7 @@ describe('economy', () => {
     expect(eventsOf(h, 'flagCrafted').filter((e) => e.faction === 0)).toHaveLength(3);
   });
 
-  it.each(['drumcircle', 'gcc', 'workshop'] as const)('%s recruits existing neutrals repeatedly without spawning or resource costs', (kind) => {
+  it.each([['drumcircle', 14], ['gcc', 5], ['workshop', 5]] as const)('%s recruits existing neutrals every %s seconds without spawning or resource costs', (kind, interval) => {
     const h = newMatch();
     const { world } = h;
     world.hippies.clear();
@@ -38,7 +55,7 @@ describe('economy', () => {
     const hearth = world.hearthOf(0)!;
     const recruiter = kind === 'gcc' ? world.gccOf(0)!
       : spawnBuilding(world, kind, 0, freeThickFacet(world, hearth.pos.x, hearth.pos.z, 12, kind), 1);
-    for (const b of world.buildings.values()) if (b.kind === 'gcc' && b !== recruiter) b.disabled = true;
+    removeOtherCarts(world, recruiter.id);
     if (kind !== 'gcc') registerBuildingShape(world, recruiter);
     const a = spawnHippie(world, -1, { x: recruiter.pos.x + 8, z: recruiter.pos.z });
     const b = spawnHippie(world, -1, { x: recruiter.pos.x - 8, z: recruiter.pos.z });
@@ -46,17 +63,17 @@ describe('economy', () => {
     a.effects.push({ kind: 'stun', until: 1000, mag: 1, source: -1 });
     b.effects.push({ kind: 'stun', until: 1000, mag: 1, source: -1 });
     const flags = world.flags.size;
-    run(h, RECRUIT_INTERVAL - 0.1);
+    run(h, interval - 0.1);
     expect(population(world, 0)).toBe(0);
     run(h, 0.2);
     expect(population(world, 0)).toBe(1);
-    run(h, RECRUIT_INTERVAL);
+    run(h, interval);
     expect(population(world, 0)).toBe(2);
     expect(world.hippies.size).toBe(2);
     expect(world.flags.size).toBe(flags);
     expect(world.factions[0].lumber).toBe(0);
     expect(eventsOf(h, 'recruited').map((e) => e.via)).toEqual([kind, kind]);
-    run(h, RECRUIT_INTERVAL * 2);
+    run(h, interval * 2);
     expect(world.hippies.size).toBe(2);
   });
 

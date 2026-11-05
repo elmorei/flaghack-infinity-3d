@@ -1,4 +1,5 @@
-import { cmdFrickFrack, isFrickFrackLocked } from './frickFrack';
+import { cmdMoveGcc } from './gccMovement';
+import { cmdTalkWizard, cmdFrickFrack, isFrickFrackLocked } from './frickFrack';
 /**
  * Command dispatch: routes validated player/AI commands to the owning system handlers.
  * Commands from eliminated factions (or after match end) are rejected here.
@@ -6,6 +7,7 @@ import { cmdFrickFrack, isFrickFrackLocked } from './frickFrack';
 import type { Command } from '../commands';
 import type { World } from '../world';
 import { cmdAbility, cmdAlign } from './abilities';
+import { cmdRitual } from './rituals';
 import { cmdAvatarInput, cmdPlant, cmdPull, cmdPushGcc, cmdSwing, cmdThrow } from './avatars';
 import { cmdPlaceBuilding } from './buildings';
 import { cmdBrew, cmdDrug } from './drugs';
@@ -28,7 +30,7 @@ export function applyCommands(world: World): void {
     if (!fac || !fac.alive) continue;
     if (c.t === 'avatarInput' && latestInput.get(c.faction) !== c) continue;
     // RTS rulers have no body: only strategic orders, construction queues and map signals.
-    if (fac.controlMode === 'rts' && !['order', 'plan', 'jobWeights', 'placeBuilding', 'brew', 'ping'].includes(c.t)) {
+    if (fac.controlMode === 'rts' && !['talkWizard', 'frickFrack', 'order', 'plan', 'jobWeights', 'placeBuilding', 'brew', 'ability', 'align', 'ritual', 'drug', 'moveGcc', 'ping'].includes(c.t)) {
       if (c.t !== 'avatarInput') world.emit({ t: 'rejected', faction: c.faction, reason: 'This action requires a roaming vexillomancer.' });
       continue;
     }
@@ -39,6 +41,8 @@ export function applyCommands(world: World): void {
 
 function dispatch(world: World, c: Command): void {
   switch (c.t) {
+    case 'talkWizard':
+      return cmdTalkWizard(world, c);
     case 'frickFrack':
       return cmdFrickFrack(world, c);
     case 'avatarInput':
@@ -53,6 +57,8 @@ function dispatch(world: World, c: Command): void {
       return cmdHandFlag(world, c);
     case 'swing':
       return cmdSwing(world, c);
+    case 'moveGcc':
+      return cmdMoveGcc(world, c);
     case 'pushGcc':
       return cmdPushGcc(world, c);
     case 'build':
@@ -73,6 +79,8 @@ function dispatch(world: World, c: Command): void {
       return cmdSendFollowers(world, c);
     case 'ability':
       return cmdAbility(world, c);
+    case 'ritual':
+      return cmdRitual(world, c);
     case 'align':
       return cmdAlign(world, c);
     case 'drug':

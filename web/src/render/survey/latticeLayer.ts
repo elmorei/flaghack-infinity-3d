@@ -6,6 +6,7 @@
  * ride in spare line instances and fade out while the node glides to its new position.
  */
 import * as THREE from 'three';
+import { drawGroundInkBeforeSprites } from './groundInk';
 import { FLIP_TWEEN, GLSL_COMMON, GLSL_FRAG, GLSL_VERT, GLSL_OUTPUT, LIFT, cornerQuad, surveyMaterial } from './glsl';
 import type { SurveyUniforms } from './glsl';
 import type { SurveyData } from './surveyData';
@@ -192,7 +193,7 @@ export class LatticeLayer {
   private builtTopology = -1;
   private spokeCursor = 0;
 
-  constructor(scene: THREE.Scene, data: SurveyData, shared: SurveyUniforms) {
+  constructor(scene: THREE.Scene, data: SurveyData, shared: SurveyUniforms, spriteForeground = false) {
     this.scene = scene;
     this.data = data;
     const edgeCount = data.edgeCount;
@@ -218,6 +219,9 @@ export class LatticeLayer {
     this.markers.frustumCulled = false;
     this.markers.renderOrder = 4;
 
+    if (spriteForeground) {
+      drawGroundInkBeforeSprites(this.lineMat); drawGroundInkBeforeSprites(this.markerMat);
+    }
     scene.add(this.lines, this.markers);
   }
 

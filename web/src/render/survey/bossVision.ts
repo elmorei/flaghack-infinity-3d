@@ -28,10 +28,10 @@ void main() {
   vec3 axis = iB.xyz - iA.xyz;
   float len = length(axis);
   vec3 P = mix(iA.xyz, iB.xyz, aCorner.x);
-  vec3 side = cross(axis, cameraPosition - P);
+  vec3 side = cross(axis, fhToCamera(P));
   float sl = length(side);
   side = sl > 0.0001 ? side / sl : vec3(1.0, 0.0, 0.0);
-  float width = max(iA.w, 2.6 * uPx * length(cameraPosition - P) / fhProjScale());
+  float width = max(iA.w, 2.6 * uPx * fhPixelDepth(P) / fhProjScale());
   P += side * aCorner.y * width * 0.5;
   vec4 mv = viewMatrix * vec4(P, 1.0);
   gl_Position = projectionMatrix * mv;

@@ -1,0 +1,5 @@
+.mc-power-card { padding: 10px 0; border-bottom: 1px solid #73654d; }
+.mc-power-card > .btn { min-height: 44px; white-space: normal; text-align: left; width: 100%; }
+.mc-power-card .mc-hint { margin: 8px 0 0; line-height: 1.45; }
+.mc-page[data-tab='powers'] > .btn { min-height: 44px; margin: 4px; }
+.mc-page[data-tab='powers'] .abar { display: none; }

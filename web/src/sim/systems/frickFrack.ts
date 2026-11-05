@@ -1,3 +1,4 @@
+import { frickFrackFlags } from '../frickFrackInventory';
 /** Host-owned Frick-frack economy and hand state. Never serialize this module's WeakMap. */
 import type { World } from '../world';
 import type { FactionId, Hippie } from '../types';
@@ -32,7 +33,7 @@ function privateState(w: World): PrivateState {
 export function resetFrickFrackEntropy(w: World, seed: string): void { privateState(w).rng = new Rng(seed); }
 export function initializeFrickFrack(w: World): void {
   if (w.options.mode === 'tutorial' || w.frickFrack.wizardId >= 0 ||
-      !w.factions.some(f => f.alive && f.isPlayer && f.controlMode !== 'rts')) return;
+      !w.factions.some(f => f.alive && f.isPlayer)) return;
   const neutrals = [...w.hippies.values()].filter(h => h.faction === -1);
   const h = neutrals.length >= 2 ? neutrals.at(-1) : undefined;
   if (!h) return; // Never reserve the last recruit needed by a wiped faction.
@@ -44,7 +45,7 @@ export function isFrickFrackLocked(w: World, f: FactionId): boolean {
 }
 function canPlay(w: World, f: FactionId): boolean {
   const fac = w.factions[f], av = fac && w.avatars.get(fac.avatarId);
-  return w.phase === 'playing' && !!fac?.alive && fac.isPlayer && fac.controlMode !== 'rts' && !!av && av.hp > 0 && av.koUntil === 0;
+  return w.phase === 'playing' && !!fac?.alive && fac.isPlayer && (fac.controlMode === 'rts' || (!!av && av.hp > 0 && av.koUntil === 0));
 }
 function clearControl(w: World, f: FactionId): void {
   const av = w.avatars.get(w.factions[f]?.avatarId);
@@ -73,13 +74,32 @@ function startConversation(w: World, h: Hippie, s: FrickFrackSession): void {
   s.readyAt = w.time + frickFrackTextDuration(frickFrackDialogue(s.dialogueVariant)[0]);
   s.revision++;
   h.vel.x = 0; h.vel.z = 0;
-  h.facing = Math.atan2(w.avatarOf(s.faction).pos.x - h.pos.x, w.avatarOf(s.faction).pos.z - h.pos.z);
-  const av = w.avatarOf(s.faction); av.yaw = Math.atan2(h.pos.x - av.pos.x, h.pos.z - av.pos.z);
+  const av = w.avatarOf(s.faction);
+  if (w.factions[s.faction].controlMode !== 'rts' && av) {
+    h.facing = Math.atan2(av.pos.x - h.pos.x, av.pos.z - h.pos.z);
+    av.yaw = Math.atan2(h.pos.x - av.pos.x, h.pos.z - av.pos.z);
+  }
   clearControl(w, s.faction);
+}
+/** RTS has no roaming body: tapping the real wizard opens a table using camp stock. */
+export function cmdTalkWizard(w: World, c: CommandOf<'talkWizard'>): void {
+  const h = w.hippies.get(c.wizardId), f = c.faction;
+  if (!canPlay(w, f) || !h?.wizard || h.id !== w.frickFrack.wizardId || h.hp <= 0 || h.koUntil !== 0) return;
+  if (w.frickFrack.sessions[f]) return; // Repeated taps cannot restart or charge a session.
+  const reject = (reason: string) => w.emit({ t: 'rejected', faction: f, reason });
+  if ((privateState(w).cooldown.get(f) ?? 0) > w.time) return;
+  if (Object.values(w.frickFrack.sessions).some(Boolean)) { reject('The wizard is finishing another conversation. Try again shortly.'); return; }
+  if (w.factions[f].controlMode !== 'rts' && !withinConversationReach(w, h, f, AVATAR.pullReach)) {
+    reject('Move your vexillomancer closer to the wizard to talk.'); return;
+  }
+  const s: FrickFrackSession = { id: privateState(w).nextSession++, revision: 0, faction: f, phase: 'dialogue', dialogueIndex: 0,
+    dialogueStartedAt: w.time, readyAt: w.time, wager: 0, player: [], dealer: [], result: null, message: '' };
+  w.frickFrack.sessions[f] = s;
+  startConversation(w, h, s);
 }
 /** Giving is not an entry fee. Thrown gifts reserve a pursuit without locking the giver. */
 export function offerFrickFrackFlag(w: World, h: Hippie, f: FactionId, flagId: number): boolean {
-  if (!h.wizard || h.id !== w.frickFrack.wizardId || h.hp <= 0 || h.status === 'ko' || !canPlay(w, f)) return false;
+  if (w.factions[f]?.controlMode === 'rts' || !h.wizard || h.id !== w.frickFrack.wizardId || h.hp <= 0 || h.status === 'ko' || !canPlay(w, f)) return false;
   const av = w.avatarOf(f), flag = w.flags.get(flagId), secret = privateState(w);
   const existing = w.frickFrack.sessions[f];
   if ((secret.cooldown.get(f) ?? 0) > w.time || !flag || flag.owner !== f ||
@@ -117,9 +137,12 @@ export function closeFrickFrackSession(w: World, f: FactionId): void {
 function ownedAltar(w: World, f: FactionId) { return w.factions[f].hearthIds.map(id => w.buildings.get(id)).find(b => b?.kind === 'hearth' && b.faction === f && b.built >= 1); }
 function awardFlags(w: World, f: FactionId, count: number): void {
   const av = w.avatarOf(f), altar = ownedAltar(w, f);
+  const rts = w.factions[f].controlMode === 'rts';
+  const anchor = altar?.pos ?? w.gccOf(f)?.pos ?? w.hippies.get(w.frickFrack.wizardId)?.pos ?? { x: 0, z: 0 };
+  const at = rts ? { x: anchor.x, y: w.collision.groundHeight(anchor.x, anchor.z), z: anchor.z } : av.pos;
   for (let i = 0; i < count; i++) {
-    const fl = spawnFlag(w, { state: 'loose', owner: f, pos: { ...av.pos } });
-    if (av.hp > 0 && av.koUntil === 0 && av.carried.length < AVATAR.quiver && giveFlag(w, fl.id, av.id)) continue;
+    const fl = spawnFlag(w, { state: 'loose', owner: f, pos: { ...at } });
+    if (!rts && av.hp > 0 && av.koUntil === 0 && av.carried.length < AVATAR.quiver && giveFlag(w, fl.id, av.id)) continue;
     if (altar) depositToStock(w, fl.id, altar.id); // No altar: leave the real flag safely loose rather than delete it.
   }
 }
@@ -211,13 +234,13 @@ function result(w: World, s: FrickFrackSession, outcome: 'win' | 'lose' | 'push'
     if(w.frickFrack.sideboards[s.faction].length < FRICK_FRACK_SIDEBOARD_CAP) {
       w.frickFrack.sideboards[s.faction].push(bonus);s.message+=' Straight bonus: its highest card goes into your sleeve.';
     } else {
-      const av=w.avatarOf(s.faction);w.frickFrack.drops.push({id:bonus.id,card:bonus,pos:{x:av.pos.x,z:av.pos.z},createdAt:w.time});
+      const at=w.factions[s.faction].controlMode==='rts' ? ownedAltar(w,s.faction)?.pos ?? w.gccOf(s.faction)?.pos ?? {x:0,z:0} : w.avatarOf(s.faction).pos;w.frickFrack.drops.push({id:bonus.id,card:bonus,pos:{x:at.x,z:at.z},createdAt:w.time});
       if(w.frickFrack.drops.length>128)w.frickFrack.drops.shift();
       s.message+=' Straight bonus: your sleeve is full, so its highest card waits on the ground.';
     }
   }
   cleanupTemporary(w,s.faction);setFrickFrackPrivateView(w,s.faction,null);privateState(w).hands.delete(s.faction);
-  if (w.avatarOf(s.faction).carried.length === 0) empty(w, s);
+  if (frickFrackFlags(w, s.faction).length === 0) empty(w, s);
 }
 function draw(hand: PrivateHand): FrickFrackCard { return hand.deck.pop()!; }
 function stand(w: World, s: FrickFrackSession): void {
@@ -237,7 +260,7 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
   const s = w.frickFrack.sessions[c.faction];
   if (!s || !canPlay(w, c.faction) || !Number.isInteger(c.sessionId) || !Number.isInteger(c.revision) || s.id !== c.sessionId || s.revision !== c.revision) return;
   if (s.phase === 'chasing') return;
-  const av = w.avatarOf(c.faction);
+  const available = frickFrackFlags(w, c.faction);
   if (s.phase === 'dialogue') {
     const dialogue = frickFrackDialogue(s.dialogueVariant);
     if (w.time < s.readyAt) return;
@@ -246,15 +269,15 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
     }
     if (s.dialogueIndex !== dialogue.length - 1) return;
     if (c.action === 'decline' || c.action === 'exit') { closeFrickFrackSession(w, c.faction); return; }
-    if (c.action === 'play') { if (!av.carried.length) empty(w, s); else s.phase = 'betting'; s.revision++; } return;
+    if (c.action === 'play') { if (!available.length) empty(w, s); else s.phase = 'betting'; s.revision++; } return;
   }
   if (c.action === 'exit' || c.action === 'decline') { closeFrickFrackSession(w, c.faction); return; }
   if (s.phase === 'empty') return;
   if ((s.phase === 'betting' && c.action === 'bet') ||
       (s.phase === 'result' && (c.action === 'bet' || c.action === 'again'))) {
-    const wager=c.wager;if (!Number.isInteger(wager)||wager!<1||wager!>av.carried.length) return;
+    const wager=c.wager;if (!Number.isInteger(wager)||wager!<1||wager!>available.length) return;
     // Commit once before the roll. Exit/KO/disconnect forfeits this same wager.
-    for (const id of av.carried.slice(-wager!)) destroyFlag(w,id);
+    for (const id of available.slice(-wager!)) destroyFlag(w,id);
     s.player=[];s.dealer=[];delete s.defeated;delete s.revealedCardOrder;
     s.wager=wager!;s.result=null;s.message='';delete s.arcana;delete s.remark;s.revision++;
     beginRoll(w,s);
@@ -281,8 +304,8 @@ export function cmdFrickFrack(w: World, c: CommandOf<'frickFrack'>): void {
     revealPlayerCard(s,hand,card);finishPlayerChange(w,s,hand);return;
   }
   const before=new Set(s.player.map(c=>c.id)), wasRevealed=hand.revealDealer;
-  const effect=applyFrickFrackArcana({session:s,hand,sideboard,availableFlags:av.carried.length,now:w.time,nextId:()=>w.newId(),
-    randomInt:(min,max)=>privateState(w).rng.int(min,max),spendFlags:count=>{for(const id of av.carried.slice(-count))destroyFlag(w,id);},
+  const effect=applyFrickFrackArcana({session:s,hand,sideboard,availableFlags:available.length,now:w.time,nextId:()=>w.newId(),
+    randomInt:(min,max)=>privateState(w).rng.int(min,max),spendFlags:count=>{for(const id of frickFrackFlags(w,c.faction).slice(-count))destroyFlag(w,id);},
     privateView:view=>setFrickFrackPrivateView(w,c.faction,view)},card.arcana,c);
   if(!effect.valid){s.remark='That card cannot be used with those choices right now. It stays in your sideboard.';s.revision++;return;}
   // A successful effect consumes only its own physical sideboard card, exactly once.
@@ -303,6 +326,7 @@ export function dropFrickFrackCard(w: World, h: Hippie): void {
  * Small pushes remain harmless; boss launches and large knockbacks release both actors.
  */
 function conversationSeparated(w: World, h: Hippie, f: FactionId): boolean {
+  if (w.factions[f].controlMode === 'rts') return false;
   const av = w.avatarOf(f);
   return Math.hypot(av.pos.x - h.pos.x, av.pos.z - h.pos.z) > 6 ||
     Math.abs(av.pos.y - w.collision.groundHeight(h.pos.x, h.pos.z) - (h.airborne?.y ?? 0)) > 2.5;
@@ -313,7 +337,7 @@ export function updateFrickFrack(w: World): void {
     const s = w.frickFrack.sessions[f];
     if (s && (!canPlay(w, f) || !wizard || wizard.hp <= 0 || wizard.status === 'ko' ||
         (s.phase !== 'chasing' && conversationSeparated(w, wizard, f)) ||
-        (s.phase === 'chasing' && w.time - s.dialogueStartedAt > 120))) closeFrickFrackSession(w, f);
+        (s.phase === 'chasing' && (w.factions[f].controlMode === 'rts' || w.time - s.dialogueStartedAt > 120)))) closeFrickFrackSession(w, f);
     const live = w.frickFrack.sessions[f];
     if (live?.phase === 'rolling' && w.time >= (live.rollEndsAt ?? Infinity)) {
       // The wager is already paid; an all-in hand must still be dealt.
@@ -323,7 +347,7 @@ export function updateFrickFrack(w: World): void {
       if (frickFrackTotal(live.player,frickFrackTarget(live))===frickFrackTarget(live) ||
           frickFrackTotal(hand.dealer,frickFrackTarget(live))===frickFrackTarget(live)) stand(w,live);
     }
-    if (!canPlay(w, f) || isFrickFrackLocked(w, f)) continue;
+    if (!canPlay(w, f) || isFrickFrackLocked(w, f) || w.factions[f].controlMode === 'rts') continue;
     const av = w.avatarOf(f), cards = w.frickFrack.sideboards[f];
     for (let i = w.frickFrack.drops.length - 1; i >= 0 && cards.length < FRICK_FRACK_SIDEBOARD_CAP; i--) {
       const drop = w.frickFrack.drops[i], ground = w.collision.groundHeight(drop.pos.x, drop.pos.z);
@@ -340,14 +364,14 @@ export function updateFrickFrack(w: World): void {
  */
 export function stepFrickFrackWizard(w: World, sys: UnitsState, h: Hippie, b: Brain, dt: number): boolean {
   if (!h.wizard || h.id !== w.frickFrack.wizardId) return false;
-  const sessions = Object.values(w.frickFrack.sessions).filter((s): s is FrickFrackSession => !!s && canPlay(w, s.faction)).sort((a, c) => a.id - c.id);
+  const sessions = Object.values(w.frickFrack.sessions).filter((s): s is FrickFrackSession => !!s && canPlay(w, s.faction) && !(s.phase === 'chasing' && w.factions[s.faction].controlMode === 'rts')).sort((a, c) => a.id - c.id);
   if (!sessions.length) { wanderFrickFrackWizard(w, sys, h, b, dt); return true; }
   resetWizardCircuit(w);
   const active = sessions.find(s => s.phase !== 'chasing');
   const s = active ?? sessions[0], av = w.avatarOf(s.faction);
   if (active) {
     b.moving = false; h.vel.x = 0; h.vel.z = 0; h.status = 'idle'; h.statusTarget = null;
-    h.facing = Math.atan2(av.pos.x - h.pos.x, av.pos.z - h.pos.z);
+    if (w.factions[s.faction].controlMode !== 'rts') h.facing = Math.atan2(av.pos.x - h.pos.x, av.pos.z - h.pos.z);
     return true;
   }
   if (withinConversationReach(w, h, s.faction)) {

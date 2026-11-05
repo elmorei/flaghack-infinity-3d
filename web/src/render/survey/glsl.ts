@@ -226,6 +226,12 @@ export const GLSL_VERT = /* glsl */ `
 varying float vFogDepth;
 /** Pixels per world unit at view distance 1. */
 float fhProjScale() { return projectionMatrix[1][1] * 0.5 * uResolution.y; }
+// Orthographic pixels have a fixed world scale, independent of camera altitude.
+float fhPixelDepth(vec3 world) { return projectionMatrix[3][3] > 0.5 ? 1.0 : length(cameraPosition - world); }
+// All orthographic rays are parallel, including at the edges of the field.
+vec3 fhToCamera(vec3 world) {
+  return projectionMatrix[3][3] > 0.5 ? vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]) : cameraPosition - world;
+}
 `;
 
 export const GLSL_FRAG = /* glsl */ `

@@ -77,7 +77,7 @@ is shared with simulation through `sim/effigyBurn.ts`.
 
 Maximum Signifiers is the fixed population for the whole map, including all camps, neutrals and knocked-out hippies. Starting workers come from this pool; the remainder starts neutral. A knockout drops carried items, clears orders and returns the same hippie to a neutral spawn after 14 seconds. Recruitment changes allegiance without creating new hippies.
 
-Working Drum Circles and Geomantic Command Centers each recruit one nearby neutral within 15 metres every 14 seconds, without a Flag or lumber cost. Neutrals within 60 metres drift toward the nearest working recruiter. A recruiter with nobody nearby waits until a neutral arrives. The GCC has no active powers; its recruitment, repair and advice are passive.
+Working Flag Workshops and Geomantic Command Centers each recruit one nearby neutral within 15 metres every 5 seconds; Drum Circles keep their 14-second cadence. Recruitment has no Flag or lumber cost. Drum Circles attract neutral social visitors from within 60 metres; Workshops and GCCs recruit passers-by without holding a queue. A recruiter with nobody nearby stays ready until a neutral arrives. The GCC has no active powers; its recruitment, repair and advice are passive.
 
 Aim at an awake, empty-handed neutral within 3 metres and press Interact (E by default) to hand them a carried Flag. Throwing a Flag directly into a neutral recruits them immediately without damage. Both transfers give them the actual Flag. Rival hippies still take damage from thrown Flags; a knockout makes them neutral when they respawn.
 
@@ -374,12 +374,26 @@ neutral. The worker fetches a real stocked Flag if needed, walks to the target a
 it over. The new recruit carries that same Flag; no unit or Flag is created. Canceling,
 losing a worker or losing a race for a recruit keeps normal inventory/KO rules.
 
-Working GCCs and completed drum circles retain their normal 60 m attraction and 15 m
-recruitment range, enlisting one nearby neutral every 14 seconds without a per-recruit
-resource charge. Recruitment attraction takes priority over the pre-Burn audience.
+Working GCCs and Flag Workshops enlist one nearby neutral within 15 m every 5 seconds;
+completed Drum Circles keep their 14-second cadence. Recruitment has no per-recruit
+resource charge. Drum Circles attract social visitors from within 60 m; GCCs and
+workshops recruit passers-by without holding an indefinite queue.
 A camp with no awake Signifiers can have its functioning GCC call one unclaimed,
 reachable neutral from farther away. The individual must walk back; this is neither a
 spawn nor a teleport, and it cannot steal another recruiter's nearby audience or a
 commanded recruitment target. A bounded search retries blocked candidates later.
 No neutral pool or no working GCC means no recovery guarantee; losing the last owned altar
 still eliminates the faction. Existing soft population caps and attention costs continue to apply.
+
+## Indestructible Command Centers
+
+Geomantic Command Centers take no damage and cannot be disabled, swallowed, crushed,
+collapsed, or turned into wreckage. They keep their collision, selection and movement,
+and the Effigy can still aim its eye at them. The giant skips carts when choosing
+structures to eat, so an invulnerable cart cannot trap it in an endless attack loop.
+Other structures retain their existing damage and destruction rules.
+
+Capturing a Hearth no longer destroys or relocates its owner's cart. Losing the final
+Hearth still eliminates the camp and stops the cart's services, leaving the cart intact.
+Legacy damaged or collapsed carts recover in place on the host's next update, without
+a rebuild timer; connected players and late joiners receive that authoritative state.

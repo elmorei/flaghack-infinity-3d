@@ -4,7 +4,7 @@
  * Hearth Ward pulses, Drug Lab brewing queue.
  * Owner: Economy agent.
  */
-import { buildingBaseHeight, buildingLevel } from '../buildingGeometry';
+import { buildingBaseHeight, buildingLevel, isIndestructibleBuilding } from '../buildingGeometry';
 import type { CommandOf } from '../commands';
 import {
   BREW_COST,
@@ -16,7 +16,6 @@ import {
   BUILDING_REPAIR_HPS,
   BUILDINGS,
   DRUG_MAX,
-  GCC,
   MAX_BUILD_LEVEL,
   LEVEL_HEIGHT,
   WARD_PULSE_DAMAGE,
@@ -78,8 +77,8 @@ const NO_LUMBER: Record<BuildingKind, PlacementCheck> = {
 };
 
 /**
- * Is this a GCC lying collapsed? destroyedUntil is its rebuild time while down and resets to 0
- * when the cart stands again (the rebuild may wait past that time for a free facet).
+ * Recognize legacy collapsed GCC state until the host restores it in place.
+ * New damage and capture paths never set a collapse deadline.
  */
 export function isCollapsed(b: Building): boolean {
   return b.gcc !== null && b.gcc.destroyedUntil !== 0;
@@ -131,25 +130,25 @@ export function cmdPlaceBuilding(world: World, c: CommandOf<'placeBuilding'>): v
 
 /**
  * Damage a building. The Hearth's HP floors at 1 and it never disables (it can only be
- * overwritten); a GCC at 0 collapses and is rebuilt at the Hearth after GCC.rebuildTime;
- * everything else is disabled at 0 until repaired. Returns true if damaged.
+ * overwritten); Command Centers are indestructible. Everything else is disabled at 0
+ * until repaired. Returns true if damaged.
  */
 export function damageBuilding(world: World, b: Building, amount: number, by: EntityId | -1): boolean {
-  if (amount <= 0 || world.buildings.get(b.id) !== b || b.disabled || isCollapsed(b)) return false;
+  if (amount <= 0 || isIndestructibleBuilding(b) || world.buildings.get(b.id) !== b || b.disabled || isCollapsed(b)) return false;
   if (b.kind === 'hearth' && b.hp <= 1) return false;
+  econ(world).structureHurtAt.set(b.id, world.time);
   b.hp = b.kind === 'hearth' ? Math.max(1, b.hp - amount) : b.hp - amount;
   // Sub-1 ticks (continuous tearing) stay silent so the event stream is not flooded.
   if (amount >= 1) world.emit({ t: 'hit', target: b.id, by, amount, pos: { x: b.pos.x, y: buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind] / 2, z: b.pos.z } });
   if (b.hp > 0) return true;
   b.hp = 0;
-  if (b.kind === 'gcc') collapseGcc(world, b, world.time + GCC.rebuildTime);
-  else disableBuilding(world, b);
+  disableBuilding(world, b);
   return true;
 }
 
 /** Disable a building (0 HP) until repaired to full; capture uses this for captured camps. */
 export function disableBuilding(world: World, b: Building): void {
-  if (b.kind === 'hearth' || b.disabled) return;
+  if (b.kind === 'hearth' || isIndestructibleBuilding(b) || b.disabled) return;
   b.hp = 0;
   b.disabled = true;
   world.emit({ t: 'buildingDisabled', buildingId: b.id, kind: b.kind, faction: b.faction, pos: { x: b.pos.x, z: b.pos.z } });
@@ -165,20 +164,25 @@ export function repairBuilding(world: World, b: Building, amount: number): void 
   }
 }
 
-/**
- * Collapse a GCC: no body, no pushing, no channel, rebuilt at the Hearth at `rebuildAt`
- * (Infinity = never, e.g. when its camp is captured). Drops nothing.
- */
-export function collapseGcc(world: World, b: Building, rebuildAt: number): void {
-  const g = b.gcc;
-  if (!g) return;
-  b.hp = 0;
-  g.destroyedUntil = rebuildAt;
-  g.channelUntil = 0;
-  g.pushedBy = -1;
+/** Restore legacy damaged/collapsed carts in place, without a rebuild delay or teleport.
+ * The host owns this repair; mirrors receive the resulting HP, pose and collision state. */
+export function restoreGcc(world: World, b: Building): void {
+  if (!isIndestructibleBuilding(b) || !b.gcc || world.buildings.get(b.id) !== b) return;
+  const collapsed = isCollapsed(b);
+  b.hp = b.maxHp;
+  b.disabled = false;
+  b.gcc.destroyedUntil = 0;
+  if (!collapsed) return;
+  b.gcc.moveTarget = null;
+  b.gcc.channelUntil = 0;
+  b.gcc.pushedBy = -1;
   for (const av of world.avatars.values()) if (av.pushing === b.id) av.pushing = -1;
   registerBuildingShape(world, b);
-  if (b.faction !== -1) world.emit({ t: 'gccDestroyed', faction: b.faction, gccId: b.id, pos: { x: b.pos.x, z: b.pos.z } });
+}
+
+/** Legacy collapse entry point: Command Centers can no longer be collapsed. */
+export function collapseGcc(world: World, b: Building, _rebuildAt: number): void {
+  restoreGcc(world, b);
 }
 
 /** Register collision + nav blocking for a building (also used by setup for Hearth/GCC). */
@@ -299,6 +303,7 @@ function hasReadyBrewOrder(world: World, f: FactionId): boolean {
 
 export function updateBuildings(world: World, dt: number): void {
   for (const b of world.buildings.values()) {
+    restoreGcc(world, b);
     const f = b.faction;
     if (f === -1 || isCollapsed(b)) continue;
     // Captured buildings arrive disabled: their repair always starts from 0 HP.

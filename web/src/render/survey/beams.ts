@@ -50,11 +50,11 @@ void main() {
   vec3 axis = B - A;
   float len = length(axis);
   axis = len > 1e-4 ? axis / len : vec3(0.0, 1.0, 0.0);
-  vec3 toCam = cameraPosition - P;
+  vec3 toCam = fhToCamera(P);
   vec3 sd = cross(axis, toCam);
   float sl = length(sd);
   sd = sl > 1e-4 ? sd / sl : vec3(1.0, 0.0, 0.0);
-  float w = max(iA.w, 2.0 * uPx * length(toCam) / fhProjScale());
+  float w = max(iA.w, 2.0 * uPx * fhPixelDepth(P) / fhProjScale());
   P += sd * aCorner.y * w * 0.5;
   vec4 mv = viewMatrix * vec4(P, 1.0);
   gl_Position = projectionMatrix * mv;

@@ -88,11 +88,11 @@ describe('Frick-frack presentation model', () => {
     expect(cardLabel({id: 2, rank: 13, suit: 1})).toBe('K♥');
     expect(cardLabel(null)).toBe('Hidden card');
   });
-  it('only a live Regular player session owns input and shows the table', () => {
+  it('only a live player session owns input and shows the table', () => {
     const app = setup(); expect(frickFrackInputLocked(app.world, app.session)).toBe(true);
     expect(activeFrickFrack(app)?.id).toBe(1);
     app.session.spectator = true; expect(activeFrickFrack(app)).toBeNull();
-    app.session.spectator = false; app.world.factions[0].controlMode = 'rts'; expect(activeFrickFrack(app)).toBeNull();
+    app.session.spectator = false; app.world.factions[0].controlMode = 'rts'; expect(activeFrickFrack(app)).not.toBeNull();
   });
   it('removes the overlay/input lock after KO, defeat, exit, world change or match end', () => {
     const app = setup(), avatar = app.world.avatarOf(0);

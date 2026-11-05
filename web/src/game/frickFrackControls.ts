@@ -6,7 +6,7 @@ export function frickFrackInputLocked(world: World | null, session: Session): bo
   if (!world || session.spectator || session.screen !== 'playing' || world.phase !== 'playing') return false;
   const faction = world.factions[session.playerFaction];
   const avatar = world.avatarOf(session.playerFaction);
-  return !!faction?.alive && faction.controlMode !== 'rts' && !!avatar && avatar.koUntil <= world.time
+  return !!faction?.alive && (faction.controlMode === 'rts' || (!!avatar && avatar.koUntil <= world.time))
     && !!world.frickFrack?.sessions[session.playerFaction]
     && world.frickFrack.sessions[session.playerFaction]?.phase !== 'chasing';
 }

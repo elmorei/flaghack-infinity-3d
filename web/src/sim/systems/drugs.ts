@@ -91,7 +91,7 @@ export function cmdBrew(world: World, c: CommandOf<'brew'>): void {
 /** Why the drug can't be taken right now ('' = it can). */
 export function drugBlocker(world: World, f: FactionId, d: DrugId): string {
   const fac = world.factions[f];
-  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
+  if (!fac.alive) return 'Your camp has fallen.';
   if (fac.drugs[d] <= 0) return `No ${DRUG_NAMES[d]} on the shelf: brew some at a Drug Lab.`;
   if (fac.drugActive[d] > world.time) return `${DRUG_NAMES[d]} is already in effect.`;
   return '';
@@ -132,16 +132,17 @@ function rollFalseFlags(world: World, f: FactionId): void {
   out.length = 0;
   st.falseFlagsRollAt[f] = world.time + DRUG.falseFlagReroll;
   const av = world.avatarOf(f);
-  if (!av) return;
+  const origin = av?.pos ?? world.hearthOf(f)?.pos;
+  if (!origin) return;
   const lat = world.lattice;
   const cand = st.nodeBuf;
   cand.length = 0;
-  lat.nodesInRadius(av.pos.x, av.pos.z, DRUG.falseFlagRadius, cand);
+  lat.nodesInRadius(origin.x, origin.z, DRUG.falseFlagRadius, cand);
   let kept = 0;
   for (const n of cand) {
     const node = lat.nodes[n];
     if (node.blocked || world.survey.nodeFlag[n] >= 0) continue;
-    if ((node.x - av.pos.x) ** 2 + (node.z - av.pos.z) ** 2 < FALSE_FLAG_MIN_DIST * FALSE_FLAG_MIN_DIST) continue;
+    if ((node.x - origin.x) ** 2 + (node.z - origin.z) ** 2 < FALSE_FLAG_MIN_DIST * FALSE_FLAG_MIN_DIST) continue;
     cand[kept++] = n;
   }
   cand.length = kept;

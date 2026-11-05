@@ -15,7 +15,7 @@
  *
  * Floors and ramps share the facet slot of a level: one of them per (facet, level).
  */
-import { buildingLevel } from '../buildingGeometry';
+import { buildingLevel, isIndestructibleBuilding } from '../buildingGeometry';
 import { consumeBuilding } from './boss';
 import { dropLoose } from './flags';
 import { leaveBuildingWreckage, leavePieceWreckage } from '../wreckage';
@@ -25,7 +25,7 @@ import { spawnPiece } from '../factory';
 import type { V3 } from '../math';
 import type { EntityId, FactionId, Piece, PieceKind } from '../types';
 import type { World } from '../world';
-import type { PlacementCheck } from './buildings';
+import { registerBuildingShape, type PlacementCheck } from './buildings';
 import { polygonClearance, polygonHitsBuilding, segmentClearance, segmentHitsBuilding } from './econ/clearance';
 import {
   DECK_THICKNESS,
@@ -209,6 +209,7 @@ export function cmdDemolish(world: World, c: CommandOf<'demolish'>): void {
 
 export function damagePiece(world: World, p: Piece, amount: number, by: EntityId | -1): boolean {
   if (amount <= 0 || world.pieces.get(p.id) !== p) return false;
+  econ(world).structureHurtAt.set(p.id, world.time);
   p.hp -= amount;
   // Sub-1 ticks (continuous tearing) stay silent so the event stream is not flooded.
   if (amount >= 1) {
@@ -256,6 +257,12 @@ function removePiece(world: World, p: Piece, bossDestroyed: boolean): void {
   if (p.kind === 'floor') {
     for (const building of [...world.buildings.values()]) {
       if (building.facet !== p.facet || buildingLevel(building) !== p.level + 1) continue;
+      if (isIndestructibleBuilding(building)) {
+        // Legacy elevated carts settle onto the ground rather than becoming salvage.
+        building.level = 0;
+        registerBuildingShape(world, building);
+        continue;
+      }
       // Ordinary collapse preserves Flags; only boss destruction consumes held stock.
       if (!bossDestroyed) {
         for (const flag of [...world.flags.values()]) if (flag.holder === building.id) {

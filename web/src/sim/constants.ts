@@ -255,7 +255,10 @@ export const HEARTH_FLAG_INTERVAL = 8;
 export const HEARTH_FLAG_COST = 4;
 export const WORKSHOP_FLAG_INTERVAL = 5;
 export const WORKSHOP_FLAG_COST = 3;
+/** Drum Circles keep their slower passive recruitment cadence. */
 export const RECRUIT_INTERVAL = 14;
+export const WORKSHOP_RECRUIT_INTERVAL = 5;
+export const GCC_RECRUIT_INTERVAL = 5;
 export const RECRUIT_RADIUS = 15;
 export const RECRUIT_ATTRACT_RADIUS = 60;
 export const HOARD_THRESHOLD = 24;
@@ -358,6 +361,13 @@ export const ABILITY = {
   stabilize: { cooldown: 35, duration: 20, radius: [16, 20, 24], range: 60 },
   phason: { cooldown: 24, range: 60, radius: [0, 7, 11], pickRadius: 5, zoneTime: 1.2 },
   omega: { cooldown: 75, radius: [12, 16, 20], damage: 40, knockback: 14, looseFraction: 0.8, zoneTime: 1 },
+} as const;
+
+/** Ground-targeted Degen camp rites; shared by host simulation and touch UI. */
+export const DEGEN_OMEGA_WARNING = 2;
+export const RITUAL = {
+  redtape: { cost: 15, cooldown: 45, radius: 14, duration: 12, warning: 1, slow: 0.25 },
+  patchwork: { cost: 20, cooldown: 60, radius: 16, duration: 15, targets: 4, healPerSec: 8, safeTime: 3 },
 } as const;
 
 // ── Drugs ─────────────────────────────────────────────────────────────────────

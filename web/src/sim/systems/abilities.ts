@@ -6,11 +6,13 @@
  */
 import type { CommandOf } from '../commands';
 import { BOSS_OMEGA_DAMAGE } from '../boss';
-import { ABILITY, ALIGN_COST, ALIGN_TIME, BUILDINGS, MAP_HALF } from '../constants';
+import { ABILITY, ALIGN_COST, ALIGN_TIME, BUILDINGS, DEGEN_OMEGA_WARNING, MAP_HALF } from '../constants';
 import { spawnZone } from '../factory';
 import { clamp, distToSegment } from '../math';
 import type { V2 } from '../math';
-import { FACTION_IDS } from '../types';
+import { CHAKRAS, FACTION_IDS } from '../types';
+import { rtsThroneAltar } from '../rts';
+import { updateRituals, validSpellPoint } from './rituals';
 import type { AbilityId, Avatar, AvatarAction, ChakraId, EntityId, FactionId, Flag, HippieOrder } from '../types';
 import type { World } from '../world';
 import { isCollapsed } from './buildings';
@@ -66,7 +68,15 @@ const SEG = [0, 0, 0, 0];
 export function alignBlocker(world: World, f: FactionId, chakra: ChakraId): string {
   const fac = world.factions[f];
   if (!fac.alive) return 'Your camp has fallen.';
-  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
+  if (fac.controlMode === 'rts') {
+    if (chakra !== 'canton' && chakra !== 'finial') return 'This action requires a roaming vexillomancer.';
+    if (!rtsThroneAltar(world, f)) return 'An operational owned Altar is required.';
+    if ([...world.zones.values()].some(z => z.faction === f && z.kind === 'alignment')) return 'Already aligning a chakra.';
+    const level = fac.chakras[chakra];
+    if (level >= ALIGN_COST.length) return `The ${CHAKRA_NAMES[chakra]} chakra is fully aligned.`;
+    if (fac.ritual < ALIGN_COST[level]) return `Needs ${ALIGN_COST[level]} Ritual (you have ${Math.floor(fac.ritual)}).`;
+    return '';
+  }
   const av = world.avatarOf(f);
   if (av.koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';
   const level = fac.chakras[chakra];
@@ -83,6 +93,12 @@ export function cmdAlign(world: World, c: CommandOf<'align'>): void {
   const why = alignBlocker(world, c.faction, c.chakra);
   if (why) {
     world.emit({ t: 'rejected', faction: c.faction, reason: why });
+    return;
+  }
+  if (world.factions[c.faction].controlMode === 'rts') {
+    const altar = rtsThroneAltar(world, c.faction)!;
+    spawnZone(world, 'alignment', c.faction, altar.pos, 3, ALIGN_TIME, CHAKRAS.indexOf(c.chakra) + 1, altar.id);
+    world.emit({ t: 'alignStart', faction: c.faction, chakra: c.chakra });
     return;
   }
   const action: AvatarAction = { kind: 'align', chakra: c.chakra, t: world.time };
@@ -135,10 +151,13 @@ function tendAlignments(world: World): void {
 export function abilityBlocker(world: World, f: FactionId, a: AbilityId): string {
   const fac = world.factions[f];
   if (!fac.alive) return 'Your camp has fallen.';
-  if (fac.controlMode === 'rts') return 'This action requires a roaming vexillomancer.';
+  if (fac.controlMode === 'rts') {
+    if (a !== 'stabilize' && a !== 'omega') return 'This action requires a roaming vexillomancer.';
+    if (!rtsThroneAltar(world, f)) return 'An operational owned Altar is required.';
+  }
   const chakra = ABILITY_CHAKRA[a];
   if (fac.chakras[chakra] <= 0) return `Align the ${CHAKRA_NAMES[chakra]} chakra first.`;
-  if (world.avatarOf(f).koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';
+  if (fac.controlMode !== 'rts' && world.avatarOf(f).koUntil > world.time) return 'Flagless: wait for your vexillomancer to return.';
   const ready = fac.cooldowns[a];
   if (ready > world.time) return `${ABILITY_NAMES[a]} recharging (${Math.ceil(ready - world.time)} s).`;
   return '';
@@ -153,6 +172,17 @@ export function cmdAbility(world: World, c: CommandOf<'ability'>): void {
   }
   const fac = world.factions[f];
   const level = fac.chakras[ABILITY_CHAKRA[c.ability]];
+  if (fac.controlMode === 'rts') {
+    if (!validSpellPoint(c.at)) { world.emit({ t: 'rejected', faction: f, reason: 'Choose a point inside the playa.' }); return; }
+    const altar = rtsThroneAltar(world, f)!;
+    if (c.ability === 'omega') spawnZone(world, 'omegaCharge', f, c.at, ABILITY.omega.radius[level - 1], DEGEN_OMEGA_WARNING, level, altar.id);
+    else {
+      spawnZone(world, 'stabilize', f, c.at, ABILITY.stabilize.radius[level - 1], ABILITY.stabilize.duration, level);
+      world.emit({ t: 'ability', faction: f, ability: c.ability, level, pos: { ...c.at }, by: altar.id });
+    }
+    fac.cooldowns[c.ability] = world.time + ABILITY[c.ability].cooldown;
+    return;
+  }
   const av = world.avatarOf(f);
   let result: V2 | string;
   switch (c.ability) {
@@ -344,21 +374,24 @@ function flagWithin(world: World, fl: Flag, x: number, z: number, r2: number): b
  * plants itself on free nodes in the radius, planned nodes first.
  */
 function castOmega(world: World, f: FactionId, av: Avatar, level: number): V2 {
+  return castOmegaAt(world, f, level, av.pos, av.id, [...av.carried].reverse());
+}
+function castOmegaAt(world: World, f: FactionId, level: number, at: V2, by: EntityId, carried: EntityId[]): V2 {
   const cfg = ABILITY.omega;
   const radius = cfg.radius[level - 1];
-  const cx = av.pos.x;
-  const cz = av.pos.z;
+  const cx = at.x;
+  const cz = at.z;
   const centre = { x: cx, z: cz };
   spawnZone(world, 'omega', f, centre, radius, cfg.zoneTime, level);
   const r2 = radius * radius;
   const boss = world.boss;
-  if (boss && (boss.pos.x - cx) ** 2 + (boss.pos.z - cz) ** 2 <= r2 && damageEntity(world, boss.id, BOSS_OMEGA_DAMAGE, av.id)) {
+  if (boss && (boss.pos.x - cx) ** 2 + (boss.pos.z - cz) ** 2 <= r2 && damageEntity(world, boss.id, BOSS_OMEGA_DAMAGE, by)) {
     interruptBossGrab(world);
   }
   for (const h of world.hippies.values()) {
     if (h.faction === f || h.faction === -1 || h.koUntil > world.time) continue;
     if ((h.pos.x - cx) ** 2 + (h.pos.z - cz) ** 2 > r2) continue;
-    if (damageEntity(world, h.id, cfg.damage, av.id) && h.koUntil <= world.time) knockback(world, h.id, centre, cfg.knockback);
+    if (damageEntity(world, h.id, cfg.damage, by) && h.koUntil <= world.time) knockback(world, h.id, centre, cfg.knockback);
   }
 
   const st = econ(world);
@@ -381,7 +414,7 @@ function castOmega(world: World, f: FactionId, av: Avatar, level: number): V2 {
   }
   loose.length = 0;
 
-  if (level >= 3 && av.carried.length > 0) {
+  if (level >= 3 && carried.length > 0) {
     const nodes = st.nodeBuf;
     nodes.length = 0;
     world.lattice.nodesInRadius(cx, cz, radius, nodes);
@@ -390,8 +423,8 @@ function castOmega(world: World, f: FactionId, av: Avatar, level: number): V2 {
     const rank = (n: number): number => (plan.has(n) ? 0 : 1e6) + (lat.nodes[n].x - cx) ** 2 + (lat.nodes[n].z - cz) ** 2;
     nodes.sort((a, b) => rank(a) - rank(b) || a - b);
     for (const n of nodes) {
-      if (av.carried.length === 0) break;
-      if (canPlantAt(world, n, f)) plantFlag(world, av.carried[av.carried.length - 1], n, f, av.id);
+      if (carried.length === 0) break;
+      if (canPlantAt(world, n, f)) plantFlag(world, carried.shift()!, n, f, by);
     }
     nodes.length = 0;
   }
@@ -437,7 +470,9 @@ export function isFlagProtected(world: World, flag: Flag): boolean {
 
 export function updateAbilities(world: World, dt: number): void {
   tendAlignments(world);
+  tendCommandPowers(world);
   tendMarches(world);
+  updateRituals(world, dt);
   for (const z of world.zones.values()) if (z.until <= world.time) world.zones.delete(z.id);
 }
 
@@ -455,4 +490,33 @@ function phasonHurtsAlly(world: World, f: FactionId, node: number): boolean {
     if (p.kind === 'wall' ? n.edges.includes(p.edge) : n.facets.includes(p.facet)) return true;
   }
   return false;
+}
+
+/** Replicated telegraphs are authoritative clocks, not invented avatar actions. */
+function tendCommandPowers(world: World): void {
+  for (const z of [...world.zones.values()]) {
+    if (z.kind !== 'alignment' && z.kind !== 'omegaCharge') continue;
+    const fac = world.factions[z.faction], altar = world.buildings.get(z.target);
+    const valid = fac.alive && fac.controlMode === 'rts' && altar?.faction === z.faction && altar.kind === 'hearth' && altar.hp > 0 && altar.built >= 1 && !altar.disabled;
+    if (!valid || (econ(world).structureHurtAt.get(z.target) ?? -Infinity) >= z.bornAt) {
+      world.zones.delete(z.id);
+      if (z.kind === 'alignment') world.emit({ t: 'alignInterrupted', faction: z.faction, chakra: CHAKRAS[z.level - 1] });
+      else world.emit({ t: 'rejected', faction: z.faction, reason: 'Omega Pulse interrupted at your Altar.' });
+      continue;
+    }
+    if (world.time < z.until) continue;
+    world.zones.delete(z.id);
+    if (z.kind === 'alignment') {
+      const chakra = CHAKRAS[z.level - 1], level = fac.chakras[chakra];
+      if (level >= ALIGN_COST.length || fac.ritual < ALIGN_COST[level]) { world.emit({ t: 'alignInterrupted', faction: z.faction, chakra }); continue; }
+      fac.ritual -= ALIGN_COST[level]; fac.chakras[chakra]++;
+      world.emit({ t: 'aligned', faction: z.faction, chakra, level: level + 1 });
+      continue;
+    }
+    const carried = [...world.hippies.values()].filter(h => h.faction === z.faction && h.koUntil <= world.time && h.carryingFlag >= 0
+      && (h.pos.x - z.pos.x) ** 2 + (h.pos.z - z.pos.z) ** 2 <= z.radius ** 2)
+      .sort((a, b) => a.id - b.id).filter(h => { const flag = world.flags.get(h.carryingFlag); return flag?.owner === z.faction && flag.state === 'carried' && flag.holder === h.id; }).map(h => h.carryingFlag).slice(0, 6);
+    const pos = castOmegaAt(world, z.faction, z.level, z.pos, z.target, carried);
+    world.emit({ t: 'ability', faction: z.faction, ability: 'omega', level: z.level, pos, by: z.target });
+  }
 }

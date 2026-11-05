@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR, BUILDINGS, RECRUIT_INTERVAL, RECRUIT_RADIUS, SIM_DT, WORKSHOP_FLAG_COST, WORKSHOP_FLAG_INTERVAL } from '../../constants';
+import { AVATAR, BUILDINGS, WORKSHOP_RECRUIT_INTERVAL, RECRUIT_RADIUS, SIM_DT, WORKSHOP_FLAG_COST, WORKSHOP_FLAG_INTERVAL } from '../../constants';
 import { spawnBuilding, spawnHippie } from '../../factory';
 import { normalizeMatch } from '../../matchSettings';
 import { createMatch } from '../../setup';
@@ -84,14 +84,14 @@ describe('Workshop pickup stock and camp hoarding', () => {
     const wizard = spawnHippie(world, -1, workshop.pos); wizard.wizard = true;
     const far = spawnHippie(world, -1, { x: workshop.pos.x + RECRUIT_RADIUS + 1, z: workshop.pos.z });
     const flags = world.flags.size, units = world.hippies.size;
-    updateEconomy(world, RECRUIT_INTERVAL - 1);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL - 1);
     expect(near.faction).toBe(-1);
     updateEconomy(world, 1);
     expect(near.faction).toBe(0);
     expect(next.faction).toBe(-1);
-    updateEconomy(world, RECRUIT_INTERVAL);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(next.faction).toBe(0);
-    updateEconomy(world, RECRUIT_INTERVAL);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(enemy.faction).toBe(1);
     for (const h of [ko, wizard, far]) expect(h.faction).toBe(-1);
     expect(world.hippies.size).toBe(units);
@@ -107,11 +107,16 @@ describe('Workshop pickup stock and camp hoarding', () => {
     world.hearthOf(0)!.hearth!.craftProgress = -1000;
     const h = spawnHippie(world, -1, workshop.pos);
     world.factions[0].lumber = WORKSHOP_FLAG_COST * 2;
-    for (let i = 0; i < RECRUIT_INTERVAL - 1; i++) updateEconomy(world, 1);
-    expect(stockAt(world, workshop.id)).toBe(2);
+    // Give crafting a head start so equal-length clocks cannot hide shared progress.
+    workshop.progress = 2;
+    updateEconomy(world, WORKSHOP_FLAG_INTERVAL - 2);
+    expect(stockAt(world, workshop.id)).toBe(1);
     expect(h.faction).toBe(-1);
-    updateEconomy(world, 1);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL - (WORKSHOP_FLAG_INTERVAL - 2));
     expect(h.faction).toBe(0);
+    expect(stockAt(world, workshop.id)).toBe(1);
+    updateEconomy(world, WORKSHOP_FLAG_INTERVAL);
+    expect(stockAt(world, workshop.id)).toBe(2);
     updateEconomy(world, WORKSHOP_FLAG_INTERVAL * 4);
     expect(stockAt(world, workshop.id)).toBe(2);
     expect(world.factions[0].lumber).toBe(0);
@@ -122,30 +127,30 @@ describe('Workshop pickup stock and camp hoarding', () => {
     for (const b of world.buildings.values()) if (b.kind === 'gcc') b.disabled = true;
     const h = spawnHippie(world, -1, workshop.pos);
     workshop.capture = { ...newStructureCapture(), stage: 'contested', attacker: 1 };
-    updateEconomy(world, RECRUIT_INTERVAL);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(h.faction).toBe(-1);
     for (const stage of ['contained', 'overwritten'] as const) {
       workshop.capture.stage = stage;
       expect(isRecruiter(world, workshop)).toBe(false);
     }
     workshop.capture = newStructureCapture();
-    workshop.built = .5; updateEconomy(world, RECRUIT_INTERVAL);
-    workshop.built = 1; workshop.disabled = true; updateEconomy(world, RECRUIT_INTERVAL);
-    workshop.disabled = false; world.factions[0].alive = false; updateEconomy(world, RECRUIT_INTERVAL);
+    workshop.built = .5; updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
+    workshop.built = 1; workshop.disabled = true; updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
+    workshop.disabled = false; world.factions[0].alive = false; updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(h.faction).toBe(-1);
     world.factions[0].alive = true;
-    updateEconomy(world, RECRUIT_INTERVAL / 2);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL / 2);
     expect(captureStructure(world, workshop, 1)).toBe(true);
-    updateEconomy(world, RECRUIT_INTERVAL / 2);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL / 2);
     expect(h.faction).toBe(1);
     const second = spawnHippie(world, -1, workshop.pos);
     expect(captureStructure(world, workshop, 0)).toBe(true);
-    updateEconomy(world, RECRUIT_INTERVAL);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(second.faction).toBe(0);
     const third = spawnHippie(world, -1, workshop.pos);
     world.buildings.delete(workshop.id);
     expect(isRecruiter(world, workshop)).toBe(false);
-    updateEconomy(world, RECRUIT_INTERVAL);
+    updateEconomy(world, WORKSHOP_RECRUIT_INTERVAL);
     expect(third.faction).toBe(-1);
   });
 

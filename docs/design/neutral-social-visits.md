@@ -1,6 +1,6 @@
 # Neutral wandering and drum-circle visits
 
-Neutral movement and passive recruitment are separate. Command centers and workshops still recruit an eligible passer-by within 15 m every 14 seconds, but do not park every nearby neutral in an indefinite recruitment queue. A faction with no awake workers retains its existing one-person command-center recovery call, including during the pre-Burn audience.
+Neutral movement and passive recruitment are separate. Command centers and workshops still recruit an eligible passer-by within 15 m every 5 seconds (Drum Circles remain at 14 seconds), but do not park every nearby neutral in an indefinite recruitment queue. A faction with no awake workers retains its existing one-person command-center recovery call, including during the pre-Burn audience.
 
 Active drum circles attract visitors within 60 m. Each reserves at most eight spaced, walkable exterior slots (including approaching visitors). Visits last 15–30 seconds after arrival, followed by a 30–60 second social cooldown. Approaches expire after 30 seconds; unreachable approaches use the existing path budget and failure backoff. Captured, disabled, destroyed or actively contested circles release visitors. Recruitment, KO, direct orders and the final Burn audience supersede visits.
 

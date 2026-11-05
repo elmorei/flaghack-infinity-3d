@@ -25,7 +25,7 @@ import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
 // v23: Elevated building levels and beacon recruitment (recruited via beacon).
 // Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 23;
+export const PROTOCOL_VERSION = 26;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */

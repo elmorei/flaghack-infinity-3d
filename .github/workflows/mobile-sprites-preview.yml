@@ -1,7 +1,7 @@
 name: Verify mobile sprite preview
 on:
   push:
-    branches: ['qa/mobile-sprites-20261104', 'preview/sprite-expansion-20261105']
+    branches: ['qa/mobile-sprites-20261104', 'preview/sprite-expansion-20261105', 'qa/mobile-recovery-20261105']
   workflow_dispatch:
 permissions:
   contents: read
@@ -105,7 +105,7 @@ jobs:
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-hud-browser.mjs
       - name: Recheck mobile command interactions
         if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
-        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
+        run: RECORD_VIDEO=1 NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Verify automatic human styles and NPC Crow through real lobbies
         if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs

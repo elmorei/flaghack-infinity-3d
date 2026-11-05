@@ -7,6 +7,7 @@
  * snap-out breaks it at the middle and retracts the halves with a flicker.
  */
 import * as THREE from 'three';
+import { drawGroundInkBeforeSprites } from './groundInk';
 import type { Session } from '../../game/session';
 import { BEAM_Y, GLSL_COMMON, GLSL_FRAG, GLSL_VERT, GLSL_OUTPUT, LIFT, surveyMaterial } from './glsl';
 import type { SurveyUniforms } from './glsl';
@@ -58,7 +59,7 @@ void main() {
     P = mix(A, B, t);
     vec3 axis = normalize(B - A);
     vec3 toCam = cameraPosition - P;
-    vec3 sd = cross(axis, toCam);
+    vec3 sd = cross(axis, fhToCamera(P));
     float sl = length(sd);
     sd = sl > 1e-4 ? sd / sl : normalize(cross(axis, vec3(0.0, 1.0, 0.0)));
     float dist = length(toCam);
@@ -168,7 +169,7 @@ export class LeyLayer {
   private readonly opacity = { value: 0.5 };
   private builtTopology = -1;
 
-  constructor(scene: THREE.Scene, data: SurveyData, shared: SurveyUniforms) {
+  constructor(scene: THREE.Scene, data: SurveyData, shared: SurveyUniforms, spriteForeground = false) {
     this.scene = scene;
     this.data = data;
     const g = new THREE.InstancedBufferGeometry();
@@ -187,6 +188,7 @@ export class LeyLayer {
       uniforms: { uLeyOpacity: this.opacity },
     });
     this.mat.forceSinglePass = true;
+    if (spriteForeground) drawGroundInkBeforeSprites(this.mat);
     this.mesh = new THREE.Mesh(g, this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 6;

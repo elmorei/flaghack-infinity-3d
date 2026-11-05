@@ -58,6 +58,9 @@ export class EconState {
   readonly falseFlags: number[][] = [[], [], [], []];
   readonly falseFlagsRollAt: number[] = [0, 0, 0, 0];
 
+  /** Records actual structure damage, including fractional damage. */
+  readonly structureHurtAt = new Map<EntityId, number>();
+
   readonly gccRepairTimer: number[] = [0, 0, 0, 0];
 
   /** Reusable query buffers (lattice radius queries, id lists). */

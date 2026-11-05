@@ -1,3 +1,6 @@
+import { isBossTakeoverActive } from '../src/sim/bossTakeover';
+import { applyNpcTakeover, npcTakeoverSeats } from '../src/sim/npcTakeover';
+import { setFactionControlMode } from '../src/sim/controlMode';
 import { DEFAULT_MATCH, normalizeMatch } from "../src/sim/matchSettings";
 /**
  * The host's single room: connections and their handshake, players (seats, ready flags, the
@@ -5,8 +8,7 @@ import { DEFAULT_MATCH, normalizeMatch } from "../src/sim/matchSettings";
  *
  * Players outlive their sockets: a hello carrying a player's token reclaims the same id and seat,
  * also mid-match. A seated player who drops keeps the seat; after SEAT_GRACE_MS an NPC drives it
- * until they return (outside the boss encounter, another player may take it after the grace).
- * Boss takeovers never steal a disconnected human's reserved camp. Disconnected players are forgotten after
+ * until they return. NPC camp claims never steal a disconnected human's reserved camp. Disconnected players are forgotten after
  * FORGET_AFTER_MS unless they hold a seat in a running match. Every handler is wrapped so that
  * nothing a client sends can take the host down.
  */
@@ -29,7 +31,6 @@ import type {
 } from '../src/net/protocol';
 import { parseClientMessage } from '../src/net/validate';
 import { FACTION_DEFS } from '../src/sim/constants';
-import { applyBossTakeover, bossTakeoverSeats, isBossTakeoverActive } from '../src/sim/bossTakeover';
 import { FACTION_IDS } from '../src/sim/types';
 import type { Difficulty, FactionId, MatchOptions } from '../src/sim/types';
 import { addressKey, FailureThrottle, PasswordGate } from './auth';
@@ -473,7 +474,15 @@ export class Room {
   }
 
   private setControlMode(player: Player, mode: 'avatar' | 'rts'): boolean {
-    if (this.phase !== 'lobby' || player.controlMode === mode) return false;
+    if (player.controlMode === mode || this.phase === 'ended') return false;
+    if (this.phase === 'playing') {
+      if (Date.now() - player.changedAt < CHANGE_COOLDOWN_MS) return false;
+      const match = this.match;
+      if (!match || player.seat === null || !player.inMatch || player.joining || player.pendingBossSeat !== null) return false;
+      if (!setFactionControlMode(match.world, player.seat, mode)) return false;
+      match.driveHuman(player.seat, player.id, player.inputEpoch + 1);
+      player.inMatch = false; player.joining = true; player.changedAt = Date.now();
+    }
     player.controlMode = player.nextControlMode = mode;
     player.ready = false;
     this.markLobby();
@@ -498,13 +507,15 @@ export class Room {
     const match = this.match;
     // The boss fight has one tightly validated handoff path. A generic seat request cannot
     // evade elimination checks or steal a disconnected human's NPC-driven reservation.
-    if (match && isBossTakeoverActive(match.world)) return false;
+    if (match && seat !== null && (isBossTakeoverActive(match.world) || player.seat === null || !match.world.factions[player.seat].alive)) {
+      this.takeBossSeat(player, seat); return false;
+    }
     if (seat !== null) {
       if(!normalizeMatch(this.settings.match).active.includes(seat))return false;
       const holder = this.ownerOf(seat);
-      if (holder && (holder.conn || Date.now() - holder.disconnectedAt < SEAT_GRACE_MS)) return false;
+      if (holder && (match || holder.conn || Date.now() - holder.disconnectedAt < SEAT_GRACE_MS)) return false;
       if (match && !match.world.factions[seat].alive) return false;
-      if (match && player.controlMode === 'rts' && match.world.factions[seat].controlMode !== 'rts') return false;
+      if (match) setFactionControlMode(match.world, seat, player.controlMode);
       if (holder) holder.seat = null;
     }
     const from = player.seat;
@@ -539,17 +550,16 @@ export class Room {
       if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok, reason });
     };
     const match = this.match;
-    if (!match || this.phase !== 'playing' || !isBossTakeoverActive(match.world)) {
-      return reply(false, 'Camp takeover is only available during an active boss encounter.');
+    if (!match || this.phase !== 'playing') {
+      return reply(false, 'Camp takeover is only available during an active match.');
     }
     if (!player.inMatch || player.joining || player.pendingBossSeat !== null || !player.conn) return reply(false, 'Wait for your current camp handoff to finish.');
     const from = player.seat;
-    if (from === null || match.world.factions[from].alive) return reply(false, 'Only an eliminated player can take over an AI camp.');
-    if ((player.controlMode === 'rts' || match.world.factions[from].controlMode === 'rts') && match.world.factions[seat].controlMode !== 'rts') return reply(false, 'RTS players can only take over command-only RTS camps; avatar camps require a roaming body.');
+    if (from !== null && match.world.factions[from].alive) return reply(false, 'Only an eliminated player or spectator can take over an AI camp.');
     if (this.ownerOf(seat) || [...this.players.values()].some((p) => p.pendingBossSeat === seat)) return reply(false, 'That camp is reserved for another player.');
     if (Date.now() - player.changedAt < CHANGE_COOLDOWN_MS) return reply(false, 'Wait a moment before choosing another camp.');
     const available = FACTION_IDS.filter((f) => !this.ownerOf(f) && match.drivenByNpc(f));
-    if (!bossTakeoverSeats(match.world, from, available).includes(seat)) return reply(false, 'That AI camp no longer has a surviving altar.');
+    if (!npcTakeoverSeats(match.world, from, available).includes(seat)) return reply(false, 'That AI camp no longer has a surviving altar.');
     player.pendingBossSeat = seat;
   }
 
@@ -563,11 +573,11 @@ export class Room {
       player.pendingBossSeat = null;
       const from = player.seat;
       const available = FACTION_IDS.filter((f) => !this.ownerOf(f) && match.drivenByNpc(f));
-      const ok = !!player.conn && player.inMatch && from !== null &&
-        applyBossTakeover(match.world, from, seat, available);
-      if (!ok || from === null) {
+      const ok = !!player.conn && player.inMatch &&
+        applyNpcTakeover(match.world, from, seat, available, player.controlMode);
+      if (!ok) {
         if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok: false,
-          reason: 'That camp or the boss encounter changed before the handoff. Choose another surviving AI camp.' });
+          reason: 'That camp or the match changed before the handoff. Choose another surviving AI camp.' });
         continue;
       }
       player.seat = seat;
@@ -575,12 +585,12 @@ export class Room {
       player.changedAt = Date.now();
       player.inMatch = false;
       player.joining = true;
-      match.driveNpc(from);
+      if (from !== null) match.driveNpc(from);
       match.driveHuman(seat, player.id, player.inputEpoch + 1);
       this.syncHumanSeats();
       this.send(player.conn!, { t: 'bossTakeoverResult', seat, ok: true, reason: null });
       this.log(`${player.name} takes over boss seat ${seat} (${FACTION_DEFS[seat].name}) from the NPC`);
-      this.announce(player, `${player.name} takes over ${FACTION_DEFS[seat].name} to keep fighting the Effigy.`);
+      this.announce(player, `${player.name} takes over ${FACTION_DEFS[seat].name} to keep the Survey going.`);
       this.markLobby();
     }
   }

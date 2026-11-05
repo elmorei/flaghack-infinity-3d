@@ -39,7 +39,7 @@ describe('mobile pixel presentation boundary', () => {
   });
   it('keeps every command tab in a wrapping grid and themes the GCC title', () => {
     expect(css).toContain(".mc-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible;");
-    expect(css).toContain(".mc-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }");
+    expect(css).toContain(".mc-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }");
     expect(css).toContain("html[data-device-layout='mobile'] .gb-main { font: 400 20px/1.1 var(--mp-body)");
   });
   it('keeps the card-game Flag counter on the same mobile pixel font, weight and background as gameplay', () => {

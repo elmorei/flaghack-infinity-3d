@@ -4303,6 +4303,8 @@ html[data-device-layout='mobile'] .scr-playing:not(.spectator) .fh-hud { display
 .mc-timing .boss-hud-status { font-size: 8px; overflow-wrap: anywhere; }
 .mc-modes { position: absolute; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #17120de8; border: 1px solid var(--brass); }
 .mc-modes .btn { min-width: 100px; }
+.mc-modes .mc-home { min-width: 44px; width: 44px; padding: 8px; }
+.mc-home svg { display: block; width: 22px; height: 22px; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mc-modes [aria-pressed='true'], .mc-tabs [aria-pressed='true'] { background: var(--flag); color: #17120d; border-color: var(--flag); }
 .mobile-command .btn { font-size: 14px; letter-spacing: .01em; min-height: 44px; }
 .mc-selected { position: absolute; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 62px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: calc(100% - 16px); background: #17120de8; border-radius: 6px; white-space: nowrap; font-size: 13px; }
@@ -4363,3 +4365,5 @@ html[data-device-layout='mobile'] .fh-overlay > .reconnect-card { position: abso
 
 /* Non-interactive pickup tags share the field plaque styling without covering controls. */
 .mc-pickup { position: absolute; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 130px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; padding: 6px 10px; border: 1px solid rgba(200,151,63,.55); border-radius: 5px; background: rgba(12,8,4,.78); font-size: 13px; line-height: 1.35; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }
+
+html[data-device-layout='mobile'] .build-btn:disabled { filter: grayscale(1); opacity: .42; cursor: not-allowed; }

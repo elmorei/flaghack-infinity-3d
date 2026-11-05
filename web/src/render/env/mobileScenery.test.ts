@@ -80,11 +80,15 @@ describe('mobile scenery cutouts', () => {
     const full=calls[0].pose.height;world.piles.get(0)!.lumber=20;world.piles.get(1)!.lumber=0;world.piles.delete(2);calls.length=0;piles.update(0);
     expect(calls).toHaveLength(1);expect(calls[0].pose.height).toBeLessThan(full);expect(env.root.children).toHaveLength(0);piles.dispose();
   });
-  it('renders durable material-specific wrecks on late joins and removes them on reset', () => {
+  it('restores 3D rubble on mobile, including late joins and reset', () => {
     const {env,world,calls}=environment();world.wreckage=[{id:'test',kind:'wall',pos:{x:0,y:3,z:0},size:{x:5,y:3,z:.4},yaw:.7}];
     const car=world.map.obstacles.find(o=>o.kind==='car')!;world.destroyedScenery.add(car.id);
-    const renderer=new WreckageRenderer(env.ctx);expect(renderer.group.children).toHaveLength(0);expect(calls.map(c=>c.key)).toEqual(['wreckage:wood','wreckage:metal']);expect(calls[0].pose.y).toBeCloseTo(groundHeight(0,0,world.map.half));
-    calls.length=0;world.wreckage=[];world.destroyedScenery.clear();renderer.update(0);expect(calls).toHaveLength(0);renderer.dispose();
+    const renderer=new WreckageRenderer(env.ctx);
+    expect(renderer.group.children).toHaveLength(3); expect(calls).toHaveLength(0);
+    const meshes=renderer.group.children as THREE.InstancedMesh[];
+    expect(meshes.reduce((sum,m)=>sum+m.count,0)).toBeGreaterThan(40);
+    world.wreckage=[];world.destroyedScenery.clear();renderer.update(0);
+    expect(meshes.every(m=>m.count===0)).toBe(true);renderer.dispose();
   });
   it('keeps fire FX and independent flag heat/shrink without rendering effigy models', () => {
     const {env,calls}=environment(), effigy=new MobileEffigy(env);effigy.update(0);

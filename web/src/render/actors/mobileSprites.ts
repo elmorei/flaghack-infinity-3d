@@ -8,6 +8,10 @@ import type { RenderContext } from '../context';
 import { HL, HIPPIE_SKIN_TONES } from './hippieModel';
 import { GCC_TABLE_MAP_SIZE } from '../structures/tableMap';
 
+export const MOBILE_CHARACTER_SCALE = 2;
+/** Opaque cutouts follow opaque-pass ground ink; transparent gameplay effects remain later. */
+export const MOBILE_SPRITE_ORDER = 13;
+
 export const CAST_SHEETS = ['dr-beef-supreme', 'beelzebub-crow', 'dj-scarecrow', 'president-jaguar', 'frick-frack-wizard', 'skeletal-boss'] as const;
 export type SpriteDirection = 'front' | 'away';
 export type FlagSpriteState = 'planted' | 'ground' | 'thrown' | 'carried';
@@ -154,6 +158,8 @@ class SpriteBatch {
       depthTest: true, depthWrite: true, side: THREE.DoubleSide, toneMapped: false,
     });
     this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = name; this.mesh.frustumCulled = false;
+    // Cutout pixels cover ground ink but remain depth-occluded by real scenery.
+    this.mesh.renderOrder = MOBILE_SPRITE_ORDER;
     ctx.scene.add(this.mesh); this.grow(768);
     if (typeof source === 'string') {
       this.texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}${source.replace(/^\//, '')}`, texture => {
@@ -318,6 +324,8 @@ export class MobileSprites {
     if (this.disposed) return false;
     const key = CAST_SHEETS[index], sheet = sheets[key];
     if (!sheet) return false;
+    p = {...p, height: p.height * MOBILE_CHARACTER_SCALE,
+      fallbackHeight: p.fallbackHeight === undefined ? undefined : p.fallbackHeight * MOBILE_CHARACTER_SCALE};
     const requested = typeof animation === 'string' ? animation : p.moving && animation ? 'walk' : 'idle';
     const direction = this.direction(p), action = this.action(`${key}:${requested}`, p, direction);
     if (action) {
@@ -336,6 +344,8 @@ export class MobileSprites {
   }
   signifier(p: SpritePose, head: number, body: number, animation: string | boolean = true, carriedFlagColor?: THREE.Color): boolean {
     if (this.disposed || head < 0 || head >= 18 || body < 0 || body >= 7) return false;
+    p = {...p, height: p.height * MOBILE_CHARACTER_SCALE,
+      fallbackHeight: p.fallbackHeight === undefined ? undefined : p.fallbackHeight * MOBILE_CHARACTER_SCALE};
     const requested = typeof animation === 'string' ? animation : p.moving && animation ? 'walk' : 'idle';
     const direction = this.direction(p), action = this.action(`signifier:${requested}`, p, direction);
     if (action && (!action.clip.headAnchorByCell || this.base.ready)) {

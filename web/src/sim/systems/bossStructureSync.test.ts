@@ -6,11 +6,11 @@ import { normalizeMatch } from '../matchSettings';
 import { createMatch } from '../setup';
 import type { BuildingKind, PieceKind } from '../types';
 import { bossFocusAltar, consumeBuilding, spawnBoss, updateBoss } from './boss';
-import { collapseGcc, moveBuilding, registerBuildingShape } from './buildings';
+import { moveBuilding, registerBuildingShape } from './buildings';
 import { captureHearth } from './capture';
 import { attachPiece, piecePosition } from './pieces';
 
-const BUILDINGS: BuildingKind[] = ['hearth', 'workshop', 'drumcircle', 'ward', 'druglab', 'gcc'];
+const BUILDINGS: BuildingKind[] = ['hearth', 'workshop', 'drumcircle', 'ward', 'druglab'];
 const PIECES: PieceKind[] = ['wall', 'floor', 'ramp'];
 const STRUCTURES = [...BUILDINGS, ...PIECES];
 
@@ -120,15 +120,11 @@ describe('boss structural attack selection', () => {
   it.each([
     { label: 'disabled workshop', kind: 'workshop' as const, state: 'disabled' },
     { label: 'unfinished drug lab', kind: 'druglab' as const, state: 'unfinished' },
-    { label: 'collapsed GCC awaiting rebuild', kind: 'gcc' as const, state: 'collapsed' },
-    { label: 'collapsed GCC past rebuild time', kind: 'gcc' as const, state: 'overdue' },
-    { label: 'permanently collapsed GCC', kind: 'gcc' as const, state: 'permanent' },
   ])('selects $label as an eat target', ({ kind, state }) => {
     const { w, b, s } = opportunity(kind);
     if (s.type !== 'building') throw new Error('Building fixture expected');
     if (state === 'disabled') { s.disabled = true; s.hp = 0; }
     else if (state === 'unfinished') { s.built = .05; s.hp = 100000; }
-    else collapseGcc(w, s, state === 'permanent' ? Infinity : w.time + (state === 'overdue' ? -10 : 40));
     updateBoss(w, SIM_DT);
     expect(b.target).toEqual({ kind: 'building', id: s.id });
     expect(b.action).toBe('grab');

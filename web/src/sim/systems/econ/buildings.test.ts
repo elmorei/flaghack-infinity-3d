@@ -79,31 +79,20 @@ describe('buildings', () => {
     expect(damageBuilding(world, hearth, 10, -1)).toBe(false);
   });
 
-  it('a GCC at 0 HP collapses (no body) and is rebuilt beside the Hearth after GCC.rebuildTime', () => {
+  it('a GCC ignores lethal damage and keeps its body without a rebuild countdown', () => {
     const h = newMatch();
     const { world } = h;
     const gcc = world.gccOf(0)!;
-    const hearth = world.hearthOf(0)!;
-    dismissHippies(world, 0);
-    parkAvatarAway(world, 0, 60);
     const { x, z } = gcc.pos;
-    expect(world.collision.blockedCircle(x, z, 0.3, 0.3, 0.9)).toBe(true);
-
-    damageBuilding(world, gcc, gcc.maxHp, -1);
-    expect(isCollapsed(gcc)).toBe(true);
-    expect(gccActive(world, 0)).toBe(false);
-    expect(world.collision.blockedCircle(x, z, 0.3, 0.3, 0.9)).toBe(false);
-    run(h, 1 / 60);
-    expect(eventsOf(h, 'gccDestroyed').map((e) => e.gccId)).toEqual([gcc.id]);
-
-    run(h, GCC.rebuildTime - 1);
-    expect(gccActive(world, 0)).toBe(false);
-    run(h, 1.1);
+    expect(damageBuilding(world, gcc, gcc.maxHp * 10, -1)).toBe(false);
+    expect(isCollapsed(gcc)).toBe(false);
     expect(gccActive(world, 0)).toBe(true);
     expect(gcc.hp).toBe(gcc.maxHp);
-    expect(eventsOf(h, 'gccRebuilt').map((e) => e.gccId)).toEqual([gcc.id]);
-    expect(Math.hypot(gcc.pos.x - hearth.pos.x, gcc.pos.z - hearth.pos.z)).toBeLessThan(30);
-    expect(world.collision.blockedCircle(gcc.pos.x, gcc.pos.z, 0.3, 0.3, 0.9)).toBe(true);
+    expect(world.collision.blockedCircle(x, z, 0.3, 0.3, 0.9)).toBe(true);
+    run(h, 1 / 60);
+    expect(eventsOf(h, 'gccDestroyed')).toEqual([]);
+    expect(eventsOf(h, 'gccRebuilt')).toEqual([]);
+    expect(gcc.pos).toEqual({ x, z });
   });
 
   it('a Hearth Ward vibe-checks enemy hippies that come close', () => {

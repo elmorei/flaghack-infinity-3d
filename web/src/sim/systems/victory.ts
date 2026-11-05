@@ -18,7 +18,7 @@ import type { EventOf } from '../events';
 import { NEUTRAL } from '../types';
 import type { FactionId, Hippie } from '../types';
 import type { World } from '../world';
-import { collapseGcc, isCollapsed } from './buildings';
+import { restoreGcc } from './buildings';
 import { updateEffigy } from './effigy';
 import { dropLoose, transferFlags } from './flags';
 import { FACTION_SHORT } from './rules/factions';
@@ -46,7 +46,7 @@ export function neutralizeHippie(world: World, h: Hippie): void {
 /**
  * A faction with no Hearth is out: its vexillomancer falls Flagless for good (quiver
  * scattered), its Flags orphan (planted ones stand neutral, pullable by anyone), its hippies
- * wander off neutral, its plan is forgotten and its GCC collapses for ever.
+ * wander off neutral, its plan is forgotten and its intact GCC stops operating.
  */
 export function eliminate(world: World, faction: FactionId, by: FactionId | null, cause?: 'boss'): void {
   const fac = world.factions[faction];
@@ -80,11 +80,14 @@ export function eliminate(world: World, faction: FactionId, by: FactionId | null
   transferFlags(world, faction, NEUTRAL);
   for (const fl of world.flags.values()) if (fl.owner === faction && fl.state !== 'stock') fl.owner = NEUTRAL;
 
-  // The GCC collapses for ever (a cart already down simply never comes back).
+  // Elimination still stops all cart services/orders, but cannot destroy its body.
   const gcc = world.gccOf(faction);
   if (gcc && gcc.gcc) {
-    if (isCollapsed(gcc)) gcc.gcc.destroyedUntil = Infinity;
-    else collapseGcc(world, gcc, Infinity);
+    restoreGcc(world, gcc);
+    gcc.gcc.moveTarget = null;
+    gcc.gcc.pushedBy = -1;
+    gcc.gcc.channelUntil = 0;
+    for (const other of world.avatars.values()) if (other.pushing === gcc.id) other.pushing = -1;
   }
   fac.gccId = null;
 

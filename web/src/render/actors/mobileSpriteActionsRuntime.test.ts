@@ -54,14 +54,14 @@ describe('supplemental sprite state runtime', () => {
     const {sprites} = setup(), assemblyPose = {...pose, height: 6.545, fallbackHeight: pose.height};
     sprites.cast(0, assemblyPose, 'seated'); sprites.end();
     const batch = sprites.meshes[1].geometry, size = batch.getAttribute('aSize'), offset = batch.getAttribute('aOffset');
-    expect(size.getY(0)).toBeCloseTo(32 * 6.545 / 28);
+    expect(size.getY(0)).toBeCloseTo(32 * 6.545 * 2 / 28);
     expect((1 - 30 / 32) * size.getY(0) + offset.getY(0)).toBeCloseTo(0, 6);
     expect(batch.getAttribute('aCenter').getY(0)).toBe(pose.y);
     sprites.begin(); sprites.cast(0, {...pose, height: .6}, 'seated');
-    expect(batch.getAttribute('aSize').getY(0)).toBeCloseTo(32 * .6 / 28);
+    expect(batch.getAttribute('aSize').getY(0)).toBeCloseTo(32 * .6 * 2 / 28);
     const fallback = setup(true, false).sprites; fallback.cast(0, assemblyPose, 'seated'); fallback.end();
     expect(fallback.samples[0]).toMatchObject({clip: 'idle', requestedClip: 'seated'});
-    expect(fallback.mesh.geometry.getAttribute('aSize').getY(0)).toBeCloseTo(atlas.sheets['dr-beef-supreme'].cellHeight * pose.height / 224);
+    expect(fallback.mesh.geometry.getAttribute('aSize').getY(0)).toBeCloseTo(atlas.sheets['dr-beef-supreme'].cellHeight * pose.height * 2 / 224);
   });
   it('uses explicit elapsed action time rather than the global clock for authoritative actions', () => {
     const {sprites} = setup();

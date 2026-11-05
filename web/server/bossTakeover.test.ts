@@ -106,7 +106,7 @@ describe('authoritative boss camp handoff', () => {
     expect(returned.inputEpoch).toBeGreaterThan(takeover.inputEpoch);
   }, 20_000);
 
-  it('blocks live humans, spectators, generic seat bypass and disconnected reserved camps even after AI takes over', async () => {
+  it('allows late spectators but blocks live humans and disconnected reserved camps', async () => {
     const staged = stagedHost([0]);
     const h = await host();
     const a = await join(h, 'alice');
@@ -119,9 +119,10 @@ describe('authoritative boss camp handoff', () => {
     expect((await b.c.next('bossTakeoverResult')).ok).toBe(false);
     const watcher = await join(h, 'watcher'); await watcher.c.next('matchStart');
     watcher.c.send({ t: 'bossTakeover', seat: 2 });
-    expect((await watcher.c.next('bossTakeoverResult')).ok).toBe(false);
-    watcher.c.send({ t: 'seat', seat: 2 });
+    expect((await watcher.c.next('bossTakeoverResult')).ok).toBe(true);
+    expect((await watcher.c.next('matchStart')).seat).toBe(2);
     a.c.send({ t: 'seat', seat: 2 });
+    expect((await a.c.next('bossTakeoverResult')).ok).toBe(false);
     b.c.ws.close(); await b.c.closed();
     await a.c.next('chat', (m) => m.line.text.startsWith('An NPC steers'), 10_000);
     expect(staged.match().drivenByNpc(1)).toBe(true);
@@ -132,7 +133,7 @@ describe('authoritative boss camp handoff', () => {
     const back = await join(h, 'bob', b.me.token);
     expect((await back.c.next('matchStart')).seat).toBe(1);
     expect(back.me.lobby.seats[0].playerId).toBe(a.me.playerId);
-    expect(back.me.lobby.seats[2].playerId).toBeNull();
+    expect(back.me.lobby.seats[2].playerId).toBe(watcher.me.playerId);
   }, 20_000);
 
   it.each(['altar', 'outcome'] as const)('revalidates a reserved claim if the %s changes before its snapshot', async (change) => {
@@ -159,31 +160,33 @@ describe('authoritative boss camp handoff', () => {
     expect(staged.match().drivenByNpc(2)).toBe(true);
   });
 
-  it('rejects the boss-only request before the boss and preserves ordinary mid-match seat behavior', async () => {
+  it('allows the same authoritative claim before the boss appears', async () => {
     stagedHost([0], false);
     const h = await host();
     const a = await join(h, 'alice'); a.c.mirrored = true;
     a.c.send({ t: 'start' }); await a.c.next('matchStart');
     await until(() => { a.c.mirror!.catchUp(); return !a.c.mirror!.world.factions[0].alive; }, 'ordinary elimination');
     a.c.send({ t: 'bossTakeover', seat: 2 });
-    expect((await a.c.next('bossTakeoverResult')).ok).toBe(false);
-    a.c.send({ t: 'seat', seat: 2 });
+    expect((await a.c.next('bossTakeoverResult')).ok).toBe(true);
     expect((await a.c.next('matchStart')).seat).toBe(2);
   });
 });
 
-it('authoritatively refuses an RTS player taking an avatar camp', async () => {
+it('converts an inherited avatar camp to the RTS player’s chosen mode', async () => {
   const staged = stagedHost([0]); const h = await host(); const a = await join(h, 'rts-ruler'); a.c.mirrored = true;
   a.c.send({ t: 'controlMode', mode: 'rts' });
   await a.c.next('lobby', m => m.lobby.players.find(p => p.id === a.me.playerId)?.controlMode === 'rts');
   a.c.send({ t: 'start' }); await a.c.next('matchStart');
   await until(() => { a.c.mirror!.catchUp(); return !!a.c.mirror!.world.boss; }, 'active boss');
   a.c.send({ t: 'bossTakeover', seat: 2 });
-  expect(await a.c.next('bossTakeoverResult')).toMatchObject({ ok: false, reason: expect.stringMatching(/RTS players can only/) });
-  expect(staged.match().world.options.humans).toEqual([0]); expect(a.c.take('matchStart')).toEqual([]);
+  expect(await a.c.next('bossTakeoverResult')).toMatchObject({ ok: true });
+  expect((await a.c.next('matchStart')).seat).toBe(2);
+  expect(staged.match().world.options.humans).toEqual([2]);
+  expect(staged.match().world.factions[2].controlMode).toBe('rts');
+  expect(staged.match().world.avatarOf(2)).toBeUndefined();
 });
 
-it('also refuses a generic mid-match seat request from an RTS player into an avatar camp', async () => {
+it('routes generic mid-match claims through the same RTS conversion', async () => {
   const staged = stagedHost([0], false); const h = await host(); const a = await join(h, 'rts-ruler'); a.c.mirrored = true;
   a.c.send({ t: 'controlMode', mode: 'rts' });
   await a.c.next('lobby', m => m.lobby.players.find(p => p.id === a.me.playerId)?.controlMode === 'rts');
@@ -191,7 +194,9 @@ it('also refuses a generic mid-match seat request from an RTS player into an ava
   await until(() => { a.c.mirror!.catchUp(); return !a.c.mirror!.world.factions[0].alive; }, 'ordinary elimination');
   a.c.send({ t: 'seat', seat: 2 }); a.c.send({ t: 'ping', id: 417, clientTime: 0 });
   await a.c.next('pong', m => m.id === 417);
-  expect(staged.match().world.options.humans).toEqual([0]); expect(a.c.take('matchStart')).toEqual([]);
+  expect((await a.c.next('matchStart')).seat).toBe(2);
+  expect(staged.match().world.options.humans).toEqual([2]);
+  expect(staged.match().world.factions[2].controlMode).toBe('rts');
 });
 
 

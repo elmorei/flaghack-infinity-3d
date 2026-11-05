@@ -7,7 +7,6 @@ import {
   CAPTURE,
   CRYSTAL_PRESSURE_BONUS,
   CRYSTAL_PRESSURE_RADIUS,
-  GCC,
   OUTPOST_PRESSURE_MULT,
   WARD_RADIUS,
 } from '../constants';
@@ -18,7 +17,7 @@ import { FACTION_IDS, NEUTRAL } from '../types';
 import type { Building, CaptureStage, FactionId, HearthState, Owner } from '../types';
 import type { World } from '../world';
 import { isAvatarDown } from './avatars';
-import { collapseGcc, disableBuilding, isCollapsed } from './buildings';
+import { disableBuilding } from './buildings';
 import { transferFlags } from './flags';
 import { FACTION_SHORT, isFactionId } from './rules/factions';
 import { eliminate, neutralizeHippie, suddenDeathMult } from './victory';
@@ -78,12 +77,11 @@ export function updateCapture(world: World, dt: number): void {
 
 /**
  * Convert a Hearth to `to`: outpost Hearth for the captor, loser's buildings become the
- * captor's (disabled), loser's planted Flags neutral, hippies neutral, GCC destroyed, and
+ * captor's (disabled), loser's planted Flags neutral, hippies neutral, GCC intact, and
  * the loser eliminated if it has no Hearths left. Emits captured (+ eliminated).
  *
  * A loser that still holds other Hearths (outposts) keeps everything closer to those: only
- * the captured Hearth's own camp changes hands, and its GCC (if parked there) collapses and
- * is rebuilt at a remaining Hearth.
+ * the captured Hearth's own camp changes hands. Its indestructible GCC stays where it was.
  */
 export function captureHearth(world: World, hearth: Building, to: FactionId): void {
   const hs = hearth.hearth;
@@ -146,10 +144,6 @@ export function captureHearth(world: World, hearth: Building, to: FactionId): vo
   // The fallen camp's Signifiers scatter neutral; those nearer a surviving Hearth stay loyal.
   for (const h of world.hippies.values()) {
     if (h.faction === from && inCamp(h.pos.x, h.pos.z)) neutralizeHippie(world, h);
-  }
-  const gcc = world.gccOf(from);
-  if (gcc && !isCollapsed(gcc) && inCamp(gcc.pos.x, gcc.pos.z)) {
-    collapseGcc(world, gcc, world.time + GCC.rebuildTime);
   }
 }
 

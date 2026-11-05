@@ -1,3 +1,4 @@
+import { mobileAvatarMotion } from './mobileAvatar';
 import { cameraAspect, cameraPointerRay, worldUnitsPerPixel } from '../render/cameraProjection';
 import { Ray } from 'three';
 import { frickFrackInputLocked } from './frickFrackControls';
@@ -314,7 +315,7 @@ export class Controls {
       this.input.touch.cancel();
       // A modal, resize interruption or screen transition must never defer a Confirm
       // click until the player returns to the field.
-      if (mobile) s.mobileBuildConfirm = false;
+      if (mobile) { s.mobileBuildConfirm = false; s.mobileAvatarTarget = null; }
     }
     else this.input.touch.poll(performance.now());
     this.input.pollGamepad(Math.min(dt,0.05),inPlay&&!typing&&!this.cursorWanted(s),s.view==='command');
@@ -393,6 +394,11 @@ export class Controls {
       out.throwMode = inp.buttons[RMB];
       out.sprint = inp.shift && !out.throwMode;
     }
+    if (isMobileCommandLayout() && s.view === 'command' && !s.spectator && !s.campChoiceOpen && world.factions[s.playerFaction].controlMode === 'avatar' &&
+        !frickFrackInputLocked(world,s) && !panelOpen(s) && av.koUntil <= world.time) {
+      if (s.mobileAvatarYaw !== null) out.yaw = s.mobileAvatarYaw;
+      if (!mobileAvatarMotion(av.pos,s.mobileAvatarTarget,out)) s.mobileAvatarTarget=null;
+    }
     this.jumpLatch = false;
     // Face where the camera looks; a throw tick turns to the crosshair point with the solved arc.
     if (frickFrackInputLocked(world, s)) { out.yaw = av.yaw; out.pitch = av.pitch; }
@@ -411,6 +417,7 @@ export class Controls {
   resetForSeat(): void {
     const world = this.app.world, s = this.app.session;
     if (!world) return;
+    s.mobileAvatarTarget = null; s.mobileAvatarYaw = null;
     this.input.resetForSeat();
     this.attachWorld(world, s);
     this.ctxKind = 'none'; this.ctxNode = -1; this.ctxTarget = -1;
@@ -670,7 +677,7 @@ export class Controls {
     const f = s.playerFaction;
     const conversation = frickFrackInputLocked(world, s) ? world.frickFrack.sessions[f] : null;
     const wizard = conversation ? world.hippies.get(world.frickFrack.wizardId) : undefined;
-    if (conversation && wizard && av) {
+    if (conversation && wizard && av && world.factions[f].controlMode !== 'rts') {
       rig.setMode('dialogue', .7);
       rig.updateDialogue(world, av, wizard, cameraAspect(this.app.renderer.camera), dt);
     } else if (s.screen === 'title' || s.screen === 'lobby' || !av || !(seated(world, s) || s.spectator)) {

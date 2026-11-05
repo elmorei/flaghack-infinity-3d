@@ -95,10 +95,20 @@ async function main() {
       const hold = async p => { await touch('touchStart', [p]); await page.waitForTimeout(680); await touch('touchEnd', []); await page.waitForTimeout(150); };
       const modes = page.locator('.mc-modes');
       await modes.waitFor();
-      for (const label of ['Degen', 'Plan']) {
+      for (const label of ['Degen', 'Home', 'Plan']) {
         const box = await modes.getByRole('button', { name: label, exact: true }).boundingBox();
         assert.ok(box && box.width >= 44 && box.height >= 44 && box.x >= 0 && box.x + box.width <= spec.width, label + ' reachable touch target');
       }
+      const home=modes.getByRole('button',{name:'Home',exact:true}), homeBox=await home.boundingBox();
+      assert.ok(Math.abs(homeBox.x+homeBox.width/2-spec.width/2)<=1,'Home is centered');
+      assert.equal(await home.locator('svg').count(),1,'Home is a house icon');
+      const beforeHome=await state(); await centerAt(beforeHome.camera.cmdX+15,beforeHome.camera.cmdZ+15); await uiTap(home);
+      await page.waitForFunction(()=>{const a=window.flaghack,b=a.world.hearthOf(a.session.playerFaction);return Math.hypot(a.session.camera.cmdX-b.pos.x,a.session.camera.cmdZ-b.pos.z)<.001;});
+      assert.equal((await state()).mode,beforeHome.mode);assert.deepEqual((await state()).selection,beforeHome.selection);
+      entry.grid=await page.evaluate(()=>{const a=window.flaghack,g=a.renderer,s=a.session,m=g.modules.find(m=>m.lattice&&m.u&&m.data),old={mode:s.mobileMode,hover:{...s.hover}},out=[];
+        try{for(const mode of ['units','build','units','build']){s.mobileMode=mode;Object.assign(s.hover,{node:0,edge:0,facet:0});m.update(0);out.push({mode,lines:m.lattice.lines.visible,nodes:m.lattice.markers.visible,hover:m.u.uHover.value.toArray(),edges:m.u.uHoverEdges.value.toArray()});}return out;}
+        finally{s.mobileMode=old.mode;Object.assign(s.hover,old.hover);m.update(0);}});
+      for(const p of entry.grid){assert.ok(p.lines&&p.nodes,'Grid remains visible in both modes');if(p.mode==='units'){assert.deepEqual(p.hover,[-1,-1,-1,0]);assert.deepEqual(p.edges,[-1,-1,-1,-1]);}else assert.deepEqual(p.hover.slice(0,3),[0,0,0]);}
       assert.equal(await page.locator('.cmd-right:visible,.cmd-left:visible,.cmd-deck:visible,.minimap:visible').count(), 0, 'No permanent desktop command clutter');
       assert.equal(await page.evaluate(() => document.elementFromPoint(innerWidth/2, innerHeight/2)?.id), 'game', 'Central field accepts map gestures');
       await shot(spec.name + '-field');
@@ -195,19 +205,22 @@ async function main() {
       await menu.waitFor();
       assert.equal((await state()).facet,staged.facet,'Picker retains pressed facet');
       await shot(spec.name+'-building-picker');
-      await uiTap(menu.getByRole('button',{name:/Workshop/}).first());
-      await menu.waitFor({state:'hidden'});
-      const placement=page.locator('.mc-placement'); await placement.waitFor();
-      assert.deepEqual((await state()).buildings,beforeBuild,'Choosing building shows preview, not placement');
-      await shot(spec.name+'-building-preview');
-      await uiTap(placement.getByRole('button',{name:'Cancel',exact:true}));
-      assert.deepEqual((await state()).buildings,beforeBuild,'Cancel preserves buildings');
-      await hold(facetPoint); await menu.waitFor();
-      await uiTap(menu.getByRole('button',{name:/Workshop/}).first()); await placement.waitFor();
-      await uiTap(placement.getByRole('button',{name:'Confirm',exact:true}));
+      await uiTap(menu.getByRole('button',{name:'Back to field',exact:true}));await menu.waitFor({state:'hidden'});
+      assert.deepEqual((await state()).buildings,beforeBuild,'Back from picker is inert');await hold(facetPoint);await menu.waitFor();
+      const workshop=menu.getByRole('button',{name:/Workshop/}).first();
+      const lumber=await page.evaluate(()=>{const f=window.flaghack.world.factions[0],v=f.lumber;f.lumber=0;return v;});
+      await page.waitForFunction(()=>{const b=[...document.querySelectorAll('.mc-page[data-tab="build"] .build-btn')].find(b=>/Workshop/.test(b.textContent));return b?.disabled;});
+      assert.ok(await workshop.evaluate(b=>Number(getComputedStyle(b).opacity)<1),'Unaffordable building is visibly disabled');await shot(spec.name+'-building-unaffordable');
+      const disabled=await workshop.boundingBox();await page.touchscreen.tap(disabled.x+disabled.width/2,disabled.y+disabled.height/2);
+      assert.deepEqual((await state()).buildings,beforeBuild);assert.equal((await state()).menu,'build');
+      await page.evaluate(v=>window.flaghack.world.factions[0].lumber=v,lumber);
+      await page.waitForFunction(()=>{const b=[...document.querySelectorAll('.mc-page[data-tab="build"] .build-btn')].find(b=>/Workshop/.test(b.textContent));return b&&!b.disabled;});
+      const chosen=await workshop.boundingBox();await uiTap(workshop);await menu.waitFor({state:'hidden'});
       await page.waitForFunction(facet=>[...window.flaghack.world.buildings.values()].some(b=>b.kind==='workshop'&&b.facet===facet),staged.facet);
-      await shot(spec.name+'-building-confirmed');
-      check(`${spec.name}: facet longpress opens full picker; preview/cancel/confirm uses original building rules`);
+      await page.touchscreen.tap(chosen.x+chosen.width/2,chosen.y+chosen.height/2);await page.waitForTimeout(150);
+      assert.equal((await state()).facet,-1);assert.equal((await state()).buildings.filter(id=>!beforeBuild.includes(id)).length,1,'Exactly one immediate construction');
+      assert.equal(await page.locator('.mc-placement:visible').count(),0);await shot(spec.name+'-building-placed');
+      check(`${spec.name}: disabled unaffordable choice, Back cancellation, immediate single construction without Confirm`);
       // Rotation during a hold cancels it and preserves the fixed pixels-per-character framing.
       const rotateBefore=await state();
       await touch('touchStart',[{x:spec.width*.4,y:spec.height*.4}]);
@@ -217,6 +230,23 @@ async function main() {
       await shot(spec.name+'-rotated-field');
       assert.deepEqual(entry.errors,[],spec.name+' has no browser errors');
       check(`${spec.name}: rotation cancels pending hold and no page errors`);
+      if(spec.name==='phone-portrait'){
+        await page.setViewportSize({width:spec.width,height:spec.height});
+        const {verifyMobileFlagOrders}=await import('./verify-mobile-flag-orders.mjs');
+        entry.flagOrders=await verifyMobileFlagOrders(page,{capture:name=>shot(spec.name+'-'+name)});
+      }
+      if(spec.name==='phone-portrait'||spec.name==='phone-landscape'){
+        await page.setViewportSize({width:spec.width,height:spec.height});
+        const {verifyMobileWizard}=await import('./verify-mobile-wizard.mjs');
+        entry.wizard=await verifyMobileWizard(page,{capture:name=>shot(spec.name+'-'+name)});
+        const {verifyMobilePowers}=await import('./verify-mobile-powers.mjs');
+        entry.powers=await verifyMobilePowers(page,{capture:name=>shot(spec.name+'-'+name)});
+        for(const [name,png]of Object.entries(entry.powers.gpu.captures))writeFileSync(join(OUT,spec.name+'-power-gpu-'+name+'.png'),Buffer.from(png,'base64'));
+        delete entry.powers.gpu.captures;
+        const {verifyMobileCampControls}=require('./mobile-camp-native.cjs');
+        entry.campControls=await verifyMobileCampControls(page,{capture:name=>shot(spec.name+'-'+name)});
+      }
+      assert.deepEqual(entry.errors,[],spec.name+' after extended touch verification');
       await context.close();
     }
     results.completed=true;

@@ -7,7 +7,7 @@ afterEach(() => { vi.unstubAllGlobals(); setFrickFrackView(null); });
 function tableFixture() {
   const geometry = vi.fn(() => { throw new Error('Geometry read before publication'); });
   const gate = { disabled: false };
-  const node = () => ({ textContent: '', appendChild() {}, replaceChildren() {},
+  const node = () => ({ textContent: '', appendChild() {}, replaceChildren() {}, setAttribute() {}, classList: { toggle() {} },
     getBoundingClientRect: geometry, getClientRects: geometry,
     querySelectorAll: () => [gate], querySelector: () => ({ focus() {} }) });
   const session = { id: 1, phase: 'empty', message: 'No Flags', wager: 0, readyAt: 10, dialogueStartedAt: 0, revision: 1 };

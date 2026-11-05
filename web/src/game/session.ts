@@ -126,13 +126,17 @@ export class Session {
   planTool: PlanTool = 'select';
   recruitTargeting = false;
   mobileMode: 'units' | 'build' = 'units';
-  mobileMenu: null | 'main' | 'units' | 'plan' | 'build' | 'settings' = null;
+  mobileMenu: null | 'main' | 'units' | 'plan' | 'build' | 'powers' | 'settings' = null;
   mobileBuildFacet = -1;
   mobileBuildLevel = 0;
   mobileBuildConfirm = false;
   mobileCancelSerial = 0;
   mobileAbility: import('../sim/types').AbilityId | null = null;
+  mobileRitual: import('../sim/types').RitualId | null = null;
   mobileBoxSelect = false;
+  /** Local touch destination for the selected roaming avatar; never sent as a trusted teleport. */
+  mobileAvatarTarget: V2 | null = null;
+  mobileAvatarYaw: number | null = null;
   selection = new Set<EntityId>();
   hover: HoverInfo = { point: null, node: -1, facet: -1, edge: -1, entity: -1 };
   aim: AimInfo = { active: false, arc: [], landing: null, node: -1 };

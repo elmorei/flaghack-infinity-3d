@@ -113,7 +113,11 @@ describe('Hearth capture', () => {
     }
     expect(loser.gccId).toBeNull();
     for (const b of world.buildings.values()) {
-      if (b.kind === 'gcc' && b.gcc && b.faction === 1) expect(b.gcc.destroyedUntil).toBe(Infinity);
+      if (b.kind === 'gcc' && b.gcc && b.faction === 1) {
+        expect(b.gcc.destroyedUntil).toBe(0);
+        expect(b.hp).toBe(b.maxHp);
+        expect(b.disabled).toBe(false);
+      }
     }
     expect(world.flags.size).toBe(total);
     expect(flagProblems(world)).toEqual([]);

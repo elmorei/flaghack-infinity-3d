@@ -10,6 +10,7 @@ const AT = { x: 10.5, z: -20 };
 
 /** At least one valid sample per Command variant (every HippieOrder kind, sentinel ids). */
 const VALID: Command[] = [
+  { t: 'talkWizard', faction: 0, wizardId: 42 },
   { t: 'avatarInput', faction: 0, input: INPUT },
   { t: 'avatarInput', faction: 0, input: { ...INPUT, throwMode: true } },
   { t: 'plant', faction: 1, node: 12 },
@@ -41,10 +42,14 @@ const VALID: Command[] = [
   { t: 'ability', faction: 0, ability: 'phason', at: AT, node: 17 },
   { t: 'ability', faction: 0, ability: 'omega', at: AT, node: -1 },
   { t: 'align', faction: 0, chakra: 'canton' },
+  { t: 'ritual', faction: 0, ritual: 'redtape', at: AT },
+  { t: 'ritual', faction: 0, ritual: 'patchwork', at: AT },
   { t: 'drug', faction: 0, drug: 'acidcop' },
   { t: 'brew', faction: 0, labId: 80, drug: 'dust' },
   { t: 'handFlag', faction: 0, hippieId: 52 },
   { t: 'pushGcc', faction: 0, on: true },
+  { t: 'moveGcc', faction: 0, to: { x: 10, z: 20 } },
+  { t: 'moveGcc', faction: 0, to: null },
   { t: 'ping', faction: 0, kind: 'sos', at: AT },
   { t: 'retransmit', faction: 0 },
   { t: 'tapBeacon', faction: 0, beaconId: 66 },
@@ -71,13 +76,16 @@ const COMMAND_TYPES: Record<Exclude<CommandType, 'gcc'>, true> = {
   sendFollowers: true,
   ability: true,
   align: true,
+  ritual: true,
   drug: true,
   brew: true,
   pushGcc: true,
+  moveGcc: true,
   ping: true,
   retransmit: true,
   tapBeacon: true,
   frickFrack: true,
+  talkWizard: true,
 };
 
 /** Wrong in exactly one way each. */

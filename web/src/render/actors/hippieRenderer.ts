@@ -45,7 +45,7 @@ import {
 } from './hippieModel';
 import { InstanceSet, PLACE, castShadowPrefix, showInstances, type ActorView } from './lod';
 import { RING, STATUS_ICON, type StatusIcons, type UnitRings } from './overlays';
-import { signifierHead, signifierBody } from './mobileSprites';
+import { MOBILE_CHARACTER_SCALE, signifierHead, signifierBody } from './mobileSprites';
 import { clamp01, damp, hash01b, writeTransform } from './util';
 
 const INITIAL_CAPACITY = 256;
@@ -287,7 +287,7 @@ export class HippieRenderer {
       // A screen-facing figure can extend horizontally in world space at overhead angles.
       const mobile = !!ctx.shared.mobileSprites;
       const place = this.view.place(v.x, gy + airborneY + (mobile ? 0 : HIPPIE_MID_Y), v.z,
-        mobile ? Math.max(HIPPIE_RADIUS, HIPPIE_HEAD_TOP * v.scale * 1.5) : HIPPIE_RADIUS, HIPPIE_DETAIL_RANGE, v.detailed);
+        mobile ? Math.max(HIPPIE_RADIUS, HIPPIE_HEAD_TOP * v.scale * MOBILE_CHARACTER_SCALE * 1.5) : HIPPIE_RADIUS, HIPPIE_DETAIL_RANGE, v.detailed);
       v.detailed = place === PLACE.detailed;
       const carriedFlag = h.carryingFlag >= 0 ? w.flags.get(h.carryingFlag) : undefined;
       const carriedFlagColor = h.carryingFlag >= 0 ? this.flags.ribbonColor(carriedFlag?.owner ?? h.faction) : undefined;

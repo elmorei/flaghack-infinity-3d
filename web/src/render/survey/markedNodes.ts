@@ -6,6 +6,7 @@ import { isMobileCommandLayout } from '../../game/mobileTouch';
  * Every symbol is screen-sized, anchored to the same moving node texture as the lattice.
  */
 import * as THREE from 'three';
+import { drawGroundInkBeforeSprites } from './groundInk';
 import type { Session } from '../../game/session';
 import type { World } from '../../sim/world';
 import type { PostFxState } from '../context';
@@ -107,6 +108,7 @@ export class MarkedNodeLayer {
     private readonly data: SurveyData,
     shared: SurveyUniforms,
     private readonly fx?: Pick<PostFxState, 'acid' | 'instability'>,
+    spriteForeground = false,
   ) {
     const geo = cornerQuad([-1, -1, 1, -1, 1, 1, -1, 1]);
     this.set = new InstanceSet(geo, data.nodeCount);
@@ -116,8 +118,10 @@ export class MarkedNodeLayer {
       vertexShader: VERT, fragmentShader: FRAG, uniforms: { ...shared, uMarkWarp: this.warp },
       transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
     });
+    if (spriteForeground) drawGroundInkBeforeSprites(mat);
     this.mesh = new THREE.Mesh(geo, mat);
     this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 9;
     this.scene.add(this.mesh);
     this.scene.visible = false;
   }

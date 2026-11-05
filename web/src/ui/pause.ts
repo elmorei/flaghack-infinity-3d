@@ -19,6 +19,7 @@ export class PauseMenu implements UiPart {
   private sub: HTMLElement;
   private quit: HTMLButtonElement;
   private playCamp: HTMLButtonElement;
+  private controlMode: HTMLButtonElement;
   private quitArmed = false;
   private online = false;
   private standingsWrap: HTMLElement;
@@ -37,6 +38,11 @@ export class PauseMenu implements UiPart {
     const body = el('div', 'pause-body', box);
     const menu = el('div', 'pause-menu', body);
     button('btn btn-primary', menu, 'Resume', () => this.host.app.setPaused(false), 'back');
+    this.controlMode = button('btn', menu, 'Switch control mode', () => {
+      const app = this.host.app, world = app.world;
+      if (world) app.setControlMode?.(world.factions[app.session.playerFaction].controlMode === 'rts' ? 'avatar' : 'rts');
+    });
+    this.controlMode.title = 'Keep your camp. Removed mode-specific spell upgrades are refunded as Ritual.';
     // Online watchers: take over a camp the rivals' AI steers (seats.ts asks to confirm).
     this.playCamp = button('btn btn-gold is-off', menu, 'Play a camp', () => this.host.chooseSeat(null), 'confirm');
     button('btn', menu, 'Settings', () => {
@@ -82,6 +88,8 @@ export class PauseMenu implements UiPart {
     }
     this.wasOpen = open;
     if (!open || !world) return;
+    show(this.controlMode, !s.spectator && !!world.factions[s.playerFaction]?.alive && world.options.mode !== 'tutorial');
+    setText(this.controlMode, world.factions[s.playerFaction]?.controlMode === 'rts' ? 'Switch to Avatar' : 'Switch to RTS');
     if (this.online) this.standings.update(this.host.app, world);
     const recovery = canRecoverBossCamp(this.host.app, world);
     setText(this.playCamp, recovery ? 'Choose a surviving camp' : 'Play a camp');

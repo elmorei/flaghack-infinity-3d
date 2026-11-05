@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { newMatch } from '../sim/systems/econ/testkit';
+import { canPlaceBuilding } from '../sim/systems/buildings';
 import { Session } from '../game/session';
 import { cancelMobileTarget, chooseMobileBuilding, setMobileMode, mobileIndicatorReservedRects } from './mobileCommand';
 
@@ -24,15 +26,27 @@ describe('mobile command menu intent', () => {
     expect(s.mobileMode).toBe('units'); expect(s.planTool).toBe('select');
     expect([...s.selection]).toEqual([42]);
   });
-  it('building choice requires a locked space and never implicitly confirms', () => {
-    const s = new Session(); s.mobileMenu = 'build';
-    expect(chooseMobileBuilding(s, 'workshop')).toBe(false);
-    expect(s.mobileMenu).toBe('build'); expect(s.tool).toBe('flag');
-    s.mobileBuildFacet = 8; s.mobileBuildConfirm = true;
-    expect(chooseMobileBuilding(s, 'workshop')).toBe(true);
-    expect(s.mobileBuildFacet).toBe(8); expect(s.buildingKind).toBe('workshop');
-    expect(s.tool).toBe('building'); expect(s.mobileMenu).toBeNull();
+  it('building choice immediately submits once for the locked space without confirmation', () => {
+    const s = new Session(), { world } = newMatch('immediate-mobile-build'), submit = vi.fn(); s.mobileMenu = 'build';
+    world.factions[0].lumber = 500;
+    expect(chooseMobileBuilding(s, 'workshop', world, submit)).toBe(false);
+    const facet = world.lattice.facets.find(fc => canPlaceBuilding(world, 0, 'workshop', fc.id).ok)!;
+    s.mobileBuildFacet = facet.id;
+    expect(chooseMobileBuilding(s, 'workshop', world, submit)).toBe(true);
+    expect(submit).toHaveBeenCalledExactlyOnceWith({ t: 'placeBuilding', faction: 0, kind: 'workshop', facet: facet.id });
+    expect(s.mobileBuildFacet).toBe(-1); expect(s.buildingKind).toBe('workshop');
+    expect(s.tool).toBe('flag'); expect(s.mobileMenu).toBeNull();
     expect(s.mobileBuildConfirm).toBe(false); expect(s.mobileMode).toBe('build');
+    chooseMobileBuilding(s, 'workshop', world, submit); expect(submit).toHaveBeenCalledTimes(1);
+  });
+  it('unaffordable or stale locations do not submit or discard the selected space', () => {
+    const s = new Session(), { world } = newMatch('immediate-mobile-build-poor'), submit = vi.fn();
+    world.factions[0].lumber = 500;
+    const facet = world.lattice.facets.find(fc => canPlaceBuilding(world, 0, 'workshop', fc.id).ok)!;
+    s.mobileBuildFacet = facet.id; s.mobileMenu = 'build'; world.factions[0].lumber = 0;
+    chooseMobileBuilding(s, 'workshop', world, submit);
+    expect(submit).not.toHaveBeenCalled(); expect(s.mobileBuildFacet).toBe(facet.id); expect(s.mobileMenu).toBe('build');
+    expect(s.feed.at(-1)?.text).toContain('Not enough lumber');
   });
 });
 

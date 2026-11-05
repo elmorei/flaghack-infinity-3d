@@ -181,7 +181,7 @@ describe('single 1000-damage, 5-meter boss eye blast', () => {
     expect(strong.hp).toBe(1100); expect(strong.status).not.toBe('ko'); expect(lethal.status).toBe('ko');
     expect(world.drainEvents().filter(e => e.t === 'hit')).toMatchObject([{ amount: 1000 }, { amount: 1000 }, { amount: 1000 }]);
   });
-  it.each((Object.keys(BUILDINGS) as BuildingKind[]).flatMap(kind => [0, 2].map(level => ({ kind, level }))))('applies 1000 damage to $kind at level $level at its boundary while preserving the altar floor', ({ kind, level }) => {
+  it.each((Object.keys(BUILDINGS) as BuildingKind[]).flatMap(kind => [0, 2].map(level => ({ kind, level }))))('respects $kind durability at level $level on the blast boundary', ({ kind, level }) => {
     const { world, boss } = encounter();
     const strong = spawnBuilding(world, kind, -1, 0, .1), lethal = spawnBuilding(world, kind, -1, 1, 1), outside = spawnBuilding(world, kind, -1, 2, 1);
     strong.level = level; lethal.level = level; outside.level = level;
@@ -192,10 +192,14 @@ describe('single 1000-damage, 5-meter boss eye blast', () => {
     // encounter() deliberately uses flat collision terrain; test that actual surface
     // rather than the unrelated procedural dome, plus the authoritative deck level.
     blastBossEye(world, boss, { x: 0, y: world.collision.groundHeight(strong.pos.x, strong.pos.z) + level * LEVEL_HEIGHT + BUILDING_HEIGHT[kind] / 2, z: 0 });
-    expect(world.buildings.has(strong.id)).toBe(true); expect(strong.hp).toBe(1500);
-    expect(world.buildings.has(lethal.id)).toBe(kind === 'hearth'); expect(outside.hp).toBe(outsideHp);
+    const protectedBuilding = kind === 'hearth' || kind === 'gcc';
+    expect(world.buildings.has(strong.id)).toBe(true); expect(strong.hp).toBe(kind === 'gcc' ? 2500 : 1500);
+    expect(world.buildings.has(lethal.id)).toBe(protectedBuilding); expect(outside.hp).toBe(outsideHp);
     if (kind === 'hearth') expect(lethal.hp).toBe(1);
-    expect(world.drainEvents().filter(e => e.t === 'buildingDisabled' && e.buildingId === lethal.id)).toHaveLength(kind === 'hearth' ? 0 : 1);
+    if (kind === 'gcc') expect(lethal.hp).toBe(1000);
+    const events = world.drainEvents();
+    expect(events.filter(e => e.t === 'buildingDisabled' && e.buildingId === lethal.id)).toHaveLength(protectedBuilding ? 0 : 1);
+    if (kind === 'gcc') expect(events.some(e => e.t === 'hit' && (e.target === strong.id || e.target === lethal.id))).toBe(false);
   });
   it('floors altars at 1 through repeated beams and eliminates a camp only when its final altar is eaten', () => {
     const { world, boss } = encounter();

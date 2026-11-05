@@ -273,7 +273,7 @@ html[data-device-layout='mobile'] .gcc-banner { padding: 7px; border: 2px solid 
 html[data-device-layout='mobile'] .gb-main { font: 400 20px/1.1 var(--mp-body); letter-spacing: 0; white-space: normal; }
 html[data-device-layout='mobile'] .gb-sub { font: 400 14px/1.1 var(--mp-body); letter-spacing: 0; color: #d1c5b1; }
 @media (orientation: landscape) {
-  html[data-device-layout='mobile'] .mc-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  html[data-device-layout='mobile'] .mc-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 /* The mobile edition has its own outlined pixel wordmark; desktop art is unchanged. */

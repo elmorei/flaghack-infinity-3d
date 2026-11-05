@@ -1,3 +1,5 @@
+import { buildingBaseHeight } from '../sim/buildingGeometry';
+import { blastBossEye } from '../sim/systems/boss/eye';
 import { describe, expect, it } from 'vitest';
 import { BOSS_TIMING } from '../sim/boss';
 import type { BossAction } from '../sim/boss';
@@ -5,8 +7,8 @@ import { GCC, SIM_DT } from '../sim/constants';
 import { spawnBuilding, spawnFlag, spawnPiece } from '../sim/factory';
 import { normalizeMatch } from '../sim/matchSettings';
 import { createMatch } from '../sim/setup';
-import { spawnBoss, updateBoss } from '../sim/systems/boss';
-import { collapseGcc, moveBuilding, registerBuildingShape, updateBuildings } from '../sim/systems/buildings';
+import { consumeBuilding, spawnBoss, updateBoss } from '../sim/systems/boss';
+import { collapseGcc, damageBuilding, disableBuilding, moveBuilding, registerBuildingShape, updateBuildings } from '../sim/systems/buildings';
 import { econ } from '../sim/systems/econ/state';
 import { updateGcc } from '../sim/systems/gcc';
 import { attachPiece, pieceAt, piecePosition } from '../sim/systems/pieces';
@@ -16,7 +18,7 @@ import { SnapshotEncoder } from './codec';
 import { NetMirror } from './mirror';
 import { CODECS, encodeRow, FACTION_FIELDS, WORLD_FIELDS } from './schema';
 
-const BUILDING_KINDS: BuildingKind[] = ['hearth', 'workshop', 'drumcircle', 'ward', 'druglab', 'gcc'];
+const BUILDING_KINDS: BuildingKind[] = ['hearth', 'workshop', 'drumcircle', 'ward', 'druglab'];
 const PIECE_KINDS: PieceKind[] = ['wall', 'floor', 'ramp'];
 const wire = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 type Structure = Building | Piece;
@@ -197,21 +199,19 @@ describe('boss structure destruction replication', () => {
     }
   });
 
-  it('consumes disabled, unfinished and collapsed buildings and preserves the durable held cue after removal', () => {
+  it('consumes disabled and unfinished destructible buildings and preserves the durable held cue after removal', () => {
     const { host, facet } = encounter();
     const { peers, flush, lateJoin } = replicas(host);
     const cases = [
       { kind: 'workshop' as const, built: 1, disabled: true },
       { kind: 'ward' as const, built: .1, disabled: false },
-      { kind: 'gcc' as const, built: 1, disabled: false },
     ];
     for (const c of cases) {
       const baseline = probe(host, { x: facet.cx, z: facet.cz });
       const s = spawnBuilding(host, c.kind, 0, facet.id, c.built);
       s.disabled = c.disabled;
       if (s.disabled) s.hp = 0;
-      if (s.gcc) collapseGcc(host, s, host.time + GCC.rebuildTime);
-      else registerBuildingShape(host, s);
+      registerBuildingShape(host, s);
       stageAttack(host, s, 'grab');
       flush();
       host.time = host.boss!.actionAt + BOSS_TIMING.consume;
@@ -288,5 +288,52 @@ describe('boss structure destruction replication', () => {
     const late = lateJoin();
     expect(CODECS.buildings.ids(late.world)).not.toContain(first.id);
     expect(late.world.factions[1].alive).toBe(true);
+  });
+});
+
+describe('indestructible Command Center replication', () => {
+  it.each(['ordinary', 'grab', 'swipe', 'stomp', 'eye'] as const)('%s preserves authoritative HP, selection collision and nav for peers, repeat frames and late joins', attack => {
+    const { host, facet } = encounter();
+    const gcc = host.gccOf(0)!; moveBuilding(host, gcc, facet.cx, facet.cz);
+    const before = probe(host, gcc.pos);
+    const { peers, flush, lateJoin } = replicas(host);
+    if (attack === 'ordinary') {
+      expect(damageBuilding(host, gcc, Infinity, -1)).toBe(false);
+      disableBuilding(host, gcc); collapseGcc(host, gcc, Infinity);
+      consumeBuilding(host, gcc); consumeBuilding(host, gcc, true);
+    } else if (attack === 'eye') {
+      const y = buildingBaseHeight(host, gcc);
+      blastBossEye(host, host.boss!, { x: gcc.pos.x + 10, y, z: gcc.pos.z }, { x: gcc.pos.x - 10, y, z: gcc.pos.z });
+    } else {
+      stageAttack(host, gcc, attack); flush();
+      host.time = host.boss!.actionAt + (attack === 'grab' ? BOSS_TIMING.consume : attack === 'stomp' ? BOSS_TIMING.stompHit : BOSS_TIMING.swipeHit);
+      updateBoss(host, SIM_DT); updateBoss(host, SIM_DT);
+    }
+    const frame = flush();
+    expect(frame.delta.ents?.buildings?.r ?? []).not.toContain(gcc.id);
+    expect(frame.events.some(e => e.t === 'hit' && e.target === gcc.id || e.t === 'gccDestroyed' ||
+      e.t === 'buildingDisabled' && e.buildingId === gcc.id)).toBe(false);
+    for (const world of [host, ...peers.map(p => p.world), lateJoin().world]) {
+      expect(world.gccOf(0)).toBe(world.buildings.get(gcc.id));
+      expect(world.gccOf(0)).toMatchObject({ hp: gcc.maxHp, disabled: false, gcc: { destroyedUntil: 0 } });
+      expect(probe(world, world.gccOf(0)!.pos)).toEqual(before);
+      expect(world.wreckage.some(r => r.id === `building:${gcc.id}`)).toBe(false);
+      expect(world.boss?.held).toBeNull();
+    }
+  });
+
+  it('replicates immediate in-place legacy recovery instead of waiting for a rebuild timer', () => {
+    const { host, facet } = encounter();
+    const gcc = host.gccOf(0)!; moveBuilding(host, gcc, facet.cx, facet.cz);
+    gcc.hp = 0; gcc.disabled = true; gcc.gcc!.destroyedUntil = Infinity;
+    registerBuildingShape(host, gcc); const at = { ...gcc.pos };
+    const { peers, flush, lateJoin } = replicas(host);
+    updateBuildings(host, SIM_DT); updateGcc(host, SIM_DT); flush();
+    for (const world of [host, ...peers.map(p => p.world), lateJoin().world]) {
+      const cart = world.gccOf(0)!;
+      expect(cart.hp).toBe(cart.maxHp); expect(cart.disabled).toBe(false); expect(cart.gcc!.destroyedUntil).toBe(0);
+      expect(cart.pos.x).toBeCloseTo(at.x, 2); expect(cart.pos.z).toBeCloseTo(at.z, 2);
+      expect(probe(world, cart.pos)).toMatchObject({ hit: gcc.id, blocked: true, blocker: gcc.id });
+    }
   });
 });

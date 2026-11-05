@@ -18,9 +18,11 @@ import type {
   JobKind,
   PieceKind,
   PingKind,
+  RitualId,
 } from './types';
 
 export type Command =
+  | { t: 'talkWizard'; faction: FactionId; wizardId: EntityId }
   | { t: 'frickFrack'; faction: FactionId; sessionId: number; revision: number; action: 'next' | 'play' | 'decline' | 'bet' | 'hit' | 'stand' | 'cheat' | 'again' | 'exit' | 'choose'; wager?: number; cardId?: number; targetCardIds?: number[]; value?: number; confirmCost?: boolean; choiceIndex?: number }
   /** Continuous avatar control; latest one per tick wins. */
   | { t: 'avatarInput'; faction: FactionId; input: AvatarInput }
@@ -48,6 +50,7 @@ export type Command =
   /** Send all followers at a target point/entity (H). */
   | { t: 'sendFollowers'; faction: FactionId; at: V2; target: EntityId | -1 }
   | { t: 'ability'; faction: FactionId; ability: AbilityId; at: V2; node: number }
+  | { t: 'ritual'; faction: FactionId; ritual: RitualId; at: V2 }
   | { t: 'align'; faction: FactionId; chakra: ChakraId }
   | { t: 'drug'; faction: FactionId; drug: DrugId }
   | { t: 'brew'; faction: FactionId; labId: EntityId; drug: DrugId }
@@ -55,6 +58,8 @@ export type Command =
   | { t: 'gcc'; faction: FactionId; action: GccAction; target: EntityId | -1; nodes: number[] }
   /** Start/stop pushing the own GCC (avatar must be within 3 m). */
   | { t: 'pushGcc'; faction: FactionId; on: boolean }
+  /** Command-only cart movement; null cancels the current destination. */
+  | { t: 'moveGcc'; faction: FactionId; to: V2 | null }
   | { t: 'ping'; faction: FactionId; kind: PingKind; at: V2 }
   | { t: 'retransmit'; faction: FactionId }
   /** Pick up a dropped D.E.G.E.N. beacon within reach. */

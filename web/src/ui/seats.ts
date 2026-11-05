@@ -62,7 +62,7 @@ export class SeatChooser implements UiPart {
     this.confirmFace = el('div', 'sc-face', this.confirm);
     const text = el('div', 'sc-text', this.confirm);
     this.confirmTitle = el('div', 'sc-title', text, '');
-    el('div', 'sc-sub', text, 'Keep this camp’s avatar, Hearths, Flags and Signifiers. Its existing orders stay until you change them.');
+    el('div', 'sc-sub', text, 'Keep this camp’s Hearths, Flags and Signifiers. Use Switch to Avatar / RTS in the menu to change controls; removed spell upgrades refund Ritual.');
     const buttons = el('div', 'sc-buttons', this.confirm);
     this.confirmBtn = button('btn btn-primary', buttons, 'Take over', () => this.take(), 'confirm');
     this.backBtn = button('btn', buttons, 'Back', () => this.unpick(), 'back');
@@ -205,9 +205,7 @@ export class SeatChooser implements UiPart {
       ? 'Your camp has fallen, but the fight goes on. Choose a surviving AI camp to take command, or keep watching.'
       : 'The rivals’ AI steers these camps. Take one over where it stands.');
     setText(this.empty, recovery
-      ? world.factions[s.playerFaction].controlMode === 'rts'
-        ? 'No compatible RTS camps are available. Avatar camps require a roaming body; keep watching the surviving camps.'
-        : 'No surviving AI camps are available. Keep watching: the surviving camps can still win together.'
+      ? 'No surviving AI camps are available. Keep watching: the surviving camps can still win together.'
       : 'Every camp has its Signifier or has fallen. Watch on: a seat may yet free up.');
     if (recovery && this.pending !== null && net?.pendingBossTakeover === null) {
       this.pending = null; this.picked = null;

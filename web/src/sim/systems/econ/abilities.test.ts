@@ -205,7 +205,7 @@ describe('abilities', () => {
     expect(hippie.attention).toBeLessThanOrEqual(90 - ABILITY.march.attentionCost + 1);
   });
 
-  it('Priority Beacon on a planned node sends nearby hippies to plant it, hastened', () => {
+  it('Priority Beacon hastens the group and assigns one bearer to plant the planned node', () => {
     const h = newMatch();
     const { world } = h;
     const fac = world.factions[0];
@@ -220,9 +220,10 @@ describe('abilities', () => {
     world.submit({ t: 'ability', faction: 0, ability: 'beacon', at, node });
     run(h, 2 / 60);
     expect(eventsOf(h, 'ability').map((e) => e.ability)).toEqual(['beacon']);
+    expect(own.filter(hp => hp.order?.kind === 'plant')).toHaveLength(1);
     for (const hp of own) {
       expect(hasEffect(world, hp, 'beacon')).toBe(true);
-      expect(hp.order).toEqual({ kind: 'plant', node });
+      expect(hp.order).toEqual(hp.order?.kind === 'plant' ? { kind: 'plant', node } : { kind: 'move', to: at });
     }
     const zone = [...world.zones.values()].find((z) => z.kind === 'beacon')!;
     expect(zone.radius).toBe(ABILITY.beacon.radius[0]);

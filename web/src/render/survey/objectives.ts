@@ -205,12 +205,12 @@ void main() {
   float grow = 1.0 - (1.0 - iB.y) * (1.0 - iB.y) * (1.0 - iB.y);
   float H = iB.x * max(grow, 0.02);
   vec3 P = iA.xyz + vec3(0.0, aCorner.y * H, 0.0);
-  vec3 toCam = cameraPosition - P;
+  vec3 toCam = fhToCamera(P);
   vec2 side = vec2(toCam.z, -toCam.x);
   float sl = length(side);
   side = sl > 1e-3 ? side / sl : vec2(1.0, 0.0);
   // At range the column keeps ~3 px of width instead of vanishing.
-  float hw = max(iA.w, 1.5 * uPx * length(toCam) / fhProjScale());
+  float hw = max(iA.w, 1.5 * uPx * fhPixelDepth(P) / fhProjScale());
   P.xz += side * aCorner.x * hw;
   vec4 mv = viewMatrix * vec4(P, 1.0);
   gl_Position = projectionMatrix * mv;

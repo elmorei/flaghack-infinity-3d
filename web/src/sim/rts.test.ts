@@ -52,12 +52,12 @@ describe('RTS factions without roaming avatars', () => {
       expect(rtsThroneAltar(mirror.world, 0)).toBeUndefined();
     }
   });
-  it('blocks personal drugs at UI blocker and direct handler without spending inventory', () => {
+  it('allows shared drugs without a roaming avatar and spends one dose', () => {
     const w = createMatch({ seed: 'rts-no-powers', mode: 'standard', difficulty: 'normal', humans: [0], rtsFactions: [0] });
     w.factions[0].drugs.dust = 1;
-    expect(drugBlocker(w, 0, 'dust')).not.toBe('');
+    expect(drugBlocker(w, 0, 'dust')).toBe('');
     cmdDrug(w, { t: 'drug', faction: 0, drug: 'dust' });
-    expect(w.factions[0].drugs.dust).toBe(1); expect(w.factions[0].drugActive.dust).toBe(0);
+    expect(w.factions[0].drugs.dust).toBe(0); expect(w.factions[0].drugActive.dust).toBe(w.time + 30);
   });
 
   it('direct personal handlers are inert even with a stale avatar left in a malformed RTS world', () => {

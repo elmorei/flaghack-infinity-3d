@@ -76,10 +76,10 @@ function setup(online = false) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('surviving camp choice', () => {
-  it('never opens before the actual encounter or chooses automatically with multiple candidates', () => {
+  it('offers eliminated players camps before the encounter without choosing automatically', () => {
     const { world, session, app, root, update, reveal } = setup();
     world.factions[0].alive = false; world.effigyRevealedAt = 0; update();
-    expect(session.campChoiceOpen).toBe(false);
+    expect(session.campChoiceOpen).toBe(true);
     reveal();
     expect(session.campChoiceOpen).toBe(true);
     expect(campChoices(app, world)).toEqual([1, 2, 3]);
@@ -99,13 +99,13 @@ describe('surviving camp choice', () => {
     expect(campChoices(app, world)).toEqual([1, 3]);
   });
 
-  it('clears a dismissed offer on restart without exposing it before the new encounter', () => {
+  it('clears a dismissed offer on restart and offers a new fallen camp', () => {
     const { chooser, controls, reveal, update, world, session, app } = setup();
     reveal(); controls.close(); chooser.reset();
     world.boss = null; world.factions[0].alive = true; session.screen = 'title'; update();
     expect(session.campChoiceOpen).toBe(false);
     session.screen = 'playing'; world.factions[0].alive = false; update();
-    expect(session.campChoiceOpen).toBe(false); expect(app.takeBossCamp).not.toHaveBeenCalled();
+    expect(session.campChoiceOpen).toBe(true); expect(app.takeBossCamp).not.toHaveBeenCalled();
     reveal(); expect(session.campChoiceOpen).toBe(true); expect(controls.picked).toBeNull();
   });
 
@@ -118,14 +118,14 @@ describe('surviving camp choice', () => {
     expect(world.phase).toBe('playing');
   });
 
-  it('excludes online spectators and reserved disconnected humans', () => {
+  it('includes online spectators but excludes reserved disconnected humans', () => {
     const { reveal, world, session, net, app, controls, update } = setup(true);
     net.lobby.seats[1].playerId = 'away';
     net.lobby.players.push({ id: 'away', connected: false, name: 'Away' });
     world.options.humans.push(1); reveal();
     expect(campChoices(app, world)).toEqual([2, 3]);
     controls.close(); session.spectator = true; net.seat = null; update();
-    expect(campChoices(app, world)).toEqual([]); expect(session.campChoiceOpen).toBe(false);
+    expect(campChoices(app, world)).toEqual([2, 3]); expect(session.campChoiceOpen).toBe(false);
     expect(net.setSeat).not.toHaveBeenCalled();
   });
 

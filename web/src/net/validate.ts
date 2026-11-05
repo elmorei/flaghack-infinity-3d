@@ -1,3 +1,4 @@
+import { MAP_HALF } from '../sim/constants';
 import { MATCH_BOOLEAN_KEYS, MATCH_RANGES, isMatchDays, normalizeMatch } from "../sim/matchSettings";
 /**
  * Host-side validation of untrusted client messages: JSON parse, exact shape and type checks for
@@ -250,6 +251,14 @@ interface CommandEntry<T> {
 }
 
 const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
+  moveGcc: {
+    keys: ['t', 'faction', 'to'],
+    parse: (m, faction) => {
+      if (m.to === null) return { t: 'moveGcc', faction, to: null };
+      const to = vec(m.to);
+      return to ? { t: 'moveGcc', faction, to } : null;
+    },
+  },
   avatarInput: {
     keys: ['t', 'faction', 'input'],
     parse: (m, faction) => {
@@ -347,6 +356,13 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
       return at && isKeyOf(ABILITIES, ability) && isInt(node, -1) ? { t: 'ability', faction, ability, at, node } : null;
     },
   },
+  ritual: {
+    keys: ['t', 'faction', 'ritual', 'at'],
+    parse: (m, faction) => {
+      const at = vec(m.at), ritual = m.ritual;
+      return at && Math.abs(at.x) <= MAP_HALF && Math.abs(at.z) <= MAP_HALF && (ritual === 'redtape' || ritual === 'patchwork') ? { t: 'ritual', faction, ritual, at } : null;
+    },
+  },
   align: {
     keys: ['t', 'faction', 'chakra'],
     parse: ({ chakra }, faction) => (isKeyOf(CHAKRA_IDS, chakra) ? { t: 'align', faction, chakra } : null),
@@ -380,6 +396,10 @@ const COMMANDS: { [K in CommandType]: CommandEntry<CommandOf<K>> } = {
   retransmit: {
     keys: ['t', 'faction'],
     parse: (_m, faction) => ({ t: 'retransmit', faction }),
+  },
+  talkWizard: {
+    keys: ['t', 'faction', 'wizardId'],
+    parse: ({ wizardId }, faction) => isInt(wizardId, 0) ? { t: 'talkWizard', faction, wizardId } : null,
   },
   frickFrack: {
     keys: [], // Action-dependent exact keys are checked by parseCommand below.

@@ -37,6 +37,7 @@ import { Prng, hashString } from './prng';
 import { ShockWalls } from './shockWalls';
 import { SceneryEruptions } from './sceneryEruptions';
 import { SwingArcs } from './swingArcs';
+import { RitualZoneFx } from './ritualZones';
 
 const TAU = Math.PI * 2;
 
@@ -89,6 +90,7 @@ export class VfxRenderer implements RenderModule {
   private readonly bolts: Bolts;
   private readonly bossLightning = new BossLightningFx(ORDER.bolts);
   private readonly crystalAttacks = new CrystalAttackFx(ORDER.bolts);
+  private readonly ritualZones = new RitualZoneFx();
   private readonly lightningGroundY = (x: number, z: number): number => this.groundY(x, z);
   private readonly domes: Domes;
   private readonly columns: Columns;
@@ -149,6 +151,7 @@ export class VfxRenderer implements RenderModule {
       this.bolts.mesh,
       this.bossLightning.group,
       this.crystalAttacks.group,
+      this.ritualZones.group,
       this.light.mesh,
       this.boards.mesh,
     );
@@ -694,6 +697,7 @@ export class VfxRenderer implements RenderModule {
     this.bolts.update(now);
     this.bossLightning.update(w, now, this.lightningGroundY);
     this.crystalAttacks.update(w, now, this.lightningGroundY);
+    this.ritualZones.update(w, ctx.session, now);
     this.fireworks.update(now);
     this.meleeImpacts.update(now);
     this.sceneryEruptions.update(now);
@@ -722,6 +726,7 @@ export class VfxRenderer implements RenderModule {
     this.bolts.dispose();
     this.bossLightning.dispose();
     this.crystalAttacks.dispose();
+    this.ritualZones.dispose();
     this.domes.dispose();
     this.columns.dispose();
     this.boards.dispose();

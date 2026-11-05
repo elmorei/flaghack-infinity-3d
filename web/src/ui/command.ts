@@ -6,7 +6,7 @@ import { isMobileCommandLayout } from '../game/mobileTouch';
  * session fields or app.submit(Command); nothing here mutates the World.
  */
 import type { PlanTool } from '../game/session';
-import { BREW_COST, BREW_TIME, BUILDINGS, DRUG_MAX, GCC, RECRUIT_RADIUS, RECRUIT_INTERVAL } from '../sim/constants';
+import { BREW_COST, BREW_TIME, BUILDINGS, DRUG_MAX, GCC, RECRUIT_RADIUS, GCC_RECRUIT_INTERVAL } from '../sim/constants';
 import { BUILDING_NAMES, canPlaceBuilding, isCollapsed } from '../sim/systems/buildings';
 import { brewBlocker, dosesOwnedOrPending } from '../sim/systems/drugs';
 import { DRUGS, JOBS } from '../sim/types';
@@ -63,6 +63,7 @@ export class CommandPanels implements UiPart {
   private selChips: HTMLElement;
   private selSig = '';
   private selOrders: HTMLElement;
+  private recruitOrder: HTMLButtonElement;
   private selInfo: HTMLElement;
   private selInfoKey = '';
   // Build
@@ -174,7 +175,7 @@ export class CommandPanels implements UiPart {
     this.selInfo = el('div', 'sel-info', this.sel);
     this.selOrders = el('div', 'sel-orders', this.sel);
     button('btn btn-small', this.selOrders, `${iconSvg('defend')}Hold position`, () => this.order('defend'));
-    button('btn btn-small', this.selOrders, 'Recruit…', () => {
+    this.recruitOrder = button('btn btn-small', this.selOrders, 'Recruit…', () => {
       const s = this.host.app.session;
       s.tool = 'flag'; s.planTool = 'select'; s.planPreview = [];
       s.recruitTargeting = true;
@@ -195,7 +196,9 @@ export class CommandPanels implements UiPart {
         () => {
           const ss = this.host.app.session;
           if (isMobileCommandLayout()) {
-            if (!chooseMobileBuilding(ss, kind)) {
+            const world = this.host.app.world;
+            if (!world) return;
+            if (!chooseMobileBuilding(ss, kind, world, command => this.host.app.submit(command))) {
               ss.mobileMode = 'build'; ss.planTool = 'node'; this.mobileReturn('build');
               this.host.post('Long-press the center of a buildable space to choose what goes there.', 'info');
             }
@@ -248,8 +251,14 @@ export class CommandPanels implements UiPart {
     const w = this.host.app.world;
     const s = this.host.app.session;
     if (!w) return;
+    const cart = w.gccOf(s.playerFaction), avatar = w.avatarOf(s.playerFaction);
+    let stopped = false;
+    if (cart && s.selection.has(cart.id) && w.factions[s.playerFaction].controlMode === 'rts') {
+      this.host.app.submit({ t: 'moveGcc', faction: s.playerFaction, to: null }); stopped = true;
+    }
+    if (avatar && s.selection.has(avatar.id)) { s.mobileAvatarTarget = null; stopped = true; }
     const hs = this.ownSelected(w);
-    if (hs.length === 0) return;
+    if (hs.length === 0) { if (stopped) this.mobileReturn('units'); return; }
     const ids = hs.map((h) => h.id);
     if (kind === 'defend') {
       let x = 0;
@@ -316,13 +325,13 @@ export class CommandPanels implements UiPart {
   private updateGcc(world: World, fac: FactionState, t: number): void {
     const gcc = world.gccOf(fac.id);
     let status: string;
-    if (!gcc?.gcc) status = 'No cart: your Geomantic Command Center is gone';
-    else if (isCollapsed(gcc)) status = `Collapsed · rebuilt at the Hearth in ${fmtCountdown(gcc.gcc.destroyedUntil - t)}`;
+    if (!gcc?.gcc) status = 'No active Command Center';
+    else if (isCollapsed(gcc)) status = 'Restoring Command Center';
     else {
       const advice = `Geomantic Advice ${GCC.adviceRadius} m`;
-      status = gcc.gcc.pushedBy !== -1 ? `Rolling · ${advice}` : `Parked · ${advice} · Flag Repair ${GCC.repairRadius} m`;
+      status = gcc.gcc.pushedBy !== -1 ? `Rolling · Indestructible · ${advice}` : `Parked · Indestructible · ${advice} · Flag Repair ${GCC.repairRadius} m`;
     }
-    if (gcc && !isCollapsed(gcc) && !gcc.disabled) status += ` · Recruits nearby neutrals (${RECRUIT_RADIUS} m / ${RECRUIT_INTERVAL} s)`;
+    if (gcc && !isCollapsed(gcc) && !gcc.disabled) status += ` · Recruits nearby neutrals (${RECRUIT_RADIUS} m / ${GCC_RECRUIT_INTERVAL} s)`;
     setText(this.gccStatus, status);
   }
 
@@ -337,7 +346,10 @@ export class CommandPanels implements UiPart {
       const b = world.buildings.get(id);
       if (b) other = b;
     }
-    const any = own.length > 0 || neutral > 0 || other !== null;
+    const avatar = world.avatarOf(fac.id);
+    const ownAvatar = !!avatar && s.selection.has(avatar.id);
+    const ownCart = other?.kind === 'gcc' && other.faction === fac.id && fac.controlMode === 'rts';
+    const any = own.length > 0 || neutral > 0 || other !== null || ownAvatar;
     show(this.sel, any);
     if (!any) {
       this.selSig = '';
@@ -349,7 +361,7 @@ export class CommandPanels implements UiPart {
         ? `${own.length} Signifier${own.length === 1 ? '' : 's'} selected${neutral ? ` · ${neutral} neutral` : ''}`
         : neutral > 0
           ? `${neutral} neutral Signifier${neutral === 1 ? '' : 's'}: hand or throw a Flag to recruit`
-          : '',
+          : ownAvatar ? 'Your Avatar · tap ground to walk' : ownCart ? 'Command Center · tap ground to move' : '',
     );
     let sig = '';
     for (let i = 0; i < own.length && i < MAX_CHIPS; i++) sig += `${own[i].id}:${own[i].status};`;
@@ -366,7 +378,8 @@ export class CommandPanels implements UiPart {
       this.selChips.innerHTML = markup;
     }
     show(this.selChips, own.length > 0);
-    show(this.selOrders, own.length > 0);
+    show(this.selOrders, own.length > 0 || ownAvatar || ownCart);
+    show(this.recruitOrder, own.length > 0);
 
     let info = '';
     if (other) {
@@ -389,6 +402,10 @@ export class CommandPanels implements UiPart {
     for (const [kind, b] of this.buildButtons) {
       setClass(b, 'on', s.tool === 'building' && s.buildingKind === kind);
       setClass(b, 'poor', fac.lumber < BUILDINGS[kind].cost);
+      const mobile = isMobileCommandLayout();
+      const check = mobile && s.mobileBuildFacet >= 0 ? canPlaceBuilding(world, fac.id, kind, s.mobileBuildFacet, s.mobileBuildLevel) : null;
+      b.disabled = mobile && (fac.lumber < BUILDINGS[kind].cost || check?.ok === false);
+      b.title = check && !check.ok ? check.reason : fac.lumber < BUILDINGS[kind].cost ? `Not enough lumber (${BUILDINGS[kind].cost} needed).` : BUILD_INFO[kind].effect;
     }
     let status = 'Buildings snap to thick facets inside your own Survey.';
     let bad = false;

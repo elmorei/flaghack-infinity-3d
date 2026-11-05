@@ -1,3 +1,5 @@
+import { frickFrackFlags } from '../sim/frickFrackInventory';
+import { frickFrackPortrait } from './frickFrackPortrait';
 import { sleeveCardDetails } from './frickFrackSleeve';
 import { flagCounter } from './flagCounter';
 import { setFrickFrackView } from '../render/frickFrackView';
@@ -5,7 +7,7 @@ import type { CardView, Rect } from '../render/frickFrackScene';
 import { frickFrackTableCards } from '../sim/frickFrackTable';
 import { handFlagBlocker } from '../sim/systems/recruitment';
 import { frickFrackInputLocked } from '../game/frickFrackControls';
-/** Regular-mode wizard dialogue and card table. Simulation owns every wager and card. */
+/** Wizard dialogue and card table. Simulation owns every wager and card in both control modes. */
 import type { AppApi } from '../game/app';
 import { frickFrackDialogue, FRICK_FRACK_LETTER_SECONDS, frickFrackTotal, frickFrackTarget } from '../sim/frickFrack';
 import type { FrickFrackCard, FrickFrackSession } from '../sim/frickFrack';
@@ -36,7 +38,7 @@ type TableExtras = Pick<TableCommand, 'wager' | 'cardId' | 'targetCardIds' | 'va
 /** Player-facing rules, kept outside the table layout for readable collapsed help. */
 export const FRICK_FRACK_TABLE_RULES = [
   '136 cards: 52 standard, 56 Rider–Waite minor arcana, and 28 original CCG/sports cards. Major Arcana are one-use sideboard effects, never dealer draws.',
-  'Choose your wager, then press Deal once. Your wager is committed while the wizard rolls one six-sided die on the blanket and automatically deals the cards. Leaving during the roll or hand forfeits your wager. The target is 20 + the roll (21–26), fixed for the whole hand. Closest to that target without going over wins. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. The wizard stands at the target minus 4, including soft hands. Base wins pay 1:1, including a two-card target; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
+  'Degen uses real camp-stock Flags; Regular uses carried Flags. Choose your wager, then press Deal once. Your wager is committed while the wizard rolls one six-sided die on the blanket and automatically deals the cards. Leaving during the roll or hand forfeits your wager. The target is 20 + the roll (21–26), fixed for the whole hand. Closest to that target without going over wins. Aces count as 1 or 11; courts count as 10. CCG cards use their printed VALUE 1–7, not decorative stats. The wizard stands at the target minus 4, including soft hands. Base wins pay 1:1, including a two-card target; ties return your wager unless an Arcana changes the result. Extra winnings go to your altar stock.',
   'On reveal, CCG cards fight opponent CCG cards only. Friendly cards coexist; ordinary and tarot cards do not fight. The lower value is defeated; equal values both die. Defeated cards stay visible with an X, but do not count toward totals, poker prizes, effects or further fights.',
   'At hand end, your strongest pair, three of a kind, or four of a kind multiplies base win profit by 2, 3, or 4. These prizes do not stack. Your returned stake is not multiplied; The World’s extra stake is added separately.',
   'A non-bust five-card straight at hand end copies its highest printed card into your sleeve, even on a blackjack loss or push. No straight prize for a bust, and no mid-hand award.',
@@ -202,7 +204,7 @@ export class FrickFrackUI implements UiPart {
       // Pointer-lock reacquisition is deliberately left to the next canvas gesture.
       if (document.pointerLockElement) document.exitPointerLock?.();
     }
-    const available = world.avatarOf(session.faction)?.carried.length ?? 0;
+    const available = frickFrackFlags(world, session.faction).length;
     const privateView = getFrickFrackPrivateView(world, session.faction);
     const peekKey = privateView ? `${privateView.sessionId}:${privateView.revision}:${privateView.expiresAt}` : '';
     // A successful timed glance must be visible immediately, not expire behind inspection.
@@ -223,6 +225,7 @@ export class FrickFrackUI implements UiPart {
     if (!session || !w) { setFrickFrackView(null); return; }
     if (this.dieLabel) { const die = frickFrackDicePresentation(session, w.time); if (die) setText(this.dieLabel, die.label); }
     if (this.text) setText(this.text, revealedDialogue(this.textSource, w.time - session.dialogueStartedAt));
+    this.root.classList.toggle('ff-speaking', !!this.text && revealedDialogue(this.textSource, w.time - session.dialogueStartedAt).length < this.textSource.length);
     if (this.next) this.next.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-ready-gate]')) b.disabled = w.time + 1e-6 < session.readyAt || this.pending === `${session.id}:${session.revision}`;
   }
@@ -242,8 +245,12 @@ export class FrickFrackUI implements UiPart {
     this.body.replaceChildren(); this.text = null; this.next = null; this.wagerInput = null;
     setText(this.title, s.phase === 'dialogue' || s.phase === 'empty' ? 'The Frick-frack Wizard' : 'Frick-frack');
     if (this.flagValue) setText(this.flagValue, String(available));
+    if (this.flags) this.flags.setAttribute('aria-label', world.factions?.[s.faction]?.controlMode === 'rts' ? 'Available camp stock Flags' : 'Available carried Flags');
     setText(this.status, `${s.wager > 0 ? `Wager ${s.wager} · ` : ''}${s.phase === 'playing' || s.phase === 'rolling' ? 'Exit forfeits your wager.' : 'The burn continues outside.'}`);
     if (s.phase === 'dialogue' || s.phase === 'empty') {
+      const portrait = el('div', 'ff-wizard-portrait', this.body);
+      portrait.innerHTML = frickFrackPortrait();
+      portrait.setAttribute('aria-hidden', 'true');
       el('div', 'ff-wizard-seal', this.body, '✦');
       el('div', 'ff-page-number', this.body, s.phase === 'dialogue' ? `A brief word · ${s.dialogueIndex + 1} / ${frickFrackDialogue(s.dialogueVariant).length}` : 'An unfortunate arithmetic');
       this.textSource = s.phase === 'empty' ? s.message : frickFrackDialogue(s.dialogueVariant)[s.dialogueIndex] ?? '';

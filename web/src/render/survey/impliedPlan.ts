@@ -66,13 +66,13 @@ export class ImpliedPlanFeature {
     this.decals.push(DECAL.dash, 0, 0, 1.15, 0, this.color, this.emitAlpha, 0.6, 9, 0.5, 0.12, n);
   };
 
-  constructor(scene: THREE.Scene, world: World, session: Session, data: SurveyData, shared: SurveyUniforms, decalMat: THREE.ShaderMaterial) {
+  constructor(scene: THREE.Scene, world: World, session: Session, data: SurveyData, shared: SurveyUniforms, decalMat: THREE.ShaderMaterial, spriteForeground = false) {
     this.world = world;
     this.session = session;
     this.data = data;
     this.ghosts = new GhostFlagLayer(scene, shared, 1024);
     this.decals = new DecalLayer(scene, decalMat, 2048, 5);
-    this.glyphs = new SpriteLayer(scene, shared, 1024, 9, false);
+    this.glyphs = new SpriteLayer(scene, shared, 1024, 9, false, undefined, spriteForeground);
   }
 
   /** The Roman-numeral glyph atlas (shared with the other sprite layers). */

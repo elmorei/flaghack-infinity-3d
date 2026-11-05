@@ -19,6 +19,7 @@ import { gccActive } from '../../sim/systems/gcc';
 import type { GameEvent } from '../../sim/events';
 import type { RenderContext, RenderModule } from '../context';
 import { BeamLayer } from './beams';
+import { updateSurveyHover } from './hoverPresentation';
 import { BossVisionFeature } from './bossVision';
 import { CrystalLayer } from './crystals';
 import { DecalLayer, createDecalMaterial } from './decals';
@@ -91,12 +92,14 @@ export class SurveyRenderer implements RenderModule {
 
     this.ground = new GroundLayer(scene, this.u, world.map.half);
     this.facets = new FacetLayer(scene, d, this.u, ctx.quality === 'low');
-    this.lattice = new LatticeLayer(scene, d, this.u);
-    this.ley = new LeyLayer(scene, d, this.u);
+    this.lattice = new LatticeLayer(scene, d, this.u, !!ctx.shared.mobileSprites);
+    this.ley = new LeyLayer(scene, d, this.u, !!ctx.shared.mobileSprites);
     this.decalMat = createDecalMaterial(this.u);
-    this.implied = new ImpliedPlanFeature(scene, world, session, d, this.u, this.decalMat);
-    this.marked = new MarkedNodeLayer(world, session, d, this.u, ctx.shared.fx);
-    ctx.shared.commandOverlay = this.marked.scene;
+    this.implied = new ImpliedPlanFeature(scene, world, session, d, this.u, this.decalMat, !!ctx.shared.mobileSprites);
+    this.marked = new MarkedNodeLayer(world, session, d, this.u, ctx.shared.fx, !!ctx.shared.mobileSprites);
+    // Mobile has no parchment grade. Marks belong below its cutout sprites.
+    if (ctx.shared.mobileSprites) scene.add(this.marked.scene);
+    else ctx.shared.commandOverlay = this.marked.scene;
     this.decals = new DecalLayer(scene, this.decalMat, 1024, 5);
     this.beams = new BeamLayer(scene, this.u, 512, 10);
     this.sprites = new SpriteLayer(scene, this.u, 256, 11, false, this.implied.atlas);
@@ -166,19 +169,7 @@ export class SurveyRenderer implements RenderModule {
     this.dust += ((pf.drugActive.dust > w.time ? 1 : 0) - this.dust) * k;
     this.acid += ((pf.drugActive.acidcop > w.time ? 1 : 0) - this.acid) * k;
     u.uReveal.value.set(this.grid, this.dust, GRID_RADIUS, this.acid);
-    const hv = s.hover;
-    const lat = w.lattice;
-    const hNode = hv.node < lat.nodes.length ? hv.node : -1;
-    const hEdge = hv.edge < lat.edges.length ? hv.edge : -1;
-    const hFacet = hv.facet < lat.facets.length ? hv.facet : -1;
-    // A flag aims at nodes: the hovered facet is only highlighted on the Command View table
-    // and with the deck/ramp/building tools.
-    const facetTool = s.tool === 'floor' || s.tool === 'ramp' || s.tool === 'building';
-    u.uHover.value.set(hNode, hEdge, hFacet, Math.max(s.viewBlend, facetTool ? 1 : 0));
-    if (hFacet >= 0) {
-      const fe = lat.facets[hFacet].edges;
-      u.uHoverEdges.value.set(fe[0], fe[1], fe[2], fe[3]);
-    } else u.uHoverEdges.value.set(-1, -1, -1, -1);
+    updateSurveyHover(u, w.lattice, s, isMobileCommandLayout());
     u.uSunDir.value.copy(ctx.sunDir);
     u.uDaylight.value = ctx.daylight;
     // Night energy budget: Survey glass is a tint, not a light (see SurveyUniforms.uGlow).
@@ -193,7 +184,7 @@ export class SurveyRenderer implements RenderModule {
     );
 
     this.data.update(now);
-    this.lattice.setTargetingVisible(!isMobileCommandLayout() || s.mobileMode === 'build');
+    this.lattice.setTargetingVisible(true);
     this.lattice.update();
     this.ley.update(s, isMobileCommandLayout());
     this.facets.update();
@@ -259,6 +250,7 @@ export class SurveyRenderer implements RenderModule {
     this.lattice.dispose();
     this.ley.dispose();
     this.implied.dispose();
+    this.ctx.scene.remove(this.marked.scene);
     this.marked.dispose();
     delete this.ctx.shared.commandOverlay;
     this.decals.dispose();

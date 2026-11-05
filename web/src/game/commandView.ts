@@ -8,11 +8,12 @@ import { isMobileCommandLayout } from './mobileTouch';
 import type * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { Command } from '../sim/commands';
-import { GCC, LATTICE_MARGIN, MAP_HALF, START_HOME_RING_RADIUS } from '../sim/constants';
+import { AVATAR, GCC, LATTICE_MARGIN, MAP_HALF, START_HOME_RING_RADIUS } from '../sim/constants';
 import { pentacleOf } from '../sim/lattice/geometry';
 import { planEnclosure, planRing } from '../sim/lattice/planner';
 import type { V2 } from '../sim/math';
-import { isFlagProtected } from '../sim/systems/abilities';
+import { abilityBlocker, isFlagProtected } from '../sim/systems/abilities';
+import { ritualBlocker, validSpellPoint } from '../sim/systems/rituals';
 import { bossEncounterActive } from '../sim/systems/boss/damage';
 import { canPlantAt } from '../sim/systems/flags';
 import { gccActive } from '../sim/systems/gcc';
@@ -98,6 +99,21 @@ export function planNodeCost(world: World, f: FactionId, n: number, relax = 0): 
   return relax > 1 && !world.lattice.nodes[n].blocked ? 1 : Infinity;
 }
 
+/** Consume a pending power exactly once, without a selection or fallback unit order. */
+export function consumeMobilePowerTap(world: World, s: Session, f: FactionId, queue: Command[]): boolean {
+  const ability = s.mobileAbility, ritual = s.mobileRitual;
+  if (!ability && !ritual) return false;
+  s.mobileAbility = null; s.mobileRitual = null;
+  const point = s.hover.point;
+  if (!point || !validSpellPoint(point)) { s.post('Choose a point inside the playa.', 'warn'); return true; }
+  const why = ritual ? ritualBlocker(world, f, ritual) : abilityBlocker(world, f, ability!);
+  if (why) { s.post(why, 'warn'); return true; }
+  const at = { x: point.x, z: point.z };
+  if (ritual) queue.push({ t: 'ritual', faction: f, ritual, at });
+  else queue.push({ t: 'ability', faction: f, ability: ability!, at, node: s.hover.node });
+  return true;
+}
+
 export class CommandView {
   private input: Input;
   private mobileSerial = -1;
@@ -161,6 +177,7 @@ export class CommandView {
 
   /** Forget per-visit state (entering/leaving the view, new match). */
   reset(s: Session): void {
+    s.mobileAbility = null; s.mobileRitual = null;
     s.recruitTargeting = false;
     this.pushArm = -1;
     this.boxing = false;
@@ -323,16 +340,9 @@ export class CommandView {
   }
 
   /** Touch never shares desktop mouse edges: each release produces at most one command. */
-  private mobileFrame(world: World, s: Session, f: FactionId, camera: THREE.Camera, ghost: GhostInfo | null): boolean {
+  private mobileFrame(world: World, s: Session, f: FactionId, camera: THREE.Camera, _ghost: GhostInfo | null): boolean {
     const touch = this.input.touch;
     if (s.mobileMenu !== null) { touch.cancel(); s.mobileBuildConfirm = false; return false; }
-    if (s.mobileBuildConfirm) {
-      s.mobileBuildConfirm = false;
-      if (s.tool === 'building' && ghost?.valid && ghost.facet === s.mobileBuildFacet && (ghost.level ?? 0) === s.mobileBuildLevel) {
-        this.queue.push({ t: 'placeBuilding', faction: f, kind: s.buildingKind, facet: ghost.facet, ...(ghost.level ? { level: ghost.level } : {}) });
-        s.tool = 'flag'; s.mobileBuildFacet = -1; s.ghost = null;
-      } else s.post(ghost?.reason || 'Choose a buildable space first.', 'warn');
-    }
     if (s.mobileBoxSelect && touch.dragging) {
       this.box.x0 = touch.startX; this.box.y0 = touch.startY; this.box.x1 = touch.x; this.box.y1 = touch.y;
       s.selectBox = this.box;
@@ -347,7 +357,7 @@ export class CommandView {
       s.selectBox = null; return false;
     }
     if (action.kind === 'hold') {
-      s.mobileAbility = null; s.recruitTargeting = false; s.tool = 'flag';
+      s.mobileAbility = null; s.mobileRitual = null; s.recruitTargeting = false; s.tool = 'flag';
       const n = s.hover.node;
       const node = world.lattice.nodes[n];
       if (node && this.project(camera, node.x, world.collision.groundHeight(node.x, node.z), node.z) && Math.hypot(this.sx - action.x, this.sy - action.y) <= 22) {
@@ -362,13 +372,12 @@ export class CommandView {
       } else s.post('Hold the center of a buildable space inside your Survey.', 'warn');
       return false;
     }
-    if (s.mobileAbility && s.hover.point) {
-      this.queue.push({ t: 'ability', faction: f, ability: s.mobileAbility, at: { x: s.hover.point.x, z: s.hover.point.z }, node: s.hover.node });
-      s.mobileAbility = null; return false;
-    }
+    if (consumeMobilePowerTap(world, s, f, this.queue)) return false;
     // A 44px target around a character's body takes priority over adjacent ground/flags.
     let unit = -1, distance = 24;
     for (const h of [...world.hippies.values(), ...world.avatars.values()]) {
+      // Once selected, the avatar's generous touch halo must not swallow nearby ground/Flag taps.
+      if (h.id === world.factions[f].avatarId && s.selection.has(h.id) && s.mobileMode === 'units') continue;
       if (this.project(camera, h.pos.x, ('y' in h.pos ? h.pos.y : world.collision.groundHeight(h.pos.x, h.pos.z)) + 1, h.pos.z)) {
         const d = Math.hypot(this.sx - action.x, this.sy - action.y);
         if (d < distance) { unit = h.id; distance = d; }
@@ -377,18 +386,54 @@ export class CommandView {
     if (unit >= 0) s.hover.entity = unit;
     const h = world.hippies.get(s.hover.entity);
     const av = world.avatars.get(s.hover.entity);
+    if (h?.wizard && h.id === world.frickFrack.wizardId) {
+      this.queue.push({ t: 'talkWizard', faction: f, wizardId: h.id });
+      s.mobileAbility = null; s.mobileRitual = null; s.recruitTargeting = false; s.mobileBoxSelect = false;
+      return false;
+    }
+    const cart = world.buildings.get(s.hover.entity);
+    if (cart?.kind === 'gcc' && cart.faction === f && world.factions[f].controlMode === 'rts') {
+      s.mobileMode = 'units'; s.planTool = 'select'; s.tool = 'flag'; s.mobileBuildFacet = -1;
+      s.selection.clear(); s.selection.add(cart.id); s.recruitTargeting = false; return false;
+    }
+    const playerAvatar = world.avatarOf(f);
+    if (world.factions[f].controlMode === 'avatar' && playerAvatar && s.selection.has(playerAvatar.id) &&
+        s.mobileMode === 'units' && s.hover.entity !== playerAvatar.id && s.hover.point && h?.faction !== f) {
+      const point = s.hover.point;
+      s.mobileAvatarYaw = Math.atan2(point.x-playerAvatar.pos.x,point.z-playerAvatar.pos.z);
+      const range = Math.hypot(point.x-playerAvatar.pos.x, point.z-playerAvatar.pos.z);
+      const flag = world.flags.get(s.hover.entity);
+      if (h?.faction === -1 && range <= AVATAR.plantReach) {
+        this.queue.push({ t: 'handFlag', faction: f, hippieId: h.id }); s.mobileAvatarTarget = null;
+      } else if (flag && (flag.state === 'loose' || flag.owner !== f) && range <= AVATAR.pullReach) {
+        this.queue.push({ t: 'pull', faction: f, flagId: flag.id }); s.mobileAvatarTarget = null;
+      } else if (s.hover.node >= 0 && canPlantAt(world,s.hover.node,f) && range <= AVATAR.plantReach) {
+        this.queue.push({ t: 'plant', faction: f, node: s.hover.node }); s.mobileAvatarTarget = null;
+      } else if ((h || av || world.piles.has(s.hover.entity)) && range <= AVATAR.swingReach) {
+        this.queue.push({ t: 'swing', faction: f }); s.mobileAvatarTarget = null;
+      } else { s.mobileAvatarTarget = { x:point.x, z:point.z }; this.mark(s,point.x,point.z,'move'); }
+      return false;
+    }
     const ownSelected = this.ownSelectedCount(world, s, f);
     if ((h || av) && (s.mobileMode === 'build' || (h?.faction ?? av?.faction) === f || ownSelected === 0)) {
       s.mobileMode = 'units'; s.planTool = 'select'; s.tool = 'flag'; s.mobileBuildFacet = -1; s.mobileBoxSelect = false;
-      s.selection.clear(); s.selection.add(s.hover.entity); s.recruitTargeting = false; return false;
+      s.selection.clear(); s.selection.add(s.hover.entity); s.recruitTargeting = false; s.mobileAvatarTarget = null;
+      if (av?.faction === f) s.post('Tap ground to walk. Tap nearby nodes, Flags or characters to interact.');
+      return false;
     }
-    if (s.tool === 'building' && s.mobileBuildFacet >= 0) return false; // placement needs explicit Confirm
+    if (s.tool === 'building' && s.mobileBuildFacet >= 0) return false; // Construction is submitted immediately by the building picker.
     if (s.mobileMode === 'build') {
       if (s.planTool === 'select') s.planTool = 'node';
       this.updatePreview(world, s, f); this.planClick(world, s, f); return false;
     }
     this.classify(world, s, f);
     if (s.recruitTargeting && this.okind !== 'recruit') { s.post('Tap a neutral Signifier to recruit.'); return false; }
+    const selectedCart = world.gccOf(f);
+    if (selectedCart && s.selection.has(selectedCart.id) && world.factions[f].controlMode === 'rts' && s.hover.point) {
+      const at = { x: s.hover.point.x, z: s.hover.point.z };
+      this.queue.push({ t: 'moveGcc', faction: f, to: at }); this.mark(s, at.x, at.z, 'move');
+      if (ownSelected === 0) return false;
+    }
     if (ownSelected > 0) { this.issueOrder(world, s, f); s.recruitTargeting = false; }
     else this.clickSelect(s);
     s.prompt = null;

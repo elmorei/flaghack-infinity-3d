@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cmdDrug, falseFlags } from '../../sim/systems/drugs';
 import { createMatch } from '../../sim/setup';
 import type { Flag, FlagState } from '../../sim/types';
 import type { RenderContext } from '../context';
@@ -179,4 +180,20 @@ describe('flag screen-plane rotation', () => {
     const facing = new THREE.PerspectiveCamera(); facing.updateMatrixWorld();
     expect(flagSpriteRotation(new THREE.Matrix4().makeRotationX(Math.PI / 2).elements, facing)).toBe(0);
   });
+});
+
+
+it('renders avatarless Degen Dust false Flags as sprites with their subtle shimmer, without creating real Flags', () => {
+  const e = fixture();
+  const av = e.world.avatarOf(0); e.world.avatars.delete(av.id); e.world.factions[0].avatarId = -1;
+  e.world.factions[0].controlMode = 'rts'; e.world.factions[0].drugs.dust = 1;
+  const before = JSON.stringify([...e.world.flags.values()]);
+  cmdDrug(e.world, { t: 'drug', faction: 0, drug: 'dust' });
+  const count = falseFlags(e.world, 0).length;
+  expect(count).toBeGreaterThanOrEqual(3); expect(count).toBeLessThanOrEqual(5);
+  e.renderer.begin(); e.renderer.end();
+  expect(e.flag).toHaveBeenCalledTimes(count); expect(e.flag.mock.calls.every(c => c[2]?.glitch === .18)).toBe(true);
+  expect(models(e).every(mesh => mesh.count === 0 && !mesh.visible)).toBe(true);
+  expect(JSON.stringify([...e.world.flags.values()])).toBe(before);
+  e.world.time += 30; e.flag.mockClear(); e.renderer.begin(); e.renderer.end(); expect(e.flag).not.toHaveBeenCalled();
 });

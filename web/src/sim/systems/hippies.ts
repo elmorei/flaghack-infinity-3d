@@ -1,3 +1,4 @@
+import { flagOrderBearer } from './flagOrderBearers';
 import { stepFrickFrackWizard } from './frickFrack';
 /**
  * Hippies (Signifiers): job assignment from faction job weights, direct orders, nav-grid
@@ -135,11 +136,21 @@ export function cmdOrder(world: World, c: CommandOf<'order'>): void {
     reject(world, c.faction, 'The Signifiers cannot make sense of that order.');
     return;
   }
+  const selected = [...new Set(c.hippies)].map(id => world.hippies.get(id)).filter((h): h is Hippie => !!h && h.faction === c.faction);
+  let bearer: Hippie | null = null;
+  let groupTarget: V2 | null = null;
+  if (order?.kind === 'recruit' || order?.kind === 'plant') {
+    groupTarget = order.kind === 'recruit' ? world.hippies.get(order.target)!.pos : world.lattice.nodes[order.node];
+    bearer = flagOrderBearer(world, c.faction, selected, groupTarget, order.kind === 'plant');
+    if (!bearer && selected.length) {
+      reject(world, c.faction, 'No Flag is available for an awake selected Signifier. Stock a Flag Workshop or altar, or select a Flag bearer.');
+      return;
+    }
+  }
   let n = 0;
-  for (const id of c.hippies) {
-    const h = world.hippies.get(id);
-    if (!h || h.faction !== c.faction) continue;
-    giveOrder(world, h, order);
+  for (const h of selected) {
+    // The rest of the squad advances to the target without fetching more Flags.
+    giveOrder(world, h, groupTarget && h !== bearer ? { kind: 'move', to: { x: groupTarget.x, z: groupTarget.z } } : order);
     n++;
   }
   if (n === 0) {

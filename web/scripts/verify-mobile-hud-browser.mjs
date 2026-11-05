@@ -108,7 +108,7 @@ try{
     checkLayout(await geometry());
     await page.screenshot({path:join(OUT,`${spec.name}-crow-throne.png`)});
     entry.checks.push('NPC Dr. Crow has no roaming body; his combined throne sprite is uploaded at exact altar ground, faces the effigy and hides all corresponding 3D meshes');
-    await page.locator('.mc-top').getByRole('button',{name:'Home',exact:true}).tap();
+    await page.locator('.mc-modes').getByRole('button',{name:'Home',exact:true}).tap();
     await page.locator(`.mc-altar-arrow[data-altar-id="${target.id}"]`).waitFor({state:'visible'});
     await page.waitForFunction(()=>!document.querySelector('.mc-altar-arrow[data-allegiance="own"]'));
     await page.evaluate(id=>{window.flaghack.world.buildings.get(id).faction=0;},target.id);

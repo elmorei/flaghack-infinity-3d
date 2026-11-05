@@ -101,8 +101,8 @@ describe('directions and layered composition', () => {
     const {sprites} = setup(); sprites.signifier(pose(0, Math.PI), 17, 6);
     expectCell(sprites, 0, 'bodies-away', 0, 6); expectCell(sprites, 1, 'heads-away', 5, 2); expectCell(sprites, 2, 'flag-away', 0, 0);
     const a = sprites.mesh.geometry.getAttribute('aOffset');
-    expect(a.getY(0)).toBeCloseTo((atlas.sheets['bodies-away'].footYByCell[6][0] - 160) * pose().height / 142);
-    expect(a.getY(1)).toBeCloseTo((atlas.sheets['bodies-away'].footYByCell[6][0] - 160 - 4) * pose().height / 142);
+    expect(a.getY(0)).toBeCloseTo((atlas.sheets['bodies-away'].footYByCell[6][0] - 160) * pose().height * 2 / 142);
+    expect(a.getY(1)).toBeCloseTo((atlas.sheets['bodies-away'].footYByCell[6][0] - 160 - 4) * pose().height * 2 / 142);
     expect(a.getY(0)).toBeCloseTo(a.getY(2)); expect(a.getY(1)).toBeLessThan(a.getY(0));
     expect(a.getZ(0)).toBeLessThan(a.getZ(1)); expect(a.getZ(1)).toBeLessThan(a.getZ(2));
   });
@@ -146,9 +146,9 @@ describe('batch fallback and lifecycle', () => {
     expect(sprites.spriteCount).toBe(0); expect(sprites.layerCount).toBe(0); expect(sprites.fallbackCount).toBe(0);
     expect(sprites.batchCount).toBe(0); expect(sprites.mesh.geometry.instanceCount).toBe(0);
   });
-  it('uses depth-writing cutout material, not always-on-top overlays', () => {
+  it('draws depth-writing cutouts after survey lines while preserving scenery occlusion', () => {
     const {sprites} = setup(), material = sprites.mesh.material;
-    expect(material.depthTest).toBe(true); expect(material.depthWrite).toBe(true); expect(material.transparent).toBe(false);
+    expect(material.depthTest).toBe(true); expect(material.depthWrite).toBe(true); expect(material.transparent).toBe(false); expect(sprites.mesh.renderOrder).toBe(13);
     expect(material.fragmentShader).toContain('discard'); expect(texture.generateMipmaps).toBe(false);
     expect(texture.magFilter).toBe(THREE.NearestFilter); expect(texture.colorSpace).toBe(THREE.SRGBColorSpace);
   });

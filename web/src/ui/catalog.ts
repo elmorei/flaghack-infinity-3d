@@ -32,6 +32,7 @@ import {
   WARD_RADIUS,
   WORKSHOP_FLAG_COST,
   WORKSHOP_FLAG_INTERVAL,
+  WORKSHOP_RECRUIT_INTERVAL,
 } from '../sim/constants';
 import { ABILITY_NAMES, CHAKRA_NAMES } from '../sim/systems/abilities';
 import { BUILDING_NAMES } from '../sim/systems/buildings';
@@ -198,7 +199,7 @@ export const BUILD_INFO: Record<CampBuildingKind, BuildInfo> = {
   workshop: {
     name: BUILDING_NAMES.workshop,
     cost: BUILDINGS.workshop.cost,
-    effect: `Crafts +1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber each. Holds 10 for pickup here; production pauses while full. Adds 10 to the camp hoarding threshold. Recruits a nearby neutral every ${RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`,
+    effect: `Crafts +1 Flag every ${WORKSHOP_FLAG_INTERVAL} s for ${WORKSHOP_FLAG_COST} lumber each. Holds 10 for pickup here; production pauses while full. Adds 10 to the camp hoarding threshold. Recruits a nearby neutral every ${WORKSHOP_RECRUIT_INTERVAL} s within ${RECRUIT_RADIUS} m; recruitment pauses during capture.`,
     icon: 'workshop',
   },
   drumcircle: {

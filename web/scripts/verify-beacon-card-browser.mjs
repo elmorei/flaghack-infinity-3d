@@ -89,10 +89,11 @@ async function platformScenario(spec,context,check){
       await page.evaluate(kind=>{window.flaghack.session.tool='building';window.flaghack.session.buildingKind=kind;},kind);
       await page.mouse.move(point.x,point.y);
     }
-    await page.waitForFunction(()=>{const s=window.flaghack.session,t=window.__platformTarget;return s.ghost?.valid&&s.ghost.facet===t.facet&&s.ghost.level===1;});
-    await page.screenshot({path:join(OUT,`${spec.name}-${kind}-deck-ghost.png`)});
-    if(spec.mobile)await page.locator('.mc-placement').getByRole('button',{name:'Confirm',exact:true}).click();
-    else await page.mouse.click(point.x,point.y,{delay:80});
+    if(!spec.mobile){
+      await page.waitForFunction(()=>{const s=window.flaghack.session,t=window.__platformTarget;return s.ghost?.valid&&s.ghost.facet===t.facet&&s.ghost.level===1;});
+      await page.screenshot({path:join(OUT,`${spec.name}-${kind}-deck-ghost.png`)});
+      await page.mouse.click(point.x,point.y,{delay:80});
+    }
     await page.waitForFunction(()=>{const w=window.flaghack.world,t=window.__platformTarget;return Array.from(w.buildings.values()).some(b=>b.kind===t.kind&&b.facet===t.facet&&b.level===1);});
     await page.waitForTimeout(600);
     const placed=await page.evaluate(()=>{

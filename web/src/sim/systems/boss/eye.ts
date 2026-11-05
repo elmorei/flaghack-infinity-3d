@@ -1,4 +1,4 @@
-import { buildingBaseHeight } from '../../buildingGeometry';
+import { buildingBaseHeight, isIndestructibleBuilding } from '../../buildingGeometry';
 /** Fixed-clock charge and a five-second gaze sweep. Mirrors only render the facts. */
 import { BOSS_EYE_BLAST_RADIUS, BOSS_EYE_DAMAGE, BOSS_EYE_MAX_RANGE, BOSS_EYE_TIMING, clearBossEyeCharge } from '../../boss';
 import type { BossState } from '../../boss';
@@ -153,7 +153,7 @@ export function blastBossEye(world: World, boss: BossState, at: V3, from: V3 | n
   // Capture contents before KO scatter or structure removal changes their positions.
   const hitFlags = new Map<number, V3>();
   for (const flag of world.flags.values()) { if (knocked.has(flag.id)) continue; const pos = flagInside(world, at, flag, from); if (pos) hitFlags.set(flag.id, pos); }
-  const buildings = [...world.buildings.values()].filter(b => b.hp > 0 && !damaged.has(b.id) && bodyInside(at, b.pos.x, b.pos.z, buildingBaseHeight(world, b), buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius, from));
+  const buildings = [...world.buildings.values()].filter(b => !isIndestructibleBuilding(b) && b.hp > 0 && !damaged.has(b.id) && bodyInside(at, b.pos.x, b.pos.z, buildingBaseHeight(world, b), buildingBaseHeight(world, b) + BUILDING_HEIGHT[b.kind], BUILDINGS[b.kind].radius, from));
   // A destroyed storage structure spills recoverable Flags as well. Detach before
   // consumeBuilding's ordinary eating lifecycle would remove the held contents.
   for (const b of buildings) if (b.kind !== 'hearth' && b.hp <= BOSS_EYE_DAMAGE) {

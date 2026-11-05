@@ -232,7 +232,7 @@ export class NetClient implements NetSession {
   }
 
   setControlMode(mode: 'avatar' | 'rts'): void {
-    if (!this.connected || this.lobby?.phase !== 'lobby') return;
+    if (!this.connected || !this.lobby || this.lobby.phase === 'ended' || this.pendingBossTakeover !== null) return;
     this.lobbyChangeAt = performance.now();
     this.send({ t: 'controlMode', mode });
   }

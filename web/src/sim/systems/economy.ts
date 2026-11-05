@@ -11,6 +11,7 @@ import {
   DRUM_REACH,
   DRUM_RITUAL_PER_SEC,
   DRUMMERS_PER_CIRCLE,
+  GCC_RECRUIT_INTERVAL,
   HEARTH_FLAG_COST,
   HEARTH_FLAG_INTERVAL,
   HIPPIE,
@@ -22,6 +23,7 @@ import {
   RECRUIT_INTERVAL,
   WORKSHOP_FLAG_COST,
   WORKSHOP_FLAG_INTERVAL,
+  WORKSHOP_RECRUIT_INTERVAL,
 } from '../constants';
 import { matchSettings } from '../matchSettings';
 import { spawnPile } from '../factory';
@@ -155,15 +157,17 @@ function craftAtWorkshop(world: World, b: Building, f: FactionId, dt: number): v
 /** Every recruiter periodically enlists an existing nearby neutral, without creating units. */
 function recruitAtBuilding(world: World, b: Building, dt: number): void {
   if (!isRecruiter(world, b)) return;
+  const interval = b.kind === 'workshop' ? WORKSHOP_RECRUIT_INTERVAL
+    : b.kind === 'gcc' ? GCC_RECRUIT_INTERVAL : RECRUIT_INTERVAL;
   // Workshops craft and recruit independently; sharing b.progress would accelerate both.
   if (b.kind === 'workshop') {
     const timers = econ(world).workshopRecruitProgress;
-    let progress = Math.min(RECRUIT_INTERVAL, (timers.get(b.id) ?? 0) + dt);
-    if (progress >= RECRUIT_INTERVAL && recruitNear(world, b)) progress -= RECRUIT_INTERVAL;
+    let progress = Math.min(interval, (timers.get(b.id) ?? 0) + dt);
+    if (progress >= interval && recruitNear(world, b)) progress -= interval;
     timers.set(b.id, progress);
   } else {
-    b.progress = Math.min(RECRUIT_INTERVAL, b.progress + dt);
-    if (b.progress >= RECRUIT_INTERVAL && recruitNear(world, b)) b.progress -= RECRUIT_INTERVAL;
+    b.progress = Math.min(interval, b.progress + dt);
+    if (b.progress >= interval && recruitNear(world, b)) b.progress -= interval;
   }
 }
 
