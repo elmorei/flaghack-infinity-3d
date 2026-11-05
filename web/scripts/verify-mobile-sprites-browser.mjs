@@ -266,16 +266,17 @@ async function skinIdentity(page) {
     try {
       w.hippies.clear();
       // Existing model hash stream2 selects tones0..5 for these persisted identities.
-      for(const [tone,seed] of [5,2,17,1,0,12].entries()){
-        const h=window.fh.factory.spawnHippie(w,-1,{x:a.session.camera.cmdX+(tone-2.5)*.55,z:a.session.camera.cmdZ});
-        w.hippies.delete(h.id);h.id=900000000+tone;h.look=seed;h.carryingFlag=-1;h.carryingLumber=0;h.effects=[];h.beacon=false;w.hippies.set(h.id,h);units.push(h);
+      const identities=[[0,5],[1,2],[2,17],[3,1],[4,0],[5,12],[3,7339728],[4,41449144]];
+      for(const [slot,[tone,seed]] of identities.entries()){
+        const h=window.fh.factory.spawnHippie(w,-1,{x:a.session.camera.cmdX+(slot-3.5)*.45,z:a.session.camera.cmdZ});
+        w.hippies.delete(h.id);h.id=900000000+slot;h.look=seed;h.carryingFlag=-1;h.carryingLumber=0;h.effects=[];h.beacon=false;w.hippies.set(h.id,h);units.push({h,tone});
       }
       for(const status of ['idle','responding','hauling','chopping','planting','pulling','building','repairing','fighting','tearing','drumming','defending','distracted','ko']){
-        for(const h of units){h.status=status;h.koUntil=status==='ko'?w.time+10:0;}
+        for(const {h} of units){h.status=status;h.koUntil=status==='ko'?w.time+10:0;}
         const samples=p.captureSamples(()=>g.render(0));
-        for(const [tone,h] of units.entries()){
+        for(const {h,tone} of units){
           const modelValue=actors.hippies.vis.get(h.id)?.look[1],sample=samples.find(v=>v.id===h.id);
-          checks.push({status,tone,seed:h.look,modelValue,expectedModelTone:Math.trunc(modelValue*5.999),spriteTone:sample?.skinTone,drawn:!!sample});
+          checks.push({status,tone,seed:h.look,modelValue,expectedModelTone:Math.trunc(Math.fround(modelValue*Math.fround(5.999))),spriteTone:sample?.skinTone,drawn:!!sample});
         }
       }
       return checks;
@@ -286,6 +287,7 @@ async function skinPixels(page) {
   const proof=await page.evaluate(verifySpriteSkinPixels,{atlas:ATLAS,actions:ACTIONS,palette:SKIN_PALETTE});
   for(const [name,data] of Object.entries(proof.captures))writeFileSync(join(OUT,'skin-tones-'+name+'.png'),Buffer.from(data,'base64'));delete proof.captures;
   writeFileSync(join(OUT,'skin-proof.json'),JSON.stringify(proof,null,2));
+  for(const item of proof.gpuPaletteIndex){assert.ok(item.pixels>20,'Legacy GPU palette probe must really draw');assert.equal(item.gpuIndex,item.expected,'Native GLSL palette index must match the original model');}
   for(const item of proof.cases){
     const label=`${item.kind} ${item.clip} head${item.head} body${item.body} ${item.direction} frame${item.frame}`;
     assert.deepEqual(item.samples,[0,1,2,3,4,5],label+' forwards every palette index');
@@ -312,6 +314,7 @@ async function crowd(page,faction=-1) {
   await page.waitForTimeout(1500);
   const timing=await page.evaluate(async()=>{
     const g=window.flaghack.renderer,s=g.ctx.shared.mobileSprites,intervals=[],renderMs=[],calls=[],spriteCalls=[];
+    const stagedIds=new Set(window.__crowdIds),renderedCharacters=window.__spriteProbe.captureSamples(()=>g.render(0)).filter(sample=>sample.kind==='signifier'&&stagedIds.has(sample.id)).length;
     const previousReset=g.renderer.info.autoReset,previousBefore=(s.meshes??[s.mesh]).map(m=>[m,m.onBeforeRender]),previousRender=g.render;
     let previousStart,activeDraws=0,timer;
     try {
@@ -337,7 +340,7 @@ async function crowd(page,faction=-1) {
       });
     } finally {clearTimeout(timer);g.render=previousRender;g.renderer.info.autoReset=previousReset;for(const [mesh,before] of previousBefore)mesh.onBeforeRender=before;}
     const percentile=(xs,p)=>[...xs].sort((a,b)=>a-b)[Math.min(xs.length-1,Math.floor(xs.length*p))];
-    return {sprites:s.spriteCount,layers:s.layerCount,batches:s.batchCount,meshCount:(s.meshes??[s.mesh]).length,capacity:s.capacity,frameMs:{median:percentile(intervals,.5),p95:percentile(intervals,.95),max:Math.max(...intervals)},renderCpuMs:{median:percentile(renderMs,.5),p95:percentile(renderMs,.95)},wholeFrameDrawCalls:{min:Math.min(...calls),max:Math.max(...calls)},spriteDrawCalls:{min:Math.min(...spriteCalls),max:Math.max(...spriteCalls)},sampleCount:intervals.length};
+    return {sprites:s.spriteCount,renderedCharacters,layers:s.layerCount,batches:s.batchCount,meshCount:(s.meshes??[s.mesh]).length,capacity:s.capacity,frameMs:{median:percentile(intervals,.5),p95:percentile(intervals,.95),max:Math.max(...intervals)},renderCpuMs:{median:percentile(renderMs,.5),p95:percentile(renderMs,.95)},wholeFrameDrawCalls:{min:Math.min(...calls),max:Math.max(...calls)},spriteDrawCalls:{min:Math.min(...spriteCalls),max:Math.max(...spriteCalls)},sampleCount:intervals.length};
   });
   return {...staged,...timing};
 }
@@ -361,7 +364,7 @@ try {
     if(spec.name==='portrait'){entry.actionClips=await actionClips(page);assert.equal(entry.actionClips.clips.length,Object.keys(ACTIONS.clips).length);assert.ok(entry.actionClips.clips.length>0,'Supplemental actions must ship');for(const [name,data] of Object.entries(entry.actionClips.captures))writeFileSync(join(OUT,'action-'+name+'.png'),Buffer.from(data,'base64'));delete entry.actionClips.captures;for(const clip of entry.actionClips.clips){const name=clip.key.slice(clip.key.lastIndexOf(':')+1);for(const row of clip.rows)for(const [frame,shot] of row.shots.entries()){assert.equal(shot.accepted,true,clip.key);assert.ok(shot.contribution>20,clip.key+' has real pixels');assert.equal(shot.fallbacks,0,clip.key+' selects generated action');assert.equal(shot.sample?.clip,name,clip.key+' selects requested clip');assert.equal(shot.sample?.frame,frame,clip.key+' advances every animation frame');}}for(const missing of entry.actionClips.missing){assert.equal(missing.accepted,true);assert.ok(missing.pixels>20);assert.equal(missing.sample?.clip,'idle');assert.ok(missing.fallbacks>0);}}
     entry.occlusion=await occlusion(page);for(const o of entry.occlusion){assert.ok(o.throughPixels>20,o.label+' control pixels');assert.ok(o.depthPixels<o.throughPixels*.8,o.label+' must genuinely occlude sprites');}
     entry.actionStates=await actionStates(page);for(const f of entry.actionStates){assert.equal(f.sprite,true,f.status+' remains a sprite');assert.equal(f.modelInstances,0,f.status+' never restores 3D body instances');}
-    entry.crowd=await crowd(page);assert.ok(entry.crowd.sprites>=200,'200+ actual integrated visible sprites');assert.ok(entry.crowd.batches>=1);assert.ok(entry.crowd.spriteDrawCalls.max<=entry.crowd.meshCount,'Crowd uses at most one GPU draw per atlas page');assert.ok(entry.crowd.layers<=entry.crowd.capacity);assert.ok(Number.isFinite(entry.crowd.frameMs.p95));
+    entry.crowd=await crowd(page);assert.ok(entry.crowd.renderedCharacters>=200,'200+ actual staged character sprites, excluding scenery');assert.ok(entry.crowd.batches>=1);assert.ok(entry.crowd.spriteDrawCalls.max<=entry.crowd.meshCount,'Crowd uses at most one GPU draw per atlas page');assert.ok(entry.crowd.layers<=entry.crowd.capacity);assert.ok(Number.isFinite(entry.crowd.frameMs.p95));
     const crowdCapture=await page.evaluate(()=>{
       const g=window.flaghack.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
       const captures={scene:p.png(p.draw())},changedPixels=p.contribution();
@@ -382,7 +385,7 @@ try {
     // Also retain the actual friendly/beacon workload. Dense badges intentionally
     // overlap; prove their full-scene contribution rather than require hidden pixels.
     entry.beaconCrowd=await crowd(page,0);
-    assert.ok(entry.beaconCrowd.sprites>=200);assert.ok(entry.beaconCrowd.batches>=1);
+    assert.ok(entry.beaconCrowd.renderedCharacters>=200,'Friendly crowd count excludes scenery sprites');assert.ok(entry.beaconCrowd.batches>=1);
     assert.ok(entry.beaconCrowd.spriteDrawCalls.max<=entry.beaconCrowd.meshCount);assert.ok(Number.isFinite(entry.beaconCrowd.frameMs.p95));
     const beaconCapture=await page.evaluate(()=>{
       const g=window.flaghack.renderer,p=window.__spriteProbe,icons=g.ctx.scene.getObjectByName('actors-status-icons');

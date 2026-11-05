@@ -424,7 +424,9 @@ export interface HippieUniforms {
 export const HIPPIE_SKIN_TONES = [0xf6d2b5, 0xeab68f, 0xc98e63, 0x9c6a45, 0x6e4a31, 0x4a3122] as const;
 /** Same bucket boundaries as the model shader's int(vLookA.y * 5.999). */
 export function hippieSkinIndex(look: number): number {
-  return Math.floor(Math.max(0, Math.min(1, Number.isFinite(look) ? look : 0)) * 5.999);
+  const value = Math.fround(Math.max(0, Math.min(1, Number.isFinite(look) ? look : 0)));
+  // GPU attributes, literal and multiply are float32; preserve rare boundary identities.
+  return Math.floor(Math.fround(value * Math.fround(5.999)));
 }
 const HAIR = [0x2a1a10, 0x4b2e19, 0x7a4a24, 0xc9a25a, 0xe8d29a, 0xa4401e, 0x8a8a8a, 0x6a3fb0];
 const PANTS = [0x2f4a78, 0x3b3f46, 0x6b4a2e, 0x7a6a3a, 0x5a2f5f, 0x2f5a3a];

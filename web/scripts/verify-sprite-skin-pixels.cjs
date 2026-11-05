@@ -4,7 +4,7 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
   if(a.net)throw Error('Skin fixtures are offline only');
   const children=ctx.scene.children.map(o=>[o,o.visible]);
   const saved={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom,time:ctx.time,background:ctx.scene.background,alpha:r.getClearAlpha()};
-  const records=p.meshes().map(mesh=>({mesh,map:mesh.material.uniforms.map.value,mask:null})),cases=[],captures={};
+  const records=p.meshes().map(mesh=>({mesh,map:mesh.material.uniforms.map.value,mask:null})),cases=[],captures={},gpuPaletteIndex=[];
   const maskCount=data=>{let n=0;for(let i=3;i<data.length;i+=4)if(data[i]>127)n++;return n;};
   const hash=data=>{let h=2166136261;for(let i=0;i<data.length;i++)h=Math.imul(h^data[i],16777619);return h>>>0;};
   const isHead=(mesh,i)=>{
@@ -52,6 +52,16 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
       rec.mask.source=new rec.map.source.constructor(maskImage);rec.mask.needsUpdate=true;
       if(rec.mask.source===rec.map.source||rec.map.image!==img)throw Error('Skin mask probe must not mutate production textures');
     }
+    // Execute the original model's exact GLSL index expression on the GPU,
+    // including persisted identities that JS-double multiplication gets wrong.
+    const originalMaterial=s.mesh.material,indexMaterial=originalMaterial.clone();
+    indexMaterial.uniforms.uLegacySkinValue={value:0};
+    indexMaterial.fragmentShader='uniform float uLegacySkinValue; void main(){gl_FragColor=vec4(float(int(uLegacySkinValue*5.999))/5.,0.,0.,1.);}';
+    try {
+      s.begin();s.signifier({id:0,x:0,y:0,z:0,yaw:0,height:3,moving:false,skinTone:0},0,0,'idle');s.end();s.mesh.material=indexMaterial;
+      const probes=[{value:0,expected:0},{value:1,expected:5},...Array.from({length:4},(_,i)=>({value:Math.fround((i+1)/5.999),expected:i+1})),{seed:7339728,value:.500083327293396,expected:3},{seed:41449144,value:.6667777895927429,expected:4}];
+      for(const probe of probes){indexMaterial.uniforms.uLegacySkinValue.value=probe.value;const pixels=p.draw();let red=0;for(let i=0;i<pixels.length;i+=4)red=Math.max(red,pixels[i]);gpuPaletteIndex.push({...probe,pixels:maskCount(pixels),gpuIndex:Math.round(red*5/255)});}
+    } finally {s.mesh.material=originalMaterial;indexMaterial.dispose();}
     const specs=[];
     for(const direction of ['front','away']){
       for(let head=0;head<18;head++)specs.push({kind:'head',head,body:0,clip:'idle',direction,frame:0});
@@ -86,7 +96,7 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
       d.fillStyle='#16252a';d.font='18px sans-serif';rows.forEach(([clip],row)=>d.fillText(clip,8,110+row*230+22));
       captures[direction]=sheet.toDataURL('image/png').split(',')[1];
     }
-    target.dispose();return {cases,captures,palette,description:'All eighteen heads, seven base bodies and every action frame in both directions across all six original model tones. Changed pixels must stay inside the encoded skin masks; silhouette, clothing and hair must not change.'};
+    target.dispose();return {cases,captures,palette,gpuPaletteIndex,description:'All eighteen heads, seven base bodies and every action frame in both directions across all six original model tones. Changed pixels must stay inside the encoded skin masks; silhouette, clothing and hair must not change. GPU execution also verifies the original model index expression at exact float32 boundaries.'};
   } finally {
     for(const rec of records){rec.mesh.material.uniforms.map.value=rec.map;rec.mask?.dispose();}
     ctx.time=saved.time;ctx.scene.background=saved.background;r.setClearAlpha(saved.alpha);for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);

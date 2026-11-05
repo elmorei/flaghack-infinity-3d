@@ -13,7 +13,7 @@ import type { SpritePose } from './mobileSprites';
 
 // These are the six existing procedural-model colors, not a new sprite palette.
 const ORIGINAL_PALETTE = [0xf6d2b5, 0xeab68f, 0xc98e63, 0x9c6a45, 0x6e4a31, 0x4a3122];
-const modelIndex = (look: number) => Math.trunc(Math.fround(hash01b(look, 2)) * 5.999);
+const modelIndex = (look: number) => Math.trunc(Math.fround(Math.fround(hash01b(look, 2)) * Math.fround(5.999)));
 const representativeSeeds = Array.from({length: 6}, (_, tone) => {
   for(let seed=0;seed<10000;seed++)if(modelIndex(seed)===tone)return seed;
   throw new Error('Missing original model palette identity '+tone);
@@ -54,20 +54,23 @@ describe('existing model skin palette and sprite identity parity',()=>{
     }
     expect([...seen].sort()).toEqual([0,1,2,3,4,5]);
     expect(hippieSkinIndex(0)).toBe(0);expect(hippieSkinIndex(1)).toBe(5);
-    for(let band=1;band<6;band++)for(const delta of [-1e-5,1e-5]){
+    for(let band=1;band<6;band++)for(const delta of [-1e-5,0,1e-5]){
       const value=Math.fround(band/5.999+delta);
-      expect(hippieSkinIndex(value)).toBe(Math.trunc(value*5.999));
+      expect(hippieSkinIndex(value)).toBe(Math.trunc(Math.fround(value*Math.fround(5.999))));
     }
   });
 
-  for(const [tone,seed] of representativeSeeds.entries())it('keeps model tone '+tone+' through every work/combat/action state without mutating identity',()=>{
+  // Real persisted identities land exactly on float32 palette boundaries. A JS
+  // double multiply would incorrectly select tones2/3 instead of model tones3/4.
+  const identities=[...representativeSeeds.map((seed,tone)=>[tone,seed]),[3,7339728],[4,41449144]];
+  for(const [tone,seed] of identities)it('keeps model tone '+tone+' for identity '+seed+' through every action without mutating identity',()=>{
     const mobile=fixture(true,seed),desktop=fixture(false,seed);
     try{
       desktop.renderer.update(.1);
       const mesh=desktop.ctx.scene.children.find(o=>o instanceof THREE.InstancedMesh&&o.count>0) as THREE.InstancedMesh;
       expect(mesh).toBeDefined();
       const modelLook=mesh.geometry.getAttribute('aLook').array;
-      expect(Math.trunc(modelLook[HL.skin]*5.999)).toBe(tone);
+      expect(Math.trunc(Math.fround(modelLook[HL.skin]*Math.fround(5.999)))).toBe(tone);
       expect(modelLook[HL.skin]).toBe(Math.fround(hash01b(seed,2)));
       const expectedHead=modelLook[HL.hat]>0?5+modelLook[HL.hat]:modelLook[HL.glasses]>0?10+modelLook[HL.glasses]:modelLook[HL.beard]>.5?5:Math.max(0,Math.min(4,Math.floor(modelLook[HL.hairStyle])));
       const states=['idle','responding','hauling','chopping','planting','pulling','building','repairing','fighting','tearing','drumming','defending','distracted','ko'] as HippieStatus[];
