@@ -93,22 +93,28 @@ try {
       building.progress = index * .1;
       if (building.kind === 'workshop') {
         view.working = state === 'working' ? 1 : 0;
+        view.hammerPhase = index * .14 % 1;
         view.lastProgress = state === 'working' ? building.progress - .1 : building.progress;
       }
       if (building.kind === 'drumcircle') {
         view.drumming = state === 'active' ? 1 : 0;
+        for (let i = 0; i < view.phase.length; i++) {view.phase[i] = (i * .37 + index * .21) % 1; view.hit[i] = 0;}
         world.hippies.clear();
         if (state === 'active') for (let i = 0; i < 4; i++) world.hippies.set(500 + i, {status: 'drumming', faction: 0, pos: {x: 0, z: 0}});
       }
-      if (building.kind === 'ward' && state === 'pulse') {view.pulse = index * .18; view.flare = 1 - index * .2;}
+      if (building.kind === 'ward') {
+        view.eye.rotation.y = index * .16;
+        if (state === 'pulse') {view.pulse = index * .18; view.flare = 1 - index * .2;}
+      }
       if (building.lab) {building.lab.brewing = state === 'brewing' ? 'saffron' : null; view.boil = state === 'brewing' ? 1 : 0;}
       if (building.gcc) {
         building.gcc.channelUntil = state === 'channel' ? 1000 : 0;
         building.gcc.destroyedUntil = state === 'wreck' ? 1000 : 0;
         building.disabled = state === 'wreck';
         building.gcc.pushedBy = state === 'moving' ? 10 : -1;
+        view.heading = 0; view.wheelAngle = index * .5;
         if (state === 'moving') {view.lastX = building.pos.x - .2; view.speed = 1;}
-        if (state === 'wreck') {view.wrecked = true; view.wreck = 1;}
+        if (state === 'wreck') {view.wrecked = true; view.wreck = 1; view.tilt = 1;}
       }
       view.update(building, frame);
       view.root.position.set(0, 0, 0); view.root.rotation.y = 0;
