@@ -76,6 +76,15 @@ try {
       renderer.render(scene, camera); context.clearRect(0, 0, CELL, CELL); context.drawImage(renderer.domElement, 0, 0);
       return context.getImageData(0, 0, CELL, CELL);
     };
+    // Exact visible tabletop pixels carry local x/z coordinates instead of a
+    // frozen miniature map. Runtime samples the existing live map texture there.
+    // Differential captures preserve real rim/mast occlusion at every angle.
+    const tableDataMaterial = new THREE.ShaderMaterial({
+      uniforms: {uMode: {value: 0}}, side: THREE.DoubleSide,
+      vertexShader: 'varying vec2 vLocal; void main(){vLocal=position.xz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: 'uniform float uMode; varying vec2 vLocal; void main(){gl_FragColor=vec4(uMode<.5?vec3(0.):uMode<1.5?vec3(1.):vec3(.5+.5*vLocal,1.),1.);\n#include <colorspace_fragment>\n}',
+      toneMapped: false,
+    });
     const visibleBounds = root => {
       root.updateMatrixWorld(true); const bounds = new THREE.Box3();
       root.traverseVisible(object => {
@@ -159,19 +168,35 @@ try {
         camera.position.copy(target).add(new THREE.Vector3(Math.sin(yaw) * Math.cos(PITCH), Math.sin(PITCH), Math.cos(yaw) * Math.cos(PITCH)).multiplyScalar(100));
         camera.lookAt(target); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
         scene.add(view.root); view.mats.setFaction(0xffffff); const pixels = capturePixels();
-        view.mats.setFaction(0x000000); const black = capturePixels(); scene.remove(view.root);
-        let opaque = 0, owner = 0, left = CELL, right = 0, top = CELL, bottom = 0;
+        view.mats.setFaction(0x000000); const black = capturePixels();
+        let tableBlack, tableWhite, tableData;
+        if (kind === 'gcc') {
+          const material = view.table.material;
+          try {
+            view.table.material = tableDataMaterial;
+            tableDataMaterial.uniforms.uMode.value = 0; tableBlack = capturePixels();
+            tableDataMaterial.uniforms.uMode.value = 1; tableWhite = capturePixels();
+            tableDataMaterial.uniforms.uMode.value = 2; tableData = capturePixels();
+          } finally {view.table.material = material;}
+        }
+        scene.remove(view.root);
+        let opaque = 0, owner = 0, liveMap = 0, left = CELL, right = 0, top = CELL, bottom = 0;
         for (let i = 0; i < pixels.data.length; i += 4) {
           if (pixels.data[i + 3] < 128) {pixels.data[i + 3] = 0; continue;}
           const delta = Math.max(Math.abs(pixels.data[i] - black.data[i]), Math.abs(pixels.data[i + 1] - black.data[i + 1]), Math.abs(pixels.data[i + 2] - black.data[i + 2]));
           pixels.data[i + 3] = delta > 8 ? 224 : 255;
-          opaque++; if (delta > 8) owner++;
+          opaque++;
+          const mapPixel = tableData && Math.max(...[0, 1, 2].map(channel => Math.abs(tableWhite.data[i + channel] - tableBlack.data[i + channel]))) > 128;
+          if (mapPixel) {
+            pixels.data[i] = tableData.data[i]; pixels.data[i + 1] = tableData.data[i + 1];
+            pixels.data[i + 2] = 255; pixels.data[i + 3] = 160; liveMap++;
+          } else if (delta > 8) owner++;
           const px = i / 4 % CELL, py = Math.floor(i / 4 / CELL);
           left = Math.min(left, px); right = Math.max(right, px); top = Math.min(top, py); bottom = Math.max(bottom, py);
         }
         if (opaque < 20) throw new Error(`Empty building sprite: ${kind}:${state}/${direction}/${index}`);
         if (left < 1 || top < 1 || right >= CELL - 1 || bottom >= CELL - 1) throw new Error(`Clipped building sprite: ${kind}:${state}/${direction}/${index} [${left},${top},${right},${bottom}]`);
-        footprint.push({direction, frame: index, opaque, owner, bounds: [left, top, right, bottom]});
+        footprint.push({direction, frame: index, opaque, owner, liveMap, bounds: [left, top, right, bottom]});
         sheets[pageIndex].ctx.putImageData(pixels, x + index * CELL, y + direction * CELL);
       }
       const key = `building:${kind}:${state}`;
@@ -187,7 +212,7 @@ try {
       const blob = await sheet.canvas.convertToBlob({type: 'image/png'}), bytes = new Uint8Array(await blob.arrayBuffer());
       let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); images.push(btoa(binary));
     }
-    table.dispose(); kit.dispose(); renderer.dispose();
+    tableDataMaterial.dispose(); table.dispose(); kit.dispose(); renderer.dispose();
     return {images, references, manifest: {schemaVersion: 1,
       pages: sheets.map((_, index) => ({image: `/assets/mobile-sprites/buildings-${index}.png`, width: PAGE, height: PAGE})), clips}};
   });
@@ -199,7 +224,7 @@ try {
   const sourceFiles = ['buildingView', 'hearthView', 'workshopView', 'drumCircleView', 'wardView', 'drugLabView', 'gccView', 'kit', 'shapes', 'canvasArt', 'tableMap'];
   const sources = Object.fromEntries(sourceFiles.map(name => [`web/src/render/structures/${name}.ts`, createHash('sha256').update(readFileSync(resolve(root, `src/render/structures/${name}.ts`))).digest('hex')]));
   writeFileSync(resolve(root, '../art/mobile-sprites/buildings-reference.json'), JSON.stringify({
-    source: 'Actual game model render, native Chrome WebGL. Four orthographic views and four animation frames. Alpha224 marks exact faction-material differences.',
+    source: 'Actual game model render, native Chrome WebGL. Four orthographic views and four animation frames. Alpha224 marks exact faction-material differences. Alpha160 marks visible live GCC map pixels; sRGB-encoded RG stores .5+.5*localTableXZ.',
     sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), sources,
     references: result.references,
   }, null, 2) + '\n');
