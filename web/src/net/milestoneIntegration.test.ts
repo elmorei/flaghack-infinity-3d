@@ -17,8 +17,8 @@ const make = () => createMatch({ seed: 'combined-capture-wreckage', difficulty: 
   humans: [0, 1, 2, 3], mode: 'standard', match: normalizeMatch({ maxSignifiers: 0 }) });
 
 describe('combined structure capture and wreckage milestone', () => {
-  it('uses a distinct protocol for the combined world schema', () => {
-    expect(PROTOCOL_VERSION).toBe(23);
+  it('uses a distinct protocol for the mobile command and combined world schema', () => {
+    expect(PROTOCOL_VERSION).toBe(26);
   });
 
   it('replicates captured objects becoming wreckage alongside surviving claims, without elimination or effect replay', () => {
