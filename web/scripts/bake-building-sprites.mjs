@@ -129,12 +129,16 @@ try {
       world.factions[0].controlMode = state === 'seated' ? 'rts' : 'avatar';
       const view = kind === 'hearth' ? new HearthView(kit, building, null) : new constructors[kind](kit, building);
       pose(view, building, state, 0);
-      const bounds = visibleBounds(view.root), size = bounds.getSize(new THREE.Vector3());
-      const diameter = Math.hypot(size.x, size.z);
+      const bounds = visibleBounds(view.root);
+      // Include off-center awnings and a collapsed GCC mast. Merely using model
+      // width assumes a centered model and would crop these asymmetric silhouettes.
+      const radius = Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x), Math.abs(bounds.min.z), Math.abs(bounds.max.z));
+      const minUp = bounds.min.y * Math.cos(PITCH) - radius * Math.sin(PITCH);
+      const maxUp = bounds.max.y * Math.cos(PITCH) + radius * Math.sin(PITCH);
       const height = state === 'seated' ? 2 : heights[kind];
-      const extent = Math.max(size.y * Math.cos(PITCH) + diameter * Math.sin(PITCH), diameter) * 1.22;
+      const extent = Math.max(radius * 2, maxUp - minUp) * 1.18;
       const pixelScale = CELL / extent;
-      const anchorY = Math.round(CELL * .84);
+      const anchorY = Math.round(CELL / 2 + (maxUp + minUp) / 2 * pixelScale);
       const targetY = (anchorY / CELL - .5) * extent / Math.cos(PITCH);
       const pageIndex = Math.floor(clipIndex / 16), slot = clipIndex % 16;
       const x = slot % 4 * TILE, y = Math.floor(slot / 4) * TILE;
