@@ -99,51 +99,69 @@ export async function verifyBuildingLiveMap(page, {deferAssertions = false} = {}
     if(!pen||!p)throw Error('Live map texture and render probe required.');
     const savedPixels=pen.getImageData(0,0,canvas.width,canvas.height), children=ctx.scene.children.map(o=>[o,o.visible]);
     const camera={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom};
-    const oldTime=ctx.time,checks=[],captures={};
-    const toLinear=value=>{const v=value/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+    const oldTime=ctx.time,oldBackground=ctx.scene.background,oldAlpha=g.renderer.getClearAlpha(),checks=[],captures={};
     const paint=color=>{pen.fillStyle=color;pen.fillRect(0,0,canvas.width,canvas.height);texture.needsUpdate=true;};
     try {
       for(const [o] of children)o.visible=p.meshes().includes(o);
       c.position.set(0,1.7,12);c.lookAt(0,1.7,0);c.left=-2.5;c.right=2.5;c.top=2.5*innerHeight/innerWidth;c.bottom=-c.top;c.updateProjectionMatrix();c.updateMatrixWorld();
-      ctx.time=0;
+      ctx.time=0;ctx.scene.background=null;g.renderer.setClearAlpha(0);
       for(const yaw of [0,Math.PI/2]) {
         const pose={id:0,x:0,y:0,z:0,yaw,height:3.4,moving:false};
         const render=()=>{s.begin();s.building('gcc',pose,{state:'idle'});s.end();return p.draw();};
         paint('#ff0000');const red=render();paint('#0000ff');const blue=render();
-        const mesh=s.meshes.find(m=>m.visible),geometry=mesh.geometry;
-        const map=mesh.material.uniforms.map.value.image,atlas=document.createElement('canvas');atlas.width=map.width;atlas.height=map.height;
-        const atlasCtx=atlas.getContext('2d');atlasCtx.drawImage(map,0,0);const pixels=atlasCtx.getImageData(0,0,atlas.width,atlas.height).data;
-        const size=geometry.getAttribute('aSize'),offset=geometry.getAttribute('aOffset'),rect=geometry.getAttribute('aRect');
-        const center=c.position.clone().set(0,0,0).applyMatrix4(c.matrixWorldInverse);
-        const sampleAt=(x,y)=>{
-          const qx=c.left+(x+.5)/innerWidth*(c.right-c.left)-center.x;
-          const qy=c.bottom+(y+.5)/innerHeight*(c.top-c.bottom)-center.y;
-          const lx=(qx-offset.getX(0))/size.getX(0)+.5,ly=(qy-offset.getY(0))/size.getY(0);
-          if(lx<0||lx>=1||ly<0||ly>=1)return null;
-          const u=rect.getX(0)+lx*rect.getZ(0),v=rect.getY(0)+ly*rect.getW(0);
-          const ax=Math.max(0,Math.min(atlas.width-1,Math.floor(u*atlas.width))),ay=Math.max(0,Math.min(atlas.height-1,Math.floor((1-v)*atlas.height)));
-          return pixels.subarray((ay*atlas.width+ax)*4,(ay*atlas.width+ax)*4+4);
-        };
+        const mesh=s.meshes.find(m=>m.visible),originalMaterial=mesh.material;
+        // Rasterize the source semantic mask independently using the exact GPU
+        // transform and target. CPU pixel centers do not reproduce all native
+        // raster/sample behavior at scaled cutout edges.
+        const sourceTexture=originalMaterial.uniforms.map.value,image=sourceTexture.image;
+        const expectedCanvas=document.createElement('canvas');expectedCanvas.width=image.width;expectedCanvas.height=image.height;
+        const expectedContext=expectedCanvas.getContext('2d');expectedContext.drawImage(image,0,0);
+        const expectedImage=expectedContext.getImageData(0,0,image.width,image.height),expectedBytes=expectedImage.data;
+        const linear=value=>{const v=value/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;};
+        for(let at=0;at<expectedBytes.length;at+=4){
+          if(expectedBytes[at+3]!==160){expectedBytes[at+3]=0;continue;}
+          const x=linear(expectedBytes[at])*2-1,z=linear(expectedBytes[at+1])*2-1;
+          const east=x*Math.cos(yaw)+z*Math.sin(yaw);
+          expectedBytes[at]=east<0?255:0;expectedBytes[at+1]=0;expectedBytes[at+2]=east<0?0:255;
+          expectedBytes[at+3]=Math.abs(east)<.07?0:255;
+        }
+        expectedContext.putImageData(expectedImage,0,0);
+        // Texture.clone() shares its Source; allocate an independent source so
+        // this expected-pattern fixture cannot replace the production atlas.
+        const expectedTexture=new sourceTexture.constructor(expectedCanvas);
+        for(const key of ['minFilter','magFilter','wrapS','wrapT','flipY','generateMipmaps','colorSpace'])expectedTexture[key]=sourceTexture[key];
+        expectedTexture.needsUpdate=true;
+        const probeMaterial=new originalMaterial.constructor({
+          uniforms:{map:{value:sourceTexture},uMode:{value:0}},vertexShader:originalMaterial.vertexShader,
+          fragmentShader:`uniform sampler2D map;uniform float uMode;varying vec2 vUv;
+            void main(){vec4 source=texture2D(map,vUv);
+              if(uMode<.5){if(source.a<159.5/255.||source.a>160.5/255.)discard;gl_FragColor=vec4(1.);}
+              else{if(source.a<.5)discard;gl_FragColor=vec4(source.rgb,1.);}}`,
+          depthTest:true,depthWrite:true,side:originalMaterial.side,toneMapped:false,
+        });
+        let mask,expectedCompass;
+        try {mesh.material=probeMaterial;mask=p.draw();probeMaterial.uniforms.uMode.value=1;probeMaterial.uniforms.map.value=expectedTexture;expectedCompass=p.draw();}
+        finally {mesh.material=originalMaterial;probeMaterial.dispose();expectedTexture.dispose();}
         let changed=0,outside=0;
-        for(let y=0;y<innerHeight;y++)for(let x=0;x<innerWidth;x++){
-          const at=(y*innerWidth+x)*4;
+        for(let at=0;at<red.length;at+=4){
           if(Math.abs(red[at]-blue[at])+Math.abs(red[at+1]-blue[at+1])+Math.abs(red[at+2]-blue[at+2])<=6)continue;
-          changed++;if(sampleAt(x,y)?.[3]!==160)outside++;
+          changed++;if(mask[at+3]===0)outside++;
         }
         pen.fillStyle='#ff0000';pen.fillRect(0,0,canvas.width/2,canvas.height);pen.fillStyle='#0000ff';pen.fillRect(canvas.width/2,0,canvas.width/2,canvas.height);texture.needsUpdate=true;
         const oriented=render();let tested=0,incorrect=0;
-        for(let y=0;y<innerHeight;y++)for(let x=0;x<innerWidth;x++){
-          const pixel=sampleAt(x,y);if(pixel?.[3]!==160)continue;
-          const localX=toLinear(pixel[0])*2-1,localZ=toLinear(pixel[1])*2-1,wx=localX*Math.cos(yaw)+localZ*Math.sin(yaw);
-          if(Math.abs(wx)<.07)continue;
-          const at=(y*innerWidth+x)*4,delta=oriented[at]-oriented[at+2];tested++;if(wx<0?delta<20:delta>-20)incorrect++;
+        for(let at=0;at<oriented.length;at+=4){
+          // Fully covered semantic pixels, excluding only the map's intentional
+          // texture-filtering transition around its two-color central boundary.
+          if(expectedCompass[at+3]!==255)continue;
+          tested++;const expectedRed=expectedCompass[at]>expectedCompass[at+2],delta=oriented[at]-oriented[at+2];
+          if(expectedRed?delta<20:delta>-20)incorrect++;
         }
-        const label=yaw===0?'front':'side';captures[label+'-red']=p.png(red);captures[label+'-blue']=p.png(blue);captures[label+'-compass']=p.png(oriented);
+        const label=yaw===0?'front':'side';captures[label+'-red']=p.png(red);captures[label+'-blue']=p.png(blue);captures[label+'-compass']=p.png(oriented);captures[label+'-semantic-mask']=p.png(mask);captures[label+'-expected-compass']=p.png(expectedCompass);
         checks.push({label,yaw,changedPixels:changed,outsideMapMask:outside,compassSamples:tested,incorrectCompassSamples:incorrect,sample:{...s.samples[0]}});
       }
-      return {checks,captures,sourceTextureRestored:true};
+      return {checks,captures,sourceTextureRestored:true,camera:{type:c.type,zoom:c.zoom,projectionMatrix:[...c.projectionMatrix.elements]}};
     } finally {
-      pen.putImageData(savedPixels,0,0);texture.needsUpdate=true;ctx.time=oldTime;
+      pen.putImageData(savedPixels,0,0);texture.needsUpdate=true;ctx.time=oldTime;ctx.scene.background=oldBackground;g.renderer.setClearAlpha(oldAlpha);
       for(const [o,visible]of children)o.visible=visible;c.position.copy(camera.position);c.quaternion.copy(camera.quaternion);Object.assign(c,{left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);
     }
   });

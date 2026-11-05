@@ -313,6 +313,7 @@ jobs:
             web/host-release/mobile-sprites-smoke/world-sprites-*.png
             web/host-release/mobile-sprites-smoke/building-sprites-*.png
             web/host-release/mobile-sprites-smoke/gcc-map-*-compass.png
+            web/host-release/mobile-sprites-smoke/gcc-map-*-semantic-mask.png
             web/host-release/mobile-sprites-smoke/scenery-owner-*.png
             web/host-release/mobile-sprites-smoke/result.json
             web/host-release/mobile-sprites-smoke/failure.png

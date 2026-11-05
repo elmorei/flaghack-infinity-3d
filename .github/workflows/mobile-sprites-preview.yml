@@ -84,8 +84,8 @@ jobs:
             web/host-release/mobile-sprites-smoke/building-sprites-front.png
             web/host-release/mobile-sprites-smoke/building-sprites-side.png
             web/host-release/mobile-sprites-smoke/world-pixels-proof.json
-            web/host-release/mobile-sprites-smoke/gcc-map-front-compass.png
-            web/host-release/mobile-sprites-smoke/gcc-map-side-compass.png
+            web/host-release/mobile-sprites-smoke/gcc-map-*-compass.png
+            web/host-release/mobile-sprites-smoke/gcc-map-*-semantic-mask.png
             web/host-release/mobile-sprites-smoke/building-map-proof.json
             web/host-release/mobile-sprites-smoke/scenery-integration-proof.json
             web/host-release/mobile-sprites-smoke/scenery-owner-red.png
