@@ -150,6 +150,8 @@ interface Player {
   inputEpoch: number;
   /** A temporary exclusive reservation, revalidated at the next authoritative frame boundary. */
   pendingBossSeat: FactionId | null;
+  /** Captured with the reservation; changes no player or camp state until its successful commit. */
+  pendingBossMode: 'avatar' | 'rts' | null;
 }
 
 export class Room {
@@ -357,6 +359,7 @@ export class Room {
       changedAt: 0,
       inputEpoch: 0,
       pendingBossSeat: null,
+      pendingBossMode: null,
     };
     // In the lobby newcomers sit down at the lowest free seat; mid-match they watch first.
     if (this.phase === 'lobby') player.seat = FACTION_IDS.find((f) => normalizeMatch(this.settings.match).active.includes(f) && !this.ownerOf(f)) ?? null;
@@ -378,6 +381,7 @@ export class Room {
     player.inMatch = false;
     player.joining = this.match !== null;
     player.pendingBossSeat = null;
+    player.pendingBossMode = null;
     if (this.leaderId === null) this.leaderId = player.id;
     this.abandonAt = 0;
     this.send(conn, { t: 'welcome', protocol: PROTOCOL_VERSION, build: BUILD_ID, playerId: player.id, token: player.token, lobby: this.lobbyState() });
@@ -398,6 +402,7 @@ export class Room {
     p.inMatch = false;
     p.joining = false;
     p.pendingBossSeat = null;
+    p.pendingBossMode = null;
     if (this.match && p.seat !== null) this.match.holdStill(p.seat);
     if (this.closing) return;
     this.log(`${p.name} disconnected (${this.connectedCount()} connected)`);
@@ -440,7 +445,7 @@ export class Room {
       case 'settings':
         return this.change(player, msg);
       case 'bossTakeover':
-        return this.takeBossSeat(player, msg.seat);
+        return this.takeBossSeat(player, msg.seat, msg.mode);
       case 'start':
         return this.start(player);
       case 'backToLobby':
@@ -503,7 +508,7 @@ export class Room {
    * claims use takeBossSeat instead and never expire another human's reservation.
    */
   private takeSeat(player: Player, seat: FactionId | null): boolean {
-    if (seat === player.seat || this.phase === 'ended') return false;
+    if (seat === player.seat || this.phase === 'ended' || player.pendingBossSeat !== null) return false;
     const match = this.match;
     // The boss fight has one tightly validated handoff path. A generic seat request cannot
     // evade elimination checks or steal a disconnected human's NPC-driven reservation.
@@ -545,7 +550,7 @@ export class Room {
   }
 
   /** Atomically reserve one existing AI camp before any later claimant can observe it as free. */
-  private takeBossSeat(player: Player, seat: FactionId): void {
+  private takeBossSeat(player: Player, seat: FactionId, mode?: 'avatar' | 'rts'): void {
     const reply = (ok: boolean, reason: string | null): void => {
       if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok, reason });
     };
@@ -561,6 +566,7 @@ export class Room {
     const available = FACTION_IDS.filter((f) => !this.ownerOf(f) && match.drivenByNpc(f));
     if (!npcTakeoverSeats(match.world, from, available).includes(seat)) return reply(false, 'That AI camp no longer has a surviving altar.');
     player.pendingBossSeat = seat;
+    player.pendingBossMode = mode ?? player.controlMode;
   }
 
   /** Nothing can simulate between this validation/mutation and the resulting handoff snapshot. */
@@ -570,17 +576,20 @@ export class Room {
     for (const player of this.players.values()) {
       const seat = player.pendingBossSeat;
       if (seat === null) continue;
+      const mode = player.pendingBossMode ?? player.controlMode;
       player.pendingBossSeat = null;
+      player.pendingBossMode = null;
       const from = player.seat;
       const available = FACTION_IDS.filter((f) => !this.ownerOf(f) && match.drivenByNpc(f));
       const ok = !!player.conn && player.inMatch &&
-        applyNpcTakeover(match.world, from, seat, available, player.controlMode);
+        applyNpcTakeover(match.world, from, seat, available, mode);
       if (!ok) {
         if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok: false,
           reason: 'That camp or the match changed before the handoff. Choose another surviving AI camp.' });
         continue;
       }
       player.seat = seat;
+      player.controlMode = player.nextControlMode = mode;
       player.ready = false;
       player.changedAt = Date.now();
       player.inMatch = false;
@@ -657,6 +666,7 @@ export class Room {
     for (const p of this.players.values()) {
       p.ready = false;
       p.pendingBossSeat = null;
+      p.pendingBossMode = null;
       p.joining = false;
       p.inMatch = p.conn !== null;
       if (p.conn) this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
@@ -744,6 +754,7 @@ export class Room {
       p.joining = false;
       p.ready = false;
       p.pendingBossSeat = null;
+      p.pendingBossMode = null;
     }
     this.markLobby();
   }

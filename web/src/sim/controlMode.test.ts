@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALIGN_COST } from './constants';
-import { setFactionControlMode } from './controlMode';
+import { controlModeRefund, setFactionControlMode } from './controlMode';
 import { createMatch } from './setup';
 import { SnapshotEncoder } from '../net/codec';
 import { NetMirror } from '../net/mirror';
@@ -19,6 +19,8 @@ describe('camp control mode', () => {
     f.chakras = { hoist: 3, fly: 2, field: 1, canton: 2, finial: 3 }; f.ritual = 7;
     const buildings = [...w.buildings.values()], hippies = [...w.hippies.values()], flags = [...w.flags.values()];
     const refund = ALIGN_COST.slice(0,3).reduce((a,b)=>a+b,0) + ALIGN_COST.slice(0,2).reduce((a,b)=>a+b,0) + ALIGN_COST[0];
+    expect(controlModeRefund(f, 'avatar')).toBe(0);
+    expect(controlModeRefund(f, 'rts')).toBe(refund);
     expect(setFactionControlMode(w, 0, 'rts')).toBe(true);
     expect(f.ritual).toBe(7 + refund); expect(f.chakras).toEqual({ hoist: 0, fly: 0, field: 0, canton: 2, finial: 3 });
     expect(setFactionControlMode(w, 0, 'rts')).toBe(false); expect(f.ritual).toBe(7 + refund);

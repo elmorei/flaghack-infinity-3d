@@ -65,6 +65,9 @@ jobs:
       - name: Verify native startup and restored boss model
         if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
+      - name: Verify mobile title, settings and lobby release gate
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-browser.cjs
       - name: Verify mobile sprites, real pixels, occlusion and crowd timings
         if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
@@ -121,6 +124,7 @@ jobs:
           name: mobile-sprites-native-smoke
           path: |
             web/host-release/startup-smoke/
+            web/host-release/mobile-smoke/
             web/host-release/explosion-smoke/
             web/host-release/mobile-ley-smoke/
             web/host-release/mobile-sprites-smoke/

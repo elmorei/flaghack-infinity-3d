@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { bossFixture } from '../../tests/bossFixture';
 import { createAi } from '../ai';
 import { SnapshotEncoder } from '../net/codec';
+import { setFactionControlMode } from '../sim/controlMode';
 import { createMatch } from '../sim/setup';
 import { App } from './app';
 import { Session } from './session';
@@ -24,6 +25,16 @@ function setup() {
 }
 
 describe('App camp ownership transition', () => {
+  it.each(['avatar', 'rts'] as const)('applies explicit %s choice with one exact refund before giving local controls', mode => {
+    const { app, world } = setup();
+    setFactionControlMode(world, 2, mode === 'avatar' ? 'rts' : 'avatar');
+    const f = world.factions[2]; f.ritual = 7; f.chakras.hoist = 2; f.chakras.canton = 1;
+    expect(app.takeBossCamp(2, mode)).toBe(true);
+    expect(f.controlMode).toBe(mode); expect(f.ritual).toBe(107);
+    expect(f.chakras.hoist).toBe(0); expect(f.chakras.canton).toBe(1);
+    expect(!!world.avatarOf(2)).toBe(mode === 'avatar');
+    expect(app.takeBossCamp(2, mode)).toBe(false); expect(f.ritual).toBe(107);
+  });
   it('adopts an existing local camp and removes only that camp’s AI controller', () => {
     const { app, world } = setup();
     const targetAvatar = world.avatarOf(2), flags = [...world.flags.values()], units = [...world.hippies.values()], buildings = [...world.buildings.values()];
@@ -63,5 +74,18 @@ describe('App camp ownership transition', () => {
     expect(app.predictor.avatarId).toBe(world.avatarOf(2).id); expect(app.seq).toBe(0); expect(app.tickCmds).toEqual([]);
     expect(app.tickInput).toMatchObject({ moveX: 0, moveZ: 0, jump: false, sprint: false, throwMode: false });
     expect(app.controls.resetForSeat).toHaveBeenCalledOnce(); expect(app.renderer.attach).toHaveBeenCalledOnce();
+  });
+
+  it('submits a newcomer mode without mutating its viewed camp or granting control early', () => {
+    const { app, world } = setup();
+    const requestBossTakeover = vi.fn();
+    app.client = { connected: true, status: 'match', pendingBossTakeover: null, requestBossTakeover,
+      lobby: { seats: [0, 1, 2, 3].map(faction => ({ faction, playerId: faction === 0 ? 'other' : null })) } };
+    app.mirror = {}; app.session.spectator = true;
+    const before = structuredClone(world.factions[2]);
+    expect(app.takeBossCamp(2, 'avatar')).toBe(true);
+    expect(requestBossTakeover).toHaveBeenCalledExactlyOnceWith(2, 'avatar');
+    expect(world.factions[2]).toEqual(before); expect(app.session.spectator).toBe(true);
+    expect(app.session.playerFaction).toBe(0); expect(app.controls.resetForSeat).not.toHaveBeenCalled();
   });
 });

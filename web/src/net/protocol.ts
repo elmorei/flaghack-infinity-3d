@@ -25,7 +25,8 @@ import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 /** Bump on any incompatible change; mismatched clients are denied with a reload hint. */
 // v23: Elevated building levels and beacon recruitment (recruited via beacon).
 // Pages clients and standalone hosts must share an exact release build.
-export const PROTOCOL_VERSION = 26;
+// v27: NPC takeover requests may choose an authoritative Avatar or RTS control mode.
+export const PROTOCOL_VERSION = 27;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -128,8 +129,8 @@ export type ClientMessage =
   | { t: 'hello'; protocol: number; build: string; name: string; password: string; token: string | null; controlMode?: 'avatar' | 'rts' }
   /** Lobby/pre-boss seat selection (null = spectate). During the boss use bossTakeover instead. */
   | { t: 'seat'; seat: FactionId | null }
-  /** An eliminated human claims an unreserved surviving AI camp during the actual boss encounter. */
-  | { t: 'bossTakeover'; seat: FactionId }
+  /** An eliminated human or spectator claims an unreserved surviving AI camp and optional mode. */
+  | { t: 'bossTakeover'; seat: FactionId; mode?: 'avatar' | 'rts' }
   | { t: 'controlMode'; mode: 'avatar' | 'rts' }
   | { t: 'ready'; ready: boolean }
   /** Leader only. */

@@ -78,7 +78,7 @@ export interface AppApi {
   /** Start the Training Burn (tutorial mission). */
   startTutorial(): void;
   /** Claim an available surviving NPC camp after elimination or as an online spectator. No optimistic switch. */
-  takeBossCamp(seat: FactionId): boolean;
+  takeBossCamp(seat: FactionId, mode?: 'avatar' | 'rts'): boolean;
   setControlMode?(mode: 'avatar' | 'rts'): boolean;
 }
 
@@ -334,7 +334,7 @@ export class App implements AppApi {
     else if (this.session.screen === 'paused' && !paused) this.session.screen = 'playing';
   }
 
-  takeBossCamp(seat: FactionId): boolean {
+  takeBossCamp(seat: FactionId, mode?: 'avatar' | 'rts'): boolean {
     if (this.startupPending) return false;
     const world = this.world, s = this.session;
     if (!world || (s.spectator && !this.mirror) || (!s.spectator && !world.options.humans.includes(s.playerFaction))) return false;
@@ -343,10 +343,11 @@ export class App implements AppApi {
       if (!client || !client.connected || client.status !== 'match' || client.pendingBossTakeover !== null) return false;
       const aiSeats = client.lobby?.seats.filter((slot) => slot.playerId === null).map((slot) => slot.faction) ?? [];
       if (!npcTakeoverSeats(world, s.spectator ? null : s.playerFaction, aiSeats).includes(seat)) return false;
-      client.requestBossTakeover(seat);
+      if (mode) client.requestBossTakeover(seat, mode);
+      else client.requestBossTakeover(seat);
       return true;
     }
-    if (!applyNpcTakeover(world, s.playerFaction, seat, [...this.ai.keys()], world.factions[s.playerFaction].controlMode)) return false;
+    if (!applyNpcTakeover(world, s.playerFaction, seat, [...this.ai.keys()], mode ?? world.factions[s.playerFaction].controlMode)) return false;
     this.ai.delete(seat);
     s.playerFaction = seat;
     s.campChoiceOpen = false;

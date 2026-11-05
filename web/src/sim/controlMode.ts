@@ -1,7 +1,7 @@
 /** Authoritative control-mode changes preserve the camp, refund incompatible spell investment once. */
 import { ALIGN_COST, AVATAR, BUILDINGS } from './constants';
 import { spawnAvatar } from './factory';
-import type { Avatar, ChakraId, FactionId } from './types';
+import type { Avatar, ChakraId, FactionId, FactionState } from './types';
 import type { World } from './world';
 import { closeFrickFrackSession } from './systems/frickFrack';
 import { dropLoose } from './systems/flags';
@@ -11,6 +11,16 @@ const parkedBodies = new WeakMap<World, Map<FactionId, Avatar>>();
 /** These slots carry different spells in Avatar and RTS modes; shared AOE slots are retained. */
 export const MODE_SPECIFIC_CHAKRAS: readonly ChakraId[] = ['hoist', 'fly', 'field'];
 
+/** Paid upgrades removed by a mode change; shared unlocks and unfinished casts carry no refund. */
+export function controlModeRefund(faction: Pick<FactionState, 'controlMode' | 'chakras'>, mode: 'avatar' | 'rts'): number {
+  if (faction.controlMode === mode) return 0;
+  let refund = 0;
+  for (const chakra of MODE_SPECIFIC_CHAKRAS) {
+    for (let level = 0; level < faction.chakras[chakra]; level++) refund += ALIGN_COST[level] ?? 0;
+  }
+  return refund;
+}
+
 export function setFactionControlMode(world: World, f: FactionId, mode: 'avatar' | 'rts'): boolean {
   const fac = world.factions[f];
   if (!fac?.alive || world.phase !== 'playing' || fac.controlMode === mode) return false;
@@ -18,8 +28,8 @@ export function setFactionControlMode(world: World, f: FactionId, mode: 'avatar'
   // A failed transition must be inert, even for a malformed/legacy camp snapshot.
   if (mode === 'avatar' && !parkedBodies.get(world)?.has(f) && !world.hearthOf(f) && !cart) return false;
   closeFrickFrackSession(world, f);
+  fac.ritual += controlModeRefund(fac, mode);
   for (const chakra of MODE_SPECIFIC_CHAKRAS) {
-    for (let level = 0; level < fac.chakras[chakra]; level++) fac.ritual += ALIGN_COST[level] ?? 0;
     fac.chakras[chakra] = 0;
   }
   econ(world).aligning[f] = null;

@@ -65,7 +65,8 @@ test('independent native preview checks continue after a failure without hiding 
   const preview = yaml.load(readFileSync(join(__dirname, '../../.github/workflows/mobile-sprites-preview.yml'), 'utf8'));
   const job = preview.jobs['native-browser'];
   const checks = job.steps.filter(step => /node scripts\/verify-/.test(step.run || ''));
-  assert.equal(checks.length, 7);
+  assert.equal(checks.length, 8);
+  assert.ok(checks.some(step => /node scripts\/verify-mobile-browser\.cjs/.test(step.run || '')));
   assert.ok(job.steps.some(step => step.id === 'native-tools'));
   for (const check of checks) {
     assert.equal(check.if, "${{ !cancelled() && steps.native-tools.outcome == 'success' }}");

@@ -2,11 +2,14 @@
  * Offline fixture only. No production render order is changed except the explicit
  * negative-control draw, and all state is restored before returning. */
 export async function verifyMobileGroundInk(page) {
+  // The natural start can still be in its perspective arrival transition at world.time > 1.
+  // Wait for the real controls to settle into the mobile projection, never force the camera.
+  await page.waitForFunction(() => window.flaghack?.session.screen === 'playing' && window.flaghack.renderer.camera.isOrthographicCamera === true, null, { timeout: 30000 });
   return page.evaluate(() => {
     const app=window.flaghack,g=app.renderer,ctx=g.ctx,c=ctx.camera,s=ctx.shared.mobileSprites,p=window.__spriteProbe,w=app.world;
     if(app.net)throw Error('Ground-ink fixture is offline only');
     const survey=g.modules.find(m=>m.lattice&&m.marked&&m.beams);
-    if(!survey||!s||!p||!c.isOrthographicCamera)throw Error('Production mobile scene and native pixel probe required');
+    if(!survey||!s||!p||!c.isOrthographicCamera)throw Error('Production mobile scene and native pixel probe required: '+JSON.stringify({survey:!!survey,sprites:!!s,probe:!!p,camera:c.type,orthographic:!!c.isOrthographicCamera}));
     const objects=[];ctx.scene.traverse(o=>objects.push([o,o.visible]));
     const saved={camera:{position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom},
       background:ctx.scene.background,alpha:g.renderer.getClearAlpha(),time:ctx.time,view:app.session.view,screen:app.session.screen,mode:app.session.mobileMode,

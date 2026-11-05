@@ -1,11 +1,12 @@
 /** Explicit camp choice: encounter recovery locally and online, ordinary online seats otherwise. */
 import { FACTION_DEFS } from '../sim/constants';
+import { controlModeRefund } from '../sim/controlMode';
 import { FACTION_IDS } from '../sim/types';
 import type { CaptureStage, FactionId } from '../sim/types';
 import type { World } from '../sim/world';
 import { STAGE_INFO } from './catalog';
 import type { UiHost, UiPart } from './core';
-import { button, el, html, setClass, setDisabled, setText, show } from './dom';
+import { button, el, html, setAttr, setClass, setDisabled, setText, show } from './dom';
 import { iconSvg } from './icons';
 import { campChoices, canRecoverBossCamp, seatPlayer, watchingOnline } from './online';
 import { portraitSvg } from './portraits';
@@ -35,6 +36,9 @@ export class SeatChooser implements UiPart {
   private backBtn: HTMLButtonElement;
   private watchBtn: HTMLButtonElement;
   private note: HTMLElement;
+  private modeButtons: Record<'avatar' | 'rts', HTMLButtonElement>;
+  private refund: HTMLElement;
+  private selectedMode: 'avatar' | 'rts' = 'rts';
   private active = false;
   private picked: FactionId | null = null;
   private pickedShown: FactionId | null = null;
@@ -62,7 +66,15 @@ export class SeatChooser implements UiPart {
     this.confirmFace = el('div', 'sc-face', this.confirm);
     const text = el('div', 'sc-text', this.confirm);
     this.confirmTitle = el('div', 'sc-title', text, '');
-    el('div', 'sc-sub', text, 'Keep this camp’s Hearths, Flags and Signifiers. Use Switch to Avatar / RTS in the menu to change controls; removed spell upgrades refund Ritual.');
+    el('div', 'sc-sub', text, 'Keep this camp’s Hearths, Flags and Signifiers. Choose your controls now; you can switch again in Settings.');
+    const modes = el('div', 'sc-modes', text);
+    modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', 'Camp controls');
+    this.modeButtons = {
+      avatar: button('btn', modes, 'Regular (Avatar)', () => this.chooseMode('avatar'), 'pick'),
+      rts: button('btn', modes, 'Degen (RTS)', () => this.chooseMode('rts'), 'pick'),
+    };
+    this.refund = el('div', 'sc-refund', text);
+    this.refund.setAttribute('role', 'status');
     const buttons = el('div', 'sc-buttons', this.confirm);
     this.confirmBtn = button('btn btn-primary', buttons, 'Take over', () => this.take(), 'confirm');
     this.backBtn = button('btn', buttons, 'Back', () => this.unpick(), 'back');
@@ -95,7 +107,8 @@ export class SeatChooser implements UiPart {
     if (!recovery && app.session.screen === 'paused') app.setPaused(false);
     this.active = true;
     this.picked = f;
-    this.pending = recovery ? app.net?.pendingBossTakeover ?? null : null;
+    this.pending = app.net?.pendingBossTakeover ?? null;
+    if (this.pending === null) this.selectedMode = this.preferredMode();
     if (this.pending !== null) this.picked = this.pending;
     setText(this.note, '');
     this.update(app.world, performance.now());
@@ -121,6 +134,18 @@ export class SeatChooser implements UiPart {
     this.confirmBtn.focus();
   }
 
+  private preferredMode(): 'avatar' | 'rts' {
+    const app = this.host.app;
+    return app.net?.lobby?.players.find(p => p.id === app.net?.playerId)?.controlMode ??
+      app.world?.factions[app.session.playerFaction].controlMode ?? 'rts';
+  }
+
+  private chooseMode(mode: 'avatar' | 'rts'): void {
+    if (this.pending !== null) return;
+    this.selectedMode = mode;
+    this.update(this.host.app.world, performance.now());
+  }
+
   private unpick(): void {
     if (this.pending !== null) return;
     this.picked = null;
@@ -137,15 +162,10 @@ export class SeatChooser implements UiPart {
       this.update(world, performance.now()); this.focusChoice(); return;
     }
     this.pendingSince = performance.now();
-    if (canRecoverBossCamp(app, world)) {
-      if (!app.takeBossCamp(f)) {
-        this.picked = null;
-        setText(this.note, 'That camp could not be claimed. Check the surviving camps and try again.');
-      } else if (app.net) this.pending = f;
-    } else if (app.net) {
-      this.pending = f;
-      app.net.setSeat(f);
-    }
+    if (!app.takeBossCamp(f, this.selectedMode)) {
+      this.picked = null;
+      setText(this.note, 'That camp could not be claimed. Check the surviving camps and try again.');
+    } else if (app.net) this.pending = f;
     this.update(app.world, this.pendingSince);
   }
 
@@ -188,6 +208,7 @@ export class SeatChooser implements UiPart {
     if (recovery && this.offeredSeat !== s.playerFaction && s.screen === 'playing') {
       this.offeredSeat = s.playerFaction;
       this.active = true; this.picked = null; this.pending = net?.pendingBossTakeover ?? null;
+      if (this.pending === null) this.selectedMode = this.preferredMode();
       if (this.pending !== null) this.picked = this.pending;
       setText(this.note, '');
     }
@@ -207,15 +228,11 @@ export class SeatChooser implements UiPart {
     setText(this.empty, recovery
       ? 'No surviving AI camps are available. Keep watching: the surviving camps can still win together.'
       : 'Every camp has its Signifier or has fallen. Watch on: a seat may yet free up.');
-    if (recovery && this.pending !== null && net?.pendingBossTakeover === null) {
+    if (this.pending !== null && net?.pendingBossTakeover === null) {
       this.pending = null; this.picked = null;
       setText(this.note, net.bossTakeoverError ?? 'The available camps changed. Choose a surviving camp.');
     } else if (this.pending !== null && now - this.pendingSince > PENDING_MS) {
-      if (recovery) setText(this.note, 'Waiting for the host to confirm. You can keep watching meanwhile.');
-      else {
-        this.pending = null; this.picked = null;
-        setText(this.note, 'That camp is no longer free. Choose another camp.');
-      }
+      setText(this.note, 'Waiting for the host to confirm. You can keep watching meanwhile.');
     }
     if (this.picked !== null && this.pending === null && !choices.includes(this.picked)) {
       setText(this.note, `${FACTION_DEFS[this.picked].name} is no longer free.`);
@@ -231,6 +248,13 @@ export class SeatChooser implements UiPart {
         this.confirmFace.innerHTML = portraitSvg(f);
       }
       const pending = this.pending !== null;
+      for (const mode of ['avatar', 'rts'] as const) {
+        this.modeButtons[mode].disabled = pending;
+        setDisabled(this.modeButtons[mode], pending);
+        setAttr(this.modeButtons[mode], 'aria-pressed', String(this.selectedMode === mode));
+      }
+      const refund = controlModeRefund(world.factions[f], this.selectedMode);
+      setText(this.refund, `Refund: ${refund} Ritual from removed Hoist, Fly and Field upgrades. Shared Canton and Finial unlocks stay.`);
       setText(this.confirmTitle, pending ? `Taking over ${FACTION_DEFS[f].name}…` : `Take over ${FACTION_DEFS[f].name}'s camp?`);
       setText(this.confirmBtn, pending ? 'Asking the host…' : 'Take over');
       this.confirmBtn.disabled = pending; this.backBtn.disabled = pending;

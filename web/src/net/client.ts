@@ -242,12 +242,12 @@ export class NetClient implements NetSession {
     this.send({ t: 'seat', seat });
   }
 
-  requestBossTakeover(seat: FactionId): void {
+  requestBossTakeover(seat: FactionId, mode?: 'avatar' | 'rts'): void {
     if (!this.inMatch || !this.connected || this.pendingBossTakeover !== null) return;
     this.pendingBossTakeover = seat;
     this.bossTakeoverError = null;
     this.changed();
-    this.send({ t: 'bossTakeover', seat });
+    this.send({ t: 'bossTakeover', seat, ...(mode === undefined ? {} : { mode }) });
   }
 
   setReady(ready: boolean): void {

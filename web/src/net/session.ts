@@ -41,7 +41,7 @@ export interface NetSession {
 
   setControlMode(mode: 'avatar' | 'rts'): void;
   setSeat(seat: FactionId | null): void;
-  requestBossTakeover(seat: FactionId): void;
+  requestBossTakeover(seat: FactionId, mode?: 'avatar' | 'rts'): void;
   setReady(ready: boolean): void;
   /** Leader only. */
   setSettings(settings: Partial<LobbySettings>): void;

@@ -301,6 +301,23 @@ describe('NetClient', () => {
     client.sendInput(1, input, []);
     expect(socket(1).sent.at(-1)).toMatchObject({ t: 'input', inputEpoch: 3, seq: 1 });
   });
+
+  it.each(['avatar', 'rts'] as const)('sends a chosen %s takeover mode once without changing the local seat or lobby preference', (mode) => {
+    const { client, calls } = inMatch();
+    const before = structuredClone(client.lobby);
+    const previousCalls = [...calls];
+    client.requestBossTakeover(3, mode);
+    client.requestBossTakeover(3, mode === 'rts' ? 'avatar' : 'rts');
+    client.setControlMode(mode);
+    expect(socket(0).sent.filter((m: any) => m.t === 'bossTakeover')).toEqual([{ t: 'bossTakeover', seat: 3, mode }]);
+    expect(socket(0).sent.some((m: any) => m.t === 'controlMode')).toBe(false);
+    expect(client.seat).toBe(2); expect(client.lobby).toEqual(before); expect(calls).toEqual(previousCalls);
+    socket(0).receive({ t: 'bossTakeoverResult', seat: 3, ok: false, reason: 'That camp is reserved.' });
+    expect(client.pendingBossTakeover).toBeNull(); expect(client.lobby).toEqual(before);
+    client.requestBossTakeover(1);
+    expect(socket(0).sent.at(-1)).toEqual({ t: 'bossTakeover', seat: 1 });
+    client.leave();
+  });
 });
 
 describe('host-acknowledged lobby setup', () => {

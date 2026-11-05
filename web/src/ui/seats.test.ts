@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bossFixture } from '../../tests/bossFixture';
 import { Input } from '../game/input';
 import { Session } from '../game/session';
-import { applyBossTakeover } from '../sim/bossTakeover';
+import { applyNpcTakeover } from '../sim/npcTakeover';
 import { createMatch } from '../sim/setup';
 import type { FactionId } from '../sim/types';
 import type { UiHost } from './core';
@@ -57,14 +57,14 @@ function setup(online = false) {
   const world = createMatch({ seed: 'camp-chooser', mode: 'standard', difficulty: 'normal', humans: [0] });
   const session = new Session(); session.screen = 'playing';
   const net: any = online ? {
-    seat: 0, pendingBossTakeover: null, bossTakeoverError: null,
+    seat: 0, playerId: 'me', pendingBossTakeover: null, bossTakeoverError: null,
     lobby: { phase: 'playing', seats: [0, 1, 2, 3].map(faction => ({ faction, playerId: faction === 0 ? 'me' : null })), players: [{ id: 'me', name: 'Player', connected: true }] },
     setSeat: vi.fn(),
   } : null;
   const app: any = { world, session, net, setPaused: vi.fn() };
-  app.takeBossCamp = vi.fn((faction: FactionId) => {
+  app.takeBossCamp = vi.fn((faction: FactionId, mode?: 'avatar' | 'rts') => {
     if (net) { net.pendingBossTakeover = faction; return true; }
-    if (!applyBossTakeover(world, session.playerFaction, faction, [1, 2, 3])) return false;
+    if (!applyNpcTakeover(world, session.playerFaction, faction, [1, 2, 3], mode)) return false;
     session.playerFaction = faction; return true;
   });
   const chooser = new SeatChooser({ app } as UiHost, root as any);
@@ -93,7 +93,7 @@ describe('surviving camp choice', () => {
     expect(session.campChoiceOpen).toBe(false); expect(session.playerFaction).toBe(0);
     chooser.open(null); controls.pick(2); controls.take();
     expect(session.playerFaction).toBe(2); expect(session.campChoiceOpen).toBe(false);
-    expect(app.takeBossCamp).toHaveBeenCalledExactlyOnceWith(2);
+    expect(app.takeBossCamp).toHaveBeenCalledExactlyOnceWith(2, 'avatar');
     world.factions[2].alive = false; update();
     expect(session.campChoiceOpen).toBe(true); expect(controls.picked).toBeNull();
     expect(campChoices(app, world)).toEqual([1, 3]);
@@ -138,7 +138,7 @@ describe('surviving camp choice', () => {
     expect(controls.picked).toBeNull(); expect(controls.pending).toBeNull();
     expect(root.find('seats-note')!.textContent).toContain('Another player');
     expect(controls.rows[1].root.getClientRects()).toEqual([]);
-    controls.pick(2); controls.take(); expect(app.takeBossCamp).toHaveBeenLastCalledWith(2);
+    controls.pick(2); controls.take(); expect(app.takeBossCamp).toHaveBeenLastCalledWith(2, 'avatar');
     expect(net.setSeat).not.toHaveBeenCalled();
   });
 
@@ -147,6 +147,50 @@ describe('surviving camp choice', () => {
     reveal(); controls.pick(1); world.factions[1].alive = false; controls.take();
     expect(app.takeBossCamp).not.toHaveBeenCalled(); expect(session.playerFaction).toBe(0);
     expect(controls.picked).toBeNull(); expect(controls.note.textContent).toContain('no longer available');
+  });
+
+  it('previews exact refunds and locks mode, duplicate claims and Back until the host answers', () => {
+    const { controls, reveal, world, app, root, net, update } = setup(true);
+    const target = world.factions[2]; target.controlMode = 'rts'; target.ritual = 7;
+    target.chakras = { hoist: 3, fly: 2, field: 1, canton: 2, finial: 3 };
+    reveal(); controls.pick(2); controls.chooseMode('avatar');
+    expect(root.find('sc-refund')!.textContent).toContain('Refund: 360 Ritual');
+    controls.chooseMode('rts'); expect(root.find('sc-refund')!.textContent).toContain('Refund: 0 Ritual');
+    controls.chooseMode('avatar'); controls.take(); controls.take(); controls.chooseMode('rts'); controls.unpick();
+    expect(app.takeBossCamp).toHaveBeenCalledExactlyOnceWith(2, 'avatar');
+    expect(controls.selectedMode).toBe('avatar'); expect(controls.backBtn.disabled).toBe(true);
+    expect(controls.modeButtons.rts.disabled).toBe(true); expect(controls.modeButtons.avatar.disabled).toBe(true);
+    expect(target.ritual).toBe(7); expect(target.chakras.hoist).toBe(3);
+    net.pendingBossTakeover = null; net.bossTakeoverError = 'Another player claimed that camp.'; update();
+    expect(root.find('seats-note')!.textContent).toBe('Another player claimed that camp.');
+    controls.pick(3); controls.chooseMode('rts'); controls.unpick(); expect(controls.picked).toBeNull();
+  });
+
+  it('gives newcomers the acknowledged pending and rejection path without guessing a timeout', () => {
+    const { chooser, controls, session, net, app, world, root, update } = setup(true);
+    session.spectator = true; net.seat = null; chooser.open(null);
+    controls.pick(1); controls.chooseMode('rts'); controls.take();
+    expect(app.takeBossCamp).toHaveBeenCalledExactlyOnceWith(1, 'rts'); expect(net.setSeat).not.toHaveBeenCalled();
+    chooser.update(world, performance.now() + 5000);
+    expect(controls.pending).toBe(1); expect(controls.confirmBtn.disabled).toBe(true);
+    expect(root.find('seats-note')!.textContent).toContain('Waiting for the host');
+    net.pendingBossTakeover = null; net.bossTakeoverError = 'That camp is reserved for another player.'; update();
+    expect(controls.pending).toBeNull(); expect(controls.picked).toBeNull();
+    expect(root.find('seats-note')!.textContent).toBe(net.bossTakeoverError);
+    controls.pick(2); controls.chooseMode('avatar'); controls.take();
+    expect(app.takeBossCamp).toHaveBeenLastCalledWith(2, 'avatar');
+  });
+
+  it('applies the chosen local mode and exactly the previewed refund on takeover', () => {
+    const { controls, reveal, world, session, root } = setup();
+    const target = world.factions[2]; target.controlMode = 'rts'; target.ritual = 7;
+    target.chakras.hoist = 2; target.chakras.canton = 1;
+    reveal(); controls.pick(2); controls.chooseMode('avatar');
+    expect(root.find('sc-refund')!.textContent).toContain('Refund: 100 Ritual');
+    controls.take();
+    expect(session.playerFaction).toBe(2); expect(target.controlMode).toBe('avatar');
+    expect(target.ritual).toBe(107); expect(target.chakras.hoist).toBe(0); expect(target.chakras.canton).toBe(1);
+    expect(world.avatarOf(2)).toBeDefined();
   });
 
   it('preserves a paused game and keyboard navigation stays inside the chooser', () => {

@@ -462,7 +462,8 @@ const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } 
   },
   bossTakeover: {
     keys: ['t', 'seat'],
-    parse: ({ seat }) => (isFaction(seat) ? { t: 'bossTakeover', seat } : null),
+    parse: ({ seat, mode }) => (isFaction(seat) && (mode === undefined || mode === 'avatar' || mode === 'rts')
+      ? { t: 'bossTakeover', seat, ...(mode === undefined ? {} : { mode }) } : null),
   },
   controlMode: {
     keys: ['t', 'mode'],
@@ -540,7 +541,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     return MESSAGES.hello.parse({ ...v, build: '' });
   }
   const entry = MESSAGES[t];
-  const keys = t === 'hello' && Object.hasOwn(v, 'controlMode') ? [...entry.keys, 'controlMode'] : entry.keys;
+  const optional = t === 'hello' ? 'controlMode' : t === 'bossTakeover' ? 'mode' : null;
+  const keys = optional && Object.hasOwn(v, optional) ? [...entry.keys, optional] : entry.keys;
   return exact(v, keys) ? entry.parse(v) : null;
 }
 

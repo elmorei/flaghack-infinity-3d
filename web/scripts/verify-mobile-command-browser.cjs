@@ -234,25 +234,37 @@ async function main() {
       await shot(spec.name+'-rotated-field');
       assert.deepEqual(entry.errors,[],spec.name+' has no browser errors');
       check(`${spec.name}: rotation cancels pending hold and no page errors`);
+      const verifyIndependent=async(label,run)=>{
+        try{return await run();}
+        catch(error){
+          const detail={label,error:String(error.stack??error)};
+          (entry.extendedErrors??=[]).push(detail);
+          await shot(spec.name+'-'+label+'-failure').catch(()=>{});
+          console.error('FAIL '+spec.name+' '+label+' '+detail.error);
+          return {completed:false,error:detail.error};
+        }
+      };
       if(spec.name==='phone-portrait'){
         await page.setViewportSize({width:spec.width,height:spec.height});
         const {verifyMobileFlagOrders}=await import('./verify-mobile-flag-orders.mjs');
-        entry.flagOrders=await verifyMobileFlagOrders(page,{capture:name=>shot(spec.name+'-'+name)});
+        entry.flagOrders=await verifyIndependent('flag-orders',()=>verifyMobileFlagOrders(page,{capture:name=>shot(spec.name+'-'+name)}));
       }
       if(spec.name==='phone-portrait'||spec.name==='phone-landscape'){
         await page.setViewportSize({width:spec.width,height:spec.height});
         const {verifyMobileWizard}=await import('./verify-mobile-wizard.mjs');
-        entry.wizard=await verifyMobileWizard(page,{capture:name=>shot(spec.name+'-'+name)});
+        entry.wizard=await verifyIndependent('wizard',()=>verifyMobileWizard(page,{capture:name=>shot(spec.name+'-'+name)}));
         const {verifyMobilePowers}=await import('./verify-mobile-powers.mjs');
-        entry.powers=await verifyMobilePowers(page,{capture:name=>shot(spec.name+'-'+name)});
-        for(const [name,png]of Object.entries(entry.powers.gpu.captures))writeFileSync(join(OUT,spec.name+'-power-gpu-'+name+'.png'),Buffer.from(png,'base64'));
-        delete entry.powers.gpu.captures;
+        entry.powers=await verifyIndependent('powers',()=>verifyMobilePowers(page,{capture:name=>shot(spec.name+'-'+name)}));
+        for(const [name,png]of Object.entries(entry.powers.gpu?.captures??{}))writeFileSync(join(OUT,spec.name+'-power-gpu-'+name+'.png'),Buffer.from(png,'base64'));
+        if(entry.powers.gpu)delete entry.powers.gpu.captures;
         const {verifyMobileCampControls}=require('./mobile-camp-native.cjs');
-        entry.campControls=await verifyMobileCampControls(page,{capture:name=>shot(spec.name+'-'+name)});
+        entry.campControls=await verifyIndependent('camp-controls',()=>verifyMobileCampControls(page,{capture:name=>shot(spec.name+'-'+name)}));
       }
       assert.deepEqual(entry.errors,[],spec.name+' after extended touch verification');
       await context.close();
     }
+    const failures=results.scenarios.flatMap(entry=>(entry.extendedErrors??[]).map(error=>({...error,scenario:entry.name})));
+    assert.equal(failures.length,0,'Independent native checks failed: '+JSON.stringify(failures));
     results.completed=true;
   } catch(error) {
     results.error=error.stack||String(error);
