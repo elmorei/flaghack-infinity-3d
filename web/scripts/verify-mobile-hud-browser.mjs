@@ -8,7 +8,9 @@ import { resolve, join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url), {chromium}=require('playwright');
+const {readThroneRender,assertThroneRender}=require('./throne-render-proof.cjs');
 const HERE=dirname(fileURLToPath(import.meta.url)), DIST=resolve(HERE,'../dist'), OUT=resolve(HERE,'../host-release/mobile-hud-smoke');
+const ACTIONS=JSON.parse(readFileSync(resolve(HERE,'../src/render/actors/mobileSpriteActions.json'),'utf8'));
 const PROJECT='/flaghack-infinity-3d/';
 const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.mp4':'video/mp4','.woff2':'font/woff2','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.json':'application/json'};
 const server=createServer((req,res)=>{
@@ -97,17 +99,15 @@ try{
     entry.checks.push('Repeated menu/back restores identical live HUD nodes and full timer detail without duplicates');
     const target=await page.evaluate(()=>{const a=window.flaghack,w=a.world,b=[...w.buildings.values()].find(b=>b.kind==='hearth'&&b.faction===1&&b.hp>0);a.session.camera.cmdX=b.pos.x;a.session.camera.cmdZ=b.pos.z;return{id:b.id,faction:b.faction};});
     await page.waitForTimeout(1800);assert.equal(await page.locator(`.mc-altar-arrow[data-altar-id="${target.id}"]`).count(),0,'Onscreen altar needs no edge arrow');
-    const throne=await page.evaluate(()=>{
-      const a=window.flaghack,w=a.world,root=a.renderer.ctx.scene.getObjectByName('rts-ruler-1');
-      if(!root?.visible)throw Error('Crow throne must be rendered at its altar');
-      const forward=root.position.clone().set(0,0,1).applyQuaternion(root.quaternion),toward=root.position.clone().set(w.map.effigy.x-root.position.x,0,w.map.effigy.z-root.position.z).normalize();
-      return{mode:w.factions[1].controlMode,avatar:!!w.avatarOf(1),facing:forward.dot(toward)};
-    });
-    assert.equal(throne.mode,'rts');assert.equal(throne.avatar,false);assert.ok(throne.facing>.9999);
+    await page.waitForFunction(()=>window.flaghack.renderer.ctx.shared.mobileSprites?.actionAtlasReady,null,{timeout:60000});
+    const clip=ACTIONS.clips['beelzebub-crow:seated'];
+    const throne=await page.evaluate(readThroneRender,{faction:1,altarId:target.id,page:clip.page});
+    entry.throne=throne;
+    assertThroneRender(throne,{faction:1,altarId:target.id,kind:'beelzebub-crow',clip,page:ACTIONS.pages[clip.page],mobile:true});
     await page.locator('.mc-altar-arrow[data-allegiance="own"]').waitFor({state:'visible'});
     checkLayout(await geometry());
     await page.screenshot({path:join(OUT,`${spec.name}-crow-throne.png`)});
-    entry.checks.push('NPC Dr. Crow has no roaming body and the actual rendered throne faces the effigy');
+    entry.checks.push('NPC Dr. Crow has no roaming body; his combined throne sprite is uploaded at exact altar ground, faces the effigy and hides all corresponding 3D meshes');
     await page.locator('.mc-top').getByRole('button',{name:'Home',exact:true}).tap();
     await page.locator(`.mc-altar-arrow[data-altar-id="${target.id}"]`).waitFor({state:'visible'});
     await page.waitForFunction(()=>!document.querySelector('.mc-altar-arrow[data-allegiance="own"]'));

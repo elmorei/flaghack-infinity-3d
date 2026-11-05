@@ -58,12 +58,15 @@ jobs:
           path: web/dist/
           retention-days: 14
       - name: Prepare native Chrome recording tools
+        id: native-tools
         run: |
           npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
           node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
       - name: Verify native startup and restored boss model
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
       - name: Verify mobile sprites, real pixels, occlusion and crowd timings
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
       - name: Upload the requested mobile gameplay demo promptly
         if: always()
@@ -95,14 +98,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Verify mobile pixel dialogue and desktop isolation
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-pixel-browser.mjs
       - name: Verify mobile field resources, timer and altar directions
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-hud-browser.mjs
       - name: Recheck mobile command interactions
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
       - name: Verify automatic human styles and NPC Crow through real lobbies
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
       - name: Verify live explosion fixes and mobile ley presentation
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
         run: |
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
           NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-ley-browser.mjs
