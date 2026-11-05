@@ -1,0 +1,39 @@
+name: Bake mobile model sprites
+on:
+  push:
+    branches: ['preview/bake-scenery-20261105']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scenery:
+    runs-on: macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Prepare native browser
+        run: npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+      - name: Bake actual scenery models
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/bake-scenery-sprites.mjs
+      - name: Upload source-model sprite outputs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-scenery-model-sprites
+          path: |
+            web/public/assets/mobile-sprites/world-*.png
+            web/src/render/actors/mobileSpriteWorld.json
+            art/mobile-sprites/scenery-reference.json
+          if-no-files-found: error
+          retention-days: 14
