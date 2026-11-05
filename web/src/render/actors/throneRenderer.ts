@@ -8,6 +8,7 @@ import { buildAvatarRig, createAvatarMaterial, type AvatarRig, type AvatarUnifor
 
 export const THRONE_SCALE = 1.55;
 export const THRONE_PLATFORM_HEIGHT = .5;
+export const THRONE_WORLD_HEIGHT = THRONE_PLATFORM_HEIGHT + 3.9 * THRONE_SCALE;
 type Point = [number, number, number];
 
 /** Pipe-built reference silhouette: split asymmetrical black banners, not a generic royal chair. */
@@ -108,13 +109,14 @@ export class ThroneRenderer {
       v.group.position.set(altar.pos.x,ground,altar.pos.z); v.group.rotation.y=Math.atan2(w.map.effigy.x-altar.pos.x,w.map.effigy.z-altar.pos.z);
       v.u.uTime.value=this.ctx.time; v.u.uBeat.value=0;
       poseSeatedRuler(v.rig,this.ctx.time);
-      // Screen-flat bodies need upright depth, otherwise their raised pixels sit
-      // at foot depth behind their own rear banners. Real front furniture still occludes.
-      // The throne furniture remains 3D; its seated character is always a mobile sprite.
-      v.rig.mesh.visible = !v.group.visible || !this.ctx.shared.mobileSprites?.cast(f.id, {
-        id: -100000 - f.id, x: altar.pos.x, y: ground + THRONE_PLATFORM_HEIGHT, z: altar.pos.z,
-        yaw: v.group.rotation.y, height: v.rig.style.crown * THRONE_SCALE, moving: false, depthProfile: 'upright',
+      // Combined seated art contains the ruler, chair, desk, banners and platform.
+      // Hide the entire 3D assembly even while using default/loading sprite art.
+      const sprite = v.group.visible && !!this.ctx.shared.mobileSprites?.cast(f.id, {
+        id: -100000 - f.id, x: altar.pos.x, y: ground, z: altar.pos.z,
+        yaw: v.group.rotation.y, height: THRONE_WORLD_HEIGHT, fallbackHeight: v.rig.style.crown * THRONE_SCALE, moving: false,
       }, 'seated');
+      v.group.visible = v.group.visible && !sprite;
+      v.rig.mesh.visible = !sprite;
       v.rig.mesh.castShadow = v.rig.mesh.visible;
       v.group.updateMatrixWorld(true);
     }

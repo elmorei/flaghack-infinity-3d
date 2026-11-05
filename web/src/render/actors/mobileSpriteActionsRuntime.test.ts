@@ -13,6 +13,7 @@ vi.mock('./mobileSpriteActions.json', () => {
   return {default: {schemaVersion: 1, pages: [{image: '/assets/mobile-sprites/test-actions.webp', width: 128, height: 128}], clips: {
     'signifier:ko': {...clip, headRotationByCell: [[0, 0, -.7, -Math.PI / 2], [0, 0, .7, Math.PI / 2]], headAnchorByCell: Array.from({length: 2}, () => Array.from({length: 4}, () => [18, 12]))},
     'dr-beef-supreme:swing': {...clip},
+    'dr-beef-supreme:seated': {...clip, worldHeight: 6.545, includesFurniture: true},
     'flag:planted': {...clip, loop: true, poleTipByCell: [[ [15.5,30],[16,30],[16.5,30],[15,30] ],[ [15.5,30],[16,30],[16.5,30],[15,30] ]]},
   }}};
 });
@@ -48,6 +49,19 @@ describe('supplemental sprite state runtime', () => {
     expect(sample(101, 'ko').frame).toBe(3);
     expect(sample(101.1, 'idle').clip).toBe('idle');
     expect(sample(102, 'ko')).toMatchObject({clip: 'ko', frame: 0});
+  });
+  it('scales combined throne art to full assembly height while keeping default art at character height', () => {
+    const {sprites} = setup(), assemblyPose = {...pose, height: 6.545, fallbackHeight: pose.height};
+    sprites.cast(0, assemblyPose, 'seated'); sprites.end();
+    const batch = sprites.meshes[1].geometry, size = batch.getAttribute('aSize'), offset = batch.getAttribute('aOffset');
+    expect(size.getY(0)).toBeCloseTo(32 * 6.545 / 28);
+    expect((1 - 30 / 32) * size.getY(0) + offset.getY(0)).toBeCloseTo(0, 6);
+    expect(batch.getAttribute('aCenter').getY(0)).toBe(pose.y);
+    sprites.begin(); sprites.cast(0, {...pose, height: .6}, 'seated');
+    expect(batch.getAttribute('aSize').getY(0)).toBeCloseTo(32 * .6 / 28);
+    const fallback = setup(true, false).sprites; fallback.cast(0, assemblyPose, 'seated'); fallback.end();
+    expect(fallback.samples[0]).toMatchObject({clip: 'idle', requestedClip: 'seated'});
+    expect(fallback.mesh.geometry.getAttribute('aSize').getY(0)).toBeCloseTo(atlas.sheets['dr-beef-supreme'].cellHeight * pose.height / 224);
   });
   it('uses explicit elapsed action time rather than the global clock for authoritative actions', () => {
     const {sprites} = setup();
@@ -85,7 +99,7 @@ describe('supplemental sprite state runtime', () => {
   it('maps the visible flag pole tip to the exact anchor across every frame, facing and rotation', () => {
     const {sprites, ctx} = setup();
     for (const yaw of [0, Math.PI]) for (let frame = 0; frame < 4; frame++) for (const rotation of [0, .6, -1.2]) {
-      ctx.time = frame * .14 + .001; sprites.begin(); sprites.flag({...pose, yaw}, 'planted', {rotation});
+      ctx.time = frame * .14 + .001; sprites.begin(); sprites.flag({...pose, yaw, moving: true}, 'planted', {rotation});
       const geometry = sprites.meshes[1].geometry, uv = geometry.getAttribute('aRect');
       const size = geometry.getAttribute('aSize'), offset = geometry.getAttribute('aOffset');
       const row = sprites.samples[0].direction === 'front' ? 0 : 1;
@@ -100,10 +114,10 @@ describe('supplemental sprite state runtime', () => {
       expect(geometry.getAttribute('aCenter').getZ(0)).toBe(pose.z);
     }
   });
-  it('animates flag cloth independently of movement and retains rotation, highlight and glitch cues', () => {
+  it('animates flag cloth unless frozen for hoarded stock, retaining rotation, highlight and glitch cues', () => {
     const {ctx, sprites} = setup(); ctx.time = .29;
     const ribbon = new THREE.Color(0xe43a52);
-    sprites.flag(pose, 'planted', {rotation: .5, highlight: 1, glitch: .8, ribbon});
+    sprites.flag({...pose, moving: true}, 'planted', {rotation: .5, highlight: 1, glitch: .8, ribbon});
     expect(sprites.samples[0]).toMatchObject({clip: 'planted', frame: 2});
     const geometry = sprites.meshes[1].geometry;
     expect(geometry.getAttribute('aRotation').getX(0)).toBeCloseTo(.5);
@@ -112,5 +126,7 @@ describe('supplemental sprite state runtime', () => {
     expect(geometry.getAttribute('aRibbon').getX(0)).toBeCloseTo(ribbon.r);
     expect(geometry.getAttribute('aRibbon').getW(0)).toBe(1);
     expect(sprites.meshes[1].material.fragmentShader).toContain('vGlitch');
+    sprites.begin(); sprites.flag({...pose, moving: false}, 'planted');
+    expect(sprites.samples[0]).toMatchObject({clip: 'planted', frame: 0});
   });
 });

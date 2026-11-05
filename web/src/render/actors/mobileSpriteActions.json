@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "skinMaskEncoding": "alpha192",
   "pages": [
     {
       "image": "/assets/mobile-sprites/actions-0.webp",
@@ -46,16 +47,17 @@
           124
         ]
       ],
-      "frameDurationMs": 140,
+      "frameDurationMs": 240,
       "loop": true,
       "directionRows": {
         "front": 0,
         "away": 1
       },
-      "heightPixels": 144,
-      "source": "dr-beef-supreme-actions.webp",
-      "sourceSha256": "7ce1f01ad98b9a04019be6c7a59e9a6363d2b39aab4648332a17bbc128100561",
-      "includesFurniture": false
+      "heightPixels": 116,
+      "source": "combined-thrones.webp",
+      "sourceSha256": "e5f7057b01cf91eb0e41e8a5e5e08dbb4612fd3330b11537675314543d04a01d",
+      "includesFurniture": true,
+      "worldHeight": 6.545
     },
     "dr-beef-supreme:swing": {
       "page": 0,
@@ -655,16 +657,17 @@
           124
         ]
       ],
-      "frameDurationMs": 140,
+      "frameDurationMs": 240,
       "loop": true,
       "directionRows": {
         "front": 0,
         "away": 1
       },
-      "heightPixels": 144,
-      "source": "beelzebub-crow-actions.webp",
-      "sourceSha256": "0c99420196f236fbadcdd77ca39c55b9e5ecff5540351e8cd3e4f6a9fbb2ca87",
-      "includesFurniture": false
+      "heightPixels": 116,
+      "source": "combined-thrones.webp",
+      "sourceSha256": "e5f7057b01cf91eb0e41e8a5e5e08dbb4612fd3330b11537675314543d04a01d",
+      "includesFurniture": true,
+      "worldHeight": 6.545
     },
     "beelzebub-crow:swing": {
       "page": 0,
@@ -1264,16 +1267,17 @@
           124
         ]
       ],
-      "frameDurationMs": 140,
+      "frameDurationMs": 240,
       "loop": true,
       "directionRows": {
         "front": 0,
         "away": 1
       },
-      "heightPixels": 144,
-      "source": "dj-scarecrow-actions.webp",
-      "sourceSha256": "cf247c8ec1e697cb784d23967a1b62e9f242695a4b3b25c71b66a1ae34d8a512",
-      "includesFurniture": false
+      "heightPixels": 116,
+      "source": "combined-thrones.webp",
+      "sourceSha256": "e5f7057b01cf91eb0e41e8a5e5e08dbb4612fd3330b11537675314543d04a01d",
+      "includesFurniture": true,
+      "worldHeight": 6.545
     },
     "dj-scarecrow:swing": {
       "page": 1,
@@ -1873,16 +1877,17 @@
           124
         ]
       ],
-      "frameDurationMs": 140,
+      "frameDurationMs": 240,
       "loop": true,
       "directionRows": {
         "front": 0,
         "away": 1
       },
-      "heightPixels": 144,
-      "source": "president-jaguar-actions.webp",
-      "sourceSha256": "97596cd77edcf36295f17d6fb7203c6bd40275b727bb45b5d1b1b19c4793e8cc",
-      "includesFurniture": false
+      "heightPixels": 116,
+      "source": "combined-thrones.webp",
+      "sourceSha256": "e5f7057b01cf91eb0e41e8a5e5e08dbb4612fd3330b11537675314543d04a01d",
+      "includesFurniture": true,
+      "worldHeight": 6.545
     },
     "president-jaguar:swing": {
       "page": 1,

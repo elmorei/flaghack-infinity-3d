@@ -1,0 +1,50 @@
+name: Verify skin and combined throne sprites
+on:
+  push:
+    branches: ['preview/skin-throne-20261105']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-proof:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm test -- --maxWorkers=2 src/render/actors/mobileSprites.test.ts src/render/actors/throneRenderer.test.ts src/render/actors/mobileSpriteSkinParity.test.ts src/render/actors/mobileSpriteActionsRuntime.test.ts
+      - run: npm run build:pages
+      - name: Prepare native Chrome
+        run: |
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+          node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+      - name: Verify actual sprite pixels
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
+      - name: Upload skin and throne proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: skin-throne-native-proof
+          path: |
+            web/host-release/mobile-sprites-smoke/mobile-flat-sprites-demo.png
+            web/host-release/mobile-sprites-smoke/portrait-natural.png
+            web/host-release/mobile-sprites-smoke/demo-seated-combined.png
+            web/host-release/mobile-sprites-smoke/demo-seated-without.png
+            web/host-release/mobile-sprites-smoke/demo-proof.json
+            web/host-release/mobile-sprites-smoke/skin-tones-front.png
+            web/host-release/mobile-sprites-smoke/skin-tones-away.png
+            web/host-release/mobile-sprites-smoke/skin-proof.json
+            web/host-release/mobile-sprites-smoke/result.json
+            web/host-release/mobile-sprites-smoke/failure.png
+          if-no-files-found: warn
+          retention-days: 14
