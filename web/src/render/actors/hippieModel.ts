@@ -421,7 +421,13 @@ export interface HippieUniforms {
 }
 
 /** Palettes (sRGB hex; THREE.Color converts to linear for the shader). */
-const SKIN = [0xf6d2b5, 0xeab68f, 0xc98e63, 0x9c6a45, 0x6e4a31, 0x4a3122];
+export const HIPPIE_SKIN_TONES = [0xf6d2b5, 0xeab68f, 0xc98e63, 0x9c6a45, 0x6e4a31, 0x4a3122] as const;
+/** Same bucket boundaries as the model shader's int(vLookA.y * 5.999). */
+export function hippieSkinIndex(look: number): number {
+  const value = Math.fround(Math.max(0, Math.min(1, Number.isFinite(look) ? look : 0)));
+  // GPU attributes, literal and multiply are float32; preserve rare boundary identities.
+  return Math.floor(Math.fround(value * Math.fround(5.999)));
+}
 const HAIR = [0x2a1a10, 0x4b2e19, 0x7a4a24, 0xc9a25a, 0xe8d29a, 0xa4401e, 0x8a8a8a, 0x6a3fb0];
 const PANTS = [0x2f4a78, 0x3b3f46, 0x6b4a2e, 0x7a6a3a, 0x5a2f5f, 0x2f5a3a];
 const HAT = [0x8a5a2e, 0x2b2b2b, 0xd8c8a0, 0x3d6b3d, 0x7a2e2e, 0x2e4e7a, 0xc96a2e, 0x6a3a8a];
@@ -452,7 +458,7 @@ export function patchHippieMaterial(mat: THREE.Material, u: HippieUniforms, dept
         vLookD = aLook[3];`,
       );
     if (depth) return;
-    shader.uniforms.uSkin = { value: colorArray(SKIN) };
+    shader.uniforms.uSkin = { value: colorArray(HIPPIE_SKIN_TONES) };
     shader.uniforms.uHair = { value: colorArray(HAIR) };
     shader.uniforms.uPants = { value: colorArray(PANTS) };
     shader.uniforms.uHat = { value: colorArray(HAT) };

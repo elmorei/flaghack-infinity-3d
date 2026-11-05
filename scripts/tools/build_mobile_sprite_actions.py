@@ -11,9 +11,12 @@ import argparse
 import hashlib
 import json
 import statistics
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
+from mobile_sprite_skin import apply_action_skin_mask
+from compact_mobile_sprite_actions import compact_action_atlas
 
 ROOT = Path(__file__).resolve().parents[2]
 CELL, PAGE, PAD, FOOT = 128, 2048, 0, 124
@@ -102,11 +105,11 @@ def neck_point(image: Image.Image) -> tuple[float, float]:
     return (x, y + 2)
 
 
-def pack(root: Path = ROOT) -> dict:
+def build_canonical(root: Path = ROOT) -> tuple[list[Image.Image], dict]:
     source_dir = root / 'art/mobile-sprites'
     config = json.loads((source_dir / 'sources.json').read_text())
     pages: list[Image.Image] = []
-    manifest = {'schemaVersion': 1, 'pages': [], 'clips': {},
+    manifest = {'schemaVersion': 1, 'skinMaskEncoding': 'alpha192', 'pages': [], 'clips': {},
                 'sampling': {'filter': 'nearest', 'mipmaps': False, 'alphaThreshold': .5,
                              'note': 'Exact cell-edge UVs. All anchors use pixel-edge coordinates; transparent cell margins prevent neighboring-frame sampling.'},
                 'provenance': 'art/mobile-sprites/sources.json'}
@@ -116,7 +119,7 @@ def pack(root: Path = ROOT) -> dict:
     for source in config['sources']:
         path = source_dir / source['file']
         with Image.open(path) as original:
-            cells = source_cells(original, len(source['clips']))
+            cells = source_cells(original, source.get('rows', len(source['clips'])))
         source_hash = hashlib.sha256(path.read_bytes()).hexdigest()
         boxes = [cell.getchannel('A').getbbox() for row in cells for cell in row]
         extent = max(max(box[2] - box[0], box[3] - box[1]) for box in boxes)
@@ -131,6 +134,7 @@ def pack(root: Path = ROOT) -> dict:
         for row_index, name in enumerate(source['clips']):
             if name.startswith('_'):
                 continue
+            source_row = source.get('rowIndices', list(range(len(source['clips']))))[row_index]
             page_index, slot = divmod(next_slot, clips_per_page)
             next_slot += 1
             if page_index == len(pages):
@@ -147,8 +151,12 @@ def pack(root: Path = ROOT) -> dict:
                         heightPixels=height_pixels,
                         source=source['file'], sourceSha256=source_hash)
             if name == 'seated':
-                clip['includesFurniture'] = False
-                clip['heightPixels'] = 144
+                clip['includesFurniture'] = source.get('includesFurniture', False)
+                if clip['includesFurniture']:
+                    clip['worldHeight'] = source['worldHeight']
+                    clip['heightPixels'] = round(max(cell.getchannel('A').getbbox()[3] - cell.getchannel('A').getbbox()[1] for cell in cells[source_row]) * scale)
+                else:
+                    clip['heightPixels'] = 144
             if source.get('modularHead'):
                 clip['headAnchorByCell'] = [[], []]
                 clip['includesFlag'] = name == 'kneel'
@@ -161,7 +169,7 @@ def pack(root: Path = ROOT) -> dict:
                     clip['poleTipByCell'] = [[], []]
             for direction in range(2):
                 for frame in range(4):
-                    cell = cells[row_index][direction * 4 + frame]
+                    cell = cells[source_row][direction * 4 + frame]
                     box = cell.getchannel('A').getbbox()
                     body = cell.crop(box)
                     resized = body.resize((max(1, round(body.width * scale)), max(1, round(body.height * scale))), Image.Resampling.NEAREST)
@@ -188,15 +196,33 @@ def pack(root: Path = ROOT) -> dict:
     for alias, target in config.get('aliases', {}).items():
         assert target in manifest['clips'], target
         manifest['clips'][alias] = dict(manifest['clips'][target], aliasOf=target)
+    pages = [apply_action_skin_mask(page, root, index) for index, page in enumerate(pages)]
+    return pages, manifest
+
+
+def pack(root: Path = ROOT) -> dict:
+    canonical, manifest = build_canonical(root)
+    pages, manifest = compact_action_atlas(canonical, manifest, PAGE)
+    assert len(pages) < len(canonical), 'Compaction must remove a whole atlas page'
     output = root / 'web/public/assets/mobile-sprites'
+    written = set()
     for index, page in enumerate(pages):
-        path = output / f'actions-{index}.webp'
-        page.save(path, 'WEBP', lossless=True, method=6, exact=True)
+        encoded = BytesIO()
+        page.save(encoded, 'WEBP', lossless=True, method=6, exact=True)
+        content = encoded.getvalue()
+        digest = hashlib.sha256(content).hexdigest()[:12]
+        path = output / f'actions-{index}.{digest}.webp'
+        path.write_bytes(content)
+        written.add(path)
         with Image.open(path) as saved:
             assert saved.tobytes() == page.tobytes(), 'Lossless output mismatch'
         manifest['pages'].append({'image': f'/assets/mobile-sprites/{path.name}', 'width': PAGE, 'height': PAGE})
     target = root / 'web/src/render/actors/mobileSpriteActions.json'
     target.write_text(json.dumps(manifest, indent=2) + '\n')
+    for unused in output.glob('actions-*.webp'):
+        if unused not in written:
+            unused.unlink()
+    next_slot = sum('aliasOf' not in clip for clip in manifest['clips'].values())
     print(f"Packed {next_slot} action clips / {next_slot * 8} frames into {len(pages)} pages")
     return manifest
 

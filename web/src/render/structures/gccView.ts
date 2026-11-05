@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { angleDiff } from '../../sim/math';
 import type { GameEvent } from '../../sim/events';
 import type { Building } from '../../sim/types';
-import { BuildingView, SMOKE_GREY, SPARK_GOLD, type FrameInfo } from './buildingView';
+import { BuildingView, SMOKE_GREY, SPARK_GOLD, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { extrudeUp, flagCloth, pennantCloth, pentagon } from './shapes';
 import { GCC_TABLE_MAP_SIZE, GCC_TABLE_Y } from './tableMap';
@@ -448,6 +448,19 @@ export class GccView extends BuildingView {
 
     // Warm pool of light under the table after dusk.
     this.poolMat.opacity = this.wrecked ? 0 : f.night * 0.5 * this.body.scale.y;
+  }
+
+  protected override spritePresentation(b: Building, f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    const channel = active && !!b.gcc && b.gcc.channelUntil > f.world.time;
+    const moving = active && this.speed > 0.05;
+    return {
+      state: this.wrecked ? 'wreck' : channel ? 'channel' : moving ? 'moving' : 'idle',
+      moving: active && !this.wrecked,
+      // The wreck clip already includes the tipped cart and snapped mast. Rotating
+      // that whole image again would double the fall and move it off its contact.
+      rotation: this.body.rotation.z,
+      highlight: channel ? 0.5 + Math.sin(f.t * 9) * 0.25 : 0,
+    };
   }
 
   /** Blend between the standing cart (w = 0) and the wreck (w = 1). */

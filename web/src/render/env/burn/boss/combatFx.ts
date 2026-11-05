@@ -62,6 +62,8 @@ export class BossCombatFx {
   private readonly heldPiece = new THREE.Group();
   private readonly heldColor = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .7 });
   private readonly point = new THREE.Vector3();
+  /** The simulation removes its meal before the final swallowing animation ends. */
+  private heldBuildingKind: {id: number; kind: string} | null = null;
 
   constructor(private env: EnvContext, model: THREE.Group) {
     this.group.name = 'boss-combat-fx';
@@ -134,6 +136,7 @@ export class BossCombatFx {
 
   update(boss: BossState | null | undefined, now: number): void {
     this.group.visible = !!boss; this.held.visible = !!boss?.held;
+    if (boss?.held?.kind !== 'building') this.heldBuildingKind = null;
     this.deathAge.value = boss?.deathAt === null || boss?.deathAt === undefined ? -1 : Math.max(0, now - boss.deathAt);
     this.updateShields(boss, now);
     if (!boss) return;
@@ -172,6 +175,21 @@ export class BossCombatFx {
         }, 'carried', {ribbon: this.heldColor.color, rotation: flagSpriteRotation(m, this.env.ctx.camera)})) {
           this.heldFlag.visible = false;
         }
+      } else if (boss.held.kind === 'building' && sprites) {
+        const building = this.env.ctx.world.buildings?.get(boss.held.id);
+        if (building) this.heldBuildingKind = {id: building.id, kind: building.kind};
+        const kind = this.heldBuildingKind?.id === boss.held.id ? this.heldBuildingKind.kind : 'unknown';
+        this.heldBuilding.updateWorldMatrix(true, false);
+        const m = this.heldBuilding.matrixWorld.elements, scale = Math.hypot(m[4], m[5], m[6]);
+        // Keep the original held-target cue's bottom and size, including swallowing
+        // shrink. A late join after consumption gets a flat placeholder, not a house.
+        sprites.building(kind, {
+          id: -6000000 - boss.held.id,
+          x: m[12] - m[4] * .75, y: m[13] - m[5] * .75, z: m[14] - m[6] * .75,
+          yaw: Math.atan2(m[8], m[10]), height: 2.6 * scale, moving: true,
+        }, {ownerColor: this.heldColor.color, state: 'idle', rotation: flagSpriteRotation(m, this.env.ctx.camera),
+          disabled: building?.disabled, damage: building && building.maxHp > 0 ? Math.max(0, 1 - building.hp / building.maxHp) : 0});
+        this.heldBuilding.visible = false;
       }
     }
   }

@@ -19,7 +19,7 @@ import { isHoarding } from '../../sim/systems/economy';
 import { rtsThroneAltar } from '../../sim/rts';
 import { angleDiff } from '../../sim/math';
 import type { Building, FactionId } from '../../sim/types';
-import { BuildingView, SMOKE_GREY, type FrameInfo } from './buildingView';
+import { BuildingView, SMOKE_GREY, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import { createFireStyle, dampFireStyle, Fire, type FireStyle } from './fire';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { extrudeUp, flagCloth, pennantCloth, pentagon } from './shapes';
@@ -154,7 +154,7 @@ export class HearthView extends BuildingView {
     this.addStatic(kit.model('hearth-center', buildHearthCenter), this.center);
     this.fire = new Fire(kit, 3);
     this.fire.mesh.position.y = 0.1;
-    this.body.add(this.fire.mesh);
+    this.effects.add(this.fire.mesh);
 
     this.flag = new THREE.Mesh(kit.geometry('flagCloth', flagCloth), this.mats.get('cloth'));
     this.flag.scale.setScalar(2.3);
@@ -317,6 +317,20 @@ export class HearthView extends BuildingView {
           0,
         );
       }
+    }
+  }
+
+  protected override spritePresentation(b: Building, f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    const seated = b.faction >= 0 && rtsThroneAltar(f.world, b.faction as FactionId)?.id === b.id;
+    return { state: seated ? 'seated' : 'idle', moving: active, height: seated ? 2 : 8.41 };
+  }
+
+  protected override spriteAccessories(b: Building, f: FrameInfo): void {
+    const count = Math.min(RACK_SLOTS, f.stock.get(b.id) ?? 0);
+    const hoard = b.faction !== -1 && isHoarding(f.world, b.faction);
+    for (let i = 0; i < count; i++) {
+      const slot = rackSlot(i);
+      this.spriteStockFlag(f, i, Math.sin(slot.yaw) * slot.r, 0.02, Math.cos(slot.yaw) * slot.r, 1.55, !hoard);
     }
   }
 

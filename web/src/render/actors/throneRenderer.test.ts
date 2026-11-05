@@ -5,7 +5,7 @@ import { captureHearth } from '../../sim/systems/capture';
 import { consumeBuilding } from '../../sim/systems/boss';
 import { createMatch } from '../../sim/setup';
 import type { RenderContext } from '../context';
-import { buildThrone, poseSeatedRuler, ThroneRenderer, THRONE_PLATFORM_HEIGHT, THRONE_SCALE } from './throneRenderer';
+import { buildThrone, poseSeatedRuler, ThroneRenderer, THRONE_PLATFORM_HEIGHT, THRONE_SCALE, THRONE_WORLD_HEIGHT } from './throneRenderer';
 import { buildAvatarRig } from './avatarModels';
 import type { FactionId } from '../../sim/types';
 
@@ -107,18 +107,24 @@ it('faces the actual effigy from every camp without changing altar or roaming-av
 });
 
 
-it('replaces only the seated ruler with a foot-anchored sprite and preserves throne furniture', () => {
+it('replaces the entire throne assembly with a ground-anchored sprite', () => {
   const e = fixture(), cast = vi.fn(() => true);
   e.ctx.shared.mobileSprites = {cast} as unknown as NonNullable<RenderContext['shared']['mobileSprites']>;
   e.world.factions[0].controlMode = 'rts'; e.renderer.update();
   const altar = e.world.hearthOf(0)!;
   const throne = e.renderer.group.getObjectByName('rts-ruler-0')!;
   expect(cast).toHaveBeenCalledWith(0, expect.objectContaining({
-    x: altar.pos.x, y: 7 + THRONE_PLATFORM_HEIGHT, z: altar.pos.z, moving: false, depthProfile: 'upright',
+    x: altar.pos.x, y: 7, z: altar.pos.z, height: THRONE_WORLD_HEIGHT, fallbackHeight: 2.74 * THRONE_SCALE, moving: false,
   }), 'seated');
   expect(throne.getObjectByName('rts-seated-avatar-0')?.visible).toBe(false);
-  expect(throne.getObjectByName('rts-throne')?.visible).toBe(true);
+  expect(throne.visible).toBe(false);
+  // Hiding the presentation group must not suppress next frame's sprite submission.
+  cast.mockClear(); e.renderer.update(); expect(cast).toHaveBeenCalledOnce();
+  expect(throne.visible).toBe(false);
   e.world.factions[0].controlMode = 'avatar'; cast.mockClear(); e.renderer.update();
   expect(throne.visible).toBe(false); expect(cast).not.toHaveBeenCalled();
+  // Desktop restores both furniture and the seated model, without changing simulation.
+  e.ctx.shared.mobileSprites = undefined; e.world.factions[0].controlMode = 'rts'; e.renderer.update();
+  expect(throne.visible).toBe(true); expect(throne.getObjectByName('rts-seated-avatar-0')?.visible).toBe(true);
   e.renderer.dispose();
 });

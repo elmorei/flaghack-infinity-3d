@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from PIL import Image
+from mobile_sprite_skin import apply_base_skin_mask
 
 WIDTH, HEIGHT, PADDING = 2048, 4096, 2
 ROOT = Path(__file__).resolve().parents[2]
@@ -106,7 +107,17 @@ def build(source: Path, root: Path = ROOT) -> dict:
     for i in range(0, len(original_bytes), 4):
         if original_bytes[i + 3] >= 128:
             assert original_bytes[i:i + 3] == packed_bytes[i:i + 3]
+    # Store reviewed exposed-skin selection in unused cutout alpha. This does not
+    # alter rendered coverage, source RGB, or allocate another runtime texture.
+    cutout = apply_base_skin_mask(cutout, ROOT)
+    manifest['skinMaskEncoding'] = 'alpha192'
     cutout.save(image_path, format='WEBP', lossless=True, method=6, exact=True)
+    # Immutable runtime URLs keep a cached texture from disagreeing with the
+    # current manifest/skin encoding. The plain name remains an authoring alias.
+    image_bytes = image_path.read_bytes()
+    versioned = image_path.with_name(f'atlas-{hashlib.sha256(image_bytes).hexdigest()[:16]}.webp')
+    versioned.write_bytes(image_bytes)
+    manifest['image'] = f'/assets/mobile-sprites/{versioned.name}'
     json_path.write_text(json.dumps(manifest, indent=2) + '\n')
     # Verify lossless decode preserves every normalized pixel exactly.
     with Image.open(image_path) as saved:

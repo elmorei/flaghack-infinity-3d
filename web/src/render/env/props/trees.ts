@@ -243,6 +243,11 @@ export interface Forest {
 
 /** Trees on a jittered grid over the ring, dense at the border and thinning up the hills. */
 export function buildForest(half: number, seed: string, quality: PropBatches['quality']): Forest {
+  return { pine: forestPine(), broadleaf: forestBroadleaf(), sectors: buildForestPlacements(half, seed, quality) };
+}
+
+/** Shared placement-only layout: mobile never builds the corresponding 3D tree models. */
+export function buildForestPlacements(half: number, seed: string, quality: PropBatches['quality']): ForestSector[] {
   const tier = FOREST[quality];
   const rng = new Rng(`${seed}:forest`);
   const outer = half + FOREST_OUTER;
@@ -258,8 +263,8 @@ export function buildForest(half: number, seed: string, quality: PropBatches['qu
       if (rng.next() < keep) spots.push({ x, z });
     }
   }
-  const forest: Forest = { pine: forestPine(), broadleaf: forestBroadleaf(), sectors: [] };
-  for (let i = 0; i < FOREST_SECTORS; i++) forest.sectors.push({ pines: [], broadleaves: [] });
+  const sectors: ForestSector[] = [];
+  for (let i = 0; i < FOREST_SECTORS; i++) sectors.push({ pines: [], broadleaves: [] });
   const p = Math.min(1, tier.max / Math.max(1, spots.length));
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
@@ -275,8 +280,8 @@ export function buildForest(half: number, seed: string, quality: PropBatches['qu
     const color = new THREE.Color(pine ? rng.pick(PINE_GREENS) : rng.chance(0.08) ? rng.pick(AUTUMN) : rng.pick(BROAD_GREENS));
     color.multiplyScalar(rng.range(0.82, 1.1));
     const angle = Math.atan2(s.z, s.x) + Math.PI;
-    const sector = forest.sectors[Math.min(FOREST_SECTORS - 1, Math.floor((angle / (Math.PI * 2)) * FOREST_SECTORS))];
+    const sector = sectors[Math.min(FOREST_SECTORS - 1, Math.floor((angle / (Math.PI * 2)) * FOREST_SECTORS))];
     (pine ? sector.pines : sector.broadleaves).push({ matrix: new THREE.Matrix4().compose(pos, quat, scale), color });
   }
-  return forest;
+  return sectors;
 }

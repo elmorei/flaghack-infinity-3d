@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "mask": "actions-2-skin.webp",
+  "source": "web/public/assets/mobile-sprites/actions-2.webp",
+  "sourceRgbSha256": "080d441be7e900910b3a8c0f88da2fce7baa0ad0f6fbc037bbaea2713af94f4e",
+  "sourceCutoutSha256": "00a73815f87dffb9d28d938dcaedaad9757393061dcfcb2fa7a48a0680d090bf",
+  "maskPixelsSha256": "6a24d6eecd2ad2d7a62acfd6c9be3dc67b354204afb800d68e29ef25be0761cf",
+  "selectedPixels": 58443,
+  "cellCounts": {
+    "signifier:chop": [
+      [
+        526,
+        602,
+        624,
+        518
+      ],
+      [
+        426,
+        262,
+        599,
+        247
+      ]
+    ],
+    "signifier:kneel": [
+      [
+        496,
+        681,
+        655,
+        521
+      ],
+      [
+        416,
+        250,
+        265,
+        321
+      ]
+    ],
+    "signifier:tug": [
+      [
+        630,
+        614,
+        641,
+        566
+      ],
+      [
+        287,
+        274,
+        310,
+        251
+      ]
+    ],
+    "signifier:shove": [
+      [
+        534,
+        499,
+        625,
+        634
+      ],
+      [
+        320,
+        191,
+        222,
+        253
+      ]
+    ],
+    "signifier:kick": [
+      [
+        525,
+        435,
+        441,
+        546
+      ],
+      [
+        377,
+        235,
+        199,
+        330
+      ]
+    ],
+    "signifier:drum": [
+      [
+        624,
+        619,
+        566,
+        606
+      ],
+      [
+        344,
+        382,
+        241,
+        387
+      ]
+    ],
+    "signifier:dance": [
+      [
+        452,
+        527,
+        601,
+        577
+      ],
+      [
+        395,
+        509,
+        447,
+        533
+      ]
+    ],
+    "signifier:hammer": [
+      [
+        541,
+        529,
+        598,
+        496
+      ],
+      [
+        434,
+        347,
+        318,
+        260
+      ]
+    ],
+    "signifier:ko": [
+      [
+        551,
+        449,
+        513,
+        447
+      ],
+      [
+        466,
+        374,
+        432,
+        414
+      ]
+    ],
+    "signifier:stun": [
+      [
+        930,
+        902,
+        919,
+        885
+      ],
+      [
+        778,
+        791,
+        879,
+        837
+      ]
+    ],
+    "signifier:jump": [
+      [
+        728,
+        650,
+        755,
+        854
+      ],
+      [
+        568,
+        582,
+        571,
+        623
+      ]
+    ],
+    "signifier:hit": [
+      [
+        844,
+        892,
+        998,
+        871
+      ],
+      [
+        690,
+        845,
+        865,
+        708
+      ]
+    ],
+    "signifier:wobble": [
+      [
+        933,
+        895,
+        910,
+        920
+      ],
+      [
+        879,
+        916,
+        896,
+        802
+      ]
+    ]
+  },
+  "protectedSamples": [
+    [
+      "signifier:tug",
+      0,
+      0,
+      39,
+      50,
+      "wooden pole"
+    ],
+    [
+      "signifier:tug",
+      0,
+      1,
+      48,
+      113,
+      "wooden pole"
+    ],
+    [
+      "signifier:tug",
+      1,
+      2,
+      42,
+      107,
+      "wooden pole"
+    ],
+    [
+      "signifier:chop",
+      0,
+      3,
+      53,
+      108,
+      "stump face"
+    ],
+    [
+      "signifier:chop",
+      0,
+      2,
+      73,
+      32,
+      "axe handle"
+    ],
+    [
+      "signifier:chop",
+      1,
+      0,
+      96,
+      89,
+      "axe handle"
+    ],
+    [
+      "signifier:hammer",
+      0,
+      1,
+      42,
+      59,
+      "hammer handle"
+    ],
+    [
+      "signifier:hammer",
+      0,
+      3,
+      43,
+      107,
+      "wooden post"
+    ],
+    [
+      "signifier:drum",
+      0,
+      0,
+      78,
+      101,
+      "drum skin"
+    ],
+    [
+      "signifier:drum",
+      0,
+      1,
+      55,
+      97,
+      "drum skin"
+    ],
+    [
+      "signifier:drum",
+      1,
+      3,
+      39,
+      111,
+      "drum shell"
+    ],
+    [
+      "signifier:kneel",
+      0,
+      0,
+      47,
+      59,
+      "flag pole"
+    ],
+    [
+      "signifier:kneel",
+      0,
+      0,
+      30,
+      50,
+      "flag cloth"
+    ]
+  ],
+  "encoding": {
+    "transparent": 0,
+    "skin": 192,
+    "opaqueOther": 255
+  },
+  "review": "Authored semantic skin mask reviewed across all 104 action-body cells. Neck, forearms and hands included; clothing, boots, wood, tools, flags and drum surfaces excluded. Pale skin highlights retained. Dark-tone contact sheet reviewed after prop-boundary corrections. RGB and cutout silhouettes are unchanged."
+}

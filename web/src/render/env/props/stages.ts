@@ -118,6 +118,29 @@ export interface StageBuild {
 
 const FIXTURES = { low: 3, medium: 4, high: 6 };
 
+/** Presentation-only light rigs and name boards, with no stage model construction. */
+export function stagePresentation(stages: readonly Obstacle[], camps: SoundCamp[], quality: PropBatches['quality']): StageBuild {
+  const result: StageBuild = { rigs: [], signs: [] };
+  for (const o of stages) {
+    const camp = campFor(o, camps), color = new THREE.Color(camp ? camp.color : o.color);
+    const frame = frameOf(o.x, o.z, o.yaw), hx = o.hx, hz = o.hz, H = o.height;
+    const sw = hx * 2 * .86, sh = (H - 1.1) * .62, sy = 1.1 + (H - 1.1) * .53, sz = -hz + .425;
+    result.signs.push({ obstacleId: o.id,
+      corners: [toWorld(frame, -sw / 2, sy - sh / 2, sz), toWorld(frame, sw / 2, sy - sh / 2, sz),
+        toWorld(frame, sw / 2, sy + sh / 2, sz), toWorld(frame, -sw / 2, sy + sh / 2, sz)],
+      normal: new THREE.Vector3(Math.sin(o.yaw), 0, Math.cos(o.yaw)), name: camp?.name ?? 'Sound Camp', color });
+    const px = hx - .2, pz = hz - .2;
+    const count = Math.max(3, Math.min(FIXTURES[quality], Math.round(hx * 2 / 2.2)));
+    const fixtures = Array.from({ length: count }, (_, k) => toWorld(frame,
+      -px + .7 + (px * 2 - 1.4) * k / Math.max(1, count - 1), H - .7, pz + .17));
+    result.rigs.push({ obstacleId: o.id, fixtures,
+      right: new THREE.Vector3(Math.cos(o.yaw), 0, -Math.sin(o.yaw)),
+      forward: new THREE.Vector3(Math.sin(o.yaw), 0, Math.cos(o.yaw)),
+      color, front: toWorld(frame, 0, 0, hz), hx, hz, frame });
+  }
+  return result;
+}
+
 export function buildStages(stages: Obstacle[], camps: SoundCamp[], kit: ClutterKit, out: PropBatches): StageBuild {
   const result: StageBuild = { rigs: [], signs: [] };
   for (const o of stages) {

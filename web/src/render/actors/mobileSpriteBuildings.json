@@ -1,0 +1,726 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    {
+      "image": "/assets/mobile-sprites/buildings-0-ea5880b8cc3c.png",
+      "width": 2048,
+      "height": 2048
+    }
+  ],
+  "clips": {
+    "building:hearth:idle": {
+      "page": 0,
+      "x": 0,
+      "y": 0,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        109
+      ],
+      "footYByCell": [
+        [
+          109,
+          109,
+          109,
+          109
+        ],
+        [
+          109,
+          109,
+          109,
+          109
+        ],
+        [
+          109,
+          109,
+          109,
+          109
+        ],
+        [
+          109,
+          109,
+          109,
+          109
+        ]
+      ],
+      "heightPixels": 92.84266780802773,
+      "worldHeight": 8.41,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:hearth:seated": {
+      "page": 0,
+      "x": 512,
+      "y": 0,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        80
+      ],
+      "footYByCell": [
+        [
+          80,
+          80,
+          80,
+          80
+        ],
+        [
+          80,
+          80,
+          80,
+          80
+        ],
+        [
+          80,
+          80,
+          80,
+          80
+        ],
+        [
+          80,
+          80,
+          80,
+          80
+        ]
+      ],
+      "heightPixels": 33.63044913219075,
+      "worldHeight": 2,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:workshop:idle": {
+      "page": 0,
+      "x": 1024,
+      "y": 0,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        91
+      ],
+      "footYByCell": [
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ]
+      ],
+      "heightPixels": 64.05979009860894,
+      "worldHeight": 3,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:workshop:working": {
+      "page": 0,
+      "x": 1536,
+      "y": 0,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        91
+      ],
+      "footYByCell": [
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ],
+        [
+          91,
+          91,
+          91,
+          91
+        ]
+      ],
+      "heightPixels": 64.05979009860894,
+      "worldHeight": 3,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:drumcircle:idle": {
+      "page": 0,
+      "x": 0,
+      "y": 512,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        88
+      ],
+      "footYByCell": [
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ]
+      ],
+      "heightPixels": 50.19451141849568,
+      "worldHeight": 2.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:drumcircle:active": {
+      "page": 0,
+      "x": 512,
+      "y": 512,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        88
+      ],
+      "footYByCell": [
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ],
+        [
+          88,
+          88,
+          88,
+          88
+        ]
+      ],
+      "heightPixels": 50.19451141849568,
+      "worldHeight": 2.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:ward:idle": {
+      "page": 0,
+      "x": 1024,
+      "y": 512,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        111
+      ],
+      "footYByCell": [
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ]
+      ],
+      "heightPixels": 97.61647605632119,
+      "worldHeight": 5.405,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:ward:pulse": {
+      "page": 0,
+      "x": 1536,
+      "y": 512,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        111
+      ],
+      "footYByCell": [
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ],
+        [
+          111,
+          111,
+          111,
+          111
+        ]
+      ],
+      "heightPixels": 97.62114346506023,
+      "worldHeight": 5.405,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:druglab:idle": {
+      "page": 0,
+      "x": 0,
+      "y": 1024,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        92
+      ],
+      "footYByCell": [
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ]
+      ],
+      "heightPixels": 58.8336675350815,
+      "worldHeight": 3.2,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:druglab:brewing": {
+      "page": 0,
+      "x": 512,
+      "y": 1024,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        92
+      ],
+      "footYByCell": [
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ],
+        [
+          92,
+          92,
+          92,
+          92
+        ]
+      ],
+      "heightPixels": 58.8336675350815,
+      "worldHeight": 3.2,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:gcc:idle": {
+      "page": 0,
+      "x": 1024,
+      "y": 1024,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        107
+      ],
+      "footYByCell": [
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ]
+      ],
+      "heightPixels": 87.09505287740474,
+      "worldHeight": 3.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:gcc:moving": {
+      "page": 0,
+      "x": 1536,
+      "y": 1024,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        105
+      ],
+      "footYByCell": [
+        [
+          105,
+          105,
+          105,
+          105
+        ],
+        [
+          105,
+          105,
+          105,
+          105
+        ],
+        [
+          105,
+          105,
+          105,
+          105
+        ],
+        [
+          105,
+          105,
+          105,
+          105
+        ]
+      ],
+      "heightPixels": 85.45721521128942,
+      "worldHeight": 3.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:gcc:channel": {
+      "page": 0,
+      "x": 0,
+      "y": 1536,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        107
+      ],
+      "footYByCell": [
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ],
+        [
+          107,
+          107,
+          107,
+          107
+        ]
+      ],
+      "heightPixels": 87.09505287740474,
+      "worldHeight": 3.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    },
+    "building:gcc:wreck": {
+      "page": 0,
+      "x": 512,
+      "y": 1536,
+      "w": 512,
+      "h": 512,
+      "cellWidth": 128,
+      "cellHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "anchor": [
+        64,
+        97
+      ],
+      "footYByCell": [
+        [
+          97,
+          97,
+          97,
+          97
+        ],
+        [
+          97,
+          97,
+          97,
+          97
+        ],
+        [
+          97,
+          97,
+          97,
+          97
+        ],
+        [
+          97,
+          97,
+          97,
+          97
+        ]
+      ],
+      "heightPixels": 69.95227483319785,
+      "worldHeight": 3.4,
+      "frameDurationMs": 140,
+      "loop": true,
+      "directionRows": {
+        "front": 0,
+        "right": 1,
+        "away": 2,
+        "left": 3
+      }
+    }
+  }
+}

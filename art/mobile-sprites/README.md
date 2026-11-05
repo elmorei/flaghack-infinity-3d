@@ -31,9 +31,12 @@ have perfectly uniform spacing.
   transform. The source grid also contains a diagonal flight preview, intentionally
   not packed so the runtime does not rotate it twice.
 
-There are 96 concrete clips, 768 frames and ten explicit aliases in three 2048²
+There are 96 concrete clips, 768 frames and ten explicit aliases in two 2048²
 pages. Each clip has four frames in each of the front and away directions. Seated
-leader art contains only the character, retaining the existing throne furniture.
+leader art includes the entire split-banner throne, front desk and pentagonal
+platform. Its ground anchor represents the bottom edge of the platform, and its
+world height is 6.545 metres, matching the original assembly. Mobile hides the
+entire matching 3D ruler/throne group.
 Unknown future animation names use default sprite art, not visible 3D characters.
 
 ## Art briefs used
@@ -43,7 +46,8 @@ outlines and shaded chibi game style, with a genuine transparent background; fou
 front action frames followed by four rear frames on each row; no labels, grid,
 scenery or shadows; and complete figures within each cell.
 
-- Leader action grids: seated on an invisible chair (body only), sweeping staff
+- Leader action grids: the initial body-only seated row is retained as unused
+  source material and replaced by the combined throne grid; sweeping staff
   attack, overhand throw, planting, tugging, wide-arm alignment, gesturing channel,
   and pushing an invisible cart. Preserve each source character's distinct head,
   clothes, staff and faction palette.
@@ -62,20 +66,53 @@ scenery or shadows; and complete figures within each cell.
   correction explicitly removed every spherical finial from every flag state.
   All final poles have plain flat-cut wooden ends, with no ball ornaments.
 
+The combined throne revision uses the original procedural throne geometry and a
+front-view in-game reference: asymmetrical split black banners, faction-colour
+diagonal stripes, silver pipe frame, narrow black desk and grey pentagonal
+platform. The four leaders retain their original identity and have four front
+and four rear idle frames each. These replace the existing seated atlas slots;
+no additional atlas page is needed.
+
 ## Coordinates and rendering
 
 Anchors are **pixel-edge coordinates**, not pixel indices. Cell UVs use the exact
 cell edges, nearest sampling and no mipmaps; each cell has transparent margins.
-The lowest opaque edge is at y=124. Standing flags additionally carry
+The canonical authoring cells have their lowest opaque edge at y=124. Standing flags additionally carry
 `poleTipByCell`, measured from the actual final pixels: x is the centroid of the
 lowest opaque row's pixel centres, and y is that row's lower edge. This allows
 half-pixel x coordinates and aligns the planted pole's bottom tip exactly to the
 authoritative node centre without animation-frame drift.
 
+The final packing step losslessly crops only transparent margins, using one
+uniform crop across all eight cells of each clip. Each resulting cell retains a
+one-pixel transparent border. The smaller cells are repacked, without scaling or
+rotation, into two pages instead of three, saving 16 MiB of RGBA texture memory.
+`cropOrigin` records the canonical offset; anchors, foot edges, head attachments
+and pole tips subtract that offset, while `heightPixels` stays unchanged. Exact
+reconstruction tests compare every original RGBA byte and camera-space pixel
+position. The canonical 128px layout and reviewed skin masks remain the build
+inputs, so packing cannot invalidate or silently reinterpret the masks.
+Runtime page filenames include their content hash, preventing a cached old atlas
+from being interpreted with a new layout after an update.
+
 Flag cloth stays yellow. The standalone white ribbon is tinted at runtime for
 ownership; modular figures with baked flags use a separate ownership cue so
 clothing and skin are not tinted. Only `signifier:kneel` has a baked flag among
 the new action clips (`includesFlag: true`).
+
+## Seeded skin-tone parity
+
+The modular Signifier heads, walking bodies and all 104 action-body frames use
+reviewed semantic skin masks in `masks/`. The six colours are shared with the
+original seeded model. Skin regions include faces, ears, necks, arms and hands;
+hair, eyes, clothes, wooden props, tools, flags and drum surfaces remain unchanged.
+
+Packed texture alpha carries the mask without an extra mobile GPU texture:
+transparent pixels are 0, skin pixels 192, and other opaque pixels 255. The
+renderer treats both opaque values as full-coverage cutouts and recolours only
+192 when a Signifier skin tone is supplied. Original RGB and silhouettes remain
+byte-for-byte unchanged. Mask review JSON pins the RGB, cutout and mask hashes,
+so changing art requires explicit mask re-review rather than colour guessing.
 
 ## Rebuild and verify
 
@@ -84,11 +121,13 @@ From the repository root, with Python and Pillow installed:
 ```sh
 python scripts/tools/build_mobile_sprite_actions.py
 python scripts/tools/test_mobile_sprite_actions.py
+python scripts/tools/test_mobile_sprite_skin.py
 ```
 
-The pixel tests verify coverage, dimensions, binary alpha, nonempty cells, clear
+The pixel tests verify coverage, dimensions, semantic alpha, nonempty cells, clear
 margins, post-resize foot edges, real frame differences in both directions, exact
 flag-tip metadata, yellow/white flag colours, absence of red extraction artifacts,
-and modular head metadata. Review the resulting pages and personalized-head
+modular head metadata, preserved RGB, skin coverage and protected prop pixels.
+Review the resulting pages and personalized-head
 composites visually as well. Runtime and browser tests are separate checks; these
 pixel tests do not establish browser performance or visual integration by themselves.

@@ -49,6 +49,19 @@ export const SMOKE_GREY = new THREE.Color(0x6a6560);
 export const DUST_TAN = new THREE.Color(0xb59c78);
 export const SPARK_GOLD = new THREE.Color(0xffc040);
 export const BLUEPRINT_CYAN = 0x8fe9ff;
+/** Full visible assembly height, not the shorter collision proxy. */
+export const BUILDING_SPRITE_HEIGHT: Record<BuildingKind, number> = {
+  hearth: 8.41, workshop: 3, drumcircle: 2.4, ward: 5.405, druglab: 3.2, gcc: 3.4,
+};
+
+/** Presentation-only state consumed by the shared mobile atlas renderer. */
+export interface BuildingSpritePresentation {
+  state: string;
+  moving: boolean;
+  height?: number;
+  rotation?: number;
+  highlight?: number;
+}
 
 const POP_TIME = 0.55;
 const TAU = Math.PI * 2;
@@ -88,6 +101,8 @@ export abstract class BuildingView {
   readonly root = new THREE.Group();
   /** Pop scale and disabled tilt apply here; models live under it. */
   protected readonly body = new THREE.Group();
+  /** Billboard fire and ground/range effects must survive replacement of the model. */
+  protected readonly effects = new THREE.Group();
   protected readonly kit: StructureKit;
   protected readonly mats: MaterialSet;
   /** Model height (construction reveal, smoke anchor). */
@@ -105,6 +120,7 @@ export abstract class BuildingView {
   private tilt = 0;
   private disabledSmokeAcc = 0;
   private constructionDustAcc = 0;
+  private readonly accessoryPoint = new THREE.Vector3();
 
   constructor(kit: StructureKit, b: Building, height: number, radius: number) {
     this.kit = kit;
@@ -114,7 +130,10 @@ export abstract class BuildingView {
     this.radius = radius;
     this.seed = (b.id * 2654435761) % 1000;
     this.mats = new MaterialSet(kit);
-    this.root.add(this.body);
+    this.root.name = `building-${b.kind}-${b.id}`;
+    this.body.name = `building-models-${b.id}`;
+    this.effects.name = `building-effects-${b.id}`;
+    this.root.add(this.body, this.effects);
   }
 
   /** Add a cached static model under `parent` (default: body); it joins the blueprint. */
@@ -138,6 +157,12 @@ export abstract class BuildingView {
     this.syncCondition(b, f);
     const active = b.built >= 1 && !b.disabled;
     this.animate(b, f, active);
+    // Effects keep the same completion pop/disabled transform as before, but are
+    // not children of the hidden model group in mobile presentation.
+    this.effects.position.copy(this.body.position);
+    this.effects.quaternion.copy(this.body.quaternion);
+    this.effects.scale.copy(this.body.scale);
+    this.syncMobileSprite(b, f, active);
   }
 
   /** Default placement: on the facet centre, facing the facet's long diagonal. */
@@ -154,6 +179,46 @@ export abstract class BuildingView {
 
   /** Kind-specific animation. `active` = built and not disabled. */
   protected abstract animate(b: Building, f: FrameInfo, active: boolean): void;
+
+  protected spritePresentation(_b: Building, _f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    return { state: 'idle', moving: active };
+  }
+
+  /** Optional real inventory sprites, not a stock count baked into building artwork. */
+  protected spriteAccessories(_b: Building, _f: FrameInfo): void {}
+
+  protected spriteStockFlag(f: FrameInfo, index: number, x: number, y: number, z: number, height: number, moving = true): void {
+    const sprites = f.ctx.shared.mobileSprites;
+    if (!sprites) return;
+    this.body.updateWorldMatrix(true, false);
+    const p = this.accessoryPoint.set(x, y, z).applyMatrix4(this.body.matrixWorld);
+    sprites.flag({
+      id: -2000000000 - this.id * 64 - index,
+      x: p.x, y: p.y, z: p.z, yaw: f.windYaw,
+      height: height * this.body.scale.y, moving,
+    }, 'planted', { ribbon: this.factionColor });
+  }
+
+  private syncMobileSprite(b: Building, f: FrameInfo, active: boolean): void {
+    const sprites = f.ctx.shared.mobileSprites;
+    this.body.visible = !sprites;
+    if (this.scaffold) this.scaffold.group.visible = !sprites;
+    if (!sprites || (f.world.boss?.held?.kind === 'building' && f.world.boss.held.id === b.id)) return;
+    const visual = this.spritePresentation(b, f, active), p = this.root.position;
+    sprites.building(b.kind, {
+      id: -6000000 - b.id, x: p.x, y: p.y, z: p.z, yaw: this.root.rotation.y,
+      height: (visual.height ?? BUILDING_SPRITE_HEIGHT[b.kind]) * this.body.scale.y,
+      moving: visual.moving,
+    }, {
+      state: visual.state, ownerColor: this.factionColor,
+      buildProgress: Math.max(0, Math.min(1, b.built)),
+      damage: b.maxHp > 0 ? Math.max(0, Math.min(1, (0.5 - b.hp / b.maxHp) * 2)) : 0,
+      disabled: b.disabled, highlight: visual.highlight,
+      rotation: visual.rotation ?? this.body.rotation.z,
+      scaleX: this.body.scale.x / Math.max(0.001, this.body.scale.y),
+    });
+    this.spriteAccessories(b, f);
+  }
 
   onEvent(e: GameEvent, f: FrameInfo): void {
     if (e.t === 'buildingDisabled' && e.buildingId === this.id) {

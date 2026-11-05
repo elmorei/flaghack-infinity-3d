@@ -14,6 +14,9 @@ import type { GameEvent } from '../../sim/events';
 import type { RenderContext, RenderModule } from '../context';
 import { burnStartFor } from './burn/burnTimeline';
 import { Effigy } from './burn/effigy';
+import { MobileEffigy } from './burn/mobileEffigy';
+import { MobilePropField } from './props/mobilePropField';
+import { MobileLumberPiles } from './piles/mobileLumberPiles';
 import { BURN_CHAR_SECONDS } from './envTypes';
 import type { BurnState, EnvContext, EnvPart } from './envTypes';
 import { GrassField } from './grass';
@@ -83,7 +86,11 @@ export class EnvRenderer implements RenderModule {
     const ground = new Ground(env);
     this.parts = [lighting, new SkyDome(env), ground];
     if (ctx.quality === 'high') this.parts.push(new GrassField(env, ground.typeTexture));
-    this.parts.push(new PropField(env), new Effigy(env), new LumberPiles(env), new AmbientParticles(env, ground.typeTexture), new BurnRain(env));
+    // Mobile skips model construction rather than hiding a second copy under its sprites.
+    this.parts.push(...(ctx.shared.mobileSprites
+      ? [new MobilePropField(env), new MobileEffigy(env), new MobileLumberPiles(env)]
+      : [new PropField(env), new Effigy(env), new LumberPiles(env)]),
+      new AmbientParticles(env, ground.typeTexture), new BurnRain(env));
   }
 
   update(dt: number): void {

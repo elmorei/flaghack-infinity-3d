@@ -69,8 +69,8 @@ function foldedFabric(): THREE.BufferGeometry {
 export class WreckageRenderer implements RenderModule {
   readonly group = new THREE.Group();
   private meshes: THREE.InstancedMesh[] = [];
-  private material = new THREE.MeshStandardMaterial({ roughness: .93, metalness: .12, flatShading: true, side: THREE.DoubleSide });
-  private geometries = [brokenSlab(), new THREE.IcosahedronGeometry(.65, 0), foldedFabric()];
+  private material: THREE.MeshStandardMaterial | null = null;
+  private geometries: THREE.BufferGeometry[] = [];
   private lastScenery = -1;
   private lastWreckage: Wreckage[] | null = null;
   private lastIds = '';
@@ -79,10 +79,15 @@ export class WreckageRenderer implements RenderModule {
   private readonly obstacleById;
   constructor(private ctx: RenderContext) {
     this.group.name = 'persistent-structure-wreckage'; ctx.scene.add(this.group);
+    if (!ctx.shared?.mobileSprites) {
+      this.material = new THREE.MeshStandardMaterial({ roughness: .93, metalness: .12, flatShading: true, side: THREE.DoubleSide });
+      this.geometries = [brokenSlab(), new THREE.IcosahedronGeometry(.65, 0), foldedFabric()];
+    }
     this.obstacleById = new Map(ctx.world.map.obstacles.map(o => [o.id, o]));
     this.update(0);
   }
   update(_dt: number): void {
+    if (this.ctx.shared?.mobileSprites) { this.renderSprites(); return; }
     const w = this.ctx.world, ids = `${w.wreckage.length}:${w.wreckage[0]?.id}:${w.wreckage.at(-1)?.id}`;
     if (this.lastScenerySet === w.destroyedScenery && this.lastScenery === w.destroyedScenery.size && this.lastWreckage === w.wreckage && this.lastIds === ids) return;
     this.lastScenerySet = w.destroyedScenery; this.lastScenery = w.destroyedScenery.size; this.lastWreckage = w.wreckage; this.lastIds = ids;
@@ -98,7 +103,7 @@ export class WreckageRenderer implements RenderModule {
       for (const m of this.meshes) { this.group.remove(m); m.dispose(); }
       this.capacity = capacity;
       this.meshes = this.geometries.map((g, i) => {
-        const m = new THREE.InstancedMesh(g, this.material, capacity); m.name = `wreckage-fragments-${i}`;
+        const m = new THREE.InstancedMesh(g, this.material!, capacity); m.name = `wreckage-fragments-${i}`;
         m.castShadow = false; m.receiveShadow = true; this.group.add(m); return m;
       });
     }
@@ -119,8 +124,25 @@ export class WreckageRenderer implements RenderModule {
       if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere();
     }
   }
+  private renderSprites(): void {
+    const w = this.ctx.world, sprites = this.ctx.shared.mobileSprites!;
+    const records: Wreckage[] = [...w.wreckage];
+    for (const id of [...w.destroyedScenery].sort((a, b) => a - b)) {
+      const o = this.obstacleById.get(id); if (!o || o.kind === 'effigy') continue;
+      records.push({ id: `scenery:${id}`, kind: o.kind,
+        pos: { x: o.x, y: groundHeight(o.x, o.z, w.map.half), z: o.z },
+        size: { x: 2 * (o.shape === 'circle' ? o.radius : o.hx), y: o.height, z: 2 * (o.shape === 'circle' ? o.radius : o.hz) }, yaw: o.yaw });
+    }
+    records.forEach((r, index) => {
+      const width = Math.max(.2, r.size.x, r.kind === 'wall' ? r.size.y * .5 : 0), depth = Math.max(.2, r.size.z);
+      const height = Math.max(.18, Math.min(r.size.y * .32, Math.min(width, depth) * .45));
+      sprites.object(`wreckage:${wreckageStyle(r.kind)}`, {
+        id: -4000000 - index, x: r.pos.x, y: groundHeight(r.pos.x, r.pos.z, w.map.half), z: r.pos.z, yaw: r.yaw, height, moving: false,
+      }, { width: Math.max(width, depth) });
+    });
+  }
   dispose(): void {
     this.ctx.scene.remove(this.group); for (const m of this.meshes) m.dispose();
-    for (const g of this.geometries) g.dispose(); this.material.dispose();
+    for (const g of this.geometries) g.dispose(); this.material?.dispose();
   }
 }

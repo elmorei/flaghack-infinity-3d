@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { WORKSHOP_FLAG_CAPACITY } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import type { Building } from '../../sim/types';
-import { BuildingView, DUST_TAN, SPARK_GOLD, type FrameInfo } from './buildingView';
+import { BuildingView, DUST_TAN, SPARK_GOLD, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { buildBunting, flagCloth } from './shapes';
 import { damp } from './util';
@@ -181,5 +181,15 @@ export class WorkshopView extends BuildingView {
       const a = (i / 18) * Math.PI * 2;
       f.sparks.emit(p.x, p.y + 1.3, p.z, Math.cos(a) * 1.6, 1.8 + Math.random(), Math.sin(a) * 1.6, 0.1, 0.03, 0.9, FLAG_YELLOW_LINEAR, 1, -2);
     }
+  }
+
+  protected override spritePresentation(_b: Building, _f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    const working = active && this.working > 0.1;
+    return { state: working ? 'working' : 'idle', moving: active };
+  }
+
+  protected override spriteAccessories(b: Building, f: FrameInfo): void {
+    const count = Math.min(WORKSHOP_FLAG_CAPACITY, f.stock.get(b.id) ?? 0);
+    for (let i = 0; i < count; i++) this.spriteStockFlag(f, i, -1.2 + (i % 5) * 0.48, 0.05, 1.5 + Math.floor(i / 5) * 0.25, 1.2);
   }
 }

@@ -29,6 +29,38 @@ test('all third-party actions are immutable and builds have no write token', () 
     assert.ok(!workflow.jobs[id].steps.some(step => /gh release|git push/.test(step.run || '')));
   }
 });
+
+test('live browser audit reads the exact deployed main build without publication credentials', () => {
+  const live = workflow.jobs['live-browser'];
+  assert.deepEqual(live.needs, ['deploy-pages']);
+  assert.equal(live['runs-on'], 'macos-15');
+  assert.match(live.if, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(live.if, /github\.event_name != 'pull_request'/);
+  assert.equal(live.permissions, undefined);
+  assert.equal(live.env.FLAGHACK_VERIFY_URL, 'https://elmorei.github.io/flaghack-infinity-3d/');
+  const checkout = live.steps.find(step => step.uses?.startsWith('actions/checkout@'));
+  assert.equal(checkout.with.ref, '${{ github.sha }}');
+  assert.equal(checkout.with['persist-credentials'], false);
+  const runs = live.steps.map(step => step.run || '').join('\n');
+  assert.match(runs, /build\.build === process\.env\.GITHUB_SHA/);
+  assert.match(runs, /verify-mobile-sprites-browser\.mjs/);
+  assert.doesNotMatch(runs, /gh release|git push|--no-sandbox|--ignore-gpu-blocklist|--enable-unsafe/);
+  const evidence = live.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'));
+  assert.equal(evidence.if, 'always()');
+  assert.equal(evidence.with.name, 'live-mobile-sprite-proof');
+  assert.match(evidence.with.path, /result\.json/);
+  assert.match(evidence.with.path, /skin-tones-\*\.png/);
+  assert.match(evidence.with.path, /world-sprites-\*\.png/);
+  assert.match(evidence.with.path, /building-sprites-\*\.png/);
+});
+test('source-model sprite atlas pixels are validated before preview and live builds', () => {
+  const preview = yaml.load(readFileSync(join(__dirname, '../../.github/workflows/mobile-sprites-preview.yml'), 'utf8'));
+  for (const job of [workflow.jobs.client, preview.jobs['full-checks']]) {
+    const runs = job.steps.map(step => step.run || '').join('\n');
+    assert.match(runs, /node scripts\/verify-building-atlas\.cjs/);
+    assert.match(runs, /node scripts\/verify-scenery-atlas\.cjs/);
+  }
+});
 test('immutable releases are checksummed and never overwritten', () => {
   const publish = workflow.jobs['publish-host'].steps.find(step => step.run)?.run;
   assert.match(publish, /sha256sum --check/);

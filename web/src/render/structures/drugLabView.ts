@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import type { GameEvent } from '../../sim/events';
 import type { Building, DrugId } from '../../sim/types';
-import { BuildingView, type FrameInfo } from './buildingView';
+import { BuildingView, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import { Fire } from './fire';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { damp } from './util';
@@ -135,7 +135,7 @@ export class DrugLabView extends BuildingView {
     this.fire.style.body.setRGB(1, 0.42, 0.08);
     this.fire.style.streak.setRGB(1, 0.42, 0.08);
     this.fire.mesh.position.set(STILL_X, 0.04, STILL_Z);
-    this.body.add(this.fire.mesh);
+    this.effects.add(this.fire.mesh);
     this.thumper = new THREE.Mesh(
       kit.geometry('thumper', () => new THREE.SphereGeometry(0.1, 12, 8, 0, TAU, 0, Math.PI / 2)),
       this.mats.get('copper'),
@@ -190,6 +190,11 @@ export class DrugLabView extends BuildingView {
       this.tint.setHSL(e.drug === 'acidcop' ? i / 30 : e.drug === 'saffron' ? 0.13 : 0.72, 0.9, 0.65);
       f.sparks.emit(p.x, p.y + 2.4, p.z, Math.cos(a) * 2.2, 1.5 + Math.random(), Math.sin(a) * 2.2, 0.1, 0.03, 1.1, this.tint, 1, -1.5);
     }
+  }
+
+  protected override spritePresentation(_b: Building, _f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    const brewing = active && this.brewing !== null;
+    return { state: brewing ? 'brewing' : 'idle', moving: brewing };
   }
 
   override dispose(): void {

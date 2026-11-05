@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import type { RenderContext } from '../context';
 import atlas from './mobileSpriteAtlas.json';
 import actionAtlas from './mobileSpriteActions.json';
+import worldAtlas from './mobileSpriteWorld.json';
+import buildingAtlas from './mobileSpriteBuildings.json';
 import { HL } from './hippieModel';
-import { CAST_SHEETS, MobileSprites, signifierBody, signifierHead, signifierLayers, spriteDirection, spriteFrame, spriteUprightDepth, supportsSignifierAnimation, type SpritePose } from './mobileSprites';
+import { CAST_SHEETS, MobileSprites, signifierBody, signifierHead, signifierLayers, spriteDirection, spriteFrame, supportsSignifierAnimation, type SpritePose } from './mobileSprites';
 const pose = (id = 0, yaw = 0): SpritePose => ({id, x: 0, y: 0, z: 0, yaw, height: 2.24, moving: false});
 let texture: THREE.Texture<HTMLImageElement>, loaded: (texture: THREE.Texture<HTMLImageElement>) => void, failed: () => void;
 const instances: MobileSprites[] = [];
@@ -25,8 +28,8 @@ function expectCell(sprites: MobileSprites, index: number, key: keyof typeof atl
 beforeEach(() => {
   loads.length = 0;
   vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation((url, onLoad, _progress, onError) => {
-    const base = url.endsWith('/atlas.webp');
-    const page = (actionAtlas.pages as {image: string; width: number; height: number}[]).find(page => url.endsWith(page.image));
+    const base = url.endsWith(atlas.image);
+    const page = ([...actionAtlas.pages, ...worldAtlas.pages, ...buildingAtlas.pages] as {image: string; width: number; height: number}[]).find(page => url.endsWith(page.image));
     const next = new THREE.Texture<HTMLImageElement>();
     next.image = {width: base ? atlas.width : page?.width, height: base ? atlas.height : page?.height} as HTMLImageElement;
     if (base) { texture = next; loaded = onLoad!; failed = () => onError?.(new Error('decode failed')); }
@@ -195,15 +198,16 @@ it('reports CPU-only 256/512-unit batch preparation diagnostics without FPS clai
 
 
 it('ships a compact lossless WebP atlas at the exact runtime URL', () => {
-  const bytes = readFileSync(new URL('../../../public/assets/mobile-sprites/atlas.webp', import.meta.url));
+  const bytes = readFileSync(new URL(`../../../public${atlas.image}`, import.meta.url));
   expect(bytes.subarray(0, 4).toString()).toBe('RIFF');
   expect(bytes.subarray(8, 12).toString()).toBe('WEBP');
   expect(bytes.includes(Buffer.from('VP8L'))).toBe(true);
   expect(bytes.length).toBeLessThan(2_100_000);
-  expect(atlas.image).toBe('/assets/mobile-sprites/atlas.webp');
+  const version = atlas.image.match(/[-.]([a-f0-9]{8,64})\.webp$/)?.[1];
+  expect(version).toBeTruthy(); expect(createHash('sha256').update(bytes).digest('hex').startsWith(version!)).toBe(true);
   expect(atlas.sampling.alphaThreshold).toBe(.5);
   setup();
-  expect(THREE.TextureLoader.prototype.load).toHaveBeenCalledWith(expect.stringContaining('assets/mobile-sprites/atlas.webp'), expect.any(Function), undefined, expect.any(Function));
+  expect(THREE.TextureLoader.prototype.load).toHaveBeenCalledWith(expect.stringContaining(atlas.image.replace(/^\//, '')), expect.any(Function), undefined, expect.any(Function));
 });
 
 
@@ -268,59 +272,24 @@ it('selects every shipped action, alias, frame and facing without model fallback
 });
 
 
-describe('seated upright depth profile', () => {
-  it.each([false, true])('keeps screen art and its true foot fixed with bounded depth at all views (orthographic=%s)', ortho => {
-    const {sprites, ctx} = setup(true, 4096, ortho);
-    const p: SpritePose = {...pose(0), x: 4, y: 2, z: -3, height: 3, depthProfile: 'upright'};
-    for (const pitch of [0, .55, 1.2, 1.56]) for (const roll of [0, .7, -1.2]) {
-      ctx.camera.position.set(p.x, p.y + 30 * Math.sin(pitch), p.z + 30 * Math.cos(pitch));
-      ctx.camera.lookAt(p.x, p.y + .4, p.z); ctx.camera.rotateZ(roll); ctx.camera.updateMatrixWorld();
-      const anchor = new THREE.Vector4(p.x, p.y, p.z, 1).applyMatrix4(ctx.camera.matrixWorldInverse);
-      const radius = Math.hypot(2, 4), depth = spriteUprightDepth(ctx.camera, p, radius);
-      const projectDepth = (z: number) => { const v = new THREE.Vector4(0, 0, z, 1).applyMatrix4(ctx.camera.projectionMatrix); return v.z / v.w; };
-      const maxShift = Math.abs(projectDepth(anchor.z + p.height) - projectDepth(anchor.z));
-      for (const [x, y] of [[0, 0], [-2, -.2], [2, 4], [0, 2]]) {
-        const original = anchor.clone().add(new THREE.Vector4(x, y, 0, 0)).applyMatrix4(ctx.camera.projectionMatrix);
-        const adjusted = original.clone(); adjusted.z += (x * depth[0] + y * depth[1]) * adjusted.w;
-        expect(adjusted.x / adjusted.w).toBe(original.x / original.w);
-        expect(adjusted.y / adjusted.w).toBe(original.y / original.w);
-        expect(Number.isFinite(adjusted.z)).toBe(true);
-        expect(Math.abs((adjusted.z - original.z) / original.w)).toBeLessThanOrEqual(maxShift + 1e-12);
-        if (x === 0 && y === 0) expect(adjusted.toArray()).toEqual(original.toArray());
+it('selects every baked world clip, direction and frame at its exact ground-origin anchor', () => {
+  const {sprites} = setup();
+  expect(sprites.worldAtlasReady).toBe(true);
+  const clips = {...worldAtlas.clips, ...Object.fromEntries(Object.entries(buildingAtlas.clips)
+    .map(([key, clip]) => [key, {...(clip as {page: number}), page: (clip as {page: number}).page + worldAtlas.pages.length}]))};
+  for (const [key, data] of Object.entries(clips)) {
+    const clip = data as {page: number; columns: number; anchor: number[]; cellWidth: number; cellHeight: number; heightPixels: number; footYByCell: number[][]; directionRows: Record<string, number>};
+    const split = key.lastIndexOf(':'), name = key.slice(0, split), state = key.slice(split + 1);
+    for (const [direction, yaw] of [['front', 0], ['right', -Math.PI / 2], ['away', Math.PI], ['left', Math.PI / 2]] as const) {
+      for (let frame = 0; frame < clip.columns; frame++) {
+        sprites.begin(); expect(sprites.object(name, {...pose(0, yaw), height: 8}, {state, frame}), key).toBe(true); sprites.end();
+        expect(sprites.samples[0], key).toMatchObject({clip: state, direction, frame}); expect(sprites.fallbackCount, key).toBe(0);
+        const mesh = sprites.meshes[actionAtlas.pages.length + 1 + clip.page], geometry = mesh.geometry;
+        const size = geometry.getAttribute('aSize'), offset = geometry.getAttribute('aOffset');
+        const foot = clip.footYByCell[clip.directionRows[direction]][frame];
+        expect((clip.anchor[0] / clip.cellWidth - .5) * size.getX(0) + offset.getX(0), key).toBeCloseTo(0, 5);
+        expect((1 - foot / clip.cellHeight) * size.getY(0) + offset.getY(0), key).toBeCloseTo(0, 5);
       }
-      sprites.begin(); sprites.cast(0, p, 'seated'); sprites.end();
-      const batch = sprites.meshes.find(m => m.visible)!;
-      const size = batch.geometry.getAttribute('aSize'), offset = batch.geometry.getAttribute('aOffset');
-      const boundsRadius = Math.hypot(size.getX(0) / 2 + Math.abs(offset.getX(0)),
-        Math.max(Math.abs(offset.getY(0)), Math.abs(size.getY(0) + offset.getY(0))));
-      expect(batch.geometry.getAttribute('aDepth').getY(0)).toBeCloseTo(spriteUprightDepth(ctx.camera, p, boundsRadius)[1], 7);
-      expect(batch.material.depthTest).toBe(true); expect(batch.material.depthWrite).toBe(true);
-      expect((batch.geometry.getAttribute('aDepth') as THREE.InstancedBufferAttribute).version).toBeGreaterThan(0);
-      expect((batch.geometry.getAttribute('aDepth') as THREE.InstancedBufferAttribute).updateRanges).toEqual([{start: 0, count: 2}]);
     }
-    expect(sprites.mesh.material.vertexShader).toContain('gl_Position.z+=dot(q,aDepth)*gl_Position.w');
-  });
-  it.each([false, true])('places a raised body before rear furniture but behind real foreground occluders (orthographic=%s)', ortho => {
-    const {ctx} = setup(true, 4096, ortho), camera = ctx.camera;
-    const p: SpritePose = {...pose(), height: 3, depthProfile: 'upright'};
-    camera.position.set(0, 15, 24); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
-    const anchor = new THREE.Vector4(0, 0, 0, 1).applyMatrix4(camera.matrixWorldInverse);
-    const q = new THREE.Vector2(0, 1.7), coeff = spriteUprightDepth(camera, p, 3.2);
-    const pixel = anchor.clone().add(new THREE.Vector4(q.x, q.y, 0, 0)).applyMatrix4(camera.projectionMatrix);
-    const spriteDepth = pixel.z / pixel.w + q.x * coeff[0] + q.y * coeff[1];
-    const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(pixel.x / pixel.w, pixel.y / pixel.w), camera);
-    const depthAtWorldZ = (z: number) => {
-      const point = ray.ray.at((z - ray.ray.origin.z) / ray.ray.direction.z, new THREE.Vector3());
-      return point.project(camera).z;
-    };
-    expect(spriteDepth).toBeLessThan(depthAtWorldZ(-.6)); // Back banners stay behind the raised body.
-    expect(spriteDepth).toBeGreaterThan(depthAtWorldZ(1.4)); // The actual front desk/walls still hide it.
-    expect(spriteUprightDepth(camera, {...p, depthProfile: undefined}, 3.2)).toEqual([0, 0]);
-  });
-  it('applies the profile to seated defaults/placeholders but never ordinary sprites', () => {
-    const {sprites} = setup(false), p: SpritePose = {...pose(), depthProfile: 'upright'};
-    sprites.cast(0, p, 'seated'); sprites.cast(0, pose(1), 'idle'); sprites.end();
-    const depth = sprites.meshes.find(m => m.visible)!.geometry.getAttribute('aDepth');
-    expect(depth.getY(0)).toBeLessThan(0); expect(depth.getX(1)).toBe(0); expect(depth.getY(1)).toBe(0);
-  });
+  }
 });

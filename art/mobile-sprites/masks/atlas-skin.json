@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "mask": "atlas-skin.webp",
+  "source": "web/public/assets/mobile-sprites/atlas.webp",
+  "sourceRgbSha256": "d4b09e74d0e97f392c439a4a0417661a3182fb0231e8778e0ca3092bf5a4eef4",
+  "sourceCutoutSha256": "1d6315058fe2e3403f03c89f4f80c4dadd159a925562fdc1b0c9685b7c41fb9b",
+  "maskPixelsSha256": "cb1c357b4a0a9e6cfb391bf755cee28eae95c6e6d67e11d6a6bc5d8bca8e009f",
+  "selectedPixels": 27601,
+  "cellCounts": {
+    "heads-front": [
+      [
+        746,
+        798,
+        782,
+        1040,
+        1067,
+        528
+      ],
+      [
+        650,
+        739,
+        630,
+        538,
+        663,
+        423
+      ],
+      [
+        685,
+        756,
+        731,
+        751,
+        752,
+        765
+      ]
+    ],
+    "heads-away": [
+      [
+        31,
+        44,
+        28,
+        141,
+        39,
+        31
+      ],
+      [
+        30,
+        24,
+        41,
+        40,
+        33,
+        30
+      ],
+      [
+        41,
+        44,
+        39,
+        42,
+        43,
+        40
+      ]
+    ],
+    "bodies-front": [
+      [
+        338,
+        307,
+        332,
+        298
+      ],
+      [
+        305,
+        299,
+        311,
+        300
+      ],
+      [
+        299,
+        292,
+        307,
+        297
+      ],
+      [
+        205,
+        198,
+        221,
+        204
+      ],
+      [
+        286,
+        285,
+        272,
+        279
+      ],
+      [
+        308,
+        284,
+        306,
+        280
+      ],
+      [
+        232,
+        235,
+        228,
+        232
+      ]
+    ],
+    "bodies-away": [
+      [
+        229,
+        219,
+        218,
+        217
+      ],
+      [
+        290,
+        253,
+        241,
+        279
+      ],
+      [
+        285,
+        256,
+        237,
+        283
+      ],
+      [
+        188,
+        167,
+        176,
+        181
+      ],
+      [
+        237,
+        204,
+        165,
+        183
+      ],
+      [
+        188,
+        182,
+        180,
+        176
+      ],
+      [
+        164,
+        134,
+        125,
+        131
+      ]
+    ],
+    "flag-away": [
+      [
+        58,
+        73,
+        77,
+        60
+      ]
+    ]
+  },
+  "notes": [
+    "Atlas-aligned binary semantic mask: 255 is exposed Signifier skin, 0 is everything else.",
+    "Reviewed at enlarged nearest-neighbour scale across every head, direction, body, frame, and foreground hand.",
+    "Eyes, mouths, black outlines, hair, beard, hats, glasses, flowers, shirt, trousers, boots, drums, tools, lumber, flags and all leader art are excluded.",
+    "Bucket and top-hat brims are excluded by authored face boundaries; drum surfaces are excluded by separate hand regions.",
+    "Runtime RGB remains identical. Alpha 192 encodes selected skin; alpha 255 remains other opaque art."
+  ]
+}

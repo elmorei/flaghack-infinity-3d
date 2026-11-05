@@ -6,10 +6,10 @@
  * ground out to the pulse radius.
  */
 import * as THREE from 'three';
-import { WARD_PULSE_RADIUS, WARD_EYE_CENTER_HEIGHT, WARD_REVEAL_HEIGHT } from '../../sim/constants';
+import { WARD_PULSE_RADIUS, WARD_EYE_CENTER_HEIGHT, WARD_REVEAL_HEIGHT, WARD_EYE_OUTER_RADIUS } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import type { Building } from '../../sim/types';
-import { BuildingView, type FrameInfo } from './buildingView';
+import { BuildingView, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { extrudeUp, faceted, pentagon } from './shapes';
 import { damp } from './util';
@@ -117,6 +117,11 @@ export class WardView extends BuildingView {
       const a = (i / 24) * TAU;
       f.sparks.emit(p.x, p.y + EYE_Y, p.z, Math.cos(a) * 4, (Math.random() - 0.3) * 2, Math.sin(a) * 4, 0.12, 0.04, 0.6, this.factionColor, 1, -2);
     }
+  }
+
+  protected override spritePresentation(_b: Building, _f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    return { state: active && this.pulse < 1 ? 'pulse' : 'idle', moving: active,
+      height: WARD_EYE_CENTER_HEIGHT + WARD_EYE_OUTER_RADIUS, highlight: active ? this.flare : 0 };
   }
 
   override dispose(): void {

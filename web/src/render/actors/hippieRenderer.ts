@@ -40,6 +40,7 @@ import {
   buildHippieFarGeometry,
   buildHippieGeometry,
   patchHippieMaterial,
+  hippieSkinIndex,
   type HippieUniforms,
 } from './hippieModel';
 import { InstanceSet, PLACE, castShadowPrefix, showInstances, type ActorView } from './lod';
@@ -293,7 +294,7 @@ export class HippieRenderer {
       const spriteAnimation = h.koUntil > w.time || anim === 'ko' ? 'ko' : stun ? 'stun'
         : knock ? 'hit' : airborneY > 0 ? 'jump' : wobble ? 'wobble' : jitter ? 'jitter' : anim;
       const sprite = place !== PLACE.skip && !!ctx.shared.mobileSprites?.signifier({
-        id: h.id, x: v.x, y: gy + airborneY, z: v.z, yaw: v.yaw, height: HIPPIE_HEAD_TOP * v.scale, moving: v.speed > .6,
+        id: h.id, x: v.x, y: gy + airborneY, z: v.z, yaw: v.yaw, height: HIPPIE_HEAD_TOP * v.scale, moving: v.speed > .6, skinTone: hippieSkinIndex(look[HL.skin]),
       }, signifierHead(look), signifierBody(h.carryingFlag >= 0, h.carryingLumber > 0, h.status, h.faction !== NEUTRAL), spriteAnimation, carriedFlagColor);
       if (place !== PLACE.skip && !sprite) {
         const set = this.levels[v.detailed ? 0 : 1].set;

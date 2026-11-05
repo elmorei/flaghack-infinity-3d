@@ -1,0 +1,3203 @@
+{
+  "source": "Actual game model render, native Chrome WebGL. Four orthographic views and four animation frames. Alpha224 marks exact faction-material differences. Alpha160 marks visible live GCC map pixels; sRGB-encoded RG stores .5+.5*localTableXZ.",
+  "sourceCommit": "b8efb8161cef6e461674fd98f29685126fae548e",
+  "sources": {
+    "web/src/render/structures/buildingView.ts": "0d4b9fc1ad51942a0d454b4adad1a40c5e6ea4203efa5dcf2932be152ab7df61",
+    "web/src/render/structures/hearthView.ts": "652d2d85b0273683b38e7785ad8981e5d28786bc2896c8584152982a905f5f13",
+    "web/src/render/structures/workshopView.ts": "79af71f454ed6fa7f27e484664d5ce543116802bce6d88f3963520cdcca1a41a",
+    "web/src/render/structures/drumCircleView.ts": "57e6f827a0e514e131ebb730847353262d97ddaa75b888148e4464be39da25d5",
+    "web/src/render/structures/wardView.ts": "f8ca11a61778a717d8e1fd49548cb36e57a30b0afe1c27e15f22956a458b5ae5",
+    "web/src/render/structures/drugLabView.ts": "3d5fd573fbc418d14b9e4725c8867c878dd4e690ff39e6b86bb78613930755cf",
+    "web/src/render/structures/gccView.ts": "dda8bb7dfef190e73fdf814d6b51cca19752c16cfa0285eee3ebd38992edcd00",
+    "web/src/render/structures/kit.ts": "3e780e3cb63c93ab1f2bc1554408f0ac165c2bcfd644a406c2eb71f7ff18d33a",
+    "web/src/render/structures/shapes.ts": "f687ea7d5cb036f03caf09ff0fc5a8502a5863ffb9e16d834040352aaec54700",
+    "web/src/render/structures/canvasArt.ts": "2d31893ce7587f4ae8a6c223e097a251db685382f4b5bf3fffc32df5e28056c5",
+    "web/src/render/structures/tableMap.ts": "cf1f27699235d8b86ad9c38ce5cc1f76131f60c6fe649be0dae7973d35efddf1"
+  },
+  "references": {
+    "building:hearth:idle": {
+      "modelBounds": {
+        "min": [
+          -3.0807223320007324,
+          -5.9604645663569045e-09,
+          -3.225486993789673
+        ],
+        "max": [
+          3.0807223320007324,
+          8.40999984741211,
+          2.642988920211792
+        ]
+      },
+      "height": 8.41,
+      "extent": 11.594668975108029,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 1332,
+          "owner": 16,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 1354,
+          "owner": 16,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 1329,
+          "owner": 15,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 1330,
+          "owner": 17,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            116
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1030,
+          "owner": 15,
+          "liveMap": 0,
+          "bounds": [
+            35,
+            20,
+            99,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 998,
+          "owner": 13,
+          "liveMap": 0,
+          "bounds": [
+            35,
+            20,
+            99,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1042,
+          "owner": 15,
+          "liveMap": 0,
+          "bounds": [
+            35,
+            20,
+            99,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1033,
+          "owner": 15,
+          "liveMap": 0,
+          "bounds": [
+            35,
+            20,
+            99,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 1317,
+          "owner": 19,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 1333,
+          "owner": 18,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 1320,
+          "owner": 19,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 1321,
+          "owner": 20,
+          "liveMap": 0,
+          "bounds": [
+            30,
+            20,
+            97,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1032,
+          "owner": 14,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            18,
+            92,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1001,
+          "owner": 14,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            18,
+            92,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1041,
+          "owner": 14,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            18,
+            92,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1027,
+          "owner": 12,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            18,
+            92,
+            117
+          ]
+        }
+      ]
+    },
+    "building:hearth:seated": {
+      "modelBounds": {
+        "min": [
+          -3.0807223320007324,
+          -5.9604645663569045e-09,
+          -3.225486993789673
+        ],
+        "max": [
+          3.0807223320007324,
+          1.9700000286102295,
+          2.642988920211792
+        ]
+      },
+      "height": 2,
+      "extent": 7.612149305343627,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 1941,
+          "owner": 22,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            42,
+            115,
+            91
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 1941,
+          "owner": 22,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            42,
+            115,
+            91
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 1941,
+          "owner": 22,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            42,
+            115,
+            91
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 1941,
+          "owner": 22,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            42,
+            115,
+            91
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            20,
+            36,
+            117,
+            93
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            20,
+            36,
+            117,
+            93
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            20,
+            36,
+            117,
+            93
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            20,
+            36,
+            117,
+            93
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 1814,
+          "owner": 20,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            38,
+            115,
+            93
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 1814,
+          "owner": 20,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            38,
+            115,
+            93
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 1814,
+          "owner": 20,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            38,
+            115,
+            93
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 1814,
+          "owner": 20,
+          "liveMap": 0,
+          "bounds": [
+            12,
+            38,
+            115,
+            93
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            107,
+            93
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            107,
+            93
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            107,
+            93
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1760,
+          "owner": 24,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            107,
+            93
+          ]
+        }
+      ]
+    },
+    "building:workshop:idle": {
+      "modelBounds": {
+        "min": [
+          -2.380000114440918,
+          -0.04500000178813934,
+          -1.3000000715255737
+        ],
+        "max": [
+          2.380000114440918,
+          2.687272787094116,
+          2.5399999618530273
+        ]
+      },
+      "height": 3,
+      "extent": 5.994399909973144,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3172,
+          "owner": 1490,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3165,
+          "owner": 1489,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3181,
+          "owner": 1489,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3185,
+          "owner": 1490,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2598,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2598,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2598,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2598,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 2684,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 2684,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 2685,
+          "owner": 1038,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 2684,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        }
+      ]
+    },
+    "building:workshop:working": {
+      "modelBounds": {
+        "min": [
+          -2.380000114440918,
+          -0.04500000178813934,
+          -1.3000000715255737
+        ],
+        "max": [
+          2.380000114440918,
+          2.687272787094116,
+          2.5399999618530273
+        ]
+      },
+      "height": 3,
+      "extent": 5.994399909973144,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3172,
+          "owner": 1490,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3166,
+          "owner": 1489,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3185,
+          "owner": 1489,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3188,
+          "owner": 1490,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            28,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 2653,
+          "owner": 1044,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            25,
+            91,
+            104
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2593,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2599,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2598,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2597,
+          "owner": 544,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            30,
+            114,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 2683,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 2683,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 2686,
+          "owner": 1038,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 2686,
+          "owner": 1037,
+          "liveMap": 0,
+          "bounds": [
+            36,
+            25,
+            117,
+            104
+          ]
+        }
+      ]
+    },
+    "building:drumcircle:idle": {
+      "modelBounds": {
+        "min": [
+          -2.593301296234131,
+          -0.06193142756819725,
+          -2.4200000762939453
+        ],
+        "max": [
+          2.593301296234131,
+          2.4000000953674316,
+          2.4200000762939453
+        ]
+      },
+      "height": 2.4,
+      "extent": 6.120191059112549,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 2045,
+          "owner": 116,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 2044,
+          "owner": 113,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 2046,
+          "owner": 117,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 2038,
+          "owner": 107,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1852,
+          "owner": 34,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1852,
+          "owner": 34,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1857,
+          "owner": 39,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1864,
+          "owner": 46,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2050,
+          "owner": 114,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2053,
+          "owner": 117,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2046,
+          "owner": 110,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2044,
+          "owner": 108,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1846,
+          "owner": 38,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1850,
+          "owner": 42,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1858,
+          "owner": 50,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1852,
+          "owner": 44,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        }
+      ]
+    },
+    "building:drumcircle:active": {
+      "modelBounds": {
+        "min": [
+          -2.593301296234131,
+          -0.06193142756819725,
+          -2.4200000762939453
+        ],
+        "max": [
+          2.593301296234131,
+          2.4000000953674316,
+          2.4200000762939453
+        ]
+      },
+      "height": 2.4,
+      "extent": 6.120191059112549,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 2045,
+          "owner": 116,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 2044,
+          "owner": 113,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 2046,
+          "owner": 117,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 2038,
+          "owner": 107,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1853,
+          "owner": 34,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1852,
+          "owner": 34,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1857,
+          "owner": 39,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1864,
+          "owner": 46,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2050,
+          "owner": 114,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2053,
+          "owner": 117,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2046,
+          "owner": 110,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2044,
+          "owner": 108,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            34,
+            117,
+            99
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1847,
+          "owner": 38,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1851,
+          "owner": 42,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1858,
+          "owner": 50,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1853,
+          "owner": 44,
+          "liveMap": 0,
+          "bounds": [
+            13,
+            25,
+            114,
+            101
+          ]
+        }
+      ]
+    },
+    "building:ward:idle": {
+      "modelBounds": {
+        "min": [
+          -1.4142990112304688,
+          6.705522803684971e-10,
+          -1.4870820045471191
+        ],
+        "max": [
+          1.4142990112304688,
+          5.40886562301427,
+          1.2030746936798096
+        ]
+      },
+      "height": 5.405,
+      "extent": 7.087328163750075,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 1962,
+          "owner": 218,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 1955,
+          "owner": 217,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 1940,
+          "owner": 211,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 1920,
+          "owner": 205,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1570,
+          "owner": 227,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1616,
+          "owner": 227,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1665,
+          "owner": 227,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1723,
+          "owner": 221,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 1954,
+          "owner": 242,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 1949,
+          "owner": 240,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 1931,
+          "owner": 234,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 1910,
+          "owner": 230,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1582,
+          "owner": 211,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1635,
+          "owner": 210,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1684,
+          "owner": 205,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1741,
+          "owner": 202,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        }
+      ]
+    },
+    "building:ward:pulse": {
+      "modelBounds": {
+        "min": [
+          -1.4142990112304688,
+          6.705522803684971e-10,
+          -1.4870820045471191
+        ],
+        "max": [
+          1.4142990112304688,
+          5.4085676625294985,
+          1.2030746936798096
+        ]
+      },
+      "height": 5.405,
+      "extent": 7.086989308290757,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 1962,
+          "owner": 304,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 1957,
+          "owner": 294,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 1942,
+          "owner": 278,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 1922,
+          "owner": 256,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            116
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1569,
+          "owner": 284,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1616,
+          "owner": 277,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1664,
+          "owner": 266,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1720,
+          "owner": 258,
+          "liveMap": 0,
+          "bounds": [
+            42,
+            17,
+            90,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 1953,
+          "owner": 295,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 1950,
+          "owner": 289,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 1933,
+          "owner": 281,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 1910,
+          "owner": 266,
+          "liveMap": 0,
+          "bounds": [
+            38,
+            17,
+            89,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1580,
+          "owner": 263,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1634,
+          "owner": 253,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1681,
+          "owner": 243,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1739,
+          "owner": 226,
+          "liveMap": 0,
+          "bounds": [
+            37,
+            17,
+            85,
+            117
+          ]
+        }
+      ]
+    },
+    "building:druglab:idle": {
+      "modelBounds": {
+        "min": [
+          -1.149999976158142,
+          -0.03855985403060913,
+          -2.6700000762939453
+        ],
+        "max": [
+          2.950000047683716,
+          3.2049999237060547,
+          2.890000104904175
+        ]
+      },
+      "height": 3.2,
+      "extent": 6.962000112533569,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        }
+      ]
+    },
+    "building:druglab:brewing": {
+      "modelBounds": {
+        "min": [
+          -1.149999976158142,
+          -0.03855985403060913,
+          -2.6700000762939453
+        ],
+        "max": [
+          2.950000047683716,
+          3.2049999237060547,
+          2.890000104904175
+        ]
+      },
+      "height": 3.2,
+      "extent": 6.962000112533569,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3687,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3686,
+          "owner": 330,
+          "liveMap": 0,
+          "bounds": [
+            43,
+            26,
+            117,
+            100
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 5125,
+          "owner": 853,
+          "liveMap": 0,
+          "bounds": [
+            11,
+            32,
+            112,
+            105
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 3361,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 3360,
+          "owner": 332,
+          "liveMap": 0,
+          "bounds": [
+            10,
+            36,
+            84,
+            100
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 4805,
+          "owner": 58,
+          "liveMap": 0,
+          "bounds": [
+            15,
+            34,
+            116,
+            97
+          ]
+        }
+      ]
+    },
+    "building:gcc:idle": {
+      "modelBounds": {
+        "min": [
+          -1.3627572059631348,
+          -0.008000016212463379,
+          -1.4160000085830688
+        ],
+        "max": [
+          1.5732018934753635,
+          3.515000057220459,
+          0.9752811193466187
+        ]
+      },
+      "height": 3.4,
+      "extent": 4.996839494575988,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3027,
+          "owner": 72,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3022,
+          "owner": 70,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            104,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3021,
+          "owner": 69,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3023,
+          "owner": 69,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1589,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1605,
+          "owner": 34,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1612,
+          "owner": 36,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1614,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2942,
+          "owner": 54,
+          "liveMap": 272,
+          "bounds": [
+            24,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2947,
+          "owner": 57,
+          "liveMap": 272,
+          "bounds": [
+            23,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2947,
+          "owner": 54,
+          "liveMap": 272,
+          "bounds": [
+            25,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2952,
+          "owner": 56,
+          "liveMap": 272,
+          "bounds": [
+            23,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1593,
+          "owner": 37,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1605,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1604,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1612,
+          "owner": 35,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        }
+      ]
+    },
+    "building:gcc:moving": {
+      "modelBounds": {
+        "min": [
+          -1.3676957096647804,
+          -0.16572352409235824,
+          -1.4160000085830688
+        ],
+        "max": [
+          1.3610413535520611,
+          3.5284999696730446,
+          0.9752811193466187
+        ]
+      },
+      "height": 3.4,
+      "extent": 5.092606855067603,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 2851,
+          "owner": 46,
+          "liveMap": 254,
+          "bounds": [
+            30,
+            14,
+            97,
+            103
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 2810,
+          "owner": 43,
+          "liveMap": 262,
+          "bounds": [
+            30,
+            14,
+            97,
+            103
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 2840,
+          "owner": 38,
+          "liveMap": 249,
+          "bounds": [
+            30,
+            14,
+            97,
+            103
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 2836,
+          "owner": 42,
+          "liveMap": 252,
+          "bounds": [
+            30,
+            14,
+            97,
+            103
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1682,
+          "owner": 55,
+          "liveMap": 252,
+          "bounds": [
+            39,
+            14,
+            99,
+            110
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1678,
+          "owner": 57,
+          "liveMap": 247,
+          "bounds": [
+            39,
+            14,
+            99,
+            110
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1692,
+          "owner": 57,
+          "liveMap": 244,
+          "bounds": [
+            39,
+            14,
+            99,
+            110
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1692,
+          "owner": 56,
+          "liveMap": 245,
+          "bounds": [
+            39,
+            14,
+            99,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2820,
+          "owner": 30,
+          "liveMap": 256,
+          "bounds": [
+            30,
+            26,
+            97,
+            107
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2798,
+          "owner": 34,
+          "liveMap": 260,
+          "bounds": [
+            30,
+            26,
+            97,
+            107
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2814,
+          "owner": 33,
+          "liveMap": 256,
+          "bounds": [
+            30,
+            27,
+            97,
+            108
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2822,
+          "owner": 32,
+          "liveMap": 255,
+          "bounds": [
+            30,
+            27,
+            97,
+            108
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1702,
+          "owner": 61,
+          "liveMap": 262,
+          "bounds": [
+            28,
+            14,
+            88,
+            111
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1707,
+          "owner": 60,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            111
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1721,
+          "owner": 55,
+          "liveMap": 270,
+          "bounds": [
+            28,
+            14,
+            87,
+            111
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1727,
+          "owner": 57,
+          "liveMap": 267,
+          "bounds": [
+            28,
+            14,
+            87,
+            111
+          ]
+        }
+      ]
+    },
+    "building:gcc:channel": {
+      "modelBounds": {
+        "min": [
+          -1.3627572059631348,
+          -0.008000016212463379,
+          -1.4160000085830688
+        ],
+        "max": [
+          1.5732018934753635,
+          3.515000057220459,
+          0.9752811193466187
+        ]
+      },
+      "height": 3.4,
+      "extent": 4.996839494575988,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 3027,
+          "owner": 72,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 3022,
+          "owner": 70,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            104,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 3021,
+          "owner": 69,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 3023,
+          "owner": 69,
+          "liveMap": 270,
+          "bounds": [
+            29,
+            14,
+            103,
+            105
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1589,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1605,
+          "owner": 34,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1612,
+          "owner": 36,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1614,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            39,
+            14,
+            99,
+            113
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 2942,
+          "owner": 54,
+          "liveMap": 272,
+          "bounds": [
+            24,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 2947,
+          "owner": 57,
+          "liveMap": 272,
+          "bounds": [
+            23,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 2947,
+          "owner": 54,
+          "liveMap": 272,
+          "bounds": [
+            25,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 2952,
+          "owner": 56,
+          "liveMap": 272,
+          "bounds": [
+            23,
+            27,
+            98,
+            110
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 1593,
+          "owner": 37,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 1605,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 1604,
+          "owner": 33,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 1612,
+          "owner": 35,
+          "liveMap": 265,
+          "bounds": [
+            28,
+            14,
+            88,
+            113
+          ]
+        }
+      ]
+    },
+    "building:gcc:wreck": {
+      "modelBounds": {
+        "min": [
+          -2.5351658836051616,
+          -0.3650721118095652,
+          -1.627596854014048
+        ],
+        "max": [
+          -0.178335810646849,
+          3.702225316788755,
+          1.8004229623932901
+        ]
+      },
+      "height": 3.4,
+      "extent": 6.221384523058619,
+      "pitch": 0.27,
+      "footprint": [
+        {
+          "direction": 0,
+          "frame": 0,
+          "opaque": 1307,
+          "owner": 26,
+          "liveMap": 35,
+          "bounds": [
+            13,
+            29,
+            58,
+            101
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 1,
+          "opaque": 1242,
+          "owner": 25,
+          "liveMap": 35,
+          "bounds": [
+            13,
+            29,
+            58,
+            99
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 2,
+          "opaque": 1297,
+          "owner": 23,
+          "liveMap": 35,
+          "bounds": [
+            13,
+            29,
+            58,
+            100
+          ]
+        },
+        {
+          "direction": 0,
+          "frame": 3,
+          "opaque": 1342,
+          "owner": 23,
+          "liveMap": 35,
+          "bounds": [
+            13,
+            29,
+            58,
+            104
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 0,
+          "opaque": 1978,
+          "owner": 31,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            20,
+            96,
+            92
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 1,
+          "opaque": 1985,
+          "owner": 32,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            19,
+            96,
+            89
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 2,
+          "opaque": 1966,
+          "owner": 32,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            20,
+            96,
+            89
+          ]
+        },
+        {
+          "direction": 1,
+          "frame": 3,
+          "opaque": 1974,
+          "owner": 32,
+          "liveMap": 0,
+          "bounds": [
+            28,
+            20,
+            96,
+            92
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 0,
+          "opaque": 1558,
+          "owner": 35,
+          "liveMap": 66,
+          "bounds": [
+            69,
+            22,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 1,
+          "opaque": 1523,
+          "owner": 38,
+          "liveMap": 66,
+          "bounds": [
+            69,
+            21,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 2,
+          "opaque": 1467,
+          "owner": 35,
+          "liveMap": 66,
+          "bounds": [
+            69,
+            21,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 2,
+          "frame": 3,
+          "opaque": 1511,
+          "owner": 38,
+          "liveMap": 66,
+          "bounds": [
+            69,
+            21,
+            114,
+            102
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 0,
+          "opaque": 2081,
+          "owner": 45,
+          "liveMap": 661,
+          "bounds": [
+            31,
+            30,
+            99,
+            111
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 1,
+          "opaque": 2090,
+          "owner": 43,
+          "liveMap": 660,
+          "bounds": [
+            31,
+            31,
+            99,
+            108
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 2,
+          "opaque": 2087,
+          "owner": 43,
+          "liveMap": 661,
+          "bounds": [
+            31,
+            32,
+            99,
+            108
+          ]
+        },
+        {
+          "direction": 3,
+          "frame": 3,
+          "opaque": 2081,
+          "owner": 45,
+          "liveMap": 661,
+          "bounds": [
+            31,
+            31,
+            99,
+            111
+          ]
+        }
+      ]
+    }
+  },
+  "outputs": [
+    {
+      "image": "/assets/mobile-sprites/buildings-0-ea5880b8cc3c.png",
+      "sha256": "ea5880b8cc3ccbe9c3a5b566f546ba3c137d6a454c5a1aa42100aaba102c1715"
+    }
+  ]
+}

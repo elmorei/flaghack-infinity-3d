@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { DRUM_REACH } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import type { Building } from '../../sim/types';
-import { BuildingView, SPARK_GOLD, type FrameInfo } from './buildingView';
+import { BuildingView, SPARK_GOLD, type FrameInfo, type BuildingSpritePresentation } from './buildingView';
 import { Fire } from './fire';
 import type { ModelBuilder, ModelRecipe, StructureKit } from './kit';
 import { buildBunting } from './shapes';
@@ -100,7 +100,7 @@ export class DrumCircleView extends BuildingView {
     this.fire.style.width = 0.95;
     this.fire.style.height = 1.15;
     this.fire.mesh.position.y = 0.06;
-    this.body.add(this.fire.mesh);
+    this.effects.add(this.fire.mesh);
 
     this.bodies = this.mats.instancedMesh(kit.geometry('djembe', djembeBody), 'plain', SEATS, true);
     this.skins = this.mats.instancedMesh(
@@ -192,6 +192,11 @@ export class DrumCircleView extends BuildingView {
       const p = this.root.position;
       if (h && (h.pos.x - p.x) ** 2 + (h.pos.z - p.z) ** 2 < 64) this.burst(f.sparks, SPARK_GOLD, 24, 1.2, 2.2, 0.14, -1);
     }
+  }
+
+  protected override spritePresentation(_b: Building, _f: FrameInfo, active: boolean): BuildingSpritePresentation {
+    const drumming = active && this.drumming > 0.1;
+    return { state: drumming ? 'active' : 'idle', moving: active };
   }
 
   override dispose(): void {

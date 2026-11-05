@@ -4,10 +4,30 @@
   "method": "AI-generated matching action art. Existing approved atlas is unchanged. Source grids have only renderer-equivalent cutout alpha normalization; packing preserves visible RGB and uses nearest-neighbour scaling.",
   "sources": [
     {
+      "file": "combined-thrones.webp",
+      "actor": "dr-beef-supreme",
+      "clips": [
+        "seated"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "rowIndices": [
+        0
+      ],
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "67c8bf908e6c003d393e555a7467349ae52b6a48ef869cec99be290a62b80ae8",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp; web/src/render/actors/throneRenderer.ts",
+      "includesFurniture": true,
+      "worldHeight": 6.545,
+      "frameDurationMs": 240,
+      "userRevision": "Seated ruler, split-banner pipe throne, front desk and pentagonal platform combined in one sprite."
+    },
+    {
       "file": "dr-beef-supreme-actions.webp",
       "actor": "dr-beef-supreme",
       "clips": [
-        "seated",
+        "_seated-body-unused",
         "swing",
         "throw",
         "plant",
@@ -44,10 +64,30 @@
       "reference": "web/public/assets/mobile-sprites/atlas.webp"
     },
     {
+      "file": "combined-thrones.webp",
+      "actor": "beelzebub-crow",
+      "clips": [
+        "seated"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "rowIndices": [
+        1
+      ],
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "67c8bf908e6c003d393e555a7467349ae52b6a48ef869cec99be290a62b80ae8",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp; web/src/render/actors/throneRenderer.ts",
+      "includesFurniture": true,
+      "worldHeight": 6.545,
+      "frameDurationMs": 240,
+      "userRevision": "Seated ruler, split-banner pipe throne, front desk and pentagonal platform combined in one sprite."
+    },
+    {
       "file": "beelzebub-crow-actions.webp",
       "actor": "beelzebub-crow",
       "clips": [
-        "seated",
+        "_seated-body-unused",
         "swing",
         "throw",
         "plant",
@@ -84,10 +124,30 @@
       "reference": "web/public/assets/mobile-sprites/atlas.webp"
     },
     {
+      "file": "combined-thrones.webp",
+      "actor": "dj-scarecrow",
+      "clips": [
+        "seated"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "rowIndices": [
+        2
+      ],
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "67c8bf908e6c003d393e555a7467349ae52b6a48ef869cec99be290a62b80ae8",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp; web/src/render/actors/throneRenderer.ts",
+      "includesFurniture": true,
+      "worldHeight": 6.545,
+      "frameDurationMs": 240,
+      "userRevision": "Seated ruler, split-banner pipe throne, front desk and pentagonal platform combined in one sprite."
+    },
+    {
       "file": "dj-scarecrow-actions.webp",
       "actor": "dj-scarecrow",
       "clips": [
-        "seated",
+        "_seated-body-unused",
         "swing",
         "throw",
         "plant",
@@ -124,10 +184,30 @@
       "reference": "web/public/assets/mobile-sprites/atlas.webp"
     },
     {
+      "file": "combined-thrones.webp",
+      "actor": "president-jaguar",
+      "clips": [
+        "seated"
+      ],
+      "columns": 8,
+      "rows": 4,
+      "rowIndices": [
+        3
+      ],
+      "width": 1254,
+      "height": 1254,
+      "originalSha256": "67c8bf908e6c003d393e555a7467349ae52b6a48ef869cec99be290a62b80ae8",
+      "reference": "web/public/assets/mobile-sprites/atlas.webp; web/src/render/actors/throneRenderer.ts",
+      "includesFurniture": true,
+      "worldHeight": 6.545,
+      "frameDurationMs": 240,
+      "userRevision": "Seated ruler, split-banner pipe throne, front desk and pentagonal platform combined in one sprite."
+    },
+    {
       "file": "president-jaguar-actions.webp",
       "actor": "president-jaguar",
       "clips": [
-        "seated",
+        "_seated-body-unused",
         "swing",
         "throw",
         "plant",

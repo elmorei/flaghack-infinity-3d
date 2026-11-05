@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { BUILDINGS, LEVEL_HEIGHT } from '../../sim/constants';
 import { facetYaw } from '../../sim/factory';
 import type { BuildingKind, PieceKind } from '../../sim/types';
-import type { FrameInfo } from './buildingView';
+import { BUILDING_SPRITE_HEIGHT, type FrameInfo } from './buildingView';
 import { DRUGLAB_MODEL } from './drugLabView';
 import { DRUMCIRCLE_MODEL } from './drumCircleView';
 import { GCC_MODEL } from './gccView';
@@ -111,11 +111,20 @@ export class GhostRenderer {
 
     if (ghost.facet < 0 || ghost.facet >= lat.facets.length) return;
     const fc = lat.facets[ghost.facet];
-    const group = this.buildingGhost(ghost.kind);
     const gy = (f.ctx.shared.groundOffset?.(fc.cx, fc.cz) ?? f.world.collision.groundHeight(fc.cx, fc.cz)) + ghost.level * LEVEL_HEIGHT;
-    group.position.set(fc.cx, gy, fc.cz);
-    group.rotation.y = facetYaw(f.world, ghost.facet);
-    group.visible = true;
+    const yaw = facetYaw(f.world, ghost.facet);
+    const sprites = f.ctx.shared.mobileSprites;
+    if (sprites) {
+      sprites.building(ghost.kind, {
+        id: -1800000000, x: fc.cx, y: gy, z: fc.cz, yaw,
+        height: BUILDING_SPRITE_HEIGHT[ghost.kind], moving: false,
+      }, { state: 'idle', ownerColor: color, buildProgress: 0, ghost: true });
+    } else {
+      const group = this.buildingGhost(ghost.kind);
+      group.position.set(fc.cx, gy, fc.cz);
+      group.rotation.y = yaw;
+      group.visible = true;
+    }
     const r = BUILDINGS[ghost.kind].radius;
     this.ring.position.set(fc.cx, gy + 0.06, fc.cz);
     this.ring.scale.set(r, 1, r);
