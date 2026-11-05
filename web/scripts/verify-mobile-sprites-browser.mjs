@@ -13,6 +13,7 @@ import { platform, arch, cpus } from 'node:os';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 const require = createRequire(import.meta.url), { chromium } = require('playwright');
+const {spritePixelBounds}=require('./sprite-pixel-bounds.cjs');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..'), DIST = join(ROOT, 'dist');
 const ACTIONS=JSON.parse(readFileSync(join(ROOT,'src/render/actors/mobileSpriteActions.json'),'utf8'));
 const OUT = join(ROOT, 'host-release/mobile-sprites-smoke'), PROJECT = '/flaghack-infinity-3d/';
@@ -92,30 +93,34 @@ async function composition(page) {
 // This checks the pixels, not only the uniforms: camera pitch and roll must not
 // compress/tilt a sprite, and the lowest opaque source foot stays on its world anchor.
 async function screenFacingFeet(page) {
-  return page.evaluate(()=>{
+  return page.evaluate(boundsSource=>{
     const a=window.flaghack,g=a.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
     if(a.net)throw Error('Offline fixture only');
-    const children=ctx.scene.children.map(o=>[o,o.visible]),saved={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom,time:ctx.time};
+    const children=ctx.scene.children.map(o=>[o,o.visible]),saved={position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom,time:ctx.time,background:ctx.scene.background,clearAlpha:g.renderer.getClearAlpha()};
     const checks=[],captures={};
     try {
       for(const [o] of children)o.visible=p.meshes().includes(o);
+      // Near-black opaque boot outlines disappear from an RGB difference against
+      // black, especially in the linear target. Measure actual alpha coverage.
+      ctx.scene.background=null;g.renderer.setClearAlpha(0);
       c.top=4;c.bottom=-4;c.left=-4*innerWidth/innerHeight;c.right=-c.left;c.updateProjectionMatrix();
-      const bounds=(before,after)=>{let minX=innerWidth,minY=innerHeight,maxX=-1,maxY=-1,count=0;for(let y=0;y<innerHeight;y++)for(let x=0;x<innerWidth;x++){const i=(y*innerWidth+x)*4;if(Math.abs(before[i]-after[i])+Math.abs(before[i+1]-after[i+1])+Math.abs(before[i+2]-after[i+2])>6){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);count++;}}return {minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1,count};};
+      const bounds=Function('return ('+boundsSource+')')();
       for(const kind of ['signifier',0,1,2,3,4,5])for(const direction of ['front','away'])for(let frame=0;frame<4;frame++) {
         const views=[];
         for(const [name,pitch,roll] of [['level',0,0],['pitched',1.05,0],['rolled',.65,.5]]) {
           c.position.set(0,Math.sin(pitch)*20,Math.cos(pitch)*20);c.lookAt(0,0,0);c.rotateZ(roll);c.updateMatrixWorld();ctx.time=frame*.14+.001;
           s.begin();s.end();const blank=p.draw(),pose={id:0,x:0,y:0,z:0,yaw:direction==='front'?0:Math.PI,height:3,moving:true};
           if(kind==='signifier')s.signifier(pose,0,0);else s.cast(kind,pose);s.end();
-          const pixels=p.draw(),box=bounds(blank,pixels),anchor=c.position.clone().set(0,0,0).project(c);
+          if(blank.some((v,i)=>i%4===3&&v!==0))throw Error('Foot fixture requires a transparent empty target');
+          const pixels=p.draw(),box=bounds(blank,pixels,innerWidth,innerHeight),anchor=c.position.clone().set(0,0,0).project(c);
           views.push({name,...box,footError:box.minY-(anchor.y+1)*innerHeight*.5});
           if(kind==='signifier'&&direction==='front'&&frame===0)captures[name]=p.png(pixels);
         }
         checks.push({kind,direction,frame,views});
       }
       return {checks,captures};
-    } finally {ctx.time=saved.time;for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);}
-  });
+    } finally {ctx.time=saved.time;ctx.scene.background=saved.background;g.renderer.setClearAlpha(saved.clearAlpha);for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);}
+  },spritePixelBounds.toString());
 }
 // Verify every shipped action clip is selected and really contributes both facing
 // rows and every frame. Missing-clip behavior is tested separately below.
@@ -190,17 +195,37 @@ async function demoRender(page) {
     const saved={controls:a.controls.update,step:a.stepLocal,camera:{position:c.position.clone(),quaternion:c.quaternion.clone(),left:c.left,right:c.right,top:c.top,bottom:c.bottom},rng:{...w.rng},nextEntityId:w.nextEntityId};
     a.controls.update=()=>{};a.stepLocal=()=>{};
     const units=[],flags=[],x=altar.pos.x,z=altar.pos.z;
+    // The throne faces the effigy. Frame its front rather than its opaque back
+    // banners, and arrange the offline demonstration along that same local axis.
+    const yaw=Math.atan2(w.map.effigy.x-x,w.map.effigy.z-z),sn=Math.sin(yaw),cs=Math.cos(yaw);
+    const local=(dx,dz)=>({x:x+dx*cs+dz*sn,z:z-dx*sn+dz*cs});
     for(const [i,status] of ['idle','chopping','building','fighting','drumming','distracted'].entries()){
-      const h=window.fh.factory.spawnHippie(w,-1,{x:x+(i%3-1)*2.3,z:z+4+Math.floor(i/3)*3});h.status=status;h.facing=0;units.push(h.id);
+      const h=window.fh.factory.spawnHippie(w,-1,local((i%3-1)*2.3,4+Math.floor(i/3)*3));h.status=status;h.facing=yaw;units.push(h.id);
     }
     for(const [dx,dz,state] of [[-3.1,2,'planted'],[3.1,2,'planted'],[2.7,6.5,'loose']]){
-      const f=window.fh.factory.spawnFlag(w,{state,owner:a.session.playerFaction,pos:{x:x+dx,y:w.collision.groundHeight(x+dx,z+dz),z:z+dz}});flags.push(f.id);
+      const pos=local(dx,dz),f=window.fh.factory.spawnFlag(w,{state,owner:a.session.playerFaction,pos:{...pos,y:w.collision.groundHeight(pos.x,pos.z)}});flags.push(f.id);
     }
-    const gy=w.collision.groundHeight(x,z);c.position.set(x,gy+18,z+24);c.lookAt(x,gy+1.5,z+2.5);c.top=8;c.bottom=-8;c.left=-8*innerWidth/innerHeight;c.right=-c.left;c.updateProjectionMatrix();c.updateMatrixWorld();g.render(.1);
+    const gy=w.collision.groundHeight(x,z),eye=local(0,24),look=local(0,2.5);c.position.set(eye.x,gy+18,eye.z);c.lookAt(look.x,gy+1.5,look.z);c.top=8;c.bottom=-8;c.left=-8*innerWidth/innerHeight;c.right=-c.left;c.updateProjectionMatrix();c.updateMatrixWorld();g.render(.1);
     window.__restoreSpriteDemo=()=>{for(const id of units)w.hippies.delete(id);for(const id of flags)w.flags.delete(id);Object.assign(w.rng,saved.rng);w.nextEntityId=saved.nextEntityId;a.controls.update=saved.controls;a.stepLocal=saved.step;c.position.copy(saved.camera.position);c.quaternion.copy(saved.camera.quaternion);Object.assign(c,{left:saved.camera.left,right:saved.camera.right,top:saved.camera.top,bottom:saved.camera.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);delete window.__restoreSpriteDemo;};
     return {stagedOffline:true,actualGameRenderer:true,productionPostProcessing:true,description:'Close-up offline demo of a real throne, six action-state signifiers and three sprite Flags. Camera/actors staged for readability; mobile HUD and production renderer are unchanged.',units:units.length,flags:flags.length,throneFaction:a.session.playerFaction};
   });
-  try {await page.waitForTimeout(1800);const proof=await page.evaluate(()=>({models:window.__spriteProbe.models(),groundStatic:window.flaghack.renderer.ctx.scene.getObjectByName('command-ground-static')?.visible,seated:window.flaghack.renderer.ctx.shared.mobileSprites.samples.filter(s=>s.requestedClip==='seated')}));assert.equal(proof.groundStatic,false);assert.deepEqual(proof.models.visibleMappedModels,[]);assert.equal(proof.models.hippieInstances,0);assert.equal(proof.models.flagInstances,0);assert.ok(proof.seated.some(s=>s.clip==='seated'),'Demo must show real seated sprite art');await page.screenshot({path:join(OUT,'mobile-flat-sprites-demo.png')});return {...info,...proof};}
+  try {
+    await page.waitForTimeout(1800);
+    const proof=await page.evaluate(()=>{
+      const a=window.flaghack,g=a.renderer,s=g.ctx.shared.mobileSprites,p=window.__spriteProbe,id=-100000-a.session.playerFaction;
+      const seated=s.samples.filter(sample=>sample.requestedClip==='seated'),original=s.cast,before=p.draw();let seatedPixels;
+      try {
+        s.cast=function(index,pose,clip){return pose.id===id&&clip==='seated'?true:original.call(this,index,pose,clip);};
+        g.render(0);seatedPixels=p.diff(before,p.draw());
+      } finally {s.cast=original;g.render(0);}
+      return {models:p.models(),groundStatic:g.ctx.scene.getObjectByName('command-ground-static')?.visible,seated,seatedPixels,seatedId:id};
+    });
+    await page.screenshot({path:join(OUT,'mobile-flat-sprites-demo.png')});
+    assert.equal(proof.groundStatic,false);assert.deepEqual(proof.models.visibleMappedModels,[]);assert.equal(proof.models.hippieInstances,0);assert.equal(proof.models.flagInstances,0);
+    assert.ok(proof.seated.some(s=>s.id===proof.seatedId&&s.clip==='seated'&&s.direction==='front'),'Demo must show real front-facing seated sprite art');
+    assert.ok(proof.seatedPixels>20,'Seated sprite must contribute visible scene pixels, not only submit a hidden draw');
+    return {...info,...proof};
+  }
   finally {await page.evaluate(()=>window.__restoreSpriteDemo?.());}
 }
 async function actionStates(page) {
