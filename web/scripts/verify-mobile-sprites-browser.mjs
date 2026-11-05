@@ -165,7 +165,7 @@ async function occlusion(page) {
       // Draw after opaque occluders in BOTH passes. Without this, the depth-disabled
       // control can be overwritten by subsequently drawn geometry and is not a control.
       for(const [m] of renderOrders)m.renderOrder=10000;
-      for(const [label,object] of [['terrain',ground],['building',root]]) {
+      for(const [label,object] of [['terrain',ground],['building',root]])for(const kind of ['signifier','seated']) {
         for(const [o] of children)o.visible=false;
         for(let o=object;o;o=o.parent)o.visible=true;
         for(const m of p.meshes())m.visible=true;
@@ -177,9 +177,12 @@ async function occlusion(page) {
         const height=label==='terrain'?2:.6,extent=label==='terrain'?4:1.5;
         const x=label==='terrain'?0:origin.x,z=label==='terrain'?0:origin.z;
         c.position.set(x,y+10,z+12);c.lookAt(x,y+height*.5,z);c.left=-extent;c.right=extent;c.top=extent*innerHeight/innerWidth;c.bottom=-c.top;c.updateProjectionMatrix();c.updateMatrixWorld();
-        s.begin();s.signifier({id:0,x,y,z,yaw:0,height,moving:false},0,0);s.end();
+        s.begin();
+        if(kind==='seated')s.cast(0,{id:0,x,y,z,yaw:0,height,moving:false,depthProfile:'upright'},'seated');
+        else s.signifier({id:0,x,y,z,yaw:0,height,moving:false},0,0);
+        s.end();
         const depthPixels=p.contribution();for(const m of p.meshes())m.material.depthTest=false;const throughPixels=p.contribution();for(const m of p.meshes())m.material.depthTest=true;
-        cases.push({label,depthPixels,throughPixels});
+        cases.push({label,kind,depthPixels,throughPixels});
       }
       return cases;
     } finally {for(const [m,order] of renderOrders){m.renderOrder=order;m.material.depthTest=true;}for(const [o,v] of children)o.visible=v;c.position.copy(saved.position);c.quaternion.copy(saved.quaternion);Object.assign(c,{left:saved.left,right:saved.right,top:saved.top,bottom:saved.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);}
@@ -213,17 +216,24 @@ async function demoRender(page) {
     await page.waitForTimeout(1800);
     const proof=await page.evaluate(()=>{
       const a=window.flaghack,g=a.renderer,s=g.ctx.shared.mobileSprites,p=window.__spriteProbe,id=-100000-a.session.playerFaction;
-      const seated=s.samples.filter(sample=>sample.requestedClip==='seated'),original=s.cast,before=p.draw();let seatedPixels;
+      const furniture=g.ctx.scene.getObjectByName('rts-ruler-'+a.session.playerFaction);
+      if(!furniture)throw Error('Demo requires the actual throne furniture for visibility comparison');
+      const seated=s.samples.filter(sample=>sample.requestedClip==='seated'),original=s.cast,before=p.draw(),furnitureVisible=furniture.visible;let seatedPixels,seatedUnoccludedPixels,unoccluded;
       try {
+        furniture.visible=false;unoccluded=p.draw();furniture.visible=furnitureVisible;
         s.cast=function(index,pose,clip){return pose.id===id&&clip==='seated'?true:original.call(this,index,pose,clip);};
         g.render(0);seatedPixels=p.diff(before,p.draw());
-      } finally {s.cast=original;g.render(0);}
-      return {models:p.models(),groundStatic:g.ctx.scene.getObjectByName('command-ground-static')?.visible,seated,seatedPixels,seatedId:id};
+        furniture.visible=false;seatedUnoccludedPixels=p.diff(unoccluded,p.draw());
+      } finally {furniture.visible=furnitureVisible;s.cast=original;g.render(0);}
+      return {models:p.models(),groundStatic:g.ctx.scene.getObjectByName('command-ground-static')?.visible,seated,seatedPixels,seatedUnoccludedPixels,seatedVisibleFraction:seatedPixels/Math.max(1,seatedUnoccludedPixels),seatedId:id,captures:{furniture:p.png(before),unoccluded:p.png(unoccluded)}};
     });
+    for(const [name,data] of Object.entries(proof.captures))writeFileSync(join(OUT,'demo-seated-'+name+'.png'),Buffer.from(data,'base64'));delete proof.captures;
     await page.screenshot({path:join(OUT,'mobile-flat-sprites-demo.png')});
+    writeFileSync(join(OUT,'demo-proof.json'),JSON.stringify({...info,...proof},null,2));
     assert.equal(proof.groundStatic,false);assert.deepEqual(proof.models.visibleMappedModels,[]);assert.equal(proof.models.hippieInstances,0);assert.equal(proof.models.flagInstances,0);
     assert.ok(proof.seated.some(s=>s.id===proof.seatedId&&s.clip==='seated'&&s.direction==='front'),'Demo must show real front-facing seated sprite art');
     assert.ok(proof.seatedPixels>20,'Seated sprite must contribute visible scene pixels, not only submit a hidden draw');
+    assert.ok(proof.seatedUnoccludedPixels>50&&proof.seatedVisibleFraction>.6,'A clear majority of the front-facing seated character must remain visible around its furniture');
     return {...info,...proof};
   }
   finally {await page.evaluate(()=>window.__restoreSpriteDemo?.());}

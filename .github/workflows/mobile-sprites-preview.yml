@@ -69,6 +69,9 @@ jobs:
           path: |
             web/host-release/mobile-sprites-smoke/mobile-flat-sprites-demo.png
             web/host-release/mobile-sprites-smoke/portrait-natural.png
+            web/host-release/mobile-sprites-smoke/demo-seated-furniture.png
+            web/host-release/mobile-sprites-smoke/demo-seated-unoccluded.png
+            web/host-release/mobile-sprites-smoke/demo-proof.json
           if-no-files-found: warn
           retention-days: 14
       - name: Verify mobile pixel dialogue and desktop isolation

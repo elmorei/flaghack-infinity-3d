@@ -12,6 +12,8 @@ export interface SpritePose {
   id: number; x: number; y: number; z: number; yaw: number; height: number; moving: boolean;
   /** Seconds since a one-shot pose began; looping clips use the presentation clock. */
   animationTime?: number;
+  /** Seated bodies keep screen-flat art but use a bounded upright depth plane. */
+  depthProfile?: 'upright';
 }
 export interface FlagSpriteStyle { ribbon?: THREE.Color; highlight?: number; glitch?: number; rotation?: number }
 export function spriteFrame(time: number, id: number, moving: boolean): number {
@@ -62,15 +64,41 @@ const sheets: Record<string, Sheet> = atlas.sheets;
 const WHITE = new THREE.Color(1, 1, 1);
 const HIGHLIGHT = new THREE.Color(1.2, 1.2, 1.2);
 
+/** Depth-only coefficients for an upright body through the true foot anchor.
+ * A perspective plane has affine window depth, so changing clip Z only preserves
+ * the exact pixel footprint, UV interpolation and foot position. The profile is
+ * capped to one body height and never disables normal terrain/building depth tests.
+ */
+export function spriteUprightDepth(camera: THREE.Camera, p: SpritePose, radius: number): [number, number] {
+  if (p.depthProfile !== 'upright' || !(p.height > 0) || !(radius > 0)) return [0, 0];
+  const v = camera.matrixWorldInverse.elements, projection = camera.projectionMatrix.elements;
+  const x = v[0] * p.x + v[4] * p.y + v[8] * p.z + v[12];
+  const y = v[1] * p.x + v[5] * p.y + v[9] * p.z + v[13];
+  const z = v[2] * p.x + v[6] * p.y + v[10] * p.z + v[14];
+  if (z >= -.01) return [0, 0];
+  // At almost top-down views, bound the otherwise singular upright-plane slope.
+  const denominator = Math.max(.0625, v[4] * v[4] + v[5] * v[5]);
+  const sx = v[4] * v[6] / denominator, sy = v[5] * v[6] / denominator;
+  const plane = z - x * sx - y * sy;
+  if (projection[15] === 0 && Math.abs(plane) < .01) return [0, 0];
+  const factor = projection[15] === 0 ? projection[14] / (z * plane) : projection[10];
+  const dx = sx * factor, dy = sy * factor;
+  const depth = (at: number) => (projection[10] * at + projection[14]) / (projection[11] * at + projection[15]);
+  const limit = Math.abs(depth(z + Math.min(p.height, -z * .5)) - depth(z));
+  const bounded = Math.min(1, limit / Math.max(1e-12, Math.hypot(dx, dy) * radius));
+  return [dx * bounded, dy * bounded];
+}
+
 /** Camera-space offsets keep the quads screen-parallel at every camera pitch and roll. */
-export const SPRITE_VERTEX_SHADER = `attribute vec3 aCenter; attribute vec2 aSize; attribute vec4 aRect; attribute vec3 aOffset; attribute vec3 aTint; attribute float aRotation; attribute float aGlitch; attribute vec4 aRibbon;
+export const SPRITE_VERTEX_SHADER = `attribute vec3 aCenter; attribute vec2 aSize; attribute vec4 aRect; attribute vec3 aOffset; attribute vec3 aTint; attribute float aRotation; attribute float aGlitch; attribute vec4 aRibbon; attribute vec2 aDepth;
   varying vec2 vUv; varying vec3 vTint; varying float vGlitch; varying vec4 vRibbon;
   void main(){vUv=aRect.xy+position.xy*aRect.zw;vTint=aTint;vGlitch=aGlitch;vRibbon=aRibbon;
     vec4 p=viewMatrix*vec4(aCenter,1.);
     vec2 q=vec2((position.x-.5)*aSize.x+aOffset.x,position.y*aSize.y+aOffset.y);
-    float c=cos(aRotation),s=sin(aRotation);p.xy+=mat2(c,s,-s,c)*q;
+    float c=cos(aRotation),s=sin(aRotation);q=mat2(c,s,-s,c)*q;p.xy+=q;
     p.z+=aOffset.z;
-    gl_Position=projectionMatrix*p;}`;
+    gl_Position=projectionMatrix*p;
+    gl_Position.z+=dot(q,aDepth)*gl_Position.w;}`;
 
 class SpriteBatch {
   readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
@@ -88,6 +116,7 @@ class SpriteBatch {
   private glitches!: THREE.InstancedBufferAttribute;
   private rotations!: THREE.InstancedBufferAttribute;
   private tints!: THREE.InstancedBufferAttribute;
+  private depths!: THREE.InstancedBufferAttribute;
   constructor(private readonly ctx: RenderContext, readonly width: number, readonly height: number, source: string | THREE.Texture, name: string) {
     const geometry = new THREE.InstancedBufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, 1,0,0, 1,1,0, 0,1,0], 3));
@@ -129,6 +158,7 @@ class SpriteBatch {
       if (old) next.array.set(old.array); geometry.setAttribute(name, next); return next;
     };
     if (this.capacity) geometry.dispose();
+    this.depths = replace('aDepth', this.depths, 2);
     this.centers = replace('aCenter', this.centers, 3); this.sizes = replace('aSize', this.sizes, 2);
     this.rects = replace('aRect', this.rects, 4); this.offsets = replace('aOffset', this.offsets, 3);
     this.tints = replace('aTint', this.tints, 3); this.rotations = replace('aRotation', this.rotations, 1); this.glitches = replace('aGlitch', this.glitches, 1); this.ribbons = replace('aRibbon', this.ribbons, 4); this.capacity = capacity;
@@ -137,6 +167,11 @@ class SpriteBatch {
     this.grow(this.count + 1); const i = this.count++;
     this.centers.setXYZ(i, p.x, p.y, p.z); this.sizes.setXY(i, s.cellWidth * scale, s.cellHeight * scale);
     this.offsets.setXYZ(i, (s.cellWidth / 2 - s.anchor[0] + dx) * scale, (footY - s.cellHeight - dy) * scale, order * .003);
+    if (p.depthProfile === 'upright') {
+      const radius = Math.hypot(s.cellWidth * scale / 2 + Math.abs(this.offsets.getX(i)),
+        Math.max(Math.abs(this.offsets.getY(i)), Math.abs(s.cellHeight * scale + this.offsets.getY(i))));
+      this.depths.setXY(i, ...spriteUprightDepth(this.ctx.camera, p, radius));
+    } else this.depths.setXY(i, 0, 0);
     this.tints.setXYZ(i, tint.r, tint.g, tint.b); this.rotations.setX(i, rotation); this.glitches.setX(i, glitch); this.ribbons.setXYZW(i, ribbon?.r ?? 1, ribbon?.g ?? 1, ribbon?.b ?? 1, ribbon ? 1 : 0);
     // Exact cell edges preserve source pixel-edge anchors. With nearest sampling and
     // transparent cell borders, half-texel shrinking would move the visible pole tip.
@@ -148,7 +183,7 @@ class SpriteBatch {
     this.mesh.material.uniforms.uTime.value = this.ctx.time;
     this.mesh.geometry.instanceCount = this.count;
     this.mesh.visible = this.count > 0;
-    for (const a of [this.centers, this.sizes, this.rects, this.offsets, this.tints, this.rotations, this.glitches, this.ribbons]) {
+    for (const a of [this.centers, this.sizes, this.rects, this.offsets, this.tints, this.rotations, this.glitches, this.ribbons, this.depths]) {
       a.clearUpdateRanges(); a.addUpdateRange(0, this.count * a.itemSize); a.needsUpdate = true;
     }
   }

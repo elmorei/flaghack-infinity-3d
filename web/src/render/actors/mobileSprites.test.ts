@@ -5,7 +5,7 @@ import type { RenderContext } from '../context';
 import atlas from './mobileSpriteAtlas.json';
 import actionAtlas from './mobileSpriteActions.json';
 import { HL } from './hippieModel';
-import { CAST_SHEETS, MobileSprites, signifierBody, signifierHead, signifierLayers, spriteDirection, spriteFrame, supportsSignifierAnimation, type SpritePose } from './mobileSprites';
+import { CAST_SHEETS, MobileSprites, signifierBody, signifierHead, signifierLayers, spriteDirection, spriteFrame, spriteUprightDepth, supportsSignifierAnimation, type SpritePose } from './mobileSprites';
 const pose = (id = 0, yaw = 0): SpritePose => ({id, x: 0, y: 0, z: 0, yaw, height: 2.24, moving: false});
 let texture: THREE.Texture<HTMLImageElement>, loaded: (texture: THREE.Texture<HTMLImageElement>) => void, failed: () => void;
 const instances: MobileSprites[] = [];
@@ -265,4 +265,62 @@ it('selects every shipped action, alias, frame and facing without model fallback
       expect(rect.getY(0), key).toBeCloseTo(1 - (clip.y + (clip.directionRows[direction] + 1) * clip.cellHeight) / page.height, 7);
     }
   }
+});
+
+
+describe('seated upright depth profile', () => {
+  it.each([false, true])('keeps screen art and its true foot fixed with bounded depth at all views (orthographic=%s)', ortho => {
+    const {sprites, ctx} = setup(true, 4096, ortho);
+    const p: SpritePose = {...pose(0), x: 4, y: 2, z: -3, height: 3, depthProfile: 'upright'};
+    for (const pitch of [0, .55, 1.2, 1.56]) for (const roll of [0, .7, -1.2]) {
+      ctx.camera.position.set(p.x, p.y + 30 * Math.sin(pitch), p.z + 30 * Math.cos(pitch));
+      ctx.camera.lookAt(p.x, p.y + .4, p.z); ctx.camera.rotateZ(roll); ctx.camera.updateMatrixWorld();
+      const anchor = new THREE.Vector4(p.x, p.y, p.z, 1).applyMatrix4(ctx.camera.matrixWorldInverse);
+      const radius = Math.hypot(2, 4), depth = spriteUprightDepth(ctx.camera, p, radius);
+      const projectDepth = (z: number) => { const v = new THREE.Vector4(0, 0, z, 1).applyMatrix4(ctx.camera.projectionMatrix); return v.z / v.w; };
+      const maxShift = Math.abs(projectDepth(anchor.z + p.height) - projectDepth(anchor.z));
+      for (const [x, y] of [[0, 0], [-2, -.2], [2, 4], [0, 2]]) {
+        const original = anchor.clone().add(new THREE.Vector4(x, y, 0, 0)).applyMatrix4(ctx.camera.projectionMatrix);
+        const adjusted = original.clone(); adjusted.z += (x * depth[0] + y * depth[1]) * adjusted.w;
+        expect(adjusted.x / adjusted.w).toBe(original.x / original.w);
+        expect(adjusted.y / adjusted.w).toBe(original.y / original.w);
+        expect(Number.isFinite(adjusted.z)).toBe(true);
+        expect(Math.abs((adjusted.z - original.z) / original.w)).toBeLessThanOrEqual(maxShift + 1e-12);
+        if (x === 0 && y === 0) expect(adjusted.toArray()).toEqual(original.toArray());
+      }
+      sprites.begin(); sprites.cast(0, p, 'seated'); sprites.end();
+      const batch = sprites.meshes.find(m => m.visible)!;
+      const size = batch.geometry.getAttribute('aSize'), offset = batch.geometry.getAttribute('aOffset');
+      const boundsRadius = Math.hypot(size.getX(0) / 2 + Math.abs(offset.getX(0)),
+        Math.max(Math.abs(offset.getY(0)), Math.abs(size.getY(0) + offset.getY(0))));
+      expect(batch.geometry.getAttribute('aDepth').getY(0)).toBeCloseTo(spriteUprightDepth(ctx.camera, p, boundsRadius)[1], 7);
+      expect(batch.material.depthTest).toBe(true); expect(batch.material.depthWrite).toBe(true);
+      expect((batch.geometry.getAttribute('aDepth') as THREE.InstancedBufferAttribute).version).toBeGreaterThan(0);
+      expect((batch.geometry.getAttribute('aDepth') as THREE.InstancedBufferAttribute).updateRanges).toEqual([{start: 0, count: 2}]);
+    }
+    expect(sprites.mesh.material.vertexShader).toContain('gl_Position.z+=dot(q,aDepth)*gl_Position.w');
+  });
+  it.each([false, true])('places a raised body before rear furniture but behind real foreground occluders (orthographic=%s)', ortho => {
+    const {ctx} = setup(true, 4096, ortho), camera = ctx.camera;
+    const p: SpritePose = {...pose(), height: 3, depthProfile: 'upright'};
+    camera.position.set(0, 15, 24); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+    const anchor = new THREE.Vector4(0, 0, 0, 1).applyMatrix4(camera.matrixWorldInverse);
+    const q = new THREE.Vector2(0, 1.7), coeff = spriteUprightDepth(camera, p, 3.2);
+    const pixel = anchor.clone().add(new THREE.Vector4(q.x, q.y, 0, 0)).applyMatrix4(camera.projectionMatrix);
+    const spriteDepth = pixel.z / pixel.w + q.x * coeff[0] + q.y * coeff[1];
+    const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(pixel.x / pixel.w, pixel.y / pixel.w), camera);
+    const depthAtWorldZ = (z: number) => {
+      const point = ray.ray.at((z - ray.ray.origin.z) / ray.ray.direction.z, new THREE.Vector3());
+      return point.project(camera).z;
+    };
+    expect(spriteDepth).toBeLessThan(depthAtWorldZ(-.6)); // Back banners stay behind the raised body.
+    expect(spriteDepth).toBeGreaterThan(depthAtWorldZ(1.4)); // The actual front desk/walls still hide it.
+    expect(spriteUprightDepth(camera, {...p, depthProfile: undefined}, 3.2)).toEqual([0, 0]);
+  });
+  it('applies the profile to seated defaults/placeholders but never ordinary sprites', () => {
+    const {sprites} = setup(false), p: SpritePose = {...pose(), depthProfile: 'upright'};
+    sprites.cast(0, p, 'seated'); sprites.cast(0, pose(1), 'idle'); sprites.end();
+    const depth = sprites.meshes.find(m => m.visible)!.geometry.getAttribute('aDepth');
+    expect(depth.getY(0)).toBeLessThan(0); expect(depth.getX(1)).toBe(0); expect(depth.getY(1)).toBe(0);
+  });
 });

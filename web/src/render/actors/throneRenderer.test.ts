@@ -114,7 +114,7 @@ it('replaces only the seated ruler with a foot-anchored sprite and preserves thr
   const altar = e.world.hearthOf(0)!;
   const throne = e.renderer.group.getObjectByName('rts-ruler-0')!;
   expect(cast).toHaveBeenCalledWith(0, expect.objectContaining({
-    x: altar.pos.x, y: 7 + THRONE_PLATFORM_HEIGHT, z: altar.pos.z, moving: false,
+    x: altar.pos.x, y: 7 + THRONE_PLATFORM_HEIGHT, z: altar.pos.z, moving: false, depthProfile: 'upright',
   }), 'seated');
   expect(throne.getObjectByName('rts-seated-avatar-0')?.visible).toBe(false);
   expect(throne.getObjectByName('rts-throne')?.visible).toBe(true);
