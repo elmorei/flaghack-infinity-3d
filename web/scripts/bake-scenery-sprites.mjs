@@ -15,7 +15,7 @@ try {
   await page.route('**/sprite-bake',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><body></body>'}));await page.goto('http://127.0.0.1:5196/sprite-bake');
   const result=await page.evaluate(async()=>{
     const THREE=await import('/node_modules/three/build/three.module.js');
-    const {createMatch}=await import('/src/sim/setup.ts');
+    const canonical=await (await fetch('/scripts/scenery-bake-specs.json')).json();
     const {createBatches,createClutterKit,disposeClutterKit}=await import('/src/render/env/props/kit.ts');
     const modules={};for(const name of ['tents','domes','shades','portas','cars','rocks','art','trees','stages'])modules[name]=await import(`/src/render/env/props/${name}.ts`);
     const {buildPileLayout}=await import('/src/render/env/piles/pileLayout.ts');
@@ -24,15 +24,15 @@ try {
     const {buildEffigyGeometry}=await import('/src/render/env/burn/effigyModel.ts');
     const {Rng}=await import('/src/sim/rng.ts');
     const {FLAG_BOTTOM,FLAG_HEIGHT,FLAG_WIDTH,MAST_TOP,PLINTH_HEIGHT,LATTICE_TOP}=await import('/src/render/env/burn/burnTimeline.ts');
-    const world=createMatch({seed:'mobile-scenery-art-v1',difficulty:'normal',humans:[0],mode:'standard'}),CELL=256,PAGE=2048,pages=[],clips={},reference={};
+    const CELL=256,PAGE=2048,pages=[],clips={},reference={};
     const renderer=new THREE.WebGLRenderer({alpha:true,antialias:false,preserveDrawingBuffer:true});renderer.setSize(CELL,CELL);renderer.setPixelRatio(1);renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;
     const camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,1000),scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xffffff,0x69687b,2));const sun=new THREE.DirectionalLight(0xfff1d4,2.5);sun.position.set(-15,25,20);scene.add(sun);
     const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,metalness:.05,side:THREE.DoubleSide});
     const add=(group,source,matrix,color)=>{if(!source)return;const geo=source.clone();if(color!==undefined){const a=geo.getAttribute('color'),mask=geo.getAttribute('aTint'),c=new THREE.Color(color);for(let i=0;i<a.count;i++)if(!mask||mask.getX(i)>.5)a.setXYZ(i,a.getX(i)*c.r,a.getY(i)*c.g,a.getZ(i)*c.b);}const mesh=new THREE.Mesh(geo,material);if(matrix){mesh.matrix.copy(matrix);mesh.matrixAutoUpdate=false;}group.add(mesh);};
-    function propModel(o){const out=createBatches('high'),kit=createClutterKit(),g=new THREE.Group(),items=[o];
+    function propModel(o,phase=0){const out=createBatches('high'),kit=createClutterKit(),g=new THREE.Group(),items=[o];
       if(o.kind==='tent')modules.tents.buildTents(items,[],kit,out);if(o.kind==='shade')modules.shades.buildShades(items,kit,out);if(o.kind==='dome')modules.domes.buildDomes(items,kit,out);if(o.kind==='porta')modules.portas.buildPortas(items,out);if(o.kind==='car')modules.cars.buildCars(items,kit,out);if(o.kind==='rock')modules.rocks.buildRocks(items,out);if(o.kind==='stage')modules.stages.buildStages(items,[],kit,out);
       if(o.kind==='tree'){const t=modules.trees.buildTrees(items,out);for(const it of t.pines)add(g,t.pine,it.matrix,it.color);for(const it of t.oaks)add(g,t.oak,it.matrix,it.color);t.pine.dispose();t.oak.dispose();}
-      if(o.kind==='art'){const r=modules.art.buildArt(items,out),t=modules.art.createRotorTemplates();for(const it of r.spiral)add(g,t.spiral,it.matrix,it.color);for(const it of r.pinwheel)add(g,t.pinwheel,it.matrix,it.color);t.spiral.dispose();t.pinwheel.dispose();}
+      if(o.kind==='art'){const r=modules.art.buildArt(items,out),t=modules.art.createRotorTemplates();for(const it of r.spiral)add(g,t.spiral,it.matrix.clone().multiply(new THREE.Matrix4().makeRotationY(phase)),it.color);for(const it of r.pinwheel)add(g,t.pinwheel,it.matrix.clone().multiply(new THREE.Matrix4().makeRotationZ(phase)),it.color);t.spiral.dispose();t.pinwheel.dispose();}
       for(const batch of [out.solid,out.gloss,out.low,out.cloth,out.lights]){const geo=batch.build();if(geo){add(g,geo);geo.dispose();}}const strings=out.strings.build();add(g,strings);strings.dispose();disposeClutterKit(kit);return g;}
     function pileModel(kind){const g=new THREE.Group(),layout=buildPileLayout({id:71,kind,pos:{x:0,z:0},lumber:100,max:100});for(const it of layout.items){const geo=buildPieceGeometry(it.piece);add(g,geo,new THREE.Matrix4().compose(new THREE.Vector3(it.x,it.y,it.z),new THREE.Quaternion().setFromEuler(new THREE.Euler(it.rx,it.ry,it.rz)),new THREE.Vector3().setScalar(it.scale)),it.color);geo.dispose();}return g;}
     function wreckModel(kind){const g=new THREE.Group(),r={id:'sprite',kind,pos:{x:0,y:0,z:0},size:{x:5,y:3,z:5},yaw:0};for(const f of wreckageFragments(r,'sprite')){const geo=f.shape===1?new THREE.IcosahedronGeometry(.65,0):f.shape===2?new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2):new THREE.BoxGeometry(1,1,1),a=new Float32Array(geo.getAttribute('position').count*3),c=new THREE.Color(f.color);for(let i=0;i<a.length;i+=3)c.toArray(a,i);geo.setAttribute('color',new THREE.BufferAttribute(a,3));add(g,geo,new THREE.Matrix4().compose(f.pos,new THREE.Quaternion().setFromEuler(f.rotation),f.scale));geo.dispose();}return g;}
@@ -41,15 +41,33 @@ try {
       if(kind==='plinth'){const solid=geo.solid.clone(),p=solid.getAttribute('position'),keep=[];for(let i=0;i<p.count;i+=3)if(Math.max(p.getY(i),p.getY(i+1),p.getY(i+2))<=PLINTH_HEIGHT+.01)keep.push(i,i+1,i+2);solid.setIndex(keep);add(g,solid);add(g,geo.offerings);solid.dispose();}
       if(kind==='flag'){add(g,geo.mast,new THREE.Matrix4().makeTranslation(0,-PLINTH_HEIGHT,0));add(g,geo.finial,new THREE.Matrix4().makeTranslation(0,-PLINTH_HEIGHT,0));const flag=new THREE.PlaneGeometry(FLAG_WIDTH,FLAG_HEIGHT,12,5);flag.translate(FLAG_WIDTH/2,FLAG_BOTTOM-PLINTH_HEIGHT+FLAG_HEIGHT/2,0);const p=flag.getAttribute('position'),color=new Float32Array(p.count*3),gold=new THREE.Color(0xffd400);for(let i=0;i<p.count;i++){p.setZ(i,Math.sin(p.getX(i)*1.4+p.getY(i)*.4)*.25);gold.toArray(color,i*3);}flag.setAttribute('color',new THREE.BufferAttribute(color,3));flag.computeVertexNormals();add(g,flag);flag.dispose();}
       for(const value of Object.values(geo))if(value?.isBufferGeometry)value.dispose();return g;}
-    const specs=[];for(const[kind,count]of Object.entries({tent:3,tree:2,car:3,art:6,dome:1,porta:1,rock:1,stage:1,shade:1}))for(let variant=0;variant<count;variant++){const source=world.map.obstacles.find(o=>o.kind===kind&&o.variant===variant);if(!source)throw new Error(`Missing canonical ${kind}:${variant}`);const o={...source,x:0,z:0,yaw:0,color:0xffffff,seed:123456};specs.push({key:`scenery:${kind}:${variant}`,height:o.height,build:color=>propModel({...o,color}),reference:o});}
+    const specs=canonical.map(o=>({key:`scenery:${o.kind}:${o.variant}`,height:o.height,columns:o.kind==='art'&&(o.variant===2||o.variant===3)?4:1,build:(color,frame=0)=>propModel({...o,color},frame*Math.PI/2),reference:o}));
     for(const kind of ['pallets','lumber','moop'])specs.push({key:`pile:${kind}`,height:kind==='pallets'?2.15:kind==='lumber'?1.55:1.7,build:()=>pileModel(kind)});
     for(const[style,kind]of Object.entries({cloth:'tent',metal:'car',wood:'wall',stone:'rock',mixed:'hearth'}))specs.push({key:`wreckage:${style}`,height:.96,build:()=>wreckModel(kind)});
     for(const kind of ['scaffold','flag','plinth'])specs.push({key:`effigy:${kind}`,height:kind==='scaffold'?LATTICE_TOP+1.1-PLINTH_HEIGHT:kind==='flag'?MAST_TOP-PLINTH_HEIGHT:PLINTH_HEIGHT,build:()=>effigyModel(kind)});
     const capture=new OffscreenCanvas(CELL,CELL),cg=capture.getContext('2d',{willReadFrequently:true});
-    for(let index=0;index<specs.length;index++){const spec=specs[index],normal=spec.build(0xffffff),black=spec.build(0x000000),size=new THREE.Box3().setFromObject(normal).getSize(new THREE.Vector3()),diameter=Math.hypot(size.x,size.z),extent=Math.max(size.y+diameter*.4,diameter)*1.14,pixelScale=CELL/extent,anchorY=Math.ceil(CELL*.89),targetY=(anchorY/CELL-.5)*extent/Math.cos(.27),pageIndex=Math.floor(index/16),slot=index%16,x=(slot%8)*CELL,y=Math.floor(slot/8)*CELL*4;
+    let pageIndex=0,cellX=0,cellY=0;
+    for(let index=0;index<specs.length;index++){
+      const spec=specs[index],columns=spec.columns||1;
+      if(cellX+columns>8){cellX=0;cellY+=4;}if(cellY+4>8){pageIndex++;cellX=cellY=0;}
+      const x=cellX*CELL,y=cellY*CELL;cellX+=columns;
+      const frames=Array.from({length:columns},(_,i)=>[spec.build(0xffffff,i),spec.build(0x000000,i)]);
+      const bounds=new THREE.Box3();for(const [normal]of frames)bounds.union(new THREE.Box3().setFromObject(normal));
+      const size=bounds.getSize(new THREE.Vector3()),diameter=Math.hypot(size.x,size.z),extent=Math.max(size.y+diameter*.4,diameter)*1.14,pixelScale=CELL/extent,anchorY=Math.ceil(CELL*.89),targetY=(anchorY/CELL-.5)*extent/Math.cos(.27);
       if(!pages[pageIndex]){const canvas=new OffscreenCanvas(PAGE,PAGE);pages[pageIndex]={canvas,ctx:canvas.getContext('2d')};}
-      for(let direction=0;direction<4;direction++){const yaw=direction*Math.PI/2,pitch=.27;camera.left=-extent/2;camera.right=extent/2;camera.top=extent/2;camera.bottom=-extent/2;const target=new THREE.Vector3(0,targetY,0);camera.position.copy(target).add(new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(100));camera.lookAt(target);camera.updateProjectionMatrix();scene.add(normal);renderer.render(scene,camera);cg.clearRect(0,0,CELL,CELL);cg.drawImage(renderer.domElement,0,0);const pixels=cg.getImageData(0,0,CELL,CELL);scene.remove(normal);scene.add(black);renderer.render(scene,camera);cg.clearRect(0,0,CELL,CELL);cg.drawImage(renderer.domElement,0,0);const mask=cg.getImageData(0,0,CELL,CELL);scene.remove(black);for(let i=0;i<pixels.data.length;i+=4){if(pixels.data[i+3]<128){pixels.data[i+3]=0;continue;}const delta=Math.max(...[0,1,2].map(k=>Math.abs(pixels.data[i+k]-mask.data[i+k])));pixels.data[i+3]=delta>8?224:255;}pages[pageIndex].ctx.putImageData(pixels,x,y+direction*CELL);}
-      clips[`${spec.key}:idle`]={page:pageIndex,x,y,w:CELL,h:CELL*4,cellWidth:CELL,cellHeight:CELL,columns:1,rows:4,anchor:[CELL/2,anchorY],footYByCell:[[anchorY],[anchorY],[anchorY],[anchorY]],heightPixels:spec.height*pixelScale,frameDurationMs:140,loop:true,directionRows:{front:0,right:1,away:2,left:3}};if(spec.reference)reference[spec.key]=spec.reference;for(const group of[normal,black])group.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+      for(let direction=0;direction<4;direction++)for(let frame=0;frame<columns;frame++){
+        const [normal,black]=frames[frame],yaw=direction*Math.PI/2,pitch=.27;
+        camera.left=-extent/2;camera.right=extent/2;camera.top=extent/2;camera.bottom=-extent/2;
+        const target=new THREE.Vector3(0,targetY,0);camera.position.copy(target).add(new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(100));camera.lookAt(target);camera.updateProjectionMatrix();
+        scene.add(normal);renderer.render(scene,camera);cg.clearRect(0,0,CELL,CELL);cg.drawImage(renderer.domElement,0,0);const pixels=cg.getImageData(0,0,CELL,CELL);scene.remove(normal);
+        scene.add(black);renderer.render(scene,camera);cg.clearRect(0,0,CELL,CELL);cg.drawImage(renderer.domElement,0,0);const mask=cg.getImageData(0,0,CELL,CELL);scene.remove(black);
+        for(let i=0;i<pixels.data.length;i+=4){if(pixels.data[i+3]<128){pixels.data[i+3]=0;continue;}const delta=Math.max(...[0,1,2].map(k=>Math.abs(pixels.data[i+k]-mask.data[i+k])));pixels.data[i+3]=delta>8?224:255;}
+        pages[pageIndex].ctx.putImageData(pixels,x+frame*CELL,y+direction*CELL);
+      }
+      clips[`${spec.key}:idle`]={page:pageIndex,x,y,w:CELL*columns,h:CELL*4,cellWidth:CELL,cellHeight:CELL,columns,rows:4,anchor:[CELL/2,anchorY],footYByCell:Array.from({length:4},()=>Array(columns).fill(anchorY)),heightPixels:spec.height*pixelScale,frameDurationMs:columns>1?650:140,loop:true,directionRows:{front:0,right:1,away:2,left:3}};
+      if(spec.reference)reference[spec.key]=spec.reference;
+      for(const pair of frames)for(const group of pair)group.traverse(o=>{if(o.isMesh)o.geometry.dispose();});
+    }
     const images=[];for(const p of pages){const blob=await p.canvas.convertToBlob({type:'image/png'}),bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(const b of bytes)binary+=String.fromCharCode(b);images.push(btoa(binary));}renderer.dispose();material.dispose();return{images,manifest:{schemaVersion:1,pages:pages.map((_,i)=>({image:`/assets/mobile-sprites/world-${i}.png`,width:PAGE,height:PAGE})),clips},reference};
   });
   mkdirSync(resolve(root,'public/assets/mobile-sprites'),{recursive:true});for(let i=0;i<result.images.length;i++)writeFileSync(resolve(root,`public/assets/mobile-sprites/world-${i}.png`),Buffer.from(result.images[i],'base64'));
