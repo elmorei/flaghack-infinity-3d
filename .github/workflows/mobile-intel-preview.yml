@@ -1,0 +1,185 @@
+name: Verify mobile sprite preview on macOS 15 Intel
+on:
+  push:
+    branches: ['qa/mobile-intel-20261105']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm test -- --maxWorkers=2
+      - run: npm run build:pages
+      - run: npm run build:server
+      - run: npm run desktop:test
+      - run: npm run host-app:test
+      - name: Verify exact building and scenery atlas pixels
+        run: |
+          node scripts/verify-building-atlas.cjs
+          node scripts/verify-scenery-atlas.cjs
+      - run: npm run host-app:build
+      - run: node scripts/verify-pages-build.cjs
+  native-browser:
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build:pages
+      - run: npm run build:server
+      - name: Upload isolated preview build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-sprites-preview-build
+          path: web/dist/
+          retention-days: 14
+      - name: Prepare native Chrome recording tools
+        id: native-tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+          node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node -e 'const {chromium}=require("playwright"),assert=require("node:assert/strict");(async()=>{const b=await chromium.launch({channel:"chrome",headless:false,chromiumSandbox:true,args:[]});try{const p=await b.newPage();const gpu=await p.evaluate(()=>{const c=document.createElement("canvas"),g=c.getContext("webgl2");if(!g)throw Error("Stock Chrome has no WebGL2");const e=g.getExtension("WEBGL_debug_renderer_info");return{renderer:g.getParameter(e?e.UNMASKED_RENDERER_WEBGL:g.RENDERER),vendor:g.getParameter(e?e.UNMASKED_VENDOR_WEBGL:g.VENDOR)};});console.log(JSON.stringify({browser:b.version(),gpu}));assert.match(gpu.renderer,/Metal/i,"Native Metal backend required");assert.doesNotMatch(gpu.renderer,/SwiftShader|llvmpipe|Software/i,"Software renderer cannot satisfy native gate");}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});'
+      - name: Verify native startup and restored boss model
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-startup-browser.cjs
+      - name: Verify mobile title, settings and lobby release gate
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-browser.cjs
+      - name: Verify mobile sprites, real pixels, occlusion and crowd timings
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-sprites-browser.mjs
+      - name: Upload the requested mobile gameplay demo promptly
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-flat-sprites-demo
+          path: |
+            web/host-release/mobile-sprites-smoke/mobile-flat-sprites-demo.png
+            web/host-release/mobile-sprites-smoke/portrait-natural.png
+            web/host-release/mobile-sprites-smoke/demo-seated-combined.png
+            web/host-release/mobile-sprites-smoke/demo-seated-without.png
+            web/host-release/mobile-sprites-smoke/demo-proof.json
+            web/host-release/mobile-sprites-smoke/skin-tones-front.png
+            web/host-release/mobile-sprites-smoke/skin-tones-away.png
+            web/host-release/mobile-sprites-smoke/skin-proof.json
+            web/host-release/mobile-sprites-smoke/world-sprites-front.png
+            web/host-release/mobile-sprites-smoke/world-sprites-side.png
+            web/host-release/mobile-sprites-smoke/building-sprites-front.png
+            web/host-release/mobile-sprites-smoke/building-sprites-side.png
+            web/host-release/mobile-sprites-smoke/world-pixels-proof.json
+            web/host-release/mobile-sprites-smoke/gcc-map-*-compass.png
+            web/host-release/mobile-sprites-smoke/gcc-map-*-semantic-mask.png
+            web/host-release/mobile-sprites-smoke/building-map-proof.json
+            web/host-release/mobile-sprites-smoke/scenery-integration-proof.json
+            web/host-release/mobile-sprites-smoke/scenery-owner-red.png
+            web/host-release/mobile-sprites-smoke/scenery-owner-blue.png
+            web/host-release/mobile-sprites-smoke/result.json
+            web/host-release/mobile-sprites-smoke/failure.png
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Verify mobile pixel dialogue and desktop isolation
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-pixel-browser.mjs
+      - name: Verify mobile field resources, timer and altar directions
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-hud-browser.mjs
+      - name: Recheck mobile command interactions
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: RECORD_VIDEO=1 NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-command-browser.cjs
+      - name: Verify automatic human styles and NPC Crow through real lobbies
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-auto-style-browser.mjs
+      - name: Verify live explosion fixes and mobile ley presentation
+        if: ${{ !cancelled() && steps.native-tools.outcome == 'success' }}
+        run: |
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-explosion-browser.mjs
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-mobile-ley-browser.mjs
+      - name: Upload native screenshots and normal-speed recordings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-sprites-native-smoke
+          path: |
+            web/host-release/startup-smoke/
+            web/host-release/mobile-smoke/
+            web/host-release/explosion-smoke/
+            web/host-release/mobile-ley-smoke/
+            web/host-release/mobile-sprites-smoke/
+            web/host-release/mobile-pixel-smoke/
+            web/host-release/mobile-hud-smoke/
+            web/host-release/mobile-command-smoke/
+            web/host-release/auto-style-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
+  legacy-card-browser:
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build:pages
+      - run: npm run build:server
+      - name: Prepare native Chrome recording tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/flaghack-browser-test" --no-save --package-lock=false --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000 playwright@1.56.1
+          node "$RUNNER_TEMP/flaghack-browser-test/node_modules/playwright/cli.js" install ffmpeg
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node -e 'const {chromium}=require("playwright"),assert=require("node:assert/strict");(async()=>{const b=await chromium.launch({channel:"chrome",headless:false,chromiumSandbox:true,args:[]});try{const p=await b.newPage();const gpu=await p.evaluate(()=>{const c=document.createElement("canvas"),g=c.getContext("webgl2");if(!g)throw Error("Stock Chrome has no WebGL2");const e=g.getExtension("WEBGL_debug_renderer_info");return{renderer:g.getParameter(e?e.UNMASKED_RENDERER_WEBGL:g.RENDERER),vendor:g.getParameter(e?e.UNMASKED_VENDOR_WEBGL:g.VENDOR)};});console.log(JSON.stringify({browser:b.version(),gpu}));assert.match(gpu.renderer,/Metal/i,"Native Metal backend required");assert.doesNotMatch(gpu.renderer,/SwiftShader|llvmpipe|Software/i,"Software renderer cannot satisfy native gate");}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});'
+      - name: Verify shared Flag-counter typography and card-table regressions
+        run: |
+          status=0
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-dice-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-engine-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-frack-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-frick-sleeve-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-beacon-card-browser.mjs || status=1
+          NODE_PATH="$RUNNER_TEMP/flaghack-browser-test/node_modules" node scripts/verify-intro-browser.mjs || status=1
+          exit "$status"
+      - name: Upload native card-game and intro evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-sprites-legacy-smoke
+          path: |
+            web/host-release/frick-dice-smoke/
+            web/host-release/frick-engine-smoke/
+            web/host-release/frick-frack-smoke/
+            web/host-release/frick-sleeve-smoke/
+            web/host-release/beacon-card-smoke/
+            web/host-release/intro-smoke/
+          if-no-files-found: warn
+          retention-days: 14
