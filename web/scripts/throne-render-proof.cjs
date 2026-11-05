@@ -77,8 +77,8 @@ function assertThroneRender(proof, {faction, altarId, kind, clip, page, mobile})
   const instance = proof.instances.find(i => i.rect.every((n, j) => Math.abs(n - rect[j]) < 1e-6));
   assert.ok(instance, 'Combined seated frame is uploaded to the visible GPU sprite batch');
   point(instance.center, proof.altar, 'GPU sprite center remains at altar ground');
-  const scale = pose.height / clip.heightPixels;
-  point(instance.size, [clip.cellWidth * scale, clip.cellHeight * scale], 'GPU throne uses exact artwork scale');
+  const scale = pose.height * 2 / clip.heightPixels;
+  point(instance.size, [clip.cellWidth * scale, clip.cellHeight * scale], 'GPU throne uses exactly doubled artwork scale');
   near((clip.anchor[0] / clip.cellWidth - .5) * instance.size[0] + instance.offset[0], 0, 'Artwork anchor X remains on altar');
   near((1 - foot / clip.cellHeight) * instance.size[1] + instance.offset[1], 0, 'Artwork ground edge remains on altar');
 }

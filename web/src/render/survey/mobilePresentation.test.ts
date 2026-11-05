@@ -69,6 +69,7 @@ it('centers an accessible small house button between Degen and Plan', () => {
   expect(ui).toContain("home.setAttribute('aria-label', 'Home')");
   expect(ui).toContain('<svg viewBox="0 0 24 24" aria-hidden="true">');
   expect(ui).not.toContain("button('btn ix', top, 'Home'");
+  expect(css).toContain('.mc-modes .btn { min-width: 100px; width: 100px; flex: 0 0 auto; }');
   expect(css).toContain('.mc-modes .mc-home { min-width: 44px; width: 44px;');
 });
 

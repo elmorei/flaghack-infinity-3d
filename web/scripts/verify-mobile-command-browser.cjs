@@ -100,7 +100,11 @@ async function main() {
         assert.ok(box && box.width >= 44 && box.height >= 44 && box.x >= 0 && box.x + box.width <= spec.width, label + ' reachable touch target');
       }
       const home=modes.getByRole('button',{name:'Home',exact:true}), homeBox=await home.boundingBox();
-      assert.ok(Math.abs(homeBox.x+homeBox.width/2-spec.width/2)<=1,'Home is centered');
+      const degenBox=await modes.getByRole('button',{name:'Degen',exact:true}).boundingBox(), planBox=await modes.getByRole('button',{name:'Plan',exact:true}).boundingBox();
+      entry.modeGeometry={degen:degenBox,home:homeBox,plan:planBox,viewportWidth:spec.width};
+      assert.ok(Math.abs(homeBox.x+homeBox.width/2-spec.width/2)<=1,'Home is centered: '+JSON.stringify(entry.modeGeometry));
+      assert.ok(Math.abs(degenBox.width-planBox.width)<=1,'Degen and Plan have equal widths around Home');
+      assert.equal(homeBox.width,44,'Home remains a small touch-safe house button');
       assert.equal(await home.locator('svg').count(),1,'Home is a house icon');
       const beforeHome=await state(); await centerAt(beforeHome.camera.cmdX+15,beforeHome.camera.cmdZ+15); await uiTap(home);
       await page.waitForFunction(()=>{const a=window.flaghack,b=a.world.hearthOf(a.session.playerFaction);return Math.hypot(a.session.camera.cmdX-b.pos.x,a.session.camera.cmdZ-b.pos.z)<.001;});

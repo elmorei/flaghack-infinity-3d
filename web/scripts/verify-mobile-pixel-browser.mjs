@@ -64,7 +64,9 @@ try{
   await page.locator('.mc-top').getByRole('button',{name:'Menu',exact:true}).tap();
   await page.locator('.mc-menu').waitFor({state:'visible'});await page.locator('.mobile-announcements').waitFor({state:'hidden'});
   await page.screenshot({path:join(OUT,`${spec.name}-menu.png`)});if(spec.name==='portrait')await page.waitForTimeout(2200);
-  fit(await bounds('.mc-menu,.mc-menu-head,.mc-tabs'),spec.w,spec.h);const tabs=await bounds('.mc-tabs .btn');assert.equal(tabs.length,5);fit(tabs,spec.w,spec.h);
+  fit(await bounds('.mc-menu,.mc-menu-head,.mc-tabs'),spec.w,spec.h);const tabs=await bounds('.mc-tabs .btn');
+  assert.deepEqual(await page.locator('.mc-tabs .btn').allTextContents(),['Overview','Units','Plan','Build','Powers','Settings'],'Every command section, including Powers, is reachable');
+  assert.equal(tabs.length,6);fit(tabs,spec.w,spec.h);
   await page.getByRole('button',{name:'Back to field',exact:true}).tap();
   await page.evaluate(()=>window.flaghack.ui.banners.reset(window.flaghack.world));await tide();
   await page.locator('.mp-dialogue').waitFor({state:'visible'});

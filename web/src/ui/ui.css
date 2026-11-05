@@ -4302,7 +4302,9 @@ html[data-device-layout='mobile'] .scr-playing:not(.spectator) .fh-hud { display
 .mc-timing .boss-hud-bar { height: 10px; }
 .mc-timing .boss-hud-status { font-size: 8px; overflow-wrap: anywhere; }
 .mc-modes { position: absolute; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: #17120de8; border: 1px solid var(--brass); }
-.mc-modes .btn { min-width: 100px; }
+/* Both outer buttons stay equal even when the mobile pixel skin lowers the
+   generic button minimum width. Intrinsic label widths would offset Home. */
+.mc-modes .btn { min-width: 100px; width: 100px; flex: 0 0 auto; }
 .mc-modes .mc-home { min-width: 44px; width: 44px; padding: 8px; }
 .mc-home svg { display: block; width: 22px; height: 22px; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mc-modes [aria-pressed='true'], .mc-tabs [aria-pressed='true'] { background: var(--flag); color: #17120d; border-color: var(--flag); }

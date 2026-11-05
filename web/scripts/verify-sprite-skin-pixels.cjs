@@ -38,7 +38,7 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
   try {
     for(const [o] of children)o.visible=p.meshes().includes(o);
     ctx.scene.background=null;r.setClearAlpha(0);
-    c.position.set(0,5,12);c.lookAt(0,1,0);c.top=4;c.bottom=-4;c.left=-4*innerWidth/innerHeight;c.right=-c.left;c.updateProjectionMatrix();c.updateMatrixWorld();
+    c.position.set(0,5,12);c.lookAt(0,1,0);c.top=8;c.bottom=-8;c.left=-8*innerWidth/innerHeight;c.right=-c.left;c.updateProjectionMatrix();c.updateMatrixWorld();
     for(const rec of records){
       const img=rec.map.image,canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
       const context=canvas.getContext('2d',{willReadFrequently:true});
@@ -84,10 +84,10 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
     // A readable, labeled proof sheet is rendered as one scene, not recolored PNG art.
     const width=1200,height=1440,target=g.warmTarget.clone();target.setSize(width,height);
     const rows=[['idle',0,0],['carry',4,6],['hammer',8,2],['chop',10,1],['kneel',2,0],['ko',5,0]];
-    c.position.set(0,7,20);c.lookAt(0,7,0);c.left=-6;c.right=6;c.top=7.2;c.bottom=-7.2;c.updateProjectionMatrix();c.updateMatrixWorld();ctx.time=.141;
+    c.position.set(0,14,40);c.lookAt(0,14,0);c.left=-12;c.right=12;c.top=14.4;c.bottom=-14.4;c.updateProjectionMatrix();c.updateMatrixWorld();ctx.time=.141;
     for(const direction of ['front','away']){
       s.begin();
-      for(const [row,[clip,head,body]] of rows.entries())for(let tone=0;tone<6;tone++)s.signifier({id:(row*6+tone)*4,x:(tone-2.5)*2,y:12-row*2.3,z:0,yaw:direction==='front'?0:Math.PI,height:1.7,moving:true,animationTime:.141,skinTone:tone},head,body,clip);
+      for(const [row,[clip,head,body]] of rows.entries())for(let tone=0;tone<6;tone++)s.signifier({id:(row*6+tone)*4,x:(tone-2.5)*4,y:24-row*4.6,z:0,yaw:direction==='front'?0:Math.PI,height:1.7,moving:true,animationTime:.141,skinTone:tone},head,body,clip);
       s.end();const previous=r.getRenderTarget(),data=new Uint8Array(width*height*4);
       try{r.setRenderTarget(target);r.clear();r.render(ctx.scene,c);r.readRenderTargetPixels(target,0,0,width,height,data);}finally{r.setRenderTarget(previous);}
       const raw=png(data,width,height),sheet=document.createElement('canvas');sheet.width=width;sheet.height=height+140;const d=sheet.getContext('2d');

@@ -9,7 +9,7 @@ const clip = atlas.clips['beelzebub-crow:seated'], page = atlas.pages[clip.page]
 const options = {faction: 1, altarId: 42, kind: 'beelzebub-crow', clip, page, mobile: true};
 function fixture(direction = 'front', frame = 0) {
   const row = clip.directionRows[direction], foot = clip.footYByCell?.[row]?.[frame] ?? clip.anchor[1];
-  const height = clip.worldHeight, scale = height / clip.heightPixels, center = [22, 7, 33], yaw = Math.atan2(-22, -33);
+  const height = clip.worldHeight, scale = height * 2 / clip.heightPixels, center = [22, 7, 33], yaw = Math.atan2(-22, -33);
   return {faction: 1, altarId: 42, mode: 'rts', avatar: false, mobile: true, ready: true,
     position: [...center], altar: [...center], yaw, expectedYaw: yaw, rootVisible: false, meshes: [],
     calls: [{pose: {id: -100001, x: 22, y: 7, z: 33, yaw, height}, accepted: true, layers: 1}],
@@ -49,4 +49,13 @@ test('browser observation uses actual cast/sample callbacks and restores both ev
   global.window = {flaghack: {world: {hearthOf: () => ({id: 42})}, renderer: {ctx: {shared: {mobileSprites: s}}, render: () => {throw error;}}}};
   try { assert.throws(() => readThroneRender({faction: 1, altarId: 42, page: 0}), e => e === error); assert.equal(s.cast, cast); assert.equal(s.sample, sample); }
   finally { if (previous === undefined) delete global.window; else global.window = previous; }
+});
+
+test('native throne proof rejects original size and accidental double scaling', () => {
+  for (const factor of [.5, 2]) {
+    const proof = fixture();
+    proof.instances[0].size = proof.instances[0].size.map(value => value * factor);
+    proof.instances[0].offset = proof.instances[0].offset.map(value => value * factor);
+    assert.throws(() => assertThroneRender(proof, options));
+  }
 });
