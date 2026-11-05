@@ -69,10 +69,12 @@ describe('existing model skin palette and sprite identity parity',()=>{
       const modelLook=mesh.geometry.getAttribute('aLook').array;
       expect(Math.trunc(modelLook[HL.skin]*5.999)).toBe(tone);
       expect(modelLook[HL.skin]).toBe(Math.fround(hash01b(seed,2)));
+      const expectedHead=modelLook[HL.hat]>0?5+modelLook[HL.hat]:modelLook[HL.glasses]>0?10+modelLook[HL.glasses]:modelLook[HL.beard]>.5?5:Math.max(0,Math.min(4,Math.floor(modelLook[HL.hairStyle])));
       const states=['idle','responding','hauling','chopping','planting','pulling','building','repairing','fighting','tearing','drumming','defending','distracted','ko'] as HippieStatus[];
       for(const status of states){
         mobile.h.status=status;const before=JSON.stringify(mobile.h);mobile.ctx.time+=.1;mobile.renderer.update(.1);
         expect(mobile.signifier.mock.lastCall?.[0].skinTone).toBe(tone);
+        expect(mobile.signifier.mock.lastCall?.[1]).toBe(expectedHead);
         expect(JSON.stringify(mobile.h)).toBe(before);
       }
       mobile.h.status='idle';mobile.h.airborne={y:2,vy:1};mobile.renderer.update(.1);

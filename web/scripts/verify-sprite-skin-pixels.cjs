@@ -56,10 +56,10 @@ function verifySpriteSkinPixels({atlas,actions,palette}) {
     for(const direction of ['front','away']){
       for(let head=0;head<18;head++)specs.push({kind:'head',head,body:0,clip:'idle',direction,frame:0});
       for(let body=0;body<7;body++)for(let frame=0;frame<4;frame++)specs.push({kind:'body',head:0,body,clip:'walk',direction,frame});
-      for(const [key,clip] of Object.entries(actions.clips).filter(([key])=>key.startsWith('signifier:')))for(let frame=0;frame<clip.columns;frame++)specs.push({kind:'action',head:0,body:0,clip:key.split(':')[1],direction,frame});
+      for(const [key,clip] of Object.entries(actions.clips).filter(([key])=>key.startsWith('signifier:')))for(let frame=0;frame<clip.columns;frame++)specs.push({kind:'action',head:0,body:0,clip:key.split(':')[1],direction,frame,frameDurationMs:clip.frameDurationMs});
     }
     for(const spec of specs){
-      const shots=[],samples=[],pose={id:0,x:0,y:0,z:0,yaw:spec.direction==='front'?0:Math.PI,height:3,moving:true,animationTime:spec.frame*.14+.001};
+      const shots=[],samples=[],pose={id:0,x:0,y:0,z:0,yaw:spec.direction==='front'?0:Math.PI,height:3,moving:true,animationTime:spec.frame*(spec.frameDurationMs??atlas.frameDurationMs)/1000+.001};
       ctx.time=pose.animationTime;
       for(let tone=0;tone<6;tone++){s.begin();s.signifier({...pose,skinTone:tone},spec.head,spec.body,spec.clip);s.end();shots.push(p.draw());samples.push(s.samples[0]?.skinTone);}
       const allMask=drawMask('all'),headMask=drawMask('head'),bodyMask=drawMask('body');
