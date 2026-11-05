@@ -1,3 +1,4 @@
+import { finishNativeStartup } from './finish-native-startup.cjs';
 /** Native Chrome / real Node host proof of automatic human play styles.
  * No match, faction, mode, handshake or world state is injected. Device emulation is
  * browser-only, not a physical Android test. All starts and joins use production UI.
@@ -46,10 +47,7 @@ async function open(spec) {
   const page = await context.newPage(); activePage = page;
   page.on('pageerror', error => result.errors.push({ scenario: spec.name, message: String(error) }));
   await page.goto(ORIGIN + '/' + (spec.query ?? ''), { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => document.querySelector('#startup[data-ready="true"]') || window.flaghack && !window.flaghack.startupPending, null, { timeout: 180_000 });
-  if (await page.locator('#startup').count()) await page.getByRole('button', { name: 'Skip', exact: true }).click({ noWaitAfter: true });
-  await page.locator('#startup').waitFor({ state: 'detached' });
-  await page.waitForFunction(() => window.flaghack?.session.screen === 'title' && !window.flaghack.startupPending);
+  await finishNativeStartup(page);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.deviceLayout), spec.expected === 'rts' ? 'mobile' : 'desktop');
   return { context, page, spec };
 }

@@ -78,8 +78,23 @@ export async function verifyMobilePowers(page, {capture = async () => {}} = {}) 
   const cast=async(id,kind,target)=>{
     await open();await tap(power(id));await page.waitForFunction(id=>{const s=window.flaghack.session;return(s.mobileAbility||s.mobileRitual)===id&&s.mobileMenu===null;},id);
     await page.evaluate(target=>{const s=window.flaghack.session;s.camera.cmdX=target.x;s.camera.cmdZ=target.z;},target);
-    await page.waitForTimeout(700);const p=await point(target),size=page.viewportSize();
-    assert.ok(p.x>20&&p.x<size.width-20&&p.y>150&&p.y<size.height-120,'Target is clear of fixed controls');
+    // Camera glide advances on rendered frames, not wall time. A fixed 700ms
+    // delay can leave the target under the landscape placement panel. Wait for
+    // the actual projection to settle at field center and verify the DOM hit.
+    try {
+      await page.waitForFunction(target=>{
+        const a=window.flaghack,c=a.renderer.camera;c.updateMatrixWorld();
+        const mul=(m,v)=>[0,1,2,3].map(r=>m[r]*v[0]+m[4+r]*v[1]+m[8+r]*v[2]+m[12+r]*v[3]);
+        const v=mul(c.projectionMatrix.elements,mul(c.matrixWorldInverse.elements,[target.x,a.world.collision.groundHeight(target.x,target.z),target.z,1]));
+        const x=(v[0]/v[3]+1)*innerWidth/2,y=(1-v[1]/v[3])*innerHeight/2;
+        return Math.abs(x-innerWidth/2)<3&&Math.abs(y-innerHeight/2)<3&&document.elementFromPoint(x,y)===document.querySelector('canvas#game');
+      },target);
+    } catch(error) {
+      const p=await point(target),hit=await page.evaluate(p=>({hit:document.elementFromPoint(p.x,p.y)?.outerHTML,viewport:{width:innerWidth,height:innerHeight},camera:window.flaghack.session.camera}),p);
+      throw new Error('Power target did not settle on unobstructed canvas: '+JSON.stringify({id,target,p,...hit}),{cause:error});
+    }
+    const p=await point(target);
+    assert.equal(await page.evaluate(p=>document.elementFromPoint(p.x,p.y)===document.querySelector('canvas#game'),p),true,'Power tap must hit the canvas, not a HUD panel');
     await page.touchscreen.tap(p.x,p.y);
     await page.waitForFunction(kind=>[...window.flaghack.world.zones.values()].some(z=>z.kind===kind&&z.faction===0),kind);
     const result=await page.evaluate(kind=>{const a=window.flaghack,z=[...a.world.zones.values()].find(z=>z.kind===kind&&z.faction===0);return{id:z.id,x:z.pos.x,z:z.pos.z,bornAt:z.bornAt,selection:a.session.selection.size,pending:!!(a.session.mobileAbility||a.session.mobileRitual)};},kind);

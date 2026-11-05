@@ -78,18 +78,29 @@ export async function verifyMobileGroundInk(page) {
       const beamPixels=maskedDiff(baseline,p.draw(),baseline);
       check(survey.beams.mesh.material.transparent&&beamPixels>3,'genuine foreground beam remains in front',{beamPixels});
       // Real terrain and the real batched tent must still depth-occlude cutouts.
-      const env=g.modules.find(m=>m.env&&m.parts),props=env?.parts.find(part=>part.sceneryInstances),tent=w.map.obstacles.find(o=>o.kind==='tent');
+      const env=g.modules.find(m=>m.env&&m.parts),props=env?.parts.find(part=>part.group?.name==='props'),tent=w.map.obstacles.find(o=>o.kind==='tent');
       for(const kind of ['terrain','tent']) {
         const at=kind==='tent'&&tent?center.clone().set(tent.x,ctx.shared.groundOffset(tent.x,tent.z),tent.z):center.clone();
-        const occluders=kind==='terrain'?[ctx.scene.getObjectByName('ground')]:tent?(props?.sceneryInstances.get(tent.id)??[]).map(entry=>entry.mesh):[];
+        // Rigid tents are merged into tiled BatchedMesh geometry. Other props use
+        // direct instances. Resolve both real owner stores instead of requiring a
+        // tent to use the tree/rotor representation.
+        const tentMeshes=new Set((props?.sceneryInstances.get(tent?.id)??[]).map(entry=>entry.mesh));
+        const tentGeometry=new Set((props?.sceneryRanges.get(tent?.id)??[]).map(range=>range.geometry));
+        props?.group.traverse(mesh=>{if(tentGeometry.has(mesh.geometry))tentMeshes.add(mesh);});
+        const occluders=kind==='terrain'?[ctx.scene.getObjectByName('ground')]:[...tentMeshes];
         if(!occluders.length||occluders.some(o=>!o))throw Error('Actual '+kind+' geometry required');
         cameraAt(at,kind==='tent'?Math.max(3,tent.height):3);
         s.begin();s.signifier({id:922,x:at.x,y:at.y-(kind==='terrain'?4:0),z:at.z,yaw:0,height:kind==='terrain'?1.4:.4,moving:false},0,0);s.end();only(occluders);
         const active=s.meshes.filter(m=>m.geometry.instanceCount>0),contribution=()=>{for(const m of active)m.visible=false;const without=p.draw();for(const m of active)show(m);return p.diff(without,p.draw());};
         const depthPixels=contribution();for(const m of active)m.material.depthTest=false;const throughPixels=contribution();for(const m of active)m.material.depthTest=true;
-        check(throughPixels>20&&depthPixels<throughPixels*.8,'real '+kind+' occludes cutouts',{depthPixels,throughPixels});
+        check(throughPixels>20&&depthPixels<throughPixels*.8,'real '+(kind==='tent'?'tent batch':kind)+' occludes cutouts',{depthPixels,throughPixels,obstacleId:kind==='tent'?tent.id:null,meshes:occluders.map(mesh=>mesh.name)});
       }
-      return{checks,allPassed:checks.every(x=>x.ok),captures,description:'Real native WebGL production materials: ground-ink negative/positive controls, foreground combat beam, actual terrain and tent depth.'};
+      return{checks,allPassed:checks.every(x=>x.ok),captures,description:'Real native WebGL production materials: ground-ink negative/positive controls, foreground combat beam, actual terrain and tent-batch depth.'};
+    } catch(error) {
+      // Preserve earlier pixel controls and their images even if a later fixture
+      // prerequisite fails. The caller still fails every false check.
+      check(false,'ground ink fixture completed',{error:String(error.stack??error)});
+      return{checks,allPassed:false,captures,description:'Incomplete native ground-ink proof; see failed check.'};
     } finally {
       for(const [mesh,depth]of saved.depth)mesh.material.depthTest=depth;
       for(const [o,visible]of objects)o.visible=visible;ctx.scene.background=saved.background;g.renderer.setClearAlpha(saved.alpha);ctx.time=saved.time;

@@ -1,6 +1,28 @@
+/** Inspect actual active GPU instance buffers; reusable in Node and native browser QA. */
+export function wreckageGeometrySnapshot(group) {
+  const meshes=group.children.filter(mesh=>/^wreckage-fragments-[012]$/.test(mesh.name));
+  let valid=meshes.length===3,fragments=0,checksum=2166136261;
+  const palette=new Set(),counts=[];
+  const mix=value=>{checksum=Math.imul(checksum^Math.round(value*1e6),16777619)>>>0;};
+  for(const mesh of meshes) {
+    const matrix=mesh.instanceMatrix?.array,color=mesh.instanceColor?.array,count=mesh.count;
+    valid&&=!!mesh.isInstancedMesh&&mesh.geometry?.getAttribute('position')?.count>0
+      &&Number.isInteger(count)&&count>=0&&matrix?.length>=count*16&&(!count||color?.length>=count*3)
+      &&mesh.material.depthTest&&mesh.material.depthWrite&&!mesh.material.transparent;
+    counts.push(count);fragments+=count;
+    for(let i=0;i<count*16;i++){valid&&=Number.isFinite(matrix?.[i]);mix(matrix?.[i]??0);}
+    for(let i=0;i<count;i++) {
+      const rgb=Array.from(color?.slice(i*3,i*3+3)??[]);valid&&=rgb.length===3&&rgb.every(Number.isFinite);
+      palette.add(rgb.join(','));rgb.forEach(mix);
+    }
+  }
+  return{valid:!!valid,fragments,counts,palette:[...palette].sort(),checksum};
+}
+
 /** Offline production 3D scenery integration checks. Restore every mutated input. */
 export async function verifySceneryIntegration(page) {
-  return page.evaluate(() => {
+  return page.evaluate(snapshotSource => {
+    const snapshot=Function('return ('+snapshotSource+')')();
     const a=window.flaghack,w=a.world,g=a.renderer,ctx=g.ctx,s=ctx.shared.mobileSprites,p=window.__spriteProbe,c=ctx.camera;
     if(a.net)throw Error('Scenery fixture is offline only');
     const module=g.modules.find(m=>m.env&&m.parts),env=module?.env;
@@ -33,10 +55,29 @@ export async function verifySceneryIntegration(page) {
       w.piles.clear();for(const [i,kind] of ['pallets','lumber','moop'].entries())w.piles.set(800000+i,{id:800000+i,type:'pile',kind,pos:{x:i*2,z:0},lumber:100,max:100});
       step([piles]);const full=piles.used;check(full>3&&piles.layouts.size===3,'all three resource kinds use 3D piece geometry');
       w.piles.get(800000).lumber=20;w.piles.get(800001).lumber=0;w.piles.delete(800002);step([piles]);check(piles.used>0&&piles.used<full,'depleted resource piles shrink and disappear');
-      w.wreckage=['tent','car','wall','rock','unknown'].map((kind,i)=>({id:'qa-'+i,kind,pos:{x:i*3,y:2,z:0},size:{x:3,y:3,z:3},yaw:.2}));step([wreck]);
-      check(calls.length===5&&new Set(calls).size===5,'existing material-specific mobile wreckage stays intact',calls);
-      check(samples.every(sample=>!sample.placeholder),'wreckage uses real atlas cells');
-      w.wreckage=[];step([wreck]);check(calls.length===0,'wreckage reset removes old sprites');
+      const wreckRecords=['tent','car','wall','rock','unknown'].map((kind,i)=>({id:'qa-'+i,kind,pos:{x:i*3,y:2,z:0},size:{x:3,y:3,z:3},yaw:.2}));
+      const materialProof=[];
+      for(const [index,record] of wreckRecords.entries()) {
+        w.wreckage=[record];step([wreck]);const geometry=snapshot(wreck.group);materialProof.push(geometry);
+        check(geometry.valid&&geometry.fragments===[24,43,43,40,43][index]&&geometry.palette.length>1,'actual '+record.kind+' wreckage uses material-specific 3D fragments',geometry);
+        check(calls.length===0&&samples.length===0,'3D '+record.kind+' wreckage emits no atlas or placeholder substitutes');
+      }
+      check(new Set(materialProof.map(item=>item.palette.join(';'))).size===5,'all five wreckage material palettes remain distinct');
+      w.wreckage=wreckRecords;step([wreck]);const combinedWreck=snapshot(wreck.group);
+      check(combinedWreck.valid&&combinedWreck.fragments===materialProof.reduce((sum,item)=>sum+item.fragments,0),'combined wreckage retains every 3D fragment',combinedWreck);
+      w.wreckage=[];step([wreck]);check(snapshot(wreck.group).fragments===0,'wreckage reset removes all active 3D instances');
+      w.wreckage=wreckRecords;step([wreck]);check(JSON.stringify(snapshot(wreck.group))===JSON.stringify(combinedWreck),'restored wreckage retains exact deterministic geometry and colors');
+      // Isolate only the actual debris meshes for native A/B evidence. Scene lighting
+      // remains real; visibility and camera state are restored by the enclosing fixture.
+      const visibility=[];ctx.scene.traverse(object=>{if(object.isMesh||object.isPoints||object.isLine||object.isSprite){visibility.push([object,object.visible]);object.visible=false;}});
+      try {
+        for(const mesh of wreck.group.children)mesh.visible=true;
+        const y=ctx.shared.groundOffset(6,0);c.position.set(6,y+8,16);c.lookAt(6,y+.4,0);c.left=-8;c.right=8;c.top=8*innerHeight/innerWidth;c.bottom=-c.top;c.updateProjectionMatrix();c.updateMatrixWorld();
+        const visible=wreck.group.visible;let withWreck,without;
+        try{wreck.group.visible=true;withWreck=p.draw();wreck.group.visible=false;without=p.draw();}finally{wreck.group.visible=visible;}
+        const pixels=p.diff(withWreck,without);check(pixels>20,'actual 3D wreckage contributes native framebuffer pixels',pixels);captures['scenery-3d-wreckage']=p.png(withWreck);
+      } finally {for(const [object,visible] of visibility)object.visible=visible;}
+      w.wreckage=[];step([wreck]);
       w.effigyRevealedAt=undefined;env.burn.active=false;env.burn.elapsed=0;step([effigy]);const fullFlag=effigy.flagAssembly.scale.y;
       check(effigy.group.visible&&effigy.flagAssembly.visible&&fullFlag===1,'unburned 3D effigy and cloth remain complete');
       check(Math.abs(effigy.group.position.y-ctx.shared.groundOffset(w.map.effigy.x,w.map.effigy.z))<1e-6,'3D effigy stays grounded');
@@ -52,10 +93,10 @@ export async function verifySceneryIntegration(page) {
         const pixels=p.diff(withModels,without);check(pixels>20,'actual '+name+' geometry contributes visible pixels',pixels);captures['scenery-3d-'+name]=p.png(withModels);
       }
       check(w.nav.version===saved.nav,'presentation leaves navigation revision unchanged');
-      return {checks,allPassed:checks.every(item=>item.ok),natural,captures,description:'Offline production 3D scenery on mobile; real obstacles, forest, rotors, removal/reset, resource pieces, effigy burn, stage lights and native framebuffer contributions.'};
+      return {checks,allPassed:checks.every(item=>item.ok),natural,captures,description:'Offline production 3D scenery on mobile; real obstacles, forest, rotors, removal/reset, resource pieces, effigy burn, stage lights, deterministic material-specific 3D wreckage and native framebuffer contributions.'};
     } finally {
       s.object=original.object;s.sample=original.sample;w.destroyedScenery.clear();for(const id of saved.destroyed)w.destroyedScenery.add(id);w.piles.clear();for(const [id,pile] of saved.piles)w.piles.set(id,pile);w.wreckage=saved.wreckage;w.effigyRevealedAt=saved.revealed;Object.assign(env.burn,saved.burn);env.uniforms.uTime.value=saved.uniformTime;env.day.night=saved.night;ctx.time=saved.time;ctx.beat=saved.beat;
       c.position.copy(saved.camera.position);c.quaternion.copy(saved.camera.quaternion);Object.assign(c,{left:saved.camera.left,right:saved.camera.right,top:saved.camera.top,bottom:saved.camera.bottom});c.updateProjectionMatrix();c.updateMatrixWorld();g.render(0);
     }
-  });
+  },wreckageGeometrySnapshot.toString());
 }

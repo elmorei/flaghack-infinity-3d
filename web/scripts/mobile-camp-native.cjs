@@ -58,9 +58,28 @@ async function verifyMobileCampControls(page, { capture = async () => {} } = {})
   await page.waitForFunction(()=>window.flaghack.session.mobileAvatarTarget===null);
   await assertHeld('avatar');
   result.checks.push('Avatar Hold prevents subsequent displacement across real simulation ticks');
-  const loose=await page.evaluate(()=>{const w=window.flaghack.world,a=w.avatarOf(0),p={x:a.pos.x+1.6,y:w.collision.groundHeight(a.pos.x+1.6,a.pos.z),z:a.pos.z};const f=window.fh.factory.spawnFlag(w,{state:'loose',owner:0,pos:p});return{id:f.id,...p};});
-  await touchPoint(loose);
-  await page.waitForFunction(id=>{const w=window.flaghack.world;return w.flags.get(id)?.holder===w.avatarOf(0)?.id;},loose.id);
+  const loose=await page.evaluate(()=>{
+    const w=window.flaghack.world,a=w.avatarOf(0),hearth=w.hearthOf(0);
+    // Walking near home legitimately fills the quiver. Deposit the staged inventory
+    // through the real bookkeeping so this pickup has room, without bypassing pull.
+    for(const id of [...a.carried]) if(!window.fh.flags.depositToStock(w,id,hearth.id))throw Error('Could not prepare empty pickup quiver');
+    if(a.carried.length!==0)throw Error('Pickup fixture requires an empty quiver');
+    const p={x:a.pos.x+1.6,y:w.collision.groundHeight(a.pos.x+1.6,a.pos.z),z:a.pos.z};
+    const f=window.fh.factory.spawnFlag(w,{state:'loose',owner:0,pos:p});return{id:f.id,...p};
+  });
+  const pickupPoint=await project(loose);
+  const pickupReady=await page.evaluate(({id,point})=>{
+    const a=window.flaghack,w=a.world,av=w.avatarOf(0),flag=w.flags.get(id);
+    return{carried:av.carried.length,range:Math.hypot(flag.pos.x-av.pos.x,flag.pos.z-av.pos.z),selected:a.session.selection.has(av.id),hit:document.elementFromPoint(point.x,point.y)?.tagName};
+  },{id:loose.id,point:pickupPoint});
+  assert.ok(pickupReady.carried<10&&pickupReady.range<=3&&pickupReady.selected&&pickupReady.hit==='CANVAS','Loose pickup preconditions: '+JSON.stringify(pickupReady));
+  await page.touchscreen.tap(pickupPoint.x,pickupPoint.y);
+  try {
+    await page.waitForFunction(id=>{const w=window.flaghack.world;return w.flags.get(id)?.holder===w.avatarOf(0)?.id;},loose.id);
+  } catch(error) {
+    const state=await page.evaluate(id=>{const a=window.flaghack,w=a.world,av=w.avatarOf(0);return{flag:w.flags.get(id),avatar:av,hover:a.session.hover,target:a.session.mobileAvatarTarget,selection:[...a.session.selection]};},loose.id);
+    throw new Error('Avatar Flag pickup failed: '+JSON.stringify(state),{cause:error});
+  }
   result.checks.push('Nearby loose Flag tap executes the real Avatar pull interaction');await capture('avatar-interaction');
   // Set an incompatible paid level in the fixture, then exercise the actual mode button.
   const income=await page.evaluate(()=>{const w=window.flaghack.world,f=w.factions[0];f.ritual=7;f.chakras.hoist=1;f.drugActive.saffron=0;return{hippies:w.hippies.size,saffronActive:f.drugActive.saffron>w.time,ownedCrystals:[...w.crystals.values()].filter(c=>c.faction===0).length};});
