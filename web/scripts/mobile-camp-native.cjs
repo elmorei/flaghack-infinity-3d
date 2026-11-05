@@ -23,7 +23,8 @@ async function verifyMobileCampControls(page, { capture = async () => {} } = {})
   };
   await page.evaluate(()=>{
     const a=window.flaghack;a.startMatch({seed:'mobile-camp-native-qa',humans:[0],rtsFactions:[0],match:{...a.session.settings.match,active:[0,1,2,3],bossMode:false,days:3}});
-    a.ai.clear(); a.world.hippies.clear();
+    // Isolate the early control checks, then restore real NPC controllers for takeover.
+    window.__qaCampAi = new Map(a.ai); a.ai.clear(); a.world.hippies.clear();
     const f=a.world.factions[0];f.ritual=7;f.chakras.hoist=1;f.chakras.canton=1;f.chakras.finial=1;
   });
   await page.waitForFunction(()=>{const a=window.flaghack;return a.session.screen==='playing'&&a.session.view==='command'&&a.ui.world===a.world;});
@@ -65,7 +66,9 @@ async function verifyMobileCampControls(page, { capture = async () => {} } = {})
     for(const id of [...a.carried]) if(!window.fh.flags.depositToStock(w,id,hearth.id))throw Error('Could not prepare empty pickup quiver');
     if(a.carried.length!==0)throw Error('Pickup fixture requires an empty quiver');
     const p={x:a.pos.x+1.6,y:w.collision.groundHeight(a.pos.x+1.6,a.pos.z),z:a.pos.z};
-    const f=window.fh.factory.spawnFlag(w,{state:'loose',owner:0,pos:p});return{id:f.id,...p};
+    // Own loose Flags near the GCC are automatically replanted by Flag Repair.
+    // An unowned loose Flag is a stable pickup target without disabling that mechanic.
+    const f=window.fh.factory.spawnFlag(w,{state:'loose',owner:-1,pos:p});return{id:f.id,...p};
   });
   const pickupPoint=await project(loose);
   const pickupReady=await page.evaluate(({id,point})=>{
@@ -89,7 +92,12 @@ async function verifyMobileCampControls(page, { capture = async () => {} } = {})
   const refund=await page.evaluate(()=>{const w=window.flaghack.world,f=w.factions[0];return{ritual:f.ritual,hoist:f.chakras.hoist,canton:f.chakras.canton,finial:f.chakras.finial,body:!!w.avatarOf(0)};});
   assert.ok(Math.abs(refund.ritual-37)<1e-6,`Expected exact 30 Ritual refund: ${JSON.stringify(refund)}`);assert.equal(refund.hoist,0);assert.equal(refund.canton,1);assert.equal(refund.finial,1);assert.equal(refund.body,false);
   result.checks.push('Mode change refunds removed Hoist upgrade and preserves shared AOE unlocks');
-  await page.evaluate(()=>{const a=window.flaghack;a.world.factions[0].alive=false;});
+  await page.evaluate(()=>{
+    const a=window.flaghack;
+    for(const [seat,controller] of window.__qaCampAi)a.ai.set(seat,controller);
+    delete window.__qaCampAi;
+    a.world.factions[0].alive=false;
+  });
   await page.getByRole('dialog',{name:'Choose a camp'}).waitFor();
   const choices=page.locator('.seat-row:visible .sr-take');assert.ok(await choices.count()>0);
   await tap(choices.first());
