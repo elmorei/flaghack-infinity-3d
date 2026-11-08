@@ -59,7 +59,16 @@ export function parseInviteFragment(hash: string): Invite | null {
 
 /** Pasted HTTPS host origin, new Pages invite, or existing same-origin #pw invite. No I/O. */
 export function parseHostAddress(raw: string, page: PageAddress): { endpoint: HostEndpoint; password: string | null } {
-  const url = absoluteUrl(raw.trim());
+  // Build cache-busters belong to the game-page wrapper, never the host endpoint.
+  let input = raw.trim();
+  try {
+    const wrapper = new URL(input);
+    if (wrapper.hash && wrapper.searchParams.size === 1 && /^[a-f0-9]{40}$/.test(wrapper.searchParams.get('build') ?? '')) {
+      wrapper.search = '';
+      input = wrapper.href;
+    }
+  } catch { /* absoluteUrl below provides the normal validation error. */ }
+  const url = absoluteUrl(input);
   if (!url.hash) return { endpoint: normalizeHostEndpoint(url.href, page), password: null };
   const invite = parseInviteFragment(url.hash);
   if (!invite) throw new Error('This is not a supported host invite. Paste the HTTPS host address instead.');

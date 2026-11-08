@@ -1,61 +1,74 @@
-name: Publish QR host artifacts without rerunning tests
+name: Fast build and publish QR host fix
 on:
   push:
     branches: [main]
     paths: ['.github/workflows/qr-fast-publish.yml']
 permissions:
-  contents: write
-  actions: read
+  contents: read
 concurrency:
   group: qr-invite-fast-publish
   cancel-in-progress: false
 jobs:
-  publish:
+  client:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx vite build && node scripts/write-pages-metadata.cjs
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          path: web/dist
+  windows-host:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: web
+        shell: pwsh
     env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       GH_TOKEN: ${{ github.token }}
       GH_REPO: elmorei/flaghack-infinity-3d
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          name: standalone-windows-host
-          path: host
-          run-id: 42447580682
-          github-token: ${{ github.token }}
-      - name: Publish already-built QR host
-        shell: bash
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx vite build --config vite.host.config.ts
+      - run: node scripts/fetch-cloudflared.cjs
+      - run: npx electron-builder --config electron-host-builder.cjs --win --x64 --publish never
+      - name: Publish rebuilt host
         run: |
-          set -euo pipefail
-          TAG=host-5382b43bbe4c626948b9e93489d4b63676df0d54
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" host/Flaghack-Host-Windows-x64.exe host/SHA256SUMS.txt \
-              --target 5382b43bbe4c626948b9e93489d4b63676df0d54 \
-              --title "Standalone Windows host with invite QR code" --prerelease \
-              --notes "Portable Windows x64 match host with locally generated invite QR codes. Scan with your phone camera to join. Unsigned executable. Keep the host running during play. No automatic updates." \
-              || gh release view "$TAG"
-          fi
-
+          $tag = "host-$env:GITHUB_SHA"
+          $hash = (Get-FileHash host-release/Flaghack-Host-Windows-x64.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  Flaghack-Host-Windows-x64.exe" | Set-Content -Encoding ascii host-release/SHA256SUMS.txt
+          gh release view $tag
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag host-release/Flaghack-Host-Windows-x64.exe host-release/SHA256SUMS.txt --target $env:GITHUB_SHA --title "Windows host with build-specific QR invites" --prerelease --notes "Portable Windows host. QR and browser invites request this exact build to avoid cached pages. Unsigned; keep running while playing."
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
   deploy-pages:
+    needs: [client, windows-host]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      actions: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: github-pages
-          path: artifact
-          run-id: 42447580682
-          github-token: ${{ github.token }}
-      - run: mkdir site && tar -xf artifact/artifact.tar -C site
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
-        with:
-          path: site
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
       - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
         id: deploy

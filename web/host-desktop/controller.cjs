@@ -70,7 +70,7 @@ function createHostController({ startHost, startTunnel, onState = () => {}, read
         publish({ stage: 'Verifying the public connection…' });
         await verify(endpoint, info, { signal: run.abort.signal, pagesOrigin: new URL(config.pagesUrl).origin, read });
         if (!current(run)) return;
-        publish({ status: 'running', stage: 'Match is online', endpoint, password: run.password, invite: security.invite(config.pagesUrl, endpoint, run.password) });
+        publish({ status: 'running', stage: 'Match is online', endpoint, password: run.password, invite: security.invite(config.pagesUrl, endpoint, run.password, info.build) });
         log('Public endpoint verified. The invite is ready.', run);
         run.timer = setInterval(() => void poll(run), pollMs);
         run.timer.unref?.();

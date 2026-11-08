@@ -30,7 +30,13 @@ function settings(value) {
   return { serverName: name, port, mode: value.mode, pagesUrl: pagesUrl(value.pagesUrl), endpoint: value.mode === 'existing' ? publicOrigin(value.endpoint) : null };
 }
 function password() { return randomBytes(24).toString('base64url'); }
-function invite(client, endpoint, secret) { return `${pagesUrl(client)}#host=${encodeURIComponent(publicOrigin(endpoint))}&pw=${encodeURIComponent(secret)}`; }
+function invite(client, endpoint, secret, build) {
+  const url = new URL(pagesUrl(client));
+  // A new release must not reopen a cached copy of the previous game's HTML.
+  if (typeof build === 'string' && /^[a-f0-9]{40}$/.test(build)) url.searchParams.set('build', build);
+  url.hash = 'host=' + encodeURIComponent(publicOrigin(endpoint)) + '&pw=' + encodeURIComponent(secret);
+  return url.href;
+}
 function cleanLog(value, secret) {
   let line = String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ');
   if (secret) line = line.split(secret).join('[redacted]').split(encodeURIComponent(secret)).join('[redacted]');
