@@ -1,0 +1,35 @@
+name: Publish QR host artifacts without rerunning tests
+on:
+  push:
+    branches: [release/qr-invite-publish]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: qr-invite-fast-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: elmorei/flaghack-infinity-3d
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: standalone-windows-host
+          path: host
+          run-id: 42447580682
+          github-token: ${{ github.token }}
+      - name: Publish already-built QR host
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=host-5382b43bbe4c626948b9e93489d4b63676df0d54
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" host/Flaghack-Host-Windows-x64.exe host/SHA256SUMS.txt \
+              --target 5382b43bbe4c626948b9e93489d4b63676df0d54 \
+              --title "Standalone Windows host with invite QR code" --prerelease \
+              --notes "Portable Windows x64 match host with locally generated invite QR codes. Scan with your phone camera to join. Unsigned executable. Keep the host running during play. No automatic updates." \
+              || gh release view "$TAG"
+          fi
