@@ -33,3 +33,28 @@ jobs:
               --notes "Portable Windows x64 match host with locally generated invite QR codes. Scan with your phone camera to join. Unsigned executable. Keep the host running during play. No automatic updates." \
               || gh release view "$TAG"
           fi
+
+  deploy-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: github-pages
+          path: artifact
+          run-id: 42447580682
+          github-token: ${{ github.token }}
+      - run: mkdir site && tar -xf artifact/artifact.tar -C site
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          path: site
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+        id: deploy
