@@ -43,7 +43,7 @@ async function start() {
   const localSession = session.fromPartition('flaghack-match-host');
   localSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   localSession.setPermissionCheckHandler(() => false);
-  const assets = new Set(['host.html', 'host.css', 'host.js'].map(name => pathToFileURL(join(__dirname, name)).href));
+  const assets = new Set(['host.html', 'host.css', 'host.js', 'qrcode.js'].map(name => pathToFileURL(join(__dirname, name)).href));
   localSession.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !assets.has(details.url) }));
   controller = createHostController({
     startHost: createHostProcess({ utilityProcess }),
@@ -95,3 +95,4 @@ async function smoke() {
   await writeFile(resultPath, JSON.stringify(result) + '\n', { encoding: 'utf8', flag: 'wx' });
   app.exit(code);
 }
+

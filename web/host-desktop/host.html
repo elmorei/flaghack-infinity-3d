@@ -6,6 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
   <title>FLAGHACK∞3D Match Host</title>
   <link rel="stylesheet" href="host.css">
+  <script src="qrcode.js" defer></script>
   <script src="host.js" defer></script>
 </head>
 <body>
@@ -30,6 +31,8 @@
     <section id="online" class="card" aria-labelledby="invite-heading" hidden>
       <div class="section-title"><h2 id="invite-heading">Invite friends</h2><span id="phase" class="badge">LOBBY</span></div>
       <p><strong id="players">0</strong> connected · <strong id="seated">0</strong> seated</p>
+      <div id="invite-qr" class="invite-qr" hidden><canvas id="qr-canvas" role="img" aria-label="Scan this QR code with your phone camera to join the match"></canvas><div><h3>Scan to join on mobile</h3><p class="hint">Open your phone camera, scan this code, and tap the link to join.</p><p class="hint">Includes the room password. Share only with your players.</p></div></div>
+      <p id="qr-error" class="hint" hidden>QR code unavailable. Use Copy invite instead.</p>
       <label>Public host<input id="public-origin" readonly></label>
       <div class="actions"><button id="copy" type="button" class="primary">Copy invite</button><button id="open" type="button">Open game in browser</button><span id="feedback" role="status"></span></div>
       <details><summary>Room password</summary><p class="hint">The invite already includes this strong, automatically generated password. A new match creates a new password.</p><div class="password"><input id="password" type="password" readonly aria-label="Room password"><button id="reveal" type="button">Show</button><button id="copy-password" type="button">Copy password</button></div></details>
@@ -40,3 +43,4 @@
   </main>
 </body>
 </html>
+
