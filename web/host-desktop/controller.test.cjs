@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { createHostController } = require('./controller.cjs');
 const { DEFAULT_PAGES_URL } = require('./security.cjs');
 const config = { serverName: 'Host', port: 8787, mode: 'quick', pagesUrl: DEFAULT_PAGES_URL };
-const info = { protocol: 14, build: 'abc', instanceId: 'instance', phase: 'lobby', players: 0, seated: 0 };
+const info = { protocol: 14, build: 'a'.repeat(40), instanceId: 'instance', phase: 'lobby', players: 0, seated: 0 };
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { resolve, reject, promise }; };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function fixture(overrides = {}) {
@@ -23,7 +23,12 @@ test('starts exactly one loopback host; verifies before invite; stops both resou
   const first = controller.start(config); await controller.start(config); const state = await first;
   assert.equal(state.status, 'running'); assert.equal(counts.hosts, 1); assert.equal(counts.verifies, 1);
   assert.deepEqual(hostOptions().allowedOrigins, ['https://elmorei.github.io']);
-  assert.equal(new URLSearchParams(new URL(state.invite).hash.slice(1)).get('pw'), 'private-secret');
+  const invite = new URL(state.invite);
+  assert.equal(invite.origin, new URL(DEFAULT_PAGES_URL).origin);
+  assert.deepEqual(Object.fromEntries(invite.searchParams), { build: info.build });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(invite.hash.slice(1))), {
+    host: 'https://abc.trycloudflare.com', pw: 'private-secret',
+  });
   await controller.stop(); assert.equal(controller.getState().status, 'idle'); assert.equal(counts.hostStops, 1); assert.equal(counts.tunnelStops, 1); assert.equal(controller.getState().password, null);
 });
 test('existing endpoint skips Cloudflare and still verifies exact host', async () => {

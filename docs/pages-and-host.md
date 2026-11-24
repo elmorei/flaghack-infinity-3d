@@ -62,6 +62,9 @@ full invite with can join; don't publish it unless you intend to open the match.
 credentials are scoped to the exact destination host and remain only in the browser tab's session
 storage. A token from one host is never offered to a different host.
 
+The Windows host’s Copy invite, browser button, and QR code use the same link. Its
+`?build=<commit>` parameter asks the browser to fetch a fresh game-page URL; it does not
+retrieve an archived version of Pages. Only the build goes in the query, never the password.
 Both protocol and exact source build must match. If the game page has updated, reload it and
 use its matching host download. If an existing match becomes incompatible with the latest page,
 finish it in already-open compatible tabs or restart with the new host. There is no central game
@@ -97,7 +100,8 @@ origins), or use the comma-separated `FLAGHACK_ALLOWED_ORIGINS` environment vari
 uses origins only, never URL paths. Same-origin browser requests and native clients without an
 Origin header continue to work; passwords/build checks still apply.
 
-The `pages-host-release.yml` workflow tests and builds pull requests without publishing. On
+The `pages-host-release.yml` workflow tests and builds pull requests and
+`preview/build-cleanup-*` branches without publishing. On
 `main`, both the static client and Windows host are built from the same commit. An immutable
 `host-<full commit SHA>` release is published first; only then is that exact client deployed to
 Pages. The repository's Pages source must be configured to **GitHub Actions**. Publication does

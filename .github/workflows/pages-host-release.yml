@@ -2,23 +2,23 @@ name: Build and publish Pages plus Windows host
 
 # Static client and trusted host runtime are always built from the SAME commit.
 # A Pages deployment cannot advertise a host download until the Windows release exists.
+# Build-cleanup previews run the same gates, but never publish either artifact live.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, 'preview/build-cleanup-*']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages-host-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}
+  group: pages-host-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   client:
-    if: ${{ !contains(github.event.head_commit.message, '[qr-artifact-publish-only]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -154,7 +154,6 @@ jobs:
           retention-days: 14
 
   windows-host:
-    if: ${{ !contains(github.event.head_commit.message, '[qr-artifact-publish-only]') }}
     runs-on: windows-latest
     timeout-minutes: 35
     defaults:
@@ -182,7 +181,7 @@ jobs:
         id: live-tunnel
         continue-on-error: true
         timeout-minutes: 3
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: node scripts/verify-live-tunnel.cjs
       - name: Upload live connectivity evidence, including a provider/network failure
         if: always()

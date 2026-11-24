@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
+const { invite: makeInvite, DEFAULT_PAGES_URL } = require('./security.cjs');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const source = name => readFileSync(join(__dirname, name), 'utf8');
@@ -17,12 +18,20 @@ function harness() {
   const context = vm.createContext({ document: { getElementById: get }, window: { matchHost: { onState() {}, get: () => new Promise(() => {}) } }, setTimeout, clearTimeout });
   vm.runInContext(source('qrcode.js'), context);
   vm.runInContext(source('host.js'), context);
-  return { get, canvas, rects, show: state => context.displayQr(state) };
+  return { get, canvas, rects, context, show: state => context.displayQr(state) };
 }
-const invite = 'https://elmorei.github.io/flaghack-infinity-3d/#host=https%3A%2F%2Fexample.trycloudflare.com&pw=sample-password';
+const invite = makeInvite(DEFAULT_PAGES_URL, 'https://example.trycloudflare.com', 'sample-password', 'a'.repeat(40));
 test('QR is generated locally for the exact invite, with quiet zone and integer pixels', () => {
   const h = harness();
+  const received = [];
+  const encode = h.context.qrcode;
+  h.context.qrcode = (...args) => {
+    const qr = encode(...args), addData = qr.addData;
+    qr.addData = value => { received.push(value); addData(value); };
+    return qr;
+  };
   h.show({ status: 'running', invite });
+  assert.deepEqual(received, [invite], 'encode the same build-specific link as Copy invite');
   assert.equal(h.get('invite-qr').hidden, false);
   assert.equal(h.get('qr-error').hidden, true);
   assert.ok(h.canvas.width >= 280);

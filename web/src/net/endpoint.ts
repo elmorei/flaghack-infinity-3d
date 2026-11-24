@@ -26,12 +26,18 @@ function absoluteUrl(raw: string): URL {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error('That host address is not a valid URL.'); }
   if (url.username || url.password || raw.split('/')[2]?.includes('@')) throw new Error('Do not put account credentials in the host address. Use the Password field.');
-  if (raw.split('#')[0].includes('?')) throw new Error('Host addresses and invites must not include query parameters.');
   return url;
 }
 
+function rejectQuery(raw: string): void {
+  // Detect even an empty query marker, which URL.search normalizes to an empty string.
+  if (raw.split('#')[0].includes('?')) throw new Error('Host addresses and invites must not include query parameters.');
+}
+
 export function normalizeHostEndpoint(raw: string, page: PageAddress): HostEndpoint {
-  const url = absoluteUrl(raw.trim());
+  const input = raw.trim();
+  const url = absoluteUrl(input);
+  rejectQuery(input);
   if (raw.trim().includes('#')) throw new Error('Paste a host origin or a valid invite, without extra fragment parameters.');
   if (url.pathname !== '/') throw new Error('Use the host origin only, without a path such as /api/info or /ws.');
   if (url.protocol === 'http:') {
@@ -59,19 +65,15 @@ export function parseInviteFragment(hash: string): Invite | null {
 
 /** Pasted HTTPS host origin, new Pages invite, or existing same-origin #pw invite. No I/O. */
 export function parseHostAddress(raw: string, page: PageAddress): { endpoint: HostEndpoint; password: string | null } {
-  // Build cache-busters belong to the game-page wrapper, never the host endpoint.
-  let input = raw.trim();
-  try {
-    const wrapper = new URL(input);
-    if (wrapper.hash && wrapper.searchParams.size === 1 && /^[a-f0-9]{40}$/.test(wrapper.searchParams.get('build') ?? '')) {
-      wrapper.search = '';
-      input = wrapper.href;
-    }
-  } catch { /* absoluteUrl below provides the normal validation error. */ }
+  const input = raw.trim();
   const url = absoluteUrl(input);
-  if (!url.hash) return { endpoint: normalizeHostEndpoint(url.href, page), password: null };
+  if (!url.hash) return { endpoint: normalizeHostEndpoint(input, page), password: null };
   const invite = parseInviteFragment(url.hash);
   if (!invite) throw new Error('This is not a supported host invite. Paste the HTTPS host address instead.');
+  // The sole supported query parameter is the cache key on a game-page wrapper.
+  // A direct endpoint (including the older same-origin password invite) stays queryless.
+  const versionedWrapper = invite.host !== null && /^\?build=[a-f0-9]{40}$/.test(url.search);
+  if (!versionedWrapper) rejectQuery(input);
   // The wrapper URL is never contacted; only its explicitly named host is used after Join.
   url.hash = '';
   const endpoint = normalizeHostEndpoint(invite.host ?? url.href, page);

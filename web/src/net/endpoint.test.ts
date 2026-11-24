@@ -41,6 +41,24 @@ describe('remote host target boundary', () => {
     expect(parseHostAddress('https://host.example/#pw=sword%20fish', page)).toEqual({ endpoint: target, password: 'sword fish' });
     expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals();
   });
+  it('accepts versioned QR invite wrappers and keeps the cache key out of the host target', () => {
+    const build = 'a'.repeat(40);
+    const invite = `https://player.github.io/flaghack/?build=${build}#host=https%3A%2F%2Fhost.example&pw=sword%26fish%2B`;
+    expect(parseHostAddress(invite, page)).toEqual({ endpoint: target, password: 'sword&fish+' });
+    const url = new URL(invite);
+    const history = { state: null, replaceState: vi.fn() };
+    expect(takeLocationInvite(url, history)).toEqual({ host: target.origin, password: 'sword&fish+', error: null });
+    expect(history.replaceState).toHaveBeenCalledWith(null, '', `/flaghack/?build=${build}`);
+  });
+  it('does not treat invalid cache keys or direct-host queries as Pages wrappers', () => {
+    const build = 'a'.repeat(40);
+    const remote = '#host=https%3A%2F%2Fhost.example&pw=sample';
+    expect(() => parseHostAddress(`https://host.example/?build=${build}`, page)).toThrow(/query parameters/);
+    expect(() => parseHostAddress(`https://host.example/?build=${build}#pw=sample`, page)).toThrow(/query parameters/);
+    for (const query of ['?build=short', `?build=${build}&build=${build}`, `?build=${build}&extra=1`]) {
+      expect(() => parseHostAddress(`https://player.github.io/game/${query}${remote}`, page)).toThrow(/query parameters/);
+    }
+  });
   it.each(['#host=', '#host=https://host.example&extra=x', '#host=https://host.example&host=https://evil.example', '#pw=one&pw=two', '#pw=%GG'])('rejects malformed invite %s', hash => {
     expect(() => parseInviteFragment(hash)).toThrow();
   });

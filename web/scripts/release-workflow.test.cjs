@@ -1,13 +1,15 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const yaml = require('js-yaml');
 const workflow = yaml.load(readFileSync(join(__dirname, '../../.github/workflows/pages-host-release.yml'), 'utf8'));
 test('only main publication can create a host release and deploy Pages', () => {
   assert.deepEqual(workflow.permissions, { contents: 'read' });
-  assert.deepEqual(workflow.on.push.branches, ['main']);
+  assert.deepEqual(workflow.on.push.branches, ['main', 'preview/build-cleanup-*']);
+  assert.equal(existsSync(join(__dirname, '../../.github/workflows/qr-fast-publish.yml')), false);
+  for (const id of ['client', 'windows-host']) assert.equal(workflow.jobs[id].if, undefined, 'build gates can’t be skipped by a commit message');
   for (const id of ['publish-host', 'deploy-pages']) {
     assert.match(workflow.jobs[id].if, /github\.event_name != 'pull_request'/);
     assert.match(workflow.jobs[id].if, /github\.ref == 'refs\/heads\/main'/);
