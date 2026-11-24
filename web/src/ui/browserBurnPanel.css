@@ -1,0 +1,9 @@
+.browser-burn { color:#f8ebce; background:#202130; border:1px solid #9c8253; border-radius:.65rem; max-width:min(38rem,92vw); max-height:86dvh; overflow:auto; padding:1.15rem; line-height:1.35; }
+.browser-burn::backdrop { background:#0a0913cf; }
+.browser-burn h2 { margin:0 0 .4rem; }
+.browser-burn p { margin:.55rem 0; }
+.browser-burn label { display:block; margin:.55rem 0; }
+.browser-burn input,.browser-burn textarea { display:block; width:100%; color:#f8ebce; background:#13131c; border:1px solid #6d6352; border-radius:.3rem; padding:.45rem; font-size:16px; }
+.browser-burn .btn { min-height:2.4rem; margin:.18rem .27rem .18rem 0; }
+.browser-burn-manage { z-index:5; position:fixed; right:.55rem; top:calc(env(safe-area-inset-top, 0px) + .55rem); max-width:10rem; font-size:.7rem; }
+.browser-burn [hidden],.browser-burn-manage[hidden] { display:none !important; }

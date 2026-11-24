@@ -9,7 +9,7 @@
  * seat order, the simulation steps. Every second tick the drained events and the encoder's delta
  * go out as one state frame, serialized once and shared by every client.
  */
-import { randomBytes } from 'node:crypto';
+import { randomHex } from './roomPlatform';
 import { closeFrickFrackSession, resetFrickFrackEntropy } from '../src/sim/systems/frickFrack';
 import { createAi } from '../src/ai';
 import type { AiController } from '../src/ai';
@@ -120,7 +120,7 @@ export class Match {
   constructor(options: MatchOptions, listener: MatchListener, log: (line: string) => void) {
     this.world = createMatch(options);
     // The public map seed must not reveal the future shoe to network clients.
-    resetFrickFrackEntropy(this.world, randomBytes(32).toString('hex'));
+    resetFrickFrackEntropy(this.world, randomHex(32));
     this.sim = new Simulation(this.world);
     // Before the first step: the encoder's baseline is the freshly built world.
     this.encoder = new SnapshotEncoder(this.world);
@@ -178,6 +178,16 @@ export class Match {
     if (!seat) return;
     seat.queue.length = 0;
     seat.inputCmd.input = this.stillInput(f);
+  }
+
+  /** Freeze input without ending private card sessions during a browser-host pause. */
+  clearPausedInput(): void {
+    for (const f of FACTION_IDS) {
+      const seat = this.human[f];
+      if (!seat) continue;
+      seat.queue.length = 0;
+      seat.inputCmd.input = this.stillInput(f);
+    }
   }
 
   /** Queue one input frame for a human seat; false when refused (stale seq, not this player's seat, overflow). */

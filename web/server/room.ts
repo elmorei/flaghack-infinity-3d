@@ -12,11 +12,7 @@ import { DEFAULT_MATCH, normalizeMatch } from "../src/sim/matchSettings";
  * FORGET_AFTER_MS unless they hold a seat in a running match. Every handler is wrapped so that
  * nothing a client sends can take the host down.
  */
-import { randomBytes } from 'node:crypto';
 import { getFrickFrackPrivateView } from '../src/sim/frickFrackPrivate';
-import { setTimeout as sleep } from 'node:timers/promises';
-import { WebSocket } from 'ws';
-import type { RawData } from 'ws';
 import { BUILD_ID } from '../src/net/build';
 import { LOBBY_CHANGE_COOLDOWN_MS, MAX_CHAT_LENGTH, MAX_NAME_LENGTH, MAX_SEED_LENGTH, PROTOCOL_VERSION, SEAT_COUNT } from '../src/net/protocol';
 import type {
@@ -33,7 +29,8 @@ import { parseClientMessage } from '../src/net/validate';
 import { FACTION_DEFS } from '../src/sim/constants';
 import { FACTION_IDS } from '../src/sim/types';
 import type { Difficulty, FactionId, MatchOptions } from '../src/sim/types';
-import { addressKey, FailureThrottle, PasswordGate } from './auth';
+import { FailureThrottle } from './failureThrottle';
+import { randomHex } from './roomPlatform';
 import type { Origin } from './auth';
 import { Match } from './match';
 import type { MatchListener } from './match';
@@ -100,12 +97,25 @@ const DENIALS: Record<Exclude<DenyReason, 'banned'>, string> = {
 
 export interface RoomOptions {
   serverName: string;
-  password: string;
+  admit: (password: string) => boolean;
+  addressKey: (address: string) => string;
   log: (line: string) => void;
 }
 
+export interface RoomSocket {
+  readonly readyState: number;
+  readonly bufferedAmount: number;
+  onMessage(listener: (text: string | null) => void): void;
+  onClose(listener: () => void): void;
+  onError(listener: (error: Error) => void): void;
+  onPong?(listener: () => void): void;
+  ping?(): void;
+  send(text: string): void;
+  close(code: number, reason: string): void;
+  terminate(): void;
+}
 interface Conn {
-  readonly ws: WebSocket;
+  readonly ws: RoomSocket;
   /** The client's address, for logs. */
   readonly address: string;
   /** addressKey of the client (pending cap, password throttle) and of the socket peer (relay ceiling). */
@@ -157,8 +167,10 @@ interface Player {
 export class Room {
   readonly serverName: string;
   /** Public, ephemeral identity used to verify a relay reaches this exact running room. */
-  readonly instanceId = randomBytes(16).toString('hex');
-  private readonly gate: PasswordGate;
+  readonly instanceId = randomHex(16);
+  private readonly admit: RoomOptions['admit'];
+  private readonly addressKey: RoomOptions['addressKey'];
+  private paused = false;
   private readonly throttle = new FailureThrottle(FAILURE_LIMIT, FAILURE_WINDOW_MS);
   private readonly peerThrottle = new FailureThrottle(PEER_FAILURE_LIMIT, FAILURE_WINDOW_MS);
   private readonly log: (line: string) => void;
@@ -202,7 +214,8 @@ export class Room {
 
   constructor(opts: RoomOptions) {
     this.serverName = opts.serverName;
-    this.gate = new PasswordGate(opts.password);
+    this.admit = opts.admit;
+    this.addressKey = opts.addressKey;
     this.log = opts.log;
     this.housekeeping = setInterval(() => this.safely('housekeeping', () => this.tidy()), HOUSEKEEPING_MS);
   }
@@ -221,7 +234,7 @@ export class Room {
    */
   upgradeRefusal(origin: Origin): 'host' | 'address' | null {
     if (this.closing) return 'host';
-    const key = addressKey(origin.address);
+    const key = this.addressKey(origin.address);
     let pending = 0;
     let mine = 0;
     for (const c of this.conns) {
@@ -233,12 +246,12 @@ export class Room {
     return pending >= MAX_PENDING ? 'host' : null;
   }
 
-  connect(ws: WebSocket, origin: Origin): void {
+  connect(ws: RoomSocket, origin: Origin): void {
     const conn: Conn = {
       ws,
       address: origin.address,
-      key: addressKey(origin.address),
-      peerKey: addressKey(origin.peer),
+      key: this.addressKey(origin.address),
+      peerKey: this.addressKey(origin.peer),
       player: null,
       retired: false,
       helloTimer: undefined,
@@ -249,21 +262,38 @@ export class Room {
       awaitingPong: false,
     };
     this.conns.add(conn);
-    ws.on('message', (data, isBinary) => {
+    ws.onMessage((data) => {
       try {
-        this.receive(conn, data, isBinary);
+        this.receive(conn, data);
       } catch (err) {
         this.report(`a message from ${who(conn)}`, err);
       }
     });
-    ws.on('pong', () => this.pong(conn));
-    ws.on('close', () => this.safely('a closing socket', () => this.closed(conn)));
-    ws.on('error', (err) => this.log(`socket error from ${who(conn)}: ${err.message}`));
+    ws.onPong?.(() => this.pong(conn));
+    ws.onClose(() => this.safely('a closing socket', () => this.closed(conn)));
+    ws.onError((err) => this.log(`socket error from ${who(conn)}: ${err.message}`));
     // A socket that never says hello is not listening either: cut it instead of waiting out a close handshake.
     conn.helloTimer = setTimeout(() => {
       conn.retired = true;
       ws.terminate();
     }, HELLO_TIMEOUT_MS);
+  }
+
+  get isPaused(): boolean { return this.paused; }
+
+  setPaused(paused: boolean): void {
+    if (this.closing || this.paused === paused || this.phase !== 'playing' || !this.match) return;
+    this.paused = paused;
+    if (paused) {
+      this.match.stop();
+      this.match.clearPausedInput();
+      this.listener.resync();
+      this.syncJoining(this.match);
+      this.system('Browser host paused the burn. Keep its tab open.');
+    } else {
+      this.match.start();
+      this.system('Browser host resumed the burn.');
+    }
   }
 
   /** Tell everyone, close every socket (cut the stragglers after a second) and stop the burn. */
@@ -277,12 +307,12 @@ export class Room {
       this.retire(conn, CLOSE_GOING_AWAY, 'The host is shutting down');
     }
     const deadline = Date.now() + 1000;
-    while (this.conns.size > 0 && Date.now() < deadline) await sleep(20);
+    while (this.conns.size > 0 && Date.now() < deadline) await new Promise<void>((done) => setTimeout(done, 20));
     for (const conn of this.conns) conn.ws.terminate();
   }
 
   // ── Connections ───────────────────────────────────────────────────────────
-  private receive(conn: Conn, data: RawData, isBinary: boolean): void {
+  private receive(conn: Conn, data: string | null): void {
     if (conn.retired) return;
     const now = performance.now();
     conn.tokens = Math.min(MESSAGE_BURST, conn.tokens + ((now - conn.tokensAt) / 1000) * MESSAGES_PER_SECOND);
@@ -293,7 +323,7 @@ export class Room {
       return;
     }
     conn.tokens--;
-    const msg = isBinary ? null : parseClientMessage(rawText(data));
+    const msg = data === null ? null : parseClientMessage(data);
     if (!msg) {
       conn.malformed++;
       if (conn.malformed === 1) this.log(`dropped a malformed message from ${who(conn)}`);
@@ -317,7 +347,7 @@ export class Room {
     if (msg.build !== BUILD_ID) return this.deny(conn, 'build');
     const now = Date.now();
     if (this.throttle.blocked(conn.key, now) || this.peerThrottle.blocked(conn.peerKey, now)) return this.deny(conn, 'throttled');
-    if (!this.gate.admits(msg.password)) {
+    if (!this.admit(msg.password)) {
       this.throttle.fail(conn.key, now);
       this.peerThrottle.fail(conn.peerKey, now);
       return this.deny(conn, 'password');
@@ -341,7 +371,7 @@ export class Room {
   private newPlayer(name: string, now: number, controlMode: 'avatar' | 'rts'): Player {
     const player: Player = {
       id: `p${this.nextPlayer++}`,
-      token: randomBytes(16).toString('hex'),
+      token: randomHex(16),
       name: this.uniqueAmongOthers(name, null),
       seat: null,
       controlMode,
@@ -389,6 +419,7 @@ export class Room {
     else if (!previous) this.announce(player, `${player.name} found their way back.`);
     this.log(`${player.name} ${returning ? 'rejoined' : 'joined'} from ${conn.address} (${this.connectedCount()} connected)`);
     this.markLobby();
+    if (this.paused && this.match) this.syncJoining(this.match);
   }
 
   private closed(conn: Conn): void {
@@ -435,6 +466,7 @@ export class Room {
 
   // ── Lobby ─────────────────────────────────────────────────────────────────
   private handle(player: Player, msg: ClientMessage): void {
+    if (this.paused && (msg.t === 'input' || msg.t === 'seat' || msg.t === 'controlMode' || msg.t === 'bossTakeover')) return;
     switch (msg.t) {
       case 'hello':
         return;
@@ -637,7 +669,7 @@ export class Room {
     const humans = this.humanSeats();
     const rtsFactions = humans.filter(f => this.ownerOf(f)?.controlMode === 'rts');
     const options: MatchOptions = {
-      seed: this.settings.seed ?? `burn-${randomBytes(4).toString('hex')}`,
+      seed: this.settings.seed ?? `burn-${randomHex(4)}`,
       difficulty: this.settings.difficulty,
       humans,
       ...(rtsFactions.length ? { rtsFactions } : {}),
@@ -671,7 +703,7 @@ export class Room {
       p.inMatch = p.conn !== null;
       if (p.conn) this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
     }
-    match.start();
+    if (!this.paused) match.start();
     const npcs = SEAT_COUNT - humans.length;
     this.log(`burn started: seed ${options.seed}, ${humans.length} human seat(s), ${npcs} ${options.difficulty} NPC(s), built in ${Math.round(performance.now() - t0)} ms`);
     this.system(
@@ -685,6 +717,10 @@ export class Room {
     const match = this.match;
     if (!match) return;
     for (const p of this.players.values()) if (p.inMatch && p.conn) this.sendText(p.conn, text);
+    this.syncJoining(match);
+  }
+
+  private syncJoining(match: Match): void {
     let snapshot: string | null = null;
     let humans: FactionId[] = [];
     for (const p of this.players.values()) {
@@ -744,6 +780,7 @@ export class Room {
 
   /** Drop the world and return everyone to the lobby. */
   private endMatch(): void {
+    this.paused = false;
     this.match?.stop();
     this.match = null;
     this.phase = 'lobby';
@@ -846,7 +883,7 @@ export class Room {
   private pingAll(): void {
     const now = performance.now();
     for (const conn of this.conns) {
-      if (!conn.player || conn.retired) continue;
+      if (!conn.player || conn.retired || !conn.ws.ping) continue;
       if (conn.awaitingPong) {
         if (now - conn.pingSentAt > DEAD_AFTER_MS) {
           this.log(`${who(conn)} stopped answering; dropping the connection`);
@@ -941,7 +978,7 @@ export class Room {
 
   private sendText(conn: Conn, text: string): void {
     const ws = conn.ws;
-    if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.readyState !== 1) return;
     if (ws.bufferedAmount > MAX_BUFFERED_BYTES) {
       this.log(`${who(conn)} cannot keep up (${(ws.bufferedAmount / 1048576).toFixed(1)} MB queued); dropping it so it resyncs`);
       ws.terminate();
@@ -969,10 +1006,4 @@ function systemLine(text: string): ChatLine {
 
 function who(conn: Conn): string {
   return conn.player ? `${conn.player.name} (${conn.address})` : conn.address;
-}
-
-function rawText(data: RawData): string {
-  if (Buffer.isBuffer(data)) return data.toString('utf8');
-  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
-  return Buffer.from(data).toString('utf8');
 }

@@ -35,6 +35,8 @@ export interface TokenStore {
   save(token: string): void;
 }
 
+export type ClientSocket = Pick<WebSocket, 'readyState' | 'onopen' | 'onmessage' | 'onclose' | 'send' | 'close'>;
+
 export interface NetClientOptions {
   url: string;
   name: string;
@@ -44,7 +46,9 @@ export interface NetClientOptions {
   hooks: NetClientHooks;
   tokens: TokenStore;
   /** Socket factory (tests hand in Node's global WebSocket). */
-  connect?: (url: string) => WebSocket;
+  connect?: (url: string) => ClientSocket;
+  /** A browser peer must exchange a fresh offer and answer after connection loss. */
+  manualReconnect?: boolean;
 }
 
 const OPEN = 1;
@@ -180,8 +184,9 @@ export class NetClient implements NetSession {
   private readonly password: string;
   private readonly hooks: NetClientHooks;
   private readonly tokens: TokenStore;
-  private readonly connect: (url: string) => WebSocket;
-  private ws: WebSocket | null = null;
+  private readonly connect: (url: string) => ClientSocket;
+  private readonly manualReconnect: boolean;
+  private ws: ClientSocket | null = null;
   private token: string | null;
   private inMatch = false;
   private matchSeat: FactionId | null = null;
@@ -211,6 +216,7 @@ export class NetClient implements NetSession {
     this.hooks = opts.hooks;
     this.tokens = opts.tokens;
     this.connect = opts.connect ?? ((url) => new WebSocket(url));
+    this.manualReconnect = opts.manualReconnect ?? false;
     this.token = opts.tokens.load();
     this.open();
     this.pingLoop();
@@ -359,7 +365,7 @@ export class NetClient implements NetSession {
   }
 
   private open(): void {
-    let ws: WebSocket;
+    let ws: ClientSocket;
     try {
       ws = this.connect(this.url);
     } catch {
@@ -502,6 +508,7 @@ export class NetClient implements NetSession {
     if (code === CLOSE_GOING_AWAY) return this.finish(this.notices[this.notices.length - 1] ?? 'The host has ended the burn.');
     if (code === CLOSE_POLICY) return this.finish('The host closed the connection.');
     if (code === CLOSE_DENIED && !this.retryAfterDeny) return this.finish('The host refused the connection.');
+    if (this.manualReconnect) return this.finish('Browser peer disconnected. Ask the host for a fresh invite to rejoin.');
     // Never got in: a wrong address or a host that is down. Nothing to reclaim, so no retry.
     if (!this.welcomed) return this.finish('Could not connect to the host’s WebSocket. Check its HTTPS tunnel, allowed browser origin and that the host is running.');
     const now = performance.now();

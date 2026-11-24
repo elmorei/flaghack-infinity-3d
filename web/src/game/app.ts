@@ -13,12 +13,13 @@ import { GameAudio } from '../audio/audio';
 import { NetClient, tabTokens } from '../net/client';
 import { clearFrickFrackPrivateViews, setFrickFrackPrivateView } from '../sim/frickFrackPrivate';
 import { browserAllowsRemoteHosts, parseHostAddress, probeHost } from '../net/endpoint';
-import type { NetClientHooks } from '../net/client';
+import type { ClientSocket, NetClientHooks } from '../net/client';
 import type { FullSnapshot } from '../net/codec';
 import { NetMirror } from '../net/mirror';
 import { AvatarPredictor } from '../net/predict';
 import { MAX_FRAME_COMMANDS } from '../net/protocol';
 import type { HostInfo, LobbyState } from '../net/protocol';
+import type { BrowserBurnPanel } from '../ui/browserBurnPanel';
 import type { NetSession } from '../net/session';
 import { GameRenderer } from '../render/renderer';
 import type { Command } from '../sim/commands';
@@ -73,6 +74,7 @@ export interface AppApi {
   /** Explicit Join: probe, verify compatibility, then connect to this target only. */
   joinHost(name: string, password: string, address?: string): Promise<void>;
   cancelJoin(): void;
+  openBrowserMultiplayer?(): void;
   /** The Training Burn while it runs, else null. */
   readonly tutorial: TutorialRun | null;
   /** Start the Training Burn (tutorial mission). */
@@ -143,6 +145,7 @@ export class App implements AppApi {
   private fpsAcc = 0;
   private fpsFrames = 0;
   private readonly predictionOn: boolean;
+  private browserBurn: BrowserBurnPanel | null = null;
   /** Online: input sequence of the current match (restarts at 1 after every matchStart). */
   private seq = 0;
   /** Online: this tick's avatar input as Controls submitted it, and whether it did this tick. */
@@ -268,6 +271,21 @@ export class App implements AppApi {
     }
   }
 
+  async openBrowserMultiplayer(): Promise<void> {
+    if (this.startupPending || !this.remoteHostsAvailable ||
+        typeof RTCPeerConnection === 'undefined' ||
+        new URLSearchParams(location.search).get('browser-host') !== '1') return;
+    const { BrowserBurnPanel } = await import('../ui/browserBurnPanel');
+    if (this.session.screen !== 'title') return;
+    this.browserBurn ??= new BrowserBurnPanel((name, socket, room) => {
+      if (this.joiningHost || this.online || this.session.screen !== 'title') return false;
+      this.dropClient();
+      this.connectHost(name, '', '', 'browser-room:' + room, socket);
+      return true;
+    });
+    this.browserBurn.open();
+  }
+
   /** Editing the form or leaving the title cancels both discovery and an unfinished hello. */
   cancelJoin(): void {
     this.joinAbort?.abort();
@@ -281,7 +299,7 @@ export class App implements AppApi {
     }
   }
 
-  private connectHost(name: string, password: string, socketUrl: string, origin: string): void {
+  private connectHost(name: string, password: string, socketUrl: string, origin: string, peer?: ClientSocket): void {
     let client: NetClient | null = null;
     // Callbacks only count for the session that is current (a replaced one may still close late).
     const mine = (): NetClient | null => (client !== null && client === this.client ? client : null);
@@ -311,6 +329,7 @@ export class App implements AppApi {
       serverName: this.hostInfo?.serverName ?? 'the host',
       hooks,
       tokens: tabTokens(origin),
+      ...(peer ? { connect: () => peer, manualReconnect: true } : {}),
     });
     this.client = client;
   }
@@ -479,6 +498,7 @@ export class App implements AppApi {
 
   private onClosed(error: string | null): void {
     // A failed session stays readable (status 'closed' + error) for the join panel.
+    this.browserBurn?.endHostIfOwned();
     if (error === null) this.client = null;
     if (this.mirror || (this.world && this.world.options.humans.length > 0)) this.loadAttract();
     this.session.screen = 'title';

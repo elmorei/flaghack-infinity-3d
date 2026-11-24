@@ -14,7 +14,7 @@ import { WebSocketServer } from 'ws';
 import type { ServerOptions } from 'ws';
 import { BUILD_ID } from '../src/net/build';
 import { DEFAULT_PORT, INFO_PATH, MAX_CLIENT_MESSAGE_BYTES, PROTOCOL_VERSION, WS_PATH } from '../src/net/protocol';
-import { originOf } from './auth';
+import { addressKey, originOf, PasswordGate } from './auth';
 import { browserOriginPolicy } from './browserOrigin';
 import { Room } from './room';
 import { createStaticHandler, send } from './static';
@@ -56,7 +56,8 @@ export async function startHost(opts: HostOptions): Promise<RunningHost> {
   const originAllowed = browserOriginPolicy(opts.allowedOrigins);
   const log = opts.log ?? ((line: string) => console.log(`${new Date().toTimeString().slice(0, 8)} ${line}`));
   const serverName = cleanText(opts.serverName ?? `${hostname()}'s burn`, MAX_SERVER_NAME) || 'A FLAGHACK∞3D burn';
-  const room = new Room({ serverName, password: opts.password, log });
+  const gate = new PasswordGate(opts.password);
+  const room = new Room({ serverName, admit: (password) => gate.admits(password), addressKey, log });
   const files = opts.staticDir === null ? null : createStaticHandler(opts.staticDir ?? DEFAULT_STATIC_DIR);
   // closeTimeout (ws >= 8.19) is missing from @types/ws 8.18, hence the checked const rather than a literal argument.
   const wsOptions = {
@@ -139,7 +140,20 @@ export async function startHost(opts: HostOptions): Promise<RunningHost> {
     const refusal = room.upgradeRefusal(origin);
     if (refusal === 'address') return refuse(socket, '429 Too Many Requests');
     if (refusal === 'host') return refuse(socket, '503 Service Unavailable');
-    wss.handleUpgrade(req, socket, head, (ws) => room.connect(ws, origin));
+    wss.handleUpgrade(req, socket, head, (ws) => room.connect({
+      get readyState() { return ws.readyState; },
+      get bufferedAmount() { return ws.bufferedAmount; },
+      onMessage: (cb) => ws.on('message', (msg, binary) => {
+        cb(binary ? null : (Array.isArray(msg) ? Buffer.concat(msg) : Buffer.isBuffer(msg) ? msg : Buffer.from(msg)).toString('utf8'));
+      }),
+      onClose: (cb) => ws.on('close', cb),
+      onError: (cb) => ws.on('error', cb),
+      onPong: (cb) => ws.on('pong', cb),
+      ping: () => ws.ping(),
+      send: (text) => ws.send(text),
+      close: (code, reason) => ws.close(code, reason),
+      terminate: () => ws.terminate(),
+    }, origin));
   });
 
   server.listen({ port: opts.port ?? DEFAULT_PORT, host: opts.bind });

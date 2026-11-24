@@ -187,6 +187,14 @@ export class TitleScreen implements UiPart {
       col,
     );
 
+    if (host.app.remoteHostsAvailable && host.app.openBrowserMultiplayer &&
+        typeof RTCPeerConnection !== 'undefined' &&
+        new URLSearchParams(location.search).get('browser-host') === '1') {
+      button('btn browser-preview-entry', col, 'Browser multiplayer (preview)', () => {
+        host.app.openBrowserMultiplayer?.();
+      }, 'confirm');
+    }
+
     // Explicit overrides also recover from unusual tablets or desktop-mode user agents.
     if (host.app.remoteHostsAvailable) {
       const versions = el('nav', 'version-switch', col);
