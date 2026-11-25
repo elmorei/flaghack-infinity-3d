@@ -27,7 +27,7 @@ export type GameEvent =
   // Flags
   | { t: 'flagPlanted'; flagId: EntityId; node: number; faction: Owner; by: EntityId | -1; pos: V3 }
   | { t: 'flagPulled'; flagId: EntityId; node: number; faction: Owner; prevOwner: Owner; by: EntityId | -1; pos: V3 }
-  | { t: 'flagThrown'; flagId: EntityId; faction: FactionId; from: V3; vel: V3 }
+  | { t: 'flagThrown'; flagId: EntityId; faction: Owner; from: V3; vel: V3 }
   | { t: 'flagLanded'; flagId: EntityId; node: number; pos: V3 }
   | { t: 'flagDecohered'; flagId: EntityId; node: number; pos: V3 }
   | { t: 'flagCrafted'; flagId: EntityId; faction: FactionId; at: EntityId }
@@ -66,7 +66,7 @@ export type GameEvent =
   | { t: 'bossFootfall'; bossId: EntityId; pos: V2; heavy: boolean }
   | { t: 'ko'; id: EntityId; kind: 'avatar' | 'hippie'; faction: Owner; by: EntityId | -1; pos: V3 }
   | { t: 'respawn'; id: EntityId; kind: 'avatar' | 'hippie'; faction: Owner; pos: V3 }
-  | { t: 'recruited'; hippieId: EntityId; faction: FactionId; via: 'workshop' | 'drumcircle' | 'gcc' | 'hand' | 'throw' | 'dialectics' | 'beacon' }
+  | { t: 'recruited'; hippieId: EntityId; faction: FactionId; via: 'workshop' | 'drumcircle' | 'gcc' | 'altar' | 'hand' | 'throw' | 'dialectics' | 'beacon' }
   | { t: 'distracted'; hippieId: EntityId; faction: Owner }
   | { t: 'harvest'; pileId: EntityId; by: EntityId; amount: number; pos: V2 }
   | { t: 'lumberDelivered'; faction: FactionId; amount: number; pos: V2 }

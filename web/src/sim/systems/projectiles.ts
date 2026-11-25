@@ -7,6 +7,7 @@
 import { AVATAR, MAP_HALF, PROJECTILE } from '../constants';
 import { BOSS_FLAG_BODY_DAMAGE, BOSS_FLAG_HEAD_DAMAGE } from '../boss';
 import { clamp } from '../math';
+import { NEUTRAL } from '../types';
 import type { FactionId, Hippie, Projectile } from '../types';
 import type { World } from '../world';
 import { bossEncounterActive } from './boss/damage';
@@ -62,12 +63,12 @@ function stepProjectile(world: World, p: Projectile, dt: number): void {
     ground = true;
     t = dy < 0 ? clamp((oy - world.collision.groundHeight(ox + dx, oz + dz)) / -dy, 0, 1) : 1;
   }
-  const impact = world.boss ? intersectBossRegions(world.boss, world.time,
+  const impact = p.faction !== NEUTRAL && world.boss ? intersectBossRegions(world.boss, world.time,
     { x: ox, y: oy, z: oz }, { x: ox + dx, y: oy + dy, z: oz + dz }, t) : null;
   // A neutral catching the flag or a physical wall in front of the giant still wins.
-  const victim = hippieOnSegment(world, p, ox, oy, oz, dx, dy, dz, impact ? impact.t : t);
+  const victim = p.faction !== NEUTRAL ? hippieOnSegment(world, p, ox, oy, oz, dx, dy, dz, impact ? impact.t : t) : null;
   if (victim) { bonk(world, p, victim); return; }
-  if (impact && world.boss) {
+  if (impact && world.boss && p.faction !== NEUTRAL) {
     recordBossFlagThreat(world, p.thrower);
     const amount = impact.headshot ? BOSS_FLAG_HEAD_DAMAGE : BOSS_FLAG_BODY_DAMAGE;
     damageEntity(world, world.boss.id, amount, p.thrower);
@@ -80,13 +81,13 @@ function stepProjectile(world: World, p: Projectile, dt: number): void {
   }
   if (hit) {
     // Static scenery uses collision tag -1-id; storage has a separate -2-id namespace.
-    if (hit.tag < 0) {
+    if (p.faction !== NEUTRAL && hit.tag < 0) {
       const depot = getDepot(world,depotHolder(-1-hit.tag),p.pos);
       if (depot?.faction === p.faction && depositToStock(world,p.flagId,depot.id)) { finish(world,p,-1); return; }
     }
     const station = world.buildings.get(hit.tag);
     // Deposit only at our own completed storage. Earlier walls, units and boss hits retain precedence.
-    if (station && station.faction === p.faction && station.built >= 1 &&
+    if (p.faction !== NEUTRAL && station && station.faction === p.faction && station.built >= 1 &&
       (station.kind === 'hearth' || station.kind === 'workshop')) {
       let stored = depositToStock(world, p.flagId, station.id);
       if (!stored && station.kind === 'workshop') {
@@ -162,7 +163,7 @@ function hippieOnSegment(
 
 /** A neutral catches the Flag and joins; a rival takes damage and drops the Flag. */
 function bonk(world: World, p: Projectile, h: Hippie): void {
-  if (recruitWithFlag(world, h, p.faction, p.flagId, 'throw')) {
+  if (p.faction !== NEUTRAL && recruitWithFlag(world, h, p.faction, p.flagId, 'throw')) {
     finish(world, p, -1);
     return;
   }
@@ -174,10 +175,12 @@ function bonk(world: World, p: Projectile, h: Hippie): void {
 
 /** Ground or deck landing: snap-plant on the nearest plantable node, else lie loose. */
 function land(world: World, p: Projectile, x: number, y: number, z: number): void {
-  const node = nearestPlantableNode(world, { x, z }, throwSnapRadius(world, p.faction), p.faction);
-  if (node >= 0 && plantFlag(world, p.flagId, node, p.faction, p.thrower)) {
-    finish(world, p, node);
-    return;
+  if (p.faction !== NEUTRAL) {
+    const node = nearestPlantableNode(world, { x, z }, throwSnapRadius(world, p.faction), p.faction);
+    if (node >= 0 && plantFlag(world, p.flagId, node, p.faction, p.thrower)) {
+      finish(world, p, node);
+      return;
+    }
   }
   dropLoose(world, p.flagId, { x, y, z });
   finish(world, p, -1);

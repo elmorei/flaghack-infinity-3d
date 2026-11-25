@@ -1017,7 +1017,7 @@ const PROJECTILE_FIELDS: readonly Field<Projectile>[] = [
   idField('thrower', (p) => p.thrower, (p, v) => {
     p.thrower = v;
   }),
-  factionField('faction', (p) => p.faction, (p, v) => {
+  ownerField('faction', (p) => p.faction, (p, v) => {
     p.faction = v;
   }),
   xField((p) => p.pos),

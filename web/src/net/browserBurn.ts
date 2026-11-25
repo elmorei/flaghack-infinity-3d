@@ -1,4 +1,4 @@
-import { Room } from '../../server/room';
+import { MAX_PLAYERS, Room } from '../../server/room';
 import type { RoomSocket } from '../../server/room';
 import type { ClientSocket } from './client';
 import { MAX_CLIENT_MESSAGE_BYTES } from './protocol';
@@ -6,7 +6,7 @@ import { PeerWire, createRtcOffer, acceptRtcOffer, acceptRtcAnswer, offerFingerp
 
 const ROOM_CODE_VERSION = 1;
 const MAX_OFFER_CHARACTERS = 65_536;
-const MAX_BROWSER_PEERS = 4;
+const MAX_BROWSER_PEERS = MAX_PLAYERS - 1;
 const INVITE_EXPIRY_MS = 120_000;
 const LOBBY_JOIN_TIMEOUT_MS = 20_000;
 const encoder = new TextEncoder();
@@ -148,7 +148,7 @@ export class BrowserBurn {
     const room = this.room, certificate = this.certificate;
     if (!room || !certificate) throw new Error('Start the browser host first.');
     if (this.pendingHostSetup) throw new Error('Please wait for the current offer.');
-    if (this.peers.size >= MAX_BROWSER_PEERS) throw new Error('This preview supports up to four connected guests.');
+    if (this.peers.size >= MAX_BROWSER_PEERS) throw new Error('This room is at its guest limit.');
     this.cancelOffer();
     this.pendingHostSetup = true;
     const generation = this.hostGeneration;

@@ -236,7 +236,7 @@ export function spawnCrystal(world: World, node: number, faction: FactionId, pen
   return c;
 }
 
-export function spawnProjectile(world: World, flagId: EntityId, thrower: EntityId, faction: FactionId, pos: V3, vel: V3): Projectile {
+export function spawnProjectile(world: World, flagId: EntityId, thrower: EntityId, faction: Owner, pos: V3, vel: V3): Projectile {
   const p: Projectile = { id: world.newId(), type: 'projectile', flagId, thrower, faction, pos: { ...pos }, vel: { ...vel }, bornAt: world.time };
   world.projectiles.set(p.id, p);
   return p;

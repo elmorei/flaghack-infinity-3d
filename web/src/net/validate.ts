@@ -465,6 +465,28 @@ const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } 
     parse: ({ seat, mode }) => (isFaction(seat) && (mode === undefined || mode === 'avatar' || mode === 'rts')
       ? { t: 'bossTakeover', seat, ...(mode === undefined ? {} : { mode }) } : null),
   },
+  claimHippie: {
+    keys: ['t'],
+    parse: () => ({ t: 'claimHippie' }),
+  },
+  hippieMove: {
+    keys: ['t', 'inputEpoch', 'x', 'z'],
+    parse: ({ inputEpoch, x, z }) => isInt(inputEpoch, 1) && isNum(x) && isNum(z) &&
+      Math.abs(x) <= MAP_HALF && Math.abs(z) <= MAP_HALF ? { t: 'hippieMove', inputEpoch, x, z } : null,
+  },
+  hippiePickup: {
+    keys: ['t', 'inputEpoch'],
+    parse: ({ inputEpoch }) => isInt(inputEpoch, 1) ? { t: 'hippiePickup', inputEpoch } : null,
+  },
+  hippieAltar: {
+    keys: ['t', 'inputEpoch'],
+    parse: ({ inputEpoch }) => isInt(inputEpoch, 1) ? { t: 'hippieAltar', inputEpoch } : null,
+  },
+  hippieThrow: {
+    keys: ['t', 'inputEpoch', 'x', 'z'],
+    parse: ({ inputEpoch, x, z }) => isInt(inputEpoch, 1) && isNum(x) && isNum(z) &&
+      Math.abs(x) <= MAP_HALF && Math.abs(z) <= MAP_HALF ? { t: 'hippieThrow', inputEpoch, x, z } : null,
+  },
   controlMode: {
     keys: ['t', 'mode'],
     parse: ({ mode }) => (mode === 'avatar' || mode === 'rts' ? { t: 'controlMode', mode } : null),

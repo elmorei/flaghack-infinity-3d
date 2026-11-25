@@ -13,7 +13,7 @@ import type { Building, FactionId, Hippie } from '../../types';
 import type { World } from '../../world';
 import { isFlagProtected } from '../abilities';
 import { aboveAttentionCap, nearestHearth } from '../economy';
-import { canRecruit, recruitWithFlag, recoveryRecruiter, recoveryApproach, failRecoveryCall, recruiterApproach, recruitmentLineClear } from '../recruitment';
+import { canTakeRecruitingFlag, canRecruit, recruitWithFlag, recoveryRecruiter, recoveryApproach, failRecoveryCall, recruiterApproach, recruitmentLineClear } from '../recruitment';
 import { speedMultiplier } from '../effects';
 import { canPlantAt, depositToStock, dropLoose, plantFlag, pullFlag, takeFromStock, defendedPullRate } from '../flags';
 import { neutralizeHippie } from '../victory';
@@ -179,7 +179,7 @@ function actRecruit(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
   const target = world.hippies.get(b.target);
   const flag = world.flags.get(h.carryingFlag);
   if (h.order?.kind !== 'recruit' || h.order.target !== b.target || !target || !canRecruit(target) ||
-      target.carryingFlag !== -1 || target.carryingLumber > 0 || !flag || flag.state !== 'carried' || flag.holder !== h.id) {
+      !canTakeRecruitingFlag(target) || !flag || flag.state !== 'carried' || flag.holder !== h.id) {
     finishOrder(world, h, b);
     return;
   }
@@ -199,7 +199,7 @@ function actRecruit(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
 function actFetchStock(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {
   if (h.order?.kind === 'recruit') {
     const target = world.hippies.get(h.order.target);
-    if (!target || !canRecruit(target) || target.carryingFlag !== -1 || target.carryingLumber > 0) { finishOrder(world, h, b); return; }
+    if (!target || !canRecruit(target) || !canTakeRecruitingFlag(target)) { finishOrder(world, h, b); return; }
   }
   const hb = logisticsTarget(world, b.target, h.pos);
   if (!hb || hb.faction !== f || hb.built < 1 || (h.order?.kind !== 'recruit' && !plantTargetValid(world, sys, h, b, f))) {

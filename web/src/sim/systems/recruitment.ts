@@ -9,13 +9,17 @@ import type { Building, FactionId, Hippie } from '../types';
 import type { World } from '../world';
 import { isCollapsed } from './buildings';
 import { hasEffect } from './effects';
-import { dropLoose, giveFlag } from './flags';
+import { dropLoose, giveFlag, takeFromStock } from './flags';
 import { breakChannel } from './units/channel';
 
 type RecruitVia = Extract<GameEvent, { t: 'recruited' }>['via'];
 
 export function canRecruit(h: Hippie): boolean {
   return !h.wizard && h.faction === NEUTRAL && h.status !== 'ko' && h.koUntil === 0 && h.hp > 0;
+}
+
+export function canTakeRecruitingFlag(h: Hippie): boolean {
+  return h.carryingLumber === 0;
 }
 
 export function isRecruiter(world: World, b: Building): boolean {
@@ -32,6 +36,8 @@ export function enlist(world: World, h: Hippie, f: FactionId, via: RecruitVia): 
   if (h.wizard) return;
   h.faction = f;
   h.recruitedAt = world.time;
+  const flag = world.flags.get(h.carryingFlag);
+  if (flag?.holder === h.id && flag.state === 'carried') flag.owner = f;
   h.order = null;
   h.job = null;
   h.status = 'idle';
@@ -41,13 +47,47 @@ export function enlist(world: World, h: Hippie, f: FactionId, via: RecruitVia): 
   world.emit({ t: 'recruited', hippieId: h.id, faction: f, via });
 }
 
+/** A neutral player's one open inventory slot can accept a Flag from a real living altar. */
+export function joinableHippieAltar(world: World, h: Hippie): Building | null {
+  if (!canRecruit(h) || h.airborne || h.carryingFlag !== -1 || h.carryingLumber !== 0) return null;
+  let best: Building | null = null;
+  let reach = BUILDINGS.hearth.radius + AVATAR.restockRadius;
+  const y = world.collision.groundHeight(h.pos.x, h.pos.z);
+  for (const b of world.buildings.values()) {
+    if (b.kind !== 'hearth' || b.faction === NEUTRAL || !world.factions[b.faction].alive ||
+        b.built < 1 || b.disabled || b.hp <= 0 || isCollapsed(b) || Math.abs(y - buildingBaseHeight(world, b)) > 1.5) continue;
+    const dx = b.pos.x - h.pos.x, dz = b.pos.z - h.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > reach) continue;
+    const hit = d > 0 && world.collision.raycast(h.pos.x, y + 1, h.pos.z, dx, 0, dz, d);
+    if (hit && hit.tag !== b.id) continue;
+    if (![...world.flags.values()].some(flag => flag.state === 'stock' && flag.holder === b.id)) continue;
+    reach = d;
+    best = b;
+  }
+  return best;
+}
+
+export function joinFromAltarFlag(world: World, h: Hippie): boolean {
+  const altar = joinableHippieAltar(world, h);
+  if (!altar || altar.faction === NEUTRAL) return false;
+  h.faction = altar.faction;
+  if (!takeFromStock(world, altar.id, h.id)) { h.faction = NEUTRAL; return false; }
+  enlist(world, h, altar.faction, 'altar');
+  return true;
+}
+
 /** A real carried or thrown Flag changes hands, preserving its identity and inventory. */
 export function recruitWithFlag(world: World, h: Hippie, f: FactionId, flagId: number, via: 'hand' | 'throw'): boolean {
   if (h.wizard) return offerFrickFrackFlag(world, h, f, flagId);
   const flag = world.flags.get(flagId);
-  if (!world.factions[f].alive || !canRecruit(h) || h.carryingFlag !== -1 || h.carryingLumber > 0 || !flag) return false;
+  if (!world.factions[f].alive || !canRecruit(h) || !canTakeRecruitingFlag(h) || !flag || flag.holder === h.id) return false;
   if (flag.state !== 'carried' && flag.state !== 'flying') return false;
   if (flag.state === 'flying') dropLoose(world, flag.id, { x: h.pos.x, y: 0, z: h.pos.z });
+  // A playing Signifier may already hold one; make room without destroying either Flag.
+  if (h.carryingFlag !== -1) dropLoose(world, h.carryingFlag, {
+    x: h.pos.x, y: world.collision.groundHeight(h.pos.x, h.pos.z), z: h.pos.z,
+  });
   // Flag inventories require an affiliated recipient. Validation above makes the transfer safe.
   h.faction = f;
   if (!giveFlag(world, flagId, h.id)) {
@@ -64,7 +104,7 @@ export function handFlagBlocker(world: World, f: FactionId, target: number): str
   if (world.factions[f].controlMode === 'rts' || !world.factions[f].alive || !av || av.koUntil > 0 || hasEffect(world, av, 'stun')) return 'You cannot hand over a Flag right now.';
   if (av.action.kind === 'swing' || av.action.kind === 'plant') return 'Finish your current action first.';
   if (!h || (!canRecruit(h) && !(h.wizard && h.hp > 0 && h.koUntil === 0 && h.status !== 'ko'))) return 'Choose an awake neutral Signifier.';
-  if (h.carryingFlag !== -1 || h.carryingLumber > 0) return 'That Signifier has its hands full.';
+  if (!canTakeRecruitingFlag(h)) return 'That Signifier has its hands full.';
   if (!av.carried.length) return 'Your quiver is empty.';
   const dy = world.collision.groundHeight(h.pos.x, h.pos.z) + (h.airborne?.y ?? 0) - av.pos.y;
   if (Math.hypot(h.pos.x - av.pos.x, dy, h.pos.z - av.pos.z) > AVATAR.pullReach) return 'Move closer to hand over a Flag.';

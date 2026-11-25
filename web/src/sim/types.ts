@@ -352,7 +352,7 @@ export interface Projectile {
   type: 'projectile';
   flagId: EntityId;
   thrower: EntityId;
-  faction: FactionId;
+  faction: Owner;
   pos: V3;
   vel: V3;
   bornAt: number;

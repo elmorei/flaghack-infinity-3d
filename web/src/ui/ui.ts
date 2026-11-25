@@ -33,6 +33,7 @@ import { EndScreen } from './endscreen';
 import { FeedPart } from './feed';
 import { FrickFrackUI } from './frickFrack';
 import { HelpOverlay } from './help';
+import { HippieRolePart } from './hippieRole';
 import { HudPart, PerfOverlay } from './hud';
 import { LobbyScreen } from './lobby';
 import { Minimap } from './minimap';
@@ -154,6 +155,7 @@ export class GameUI {
     const net = new NetHud(host, layout);
     const perf = new PerfOverlay(host, layout.bottomRight, () => this.uiMs);
     this.tutorialOverlay = new TutorialOverlay(host, layout);
+    this.parts.push(new HippieRolePart(host, layout.topCenter));
     this.parts.push(this.hud, rail, this.minimap, command, roster, sceneryBenefits, bar, feed, this.chat, net, perf, this.banners, this.tutorialOverlay);
     this.lobby = new LobbyScreen(host, layout.overlay);
     this.scoreboard = new Scoreboard(host, layout.overlay);

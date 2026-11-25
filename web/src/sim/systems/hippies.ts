@@ -1,3 +1,4 @@
+import { hippiePlayerGoal, setHippiePlayer } from '../hippiePlayer';
 import { flagOrderBearer } from './flagOrderBearers';
 import { stepFrickFrackWizard } from './frickFrack';
 /**
@@ -10,7 +11,7 @@ import { stepFrickFrackWizard } from './frickFrack';
  * act.ts (doing it), move.ts (getting there), targets.ts (what matters).
  * Owner: Units agent.
  */
-import { canRecruit, updateRecoveryCalls } from './recruitment';
+import { canRecruit, canTakeRecruitingFlag, updateRecoveryCalls } from './recruitment';
 import { stockOwner } from './sceneryDepots';
 import { updateSceneryService, cancelSceneryService } from './sceneryServices';
 import { damageMelee } from './meleeImpact';
@@ -27,7 +28,7 @@ import { isHoarding, popCap } from './economy';
 import { hasEffect, pruneEffects, speedMultiplier } from './effects';
 import { canPlantAt } from './flags';
 import { act, becomeDistracted, pickWanderSpot, wander, attractToRecruiter } from './units/act';
-import { beginTask, brainOf, releaseTask, setStatus } from './units/brain';
+import { beginTask, brainOf, releaseTask, setStatus, setStatusAt } from './units/brain';
 import type { Brain } from './units/brain';
 import { decide, needsDecision, startEngage, startFlee } from './units/decide';
 import { allocateJobs } from './units/jobs';
@@ -63,7 +64,7 @@ function orderValid(world: World, f: FactionId, o: HippieOrder): boolean {
   switch (o.kind) {
     case 'recruit': {
       const target = world.hippies.get(o.target);
-      return !!target && canRecruit(target) && target.carryingFlag === -1 && target.carryingLumber === 0;
+      return !!target && canRecruit(target) && canTakeRecruitingFlag(target);
     }
     case 'move':
       return inMap(o.to);
@@ -325,6 +326,20 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
   if (stepFrickFrackWizard(world, sys, h, b, dt)) return;
   if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
+  const goal = hippiePlayerGoal(world, h.id);
+  if (goal !== undefined && !h.order && !hasEffect(world, h, 'overstimulated') && b.task !== 'distracted') {
+    if (b.task !== 'goto') beginTask(world, h, b, 'goto');
+    b.pace = HIPPIE_AI.neutralPace;
+    if (goal) {
+      setStatusAt(h, b, 'walking', goal.x, goal.z);
+      if (moveTo(world, sys, h, b, goal.x, goal.z, 0.5)) setHippiePlayer(world, h.id, null);
+    } else {
+      b.moving = false;
+      setStatus(h, 'idle');
+    }
+    locomote(world, sys, h, b, dt);
+    return;
+  }
   if (f === NEUTRAL) {
     // Real camp recruitment takes precedence over the pre-Burn audience, including wipes.
     if (attractToRecruiter(world, sys, h, b)) {

@@ -1,3 +1,7 @@
+import { setHippiePlayer, tossHippieFlag } from '../src/sim/hippiePlayer';
+import { pickUpHippieFlag } from '../src/sim/systems/flags';
+import { hasEffect } from '../src/sim/systems/effects';
+import { canRecruit, joinFromAltarFlag } from '../src/sim/systems/recruitment';
 import { isBossTakeoverActive } from '../src/sim/bossTakeover';
 import { applyNpcTakeover, npcTakeoverSeats } from '../src/sim/npcTakeover';
 import { setFactionControlMode } from '../src/sim/controlMode';
@@ -160,6 +164,8 @@ interface Player {
   /** New on every matchStart; pre-handoff/reconnect input can never drive a new seat. */
   inputEpoch: number;
   /** A temporary exclusive reservation, revalidated at the next authoritative frame boundary. */
+  wantsHippie: boolean;
+  hippieId: number | null;
   pendingBossSeat: FactionId | null;
   /** Captured with the reservation; changes no player or camp state until its successful commit. */
   pendingBossMode: 'avatar' | 'rts' | null;
@@ -191,6 +197,7 @@ export class Room {
   private lastSweepAt = 0;
   private abandonAt = 0;
   private closing = false;
+  private readonly hippieRolesSent = new WeakMap<Player, string>();
   private readonly privateKnowledgeSent = new WeakMap<Player, string>();
 
   private readonly listener: MatchListener = {
@@ -407,6 +414,8 @@ export class Room {
       jammedAt: 0,
       changedAt: 0,
       inputEpoch: 0,
+      wantsHippie: false,
+      hippieId: null,
       pendingBossSeat: null,
       pendingBossMode: null,
     };
@@ -434,6 +443,8 @@ export class Room {
     if (this.leaderId === null) this.leaderId = player.id;
     this.abandonAt = 0;
     this.send(conn, { t: 'welcome', protocol: PROTOCOL_VERSION, build: BUILD_ID, playerId: player.id, token: player.token, lobby: this.lobbyState() });
+    this.hippieRolesSent.delete(player);
+    if (!player.joining) this.sendHippieRole(player);
     if (!returning) this.system(`${player.name} arrived at the burn.`);
     else if (!previous) this.announce(player, `${player.name} found their way back.`);
     this.log(`${player.name} ${returning ? 'rejoined' : 'joined'} from ${conn.address} (${this.connectedCount()} connected)`);
@@ -454,6 +465,7 @@ export class Room {
     p.pendingBossSeat = null;
     p.pendingBossMode = null;
     if (this.match && p.seat !== null) this.match.holdStill(p.seat);
+    if (this.match && p.hippieId !== null) setHippiePlayer(this.match.world, p.hippieId, undefined);
     if (this.closing) return;
     this.log(`${p.name} disconnected (${this.connectedCount()} connected)`);
     this.announce(p, `${p.name} wandered off into the dust.`);
@@ -495,6 +507,25 @@ export class Room {
       case 'ready':
       case 'settings':
         return this.change(player, msg);
+      case 'claimHippie':
+        return this.claimHippie(player);
+      case 'hippieMove':
+      case 'hippiePickup':
+      case 'hippieAltar':
+      case 'hippieThrow': {
+        const w = this.match?.world;
+        if (w && this.phase === 'playing' && !this.paused && player.inMatch &&
+            player.hippieId !== null && player.inputEpoch === msg.inputEpoch) {
+          const h = w.hippies.get(player.hippieId);
+          if (!h || h.status === 'ko' || h.airborne || hasEffect(w, h, 'stun') || hasEffect(w, h, 'knockback')) return;
+          if (msg.t === 'hippieMove') setHippiePlayer(w, h.id, { x: msg.x, z: msg.z });
+          else if (msg.t === 'hippieThrow') tossHippieFlag(w, h, { x: msg.x, z: msg.z });
+          else if (msg.t === 'hippieAltar') {
+            if (!joinFromAltarFlag(w, h)) this.sendHippieRole(player, 'Move to a stocked altar with empty hands to join its camp.');
+          } else if (!pickUpHippieFlag(w, h)) this.sendHippieRole(player, 'No loose Flag in reach, or your hands are full.');
+        }
+        return;
+      }
       case 'bossTakeover':
         return this.takeBossSeat(player, msg.seat, msg.mode);
       case 'start':
@@ -512,6 +543,74 @@ export class Room {
         if (player.conn) this.send(player.conn, { t: 'pong', id: msg.id, clientTime: msg.clientTime, serverTime: Date.now() });
         return;
     }
+  }
+
+  private hippieAvailable(p: Player): boolean {
+    if (!p.conn || p.hippieId !== null || p.pendingBossSeat !== null) return false;
+    if (this.phase === 'lobby') {
+      const active = this.settings.match?.active ?? FACTION_IDS;
+      return p.seat === null && active.every(f => !!this.ownerOf(f)?.conn);
+    }
+    const match = this.match;
+    if (this.phase !== 'playing' || !match || !p.inMatch) return false;
+    if (p.seat !== null && match.world.factions[p.seat].alive) return false;
+    // A held (even disconnected) human seat isn't up for grabs. Prefer a living, unreserved
+    // AI camp over the overflow role whenever one can still be taken.
+    return !FACTION_IDS.some(f => match.world.factions[f].alive && !this.ownerOf(f) && match.drivenByNpc(f));
+  }
+
+  private sendHippieRole(p: Player, error: string | null = null): void {
+    if (!p.conn) return;
+    const available = this.hippieAvailable(p);
+    const queued = p.wantsHippie && available;
+    const previous = this.hippieRolesSent.get(p);
+    if (!available && !queued && p.hippieId === null && previous === undefined && error === null) return;
+    const signature = `${Number(available)}:${Number(queued)}:${p.hippieId}`;
+    if (signature === previous && error === null) return;
+    this.hippieRolesSent.set(p, signature);
+    this.send(p.conn, { t: 'hippieRole', available, queued, id: p.hippieId, error });
+  }
+
+  private claimHippie(p: Player): void {
+    if (!this.hippieAvailable(p)) return;
+    if (this.phase === 'lobby') {
+      p.wantsHippie = true;
+      this.sendHippieRole(p);
+    } else if (this.phase === 'playing') {
+      if (this.paused) return this.sendHippieRole(p, 'The host paused the burn. Try again after it resumes.');
+      this.assignHippie(p);
+    }
+  }
+
+  private assignHippie(p: Player): void {
+    p.wantsHippie = false;
+    const match = this.match;
+    if (!match || !this.hippieAvailable(p)) { this.sendHippieRole(p); return; }
+    const world = match.world;
+    const reserved = new Set([...this.players.values()].map(other => other.hippieId));
+    for (const h of world.hippies.values()) {
+      if (!canRecruit(h) || h.airborne || reserved.has(h.id)) continue;
+      p.hippieId = h.id;
+      setHippiePlayer(world, h.id, null);
+      if (p.seat !== null) {
+        const from = p.seat;
+        p.seat = null;
+        match.driveNpc(from);
+        p.inMatch = false;
+        p.joining = true;
+        this.syncHumanSeats();
+        this.markLobby();
+      } else this.sendHippieRole(p);
+      return;
+    }
+    this.sendHippieRole(p, 'No awake neutral hippies are free right now. Try again later.');
+  }
+
+  private releaseHippie(p: Player): void {
+    if (this.match && p.hippieId !== null) setHippiePlayer(this.match.world, p.hippieId, undefined);
+    p.hippieId = null;
+    p.wantsHippie = false;
+    this.sendHippieRole(p);
   }
 
   /**
@@ -576,6 +675,7 @@ export class Room {
     }
     const from = player.seat;
     player.seat = seat;
+    if (seat !== null && (player.hippieId !== null || player.wantsHippie)) this.releaseHippie(player);
     player.ready = false;
     if (!match) {
       this.announce(player, seat === null ? `${player.name} steps back to watch.` : `${player.name} takes up the Flags of ${FACTION_DEFS[seat].name}.`);
@@ -605,6 +705,7 @@ export class Room {
     const reply = (ok: boolean, reason: string | null): void => {
       if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok, reason });
     };
+    if (player.hippieId !== null) return reply(false, 'You are playing a Signifier this burn.');
     if (this.paused) return reply(false, 'The browser host paused the burn. Try again after it resumes.');
     const match = this.match;
     if (!match || this.phase !== 'playing') {
@@ -641,6 +742,7 @@ export class Room {
         continue;
       }
       player.seat = seat;
+      if (player.hippieId !== null || player.wantsHippie) this.releaseHippie(player);
       player.controlMode = player.nextControlMode = mode;
       player.ready = false;
       player.changedAt = Date.now();
@@ -721,7 +823,11 @@ export class Room {
       p.pendingBossMode = null;
       p.joining = false;
       p.inMatch = p.conn !== null;
-      if (p.conn) this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
+      if (p.conn) {
+        this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
+        if (p.wantsHippie) this.assignHippie(p);
+        else this.sendHippieRole(p);
+      }
     }
     if (!this.paused) match.start();
     const npcs = SEAT_COUNT - humans.length;
@@ -755,7 +861,9 @@ export class Room {
       // Hands the seat back from the NPC (or restarts the input sequence) as matchStart goes out.
       if (p.seat !== null) match.driveHuman(p.seat, p.id, p.inputEpoch);
       this.sendText(p.conn, this.matchStartText(match, p.seat, p.inputEpoch, humans, snapshot));
+      if (p.hippieId !== null) setHippiePlayer(match.world, p.hippieId, null);
     }
+    for (const p of this.players.values()) if (p.inMatch) this.sendHippieRole(p);
     this.sendPrivateKnowledge();
   }
 
@@ -806,6 +914,8 @@ export class Room {
     this.phase = 'lobby';
     this.abandonAt = 0;
     for (const p of this.players.values()) {
+      p.hippieId = null;
+      p.wantsHippie = false;
       p.controlMode = p.nextControlMode;
       p.inMatch = false;
       p.joining = false;
@@ -983,6 +1093,7 @@ export class Room {
       this.safely('the lobby broadcast', () => {
         this.lobbyQueued = false;
         this.broadcast({ t: 'lobby', lobby: this.lobbyState() });
+        if (this.phase !== 'playing') for (const p of this.players.values()) this.sendHippieRole(p);
       }),
     );
   }

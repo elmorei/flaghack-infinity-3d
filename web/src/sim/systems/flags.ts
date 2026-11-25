@@ -10,7 +10,7 @@
  * Owner: SurveyRules agent.
  */
 import { buildingBaseHeight } from '../buildingGeometry';
-import { AVATAR, BUILDING_HEIGHT, CRYSTAL_HEIGHT, LIGHTNING_PULL_MULT, PULL_LIGHTNING_INTERVAL, SIM_HZ, WARD_FLAG_RADIUS, WORKSHOP_FLAG_CAPACITY } from '../constants';
+import { AVATAR, BUILDING_HEIGHT, CRYSTAL_HEIGHT, HIPPIE, LIGHTNING_PULL_MULT, PULL_LIGHTNING_INTERVAL, SIM_HZ, WARD_FLAG_RADIUS, WORKSHOP_FLAG_CAPACITY } from '../constants';
 import { spawnFlag } from '../factory';
 import type { V2, V3 } from '../math';
 import { NEUTRAL } from '../types';
@@ -262,6 +262,29 @@ export function giveFlag(world: World, flagId: EntityId, carrier: EntityId): boo
   return true;
 }
 
+/** Player Signifiers can pick up a loose Flag without claiming a node or drawing from stock. */
+export function pickUpHippieFlag(world: World, h: Hippie): boolean {
+  if (h.carryingFlag !== -1 || h.carryingLumber !== 0) return false;
+  const y = world.collision.groundHeight(h.pos.x, h.pos.z);
+  let best: Flag | undefined;
+  let reach: number = HIPPIE.interactReach;
+  for (const fl of world.flags.values()) {
+    if (fl.state !== 'loose') continue;
+    const dx = fl.pos.x - h.pos.x, dy = fl.pos.y - y, dz = fl.pos.z - h.pos.z;
+    const d = Math.hypot(dx, dy, dz);
+    if (d > reach) continue;
+    const rayLength = Math.hypot(dx, dy - 0.15, dz);
+    const hit = rayLength > 0 && world.collision.raycast(h.pos.x, y + 0.25, h.pos.z, dx, dy - 0.15, dz, rayLength);
+    if (hit && hit.dist < rayLength - .05) continue;
+    best = fl;
+    reach = d;
+  }
+  if (!best) return false;
+  detach(world, best);
+  attach(world, best, h, h.faction);
+  return true;
+}
+
 /** Store a Flag at a Hearth or a completed Workshop with room; rejected deposits leave it untouched. */
 export function depositToStock(world: World, flagId: EntityId, hearthId: EntityId): boolean {
   const fl = world.flags.get(flagId);
@@ -389,7 +412,7 @@ function detach(world: World, fl: Flag): void {
   fl.altNode = -1;
 }
 
-function attach(world: World, fl: Flag, c: Carrier, f: FactionId): void {
+function attach(world: World, fl: Flag, c: Carrier, f: Owner): void {
   fl.owner = f;
   fl.holder = c.id;
   fl.tilt = 0;

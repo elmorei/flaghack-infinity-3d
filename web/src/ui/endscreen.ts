@@ -123,7 +123,8 @@ export class EndScreen implements UiPart {
   private onlineKey(): string {
     const net = this.host.app.net;
     if (!net) return 'offline';
-    return net.isLeader ? 'leader' : `wait:${leaderName(net.lobby) ?? ''}`;
+    const leader = net.isLeader ? 'leader' : `wait:${leaderName(net.lobby) ?? ''}`;
+    return `${leader}:${net.hippieRole?.available ? 'hippie' : ''}:${net.hippieRole?.error ?? ''}`;
   }
 
   private render(world: World, mode: Exclude<Mode, 'hidden'>): void {
@@ -196,6 +197,10 @@ export class EndScreen implements UiPart {
     this.buttonsKey = this.onlineKey();
     row.textContent = '';
     if (mode === 'eliminated') {
+      if (net?.hippieRole?.available) {
+        button('btn btn-primary', row, 'Rejoin as a hippie', () => net.claimHippie?.(), 'confirm');
+        if (net.hippieRole.error) el('span', 'end-wait', row, net.hippieRole.error);
+      }
       button('btn', row, 'Spectate', () => {
         this.spectating = true;
       });

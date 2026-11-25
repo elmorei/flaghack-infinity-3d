@@ -53,6 +53,7 @@ export class LobbyScreen implements UiPart {
   private playerCount: HTMLElement;
   private ready: HTMLButtonElement;
   private readyHint: HTMLElement;
+  private hippieJoin: HTMLButtonElement;
   private setup: MatchSetup;
   private people: HTMLElement;
   private talk: HTMLElement;
@@ -123,6 +124,7 @@ export class LobbyScreen implements UiPart {
       if (net && mine) net.setReady(!mine.ready);
     }, 'toggle');
     this.readyHint = el('span', 'panel-hint', me, '');
+    this.hippieJoin = button('btn btn-small is-off', me, 'Play as a hippie', () => this.net?.claimHippie?.(), 'confirm');
 
     const rules = el('div', 'panel lobby-rules', left);
     el('div', 'panel-title', rules, 'The burn');
@@ -329,6 +331,7 @@ export class LobbyScreen implements UiPart {
     // The modal is a sibling of the lobby so the underlying controls can be made inert.
     this.root.inert = this.setup.isOpen;
     if (!net) {
+      show(this.hippieJoin, false);
       show(this.reconnect, false);
       show(this.notice, false);
       this.renderLocal();
@@ -418,6 +421,10 @@ export class LobbyScreen implements UiPart {
       setAttr(ping, 'data-tone', p.connected ? pingTone(p.ping) : 'lost');
     }
     const mine = lobby.players.find((p) => p.id === net.playerId);
+    const role = net.hippieRole;
+    show(this.hippieJoin, !!role?.available);
+    setText(this.hippieJoin, role?.queued ? 'Hippie role queued' : 'Play as a hippie');
+    setDisabled(this.hippieJoin, !!role?.queued);
     setText(this.ready, mine?.ready ? 'Ready' : 'Not ready');
     setClass(this.ready, 'on', !!mine?.ready);
     setText(

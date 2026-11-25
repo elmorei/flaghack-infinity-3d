@@ -12,7 +12,7 @@ import type { World } from '../../world';
 import type { LogisticsTarget } from './targets';
 import { logisticsRadius } from './targets';
 import { nearestHearth } from '../economy';
-import { canRecruit } from '../recruitment';
+import { canTakeRecruitingFlag, canRecruit } from '../recruitment';
 import { canPlantAt } from '../flags';
 import { beginTask, releaseTask } from './brain';
 import type { Brain } from './brain';
@@ -352,7 +352,7 @@ function decideOrder(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Fact
   switch (order.kind) {
     case 'recruit': {
       const target = world.hippies.get(order.target);
-      if (!target || !canRecruit(target) || target.carryingFlag !== -1 || target.carryingLumber > 0) finishOrder(world, h, b);
+      if (!target || !canRecruit(target) || !canTakeRecruitingFlag(target)) finishOrder(world, h, b);
       else if (h.carryingLumber > 0) startDeliver(world, h, b, f, 'haul');
       else if (h.carryingFlag !== -1) {
         beginTask(world, h, b, 'recruit');

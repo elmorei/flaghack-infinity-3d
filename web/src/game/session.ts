@@ -171,6 +171,7 @@ export class Session {
   };
   debug = false;
   /** Online spectator: watches without a seat (no gameplay input, free camera). */
+  hippieThrow = false;
   spectator = false;
   /** Camp chooser owns keyboard/controller focus and keeps the pointer free. */
   campChoiceOpen = false;

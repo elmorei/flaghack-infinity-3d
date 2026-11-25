@@ -108,6 +108,7 @@ const SERVER_KINDS: Record<ServerMessage['t'], true> = {
   chat: true,
   matchStart: true,
   bossTakeoverResult: true,
+  hippieRole: true,
   state: true,
   frickFrackPrivate: true,
   pong: true,
@@ -176,6 +177,7 @@ export class NetClient implements NetSession {
   readonly notices: string[] = [];
   pendingBossTakeover: FactionId | null = null;
   bossTakeoverError: string | null = null;
+  hippieRole: Extract<ServerMessage, { t: 'hippieRole' }> | null = null;
   settingsError: string | null = null;
   startPending = false;
 
@@ -254,6 +256,31 @@ export class NetClient implements NetSession {
     this.bossTakeoverError = null;
     this.changed();
     this.send({ t: 'bossTakeover', seat, ...(mode === undefined ? {} : { mode }) });
+  }
+
+  claimHippie(): void {
+    if (this.connected && this.hippieRole?.available && !this.hippieRole.queued) this.send({ t: 'claimHippie' });
+  }
+
+  hippiePickup(): void {
+    if (this.connected && this.inputEpoch !== null && this.hippieRole?.id != null) {
+      this.hippieRole = { ...this.hippieRole, error: null };
+      this.changed();
+      this.send({ t: 'hippiePickup', inputEpoch: this.inputEpoch });
+    }
+  }
+
+  hippieAltar(): void {
+    if (this.connected && this.inputEpoch !== null && this.hippieRole?.id != null) {
+      this.hippieRole = { ...this.hippieRole, error: null };
+      this.changed();
+      this.send({ t: 'hippieAltar', inputEpoch: this.inputEpoch });
+    }
+  }
+
+  hippieTarget(x: number, z: number, throwing: boolean): void {
+    if (this.connected && this.inputEpoch !== null && this.hippieRole?.id != null)
+      this.send({ t: throwing ? 'hippieThrow' : 'hippieMove', inputEpoch: this.inputEpoch, x, z });
   }
 
   setReady(ready: boolean): void {
@@ -472,6 +499,10 @@ export class NetClient implements NetSession {
           this.bossTakeoverError = msg.reason ?? 'That camp is no longer available.';
         }
         // On success keep the old controls/seat until the authoritative snapshot arrives.
+        this.changed();
+        return;
+      case 'hippieRole':
+        this.hippieRole = msg;
         this.changed();
         return;
       case 'state':

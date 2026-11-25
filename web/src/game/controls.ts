@@ -14,7 +14,7 @@ import { matchSettings } from "../sim/matchSettings";
  */
 import { Vector3 } from 'three';
 import type { Command, CommandOf } from '../sim/commands';
-import { ALIGN_TIME, AVATAR, BUILDINGS, LEY_EDGE, PIECE } from '../sim/constants';
+import { ALIGN_TIME, AVATAR, BUILDINGS, LEY_EDGE, MAP_HALF, PIECE } from '../sim/constants';
 import { angleDiff, clamp, wrapAngle } from '../sim/math';
 import type { V3 } from '../sim/math';
 import { isFlagProtected } from '../sim/systems/abilities';
@@ -245,6 +245,7 @@ export class Controls {
   // Picking scratch.
   private hoverPoint: V3 = { x: 0, y: 0, z: 0 };
   private hand: V3 = { x: 0, y: 0, z: 0 };
+  private followHippie: EntityId | null = null;
   private pointerRay = new Ray();
 
   // Prompt caches (strings rebuilt only when their inputs change).
@@ -303,6 +304,47 @@ export class Controls {
     const f = s.playerFaction;
     const av = this.controlAnchor(world, f);
     const inPlay = s.screen === 'playing' && av !== undefined && (seated(world, s) || s.spectator);
+    const roleId = this.app.net?.hippieRole?.id;
+    const hippie = roleId != null && s.spectator && s.screen === 'playing' ? world.hippies.get(roleId) : undefined;
+    if (hippie) {
+      const input = this.input;
+      const initial = fresh || this.followHippie !== hippie.id;
+      s.view = this.view = 'command';
+      s.viewBlend = 1;
+      s.followFaction = null;
+      s.camera.cmdX = hippie.pos.x;
+      s.camera.cmdZ = hippie.pos.z;
+      s.camera.cmdHeight = 30;
+      if (initial) { this.rig.snapCommand(s.camera); s.hippieThrow = false; }
+      this.followHippie = hippie.id;
+      if (input.locked) input.exitLock();
+      if (hippie.carryingFlag === -1) s.hippieThrow = false;
+      const playable = !input.typing && !this.cursorWanted(s) && world.phase === 'playing' && hippie.status !== 'ko';
+      input.touch.enabled = playable && isMobileCommandLayout();
+      if (!input.touch.enabled) input.touch.cancel();
+      else input.touch.poll(performance.now());
+      if (!input.typing && input.wasPressed('Escape') && !this.cursorWanted(s)) this.app.setPaused(true);
+      this.idle(s);
+      this.updateCamera(world, s, av, false, dt);
+      if (playable && !effigyCameraTarget(world)) {
+        const tap = input.touch.action;
+        const x = tap?.kind === 'tap' ? tap.x : input.buttonPressed(LMB) ? input.downX[LMB] : null;
+        const y = tap?.kind === 'tap' ? tap.y : input.downY[LMB];
+        if (x !== null) {
+          const ray = cameraPointerRay(this.app.renderer.camera, x / input.width * 2 - 1, 1 - y / input.height * 2, this.pointerRay);
+          const { origin: o, direction: d } = ray;
+          if (this.picker.cast(world, o.x, o.y, o.z, d.x, d.y, d.z, PICK_RANGE)) {
+            const p = this.picker.point;
+            this.app.net?.hippieTarget?.(clamp(p.x, -MAP_HALF, MAP_HALF), clamp(p.z, -MAP_HALF, MAP_HALF), s.hippieThrow);
+            s.hippieThrow = false;
+          }
+        }
+        if (input.wasPressed('KeyE')) this.app.net?.hippiePickup?.();
+      }
+      input.endFrame();
+      return;
+    }
+    this.followHippie = null;
     const watcher = inPlay && watching(world, s);
     // A text field (chat) has the keyboard: keys held when it opened must not keep the vexillomancer running.
     this.input.controls = s.settings.controls;

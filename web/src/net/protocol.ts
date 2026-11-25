@@ -26,7 +26,7 @@ import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 // v23: Elevated building levels and beacon recruitment (recruited via beacon).
 // Pages clients and standalone hosts must share an exact release build.
 // v27: NPC takeover requests may choose an authoritative Avatar or RTS control mode.
-export const PROTOCOL_VERSION = 27;
+export const PROTOCOL_VERSION = 28;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -131,6 +131,11 @@ export type ClientMessage =
   | { t: 'seat'; seat: FactionId | null }
   /** An eliminated human or spectator claims an unreserved surviving AI camp and optional mode. */
   | { t: 'bossTakeover'; seat: FactionId; mode?: 'avatar' | 'rts' }
+  | { t: 'claimHippie' }
+  | { t: 'hippieMove'; inputEpoch: number; x: number; z: number }
+  | { t: 'hippieThrow'; inputEpoch: number; x: number; z: number }
+  | { t: 'hippiePickup'; inputEpoch: number }
+  | { t: 'hippieAltar'; inputEpoch: number }
   | { t: 'controlMode'; mode: 'avatar' | 'rts' }
   | { t: 'ready'; ready: boolean }
   /** Leader only. */
@@ -163,6 +168,8 @@ export type ServerMessage =
   | { t: 'matchStart'; options: MatchOptions; seat: FactionId | null; inputEpoch: number; snapshot: FullSnapshot }
   /** Successful claims take effect with the following matchStart, never by client prediction. */
   | { t: 'bossTakeoverResult'; seat: FactionId; ok: boolean; reason: string | null }
+  /** Private to an overflow participant. Not visible in the shared lobby or state. */
+  | { t: 'hippieRole'; available: boolean; queued: boolean; id: number | null; error: string | null }
   | { t: 'state'; frame: StateFrame }
   /** Authenticated seat-only knowledge; never included in a shared state frame. */
   | { t: 'frickFrackPrivate'; seat: FactionId; inputEpoch: number; view: FrickFrackPrivateView | null }

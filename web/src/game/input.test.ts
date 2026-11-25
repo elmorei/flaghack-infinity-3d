@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PerspectiveCamera } from 'three';
 import { Input } from './input';
 import { Controls } from './controls';
 import { Session } from './session';
@@ -363,4 +364,48 @@ describe('command-only RTS controls', () => {
     expect(submitted).toHaveLength(1); expect(submitted[0].t).toBe('order');
     expect(world.avatars.size).toBe(2); // Human Degen seat plus NPC Crow have no roaming bodies.
   });
+});
+
+it('routes a mobile hippie tap to movement or a single armed throw, never faction commands', () => {
+  const fixture = setup();
+  Object.assign(document, { documentElement: { dataset: { deviceLayout: 'mobile' } } });
+  const { world } = newMatch('mobile-hippie-touch');
+  const hippie = [...world.hippies.values()].find(h => h.faction === -1)!;
+  const session = new Session();
+  session.screen = 'playing';
+  session.spectator = true;
+  const target = vi.fn();
+  const submit = vi.fn();
+  const handlers = new Controls({
+    session, world, submit,
+    renderer: { camera: new PerspectiveCamera() },
+    net: { hippieRole: { id: hippie.id }, hippieTarget: target },
+  } as unknown as AppApi, fixture.input.canvas) as any;
+  vi.spyOn(handlers, 'updateCamera').mockImplementation(() => {});
+  vi.spyOn(handlers.picker, 'cast').mockReturnValue(true);
+  handlers.picker.point.x = 5;
+  handlers.picker.point.z = 12;
+  handlers.update(1 / 60);
+  expect(handlers.input.touch.enabled).toBe(true);
+  expect(session.camera.cmdX).toBe(hippie.pos.x);
+
+  const touch = (type: string, id: number) => fixture.listeners.get(type)!({
+    pointerType: 'touch', pointerId: id, target: fixture.input.canvas, clientX: 400, clientY: 300,
+    preventDefault() {},
+  });
+  touch('pointerdown', 1);
+  touch('pointerup', 1);
+  handlers.update(1 / 60);
+  expect(target).toHaveBeenLastCalledWith(5, 12, false);
+  hippie.carryingFlag = 123;
+  session.hippieThrow = true;
+  touch('pointerdown', 2);
+  touch('pointerup', 2);
+  handlers.update(1 / 60);
+  expect(target).toHaveBeenLastCalledWith(5, 12, true);
+  expect(target).toHaveBeenCalledTimes(2);
+  expect(session.hippieThrow).toBe(false);
+  handlers.tick();
+  expect(submit).not.toHaveBeenCalled();
+  handlers.dispose();
 });

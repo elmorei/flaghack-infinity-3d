@@ -3,7 +3,7 @@
  * the App exposes the active one as `app.net`. The UI polls: compare `version` each update.
  */
 import type { FactionId } from '../sim/types';
-import type { ChatLine, LobbySettings, LobbyState } from './protocol';
+import type { ChatLine, LobbySettings, LobbyState, ServerMessage } from './protocol';
 
 /**
  * connecting → joining (hello sent) → lobby ⇄ match → closed.
@@ -38,6 +38,11 @@ export interface NetSession {
   /** Requested camp while waiting for the authoritative handoff snapshot. */
   readonly pendingBossTakeover: FactionId | null;
   readonly bossTakeoverError: string | null;
+  readonly hippieRole?: Extract<ServerMessage, { t: 'hippieRole' }> | null;
+  claimHippie?(): void;
+  hippiePickup?(): void;
+  hippieAltar?(): void;
+  hippieTarget?(x: number, z: number, throwing: boolean): void;
 
   setControlMode(mode: 'avatar' | 'rts'): void;
   setSeat(seat: FactionId | null): void;

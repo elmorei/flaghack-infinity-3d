@@ -4394,3 +4394,7 @@ html[data-device-layout='mobile'] .fh-overlay > .reconnect-card { position: abso
 .mc-pickup { position: absolute; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 130px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; padding: 6px 10px; border: 1px solid rgba(200,151,63,.55); border-radius: 5px; background: rgba(12,8,4,.78); font-size: 13px; line-height: 1.35; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }
 
 html[data-device-layout='mobile'] .build-btn:disabled { filter: grayscale(1); opacity: .42; cursor: not-allowed; }
+
+.hippie-role { max-width: min(34rem, 92vw); padding: .45rem .65rem; text-align: center; }
+.hippie-role-tools { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-top: .3rem; }
+.hippie-role-tools .btn { min-height: 2.5rem; }

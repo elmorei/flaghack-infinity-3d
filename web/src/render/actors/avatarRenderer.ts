@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { AVATAR, CAPTURE } from '../../sim/constants';
 import type { GameEvent } from '../../sim/events';
 import { angleDiff, dist2 } from '../../sim/math';
+import { NEUTRAL } from '../../sim/types';
 import type { Avatar, AvatarAction, EntityId, FactionId } from '../../sim/types';
 import type { RenderContext } from '../context';
 import { AvatarFx } from './avatarFx';
@@ -170,6 +171,7 @@ export class AvatarRenderer {
         break;
       }
       case 'flagThrown': {
+        if (e.faction === NEUTRAL) break;
         const av = this.ctx.world.avatarOf(e.faction);
         const v = av ? this.byId.get(av.id) : undefined;
         if (v) v.throwAt = t;

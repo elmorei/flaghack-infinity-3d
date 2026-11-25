@@ -40,6 +40,7 @@ const VIA_TEXT: Record<Extract<GameEvent, { t: 'recruited' }>['via'], string> = 
   workshop: 'at a Flag Workshop',
   drumcircle: 'at the Drum Circle',
   gcc: 'at the Geomantic Command Center',
+  altar: 'by taking an altar Flag',
   hand: 'for a handed Flag',
   throw: 'for a thrown Flag',
   dialectics: 'through Flagellian Dialectics',

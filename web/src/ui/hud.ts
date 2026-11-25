@@ -315,7 +315,7 @@ export class HudPart implements UiPart {
     }
     show(this.hint, hint !== '');
 
-    const watching = s.screen === 'playing' && (s.spectator || !fac.alive);
+    const watching = s.screen === 'playing' && this.host.app.net?.hippieRole?.id == null && (s.spectator || !fac.alive);
     show(this.spectate, watching);
     if (watching) {
       const f = s.followFaction;
