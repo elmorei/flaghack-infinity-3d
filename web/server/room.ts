@@ -287,6 +287,11 @@ export class Room {
     if (paused) {
       this.match.stop();
       this.match.clearPausedInput();
+      // The pause snapshot resets pending client claims; release any uncommitted reservations too.
+      for (const player of this.players.values()) {
+        player.pendingBossSeat = null;
+        player.pendingBossMode = null;
+      }
       this.listener.resync();
       this.syncJoining(this.match);
       this.system('Browser host paused the burn. Keep its tab open.');

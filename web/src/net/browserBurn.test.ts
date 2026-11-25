@@ -92,6 +92,14 @@ it.each(['spectator', 'eliminated'] as const)('lets a paused %s retry a camp cla
   } else expect(client.seat).toBeNull();
 
   const id = client.playerId;
+  if (role === 'spectator') {
+    // Allow the hello/claim microtasks, but not another simulation frame. Pause crosses a
+    // genuinely reserved request, before settlement would change who controls the camp.
+    client.requestBossTakeover(2, 'avatar');
+    await flush();
+    const player = (room as unknown as { players: Map<string, { pendingBossSeat: number | null }> }).players.get(id!);
+    expect(player?.pendingBossSeat).toBe(2);
+  }
   room.setPaused(true);
   await flush();
   client.requestBossTakeover(2, 'rts');
@@ -103,6 +111,13 @@ it.each(['spectator', 'eliminated'] as const)('lets a paused %s retry a camp cla
 
   if (role === 'eliminated') await new Promise(resolve => setTimeout(resolve, LOBBY_CHANGE_COOLDOWN_MS));
   room.setPaused(false);
+  if (role === 'spectator') {
+    // An old, uncommitted claim must not silently apply on the first resumed frame.
+    const tick = world.tick;
+    await vi.waitFor(() => expect(world.tick).toBeGreaterThan(tick));
+    expect(client.seat).toBeNull();
+    expect(match.drivenByNpc(2)).toBe(true);
+  }
   client.requestBossTakeover(2, 'rts');
   await vi.waitFor(() => expect(client.seat).toBe(2), { timeout: 3_000 });
   expect(client.playerId).toBe(id);
