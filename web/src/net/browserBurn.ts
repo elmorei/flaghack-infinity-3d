@@ -8,6 +8,7 @@ const ROOM_CODE_VERSION = 1;
 const MAX_OFFER_CHARACTERS = 65_536;
 const MAX_BROWSER_PEERS = 4;
 const INVITE_EXPIRY_MS = 120_000;
+const LOBBY_JOIN_TIMEOUT_MS = 20_000;
 const encoder = new TextEncoder();
 
 interface Wire {
@@ -34,7 +35,7 @@ export function localWires(): [Wire, Wire] {
   return [a, b];
 }
 
-export function browserRoomSocket(wire: Wire): RoomSocket {
+export function browserRoomSocket(wire: Wire, sent?: (text: string) => void): RoomSocket {
   let closed = false;
   let closedHandler: () => void = () => {};
   const close = (): void => {
@@ -52,7 +53,7 @@ export function browserRoomSocket(wire: Wire): RoomSocket {
     }; },
     onClose(cb) { closedHandler = cb; },
     onError() { /* PeerWire closes on transport failure; no peer-supplied text is logged. */ },
-    send(text) { if (!closed) { try { wire.send(text); } catch { close(); } } },
+    send(text) { if (!closed) { try { wire.send(text); sent?.(text); } catch { close(); } } },
     close,
     terminate: close,
   };
@@ -101,7 +102,9 @@ export function decodeRoomOffer(raw: string): { room: string; offer: string } {
   throw new Error('Paste the complete browser-host offer code.');
 }
 
-type Join = (name: string, socket: ClientSocket, room: string) => boolean;
+type Join = (name: string, socket: ClientSocket, room: string, welcomed?: () => void) => boolean;
+export type InviteStatus = 'offer-expired' | 'host-channel' | 'host-welcome' | 'host-failed' |
+  'guest-channel' | 'guest-welcome' | 'guest-failed';
 type Pending = Awaited<ReturnType<typeof createRtcOffer>>;
 
 /** Manually negotiated private room; there is no signaling, STUN or relay service. */
@@ -113,11 +116,13 @@ export class BrowserBurn {
   private peerNumber = 0;
   private readonly peers = new Set<RTCPeerConnection>();
   private guest: RTCPeerConnection | null = null;
-  private generation = 0;
+  private cancelGuestAttempt: (() => void) | null = null;
+  private hostGeneration = 0;
+  private guestGeneration = 0;
   private pendingHostSetup = false;
   get paused(): boolean { return this.room?.isPaused ?? false; }
 
-  constructor(private readonly join: Join, private readonly onConnected: () => void) {}
+  constructor(private readonly join: Join, private readonly onInviteStatus: (status: InviteStatus) => void) {}
   get hosting(): boolean { return this.room !== null; }
   get connectedPeers(): number { return this.peers.size; }
 
@@ -144,15 +149,19 @@ export class BrowserBurn {
     if (this.peers.size >= MAX_BROWSER_PEERS) throw new Error('This preview supports up to four connected guests.');
     this.cancelOffer();
     this.pendingHostSetup = true;
-    const generation = this.generation;
+    const generation = this.hostGeneration;
     try {
       const pending = await createRtcOffer(certificate);
-      if (this.room !== room || this.generation !== generation) {
+      if (this.room !== room || this.hostGeneration !== generation) {
         pending.connection.close();
         throw new Error('This invitation was canceled.');
       }
       this.pending = pending;
-      this.timer = setTimeout(() => this.cancelOffer(), INVITE_EXPIRY_MS);
+      this.timer = setTimeout(() => {
+        if (this.pending !== pending) return;
+        this.cancelOffer();
+        this.onInviteStatus('offer-expired');
+      }, INVITE_EXPIRY_MS);
       return encodeRoomOffer(room.instanceId, pending.code);
     } finally {
       this.pendingHostSetup = false;
@@ -171,21 +180,33 @@ export class BrowserBurn {
     const wire = new PeerWire(pending.channel);
     this.peers.add(peer);
     const peerId = 'private-channel-' + ++this.peerNumber;
-    const expiry = setTimeout(() => wire.close(), 20_000);
-    wire.onopen = () => {
-      clearTimeout(expiry);
-      if (this.room !== room) { wire.close(); return; }
-      room.connect(browserRoomSocket(wire), { address: peerId, peer: peerId });
-      const closeRoom = wire.onclose;
-      wire.onclose = () => { closeRoom?.(); discard(); };
-      this.onConnected();
+    const generation = this.hostGeneration;
+    const notify = (status: InviteStatus): void => {
+      if (this.room === room && this.hostGeneration === generation) this.onInviteStatus(status);
     };
+    let admitted = false;
+    const expiry = setTimeout(() => wire.close(), LOBBY_JOIN_TIMEOUT_MS);
     const discard = (): void => {
       clearTimeout(expiry);
       this.peers.delete(peer);
       peer.close();
+      if (!admitted) notify('host-failed');
     };
     wire.onclose = discard;
+    wire.onopen = () => {
+      if (this.room !== room) { wire.close(); return; }
+      const socket = browserRoomSocket(wire, (text) => {
+        // Room.send serializes its local tagged message with t first. Never inspect guest input.
+        if (admitted || !text.startsWith('{"t":"welcome",')) return;
+        admitted = true;
+        clearTimeout(expiry);
+        notify('host-welcome');
+      });
+      const closeRoom = wire.onclose;
+      wire.onclose = () => { closeRoom?.(); discard(); };
+      room.connect(socket, { address: peerId, peer: peerId });
+      notify('host-channel');
+    };
     peer.addEventListener('connectionstatechange', () => {
       if (peer.connectionState === 'failed' || peer.connectionState === 'closed') wire.close();
     });
@@ -193,44 +214,73 @@ export class BrowserBurn {
 
   async createAnswer(rawOffer: string, name: string): Promise<string> {
     this.cancelGuest();
-    const generation = this.generation;
+    const generation = this.guestGeneration;
     const { room, offer } = decodeRoomOffer(rawOffer);
     // An untrusted room ID alone must never select another host’s reclaim token.
     const scope = room + ':' + offerFingerprint(offer);
     const invitation = await acceptRtcOffer(offer);
-    if (this.generation !== generation) {
+    if (this.guestGeneration !== generation) {
       invitation.connection.close();
       throw new Error('This invitation was canceled.');
     }
     const peer = invitation.connection;
     this.guest = peer;
-    const expiry = setTimeout(() => peer.close(), INVITE_EXPIRY_MS);
+    let wire: PeerWire | null = null;
+    let welcomed = false;
+    let lobbyDeadline: ReturnType<typeof setTimeout> | null = null;
+    const expire = (): void => {
+      if (this.guest !== peer) return;
+      const shouldNotify = !welcomed;
+      this.cancelGuest();
+      if (shouldNotify) this.onInviteStatus('guest-failed');
+    };
+    const expiry = setTimeout(expire, INVITE_EXPIRY_MS);
+    const clearDeadlines = (): void => {
+      clearTimeout(expiry);
+      if (lobbyDeadline !== null) clearTimeout(lobbyDeadline);
+    };
+    this.cancelGuestAttempt = () => { clearDeadlines(); wire?.close(); peer.close(); };
     void invitation.channel.then((channel) => {
       if (this.guest !== peer) { peer.close(); return; }
-      const wire = new PeerWire(channel);
-      const socket = browserClientSocket(wire);
-      const connected = wire.onopen;
-      const closed = wire.onclose;
-      wire.onopen = () => { clearTimeout(expiry); connected?.(); };
-      wire.onclose = () => { clearTimeout(expiry); closed?.(); peer.close(); if (this.guest === peer) this.guest = null; };
+      const link = wire = new PeerWire(channel);
+      const socket = browserClientSocket(link);
+      const connected = link.onopen;
+      const closed = link.onclose;
+      link.onopen = () => {
+        clearTimeout(expiry);
+        lobbyDeadline = setTimeout(expire, LOBBY_JOIN_TIMEOUT_MS);
+        if (this.guest === peer) this.onInviteStatus('guest-channel');
+        connected?.();
+      };
+      link.onclose = () => { closed?.(); expire(); };
       peer.addEventListener('connectionstatechange', () => {
-        if (peer.connectionState === 'failed' || peer.connectionState === 'closed') wire.close();
+        if (peer.connectionState === 'failed' || peer.connectionState === 'closed') link.close();
       });
-      if (!this.join(name, socket, scope)) { socket.close(); return; }
-      this.onConnected();
-    }).catch(() => { clearTimeout(expiry); peer.close(); if (this.guest === peer) this.guest = null; });
+      if (!this.join(name, socket, scope, () => {
+        if (this.guest !== peer || welcomed) return;
+        welcomed = true;
+        clearDeadlines();
+        this.onInviteStatus('guest-welcome');
+      })) { socket.close(); }
+    }).catch(expire);
     return invitation.code;
   }
 
   cancelOffer(): void {
-    this.generation++;
+    this.hostGeneration++;
     this.pending?.connection.close();
     this.pending = null;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
   }
 
-  cancelGuest(): void { this.generation++; this.guest?.close(); this.guest = null; }
+  cancelGuest(): void {
+    this.guestGeneration++;
+    this.guest = null;
+    const cancel = this.cancelGuestAttempt;
+    this.cancelGuestAttempt = null;
+    cancel?.();
+  }
 
   togglePause(): boolean {
     if (!this.room || this.room.info().phase !== 'playing') throw new Error('Start the match in the lobby before pausing the burn.');

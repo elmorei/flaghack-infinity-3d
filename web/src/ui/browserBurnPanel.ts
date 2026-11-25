@@ -1,4 +1,4 @@
-import { BrowserBurn } from '../net/browserBurn';
+import { BrowserBurn, type InviteStatus } from '../net/browserBurn';
 import type { ClientSocket } from '../net/client';
 import { MAX_NAME_LENGTH } from '../net/protocol';
 import './browserBurnPanel.css';
@@ -17,11 +17,8 @@ export class BrowserBurnPanel {
   private readonly pause: HTMLButtonElement;
   private busy = false;
 
-  constructor(private readonly join: (name: string, socket: ClientSocket, room: string) => boolean) {
-    this.burn = new BrowserBurn(join, () => {
-      if (this.burn.hosting) this.notice('A guest connected. Create a new offer for the next player.');
-      else this.dialog.close();
-    });
+  constructor(join: (name: string, socket: ClientSocket, room: string, welcomed?: () => void) => boolean) {
+    this.burn = new BrowserBurn(join, (status) => this.inviteStatus(status));
     this.dialog.className = 'browser-burn';
     this.dialog.setAttribute('aria-label', 'Browser multiplayer preview');
     this.manage.className = 'btn browser-burn-manage';
@@ -42,8 +39,11 @@ export class BrowserBurnPanel {
       this.notice('Create one offer per guest and send the offer privately.');
     });
     this.button(this.prep, 'Create answer', async () => {
-      this.answer.value = await this.burn.createAnswer(this.offer.value.trim(), this.name());
-      this.notice('Send this answer privately to the host. Keep this tab open.');
+      const answer = await this.burn.createAnswer(this.offer.value.trim(), this.name());
+      if (this.status.textContent === 'Working…') {
+        this.answer.value = answer;
+        this.notice('Send this answer privately to the host. Keep this tab open.');
+      }
     });
     this.button(this.prep, 'Cancel waiting', () => {
       this.burn.cancelGuest();
@@ -58,7 +58,7 @@ export class BrowserBurnPanel {
     this.button(this.hosting, 'Connect guest', async () => {
       await this.burn.applyAnswer(this.answer.value.trim());
       this.offer.value = this.answer.value = '';
-      this.notice('Answer applied. Waiting for the direct connection.');
+      if (this.status.textContent === 'Working…') this.notice('Answer applied. Waiting for the direct connection.');
     });
     this.pause = this.button(this.hosting, 'Pause burn', () => {
       this.notice(this.burn.togglePause() ? 'Burn paused on this host.' : 'Burn resumed.');
@@ -99,6 +99,22 @@ export class BrowserBurnPanel {
     this.burn.stopHost();
     this.offer.value = this.answer.value = '';
     this.view();
+  }
+
+  private inviteStatus(status: InviteStatus): void {
+    if (status === 'guest-welcome') { this.dialog.close(); return; }
+    if (status === 'offer-expired' || status === 'host-failed' || status === 'guest-failed') {
+      this.offer.value = this.answer.value = '';
+    }
+    const message: Record<Exclude<InviteStatus, 'guest-welcome'>, string> = {
+      'offer-expired': 'This offer expired. Create a fresh invite.',
+      'host-failed': 'The guest did not join the lobby. Create a fresh invite and try again on the same Wi-Fi.',
+      'host-channel': 'Direct connection open. Waiting for the guest to join the lobby.',
+      'host-welcome': 'A guest joined the lobby. Create a new invite for the next player.',
+      'guest-channel': 'Direct connection open. Waiting for the host to admit you.',
+      'guest-failed': 'Could not join the lobby. Ask the host for a fresh invite and keep both tabs open on the same Wi-Fi.',
+    };
+    this.notice(message[status]);
   }
 
   private name(): string {

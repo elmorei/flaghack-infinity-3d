@@ -466,7 +466,7 @@ export class Room {
 
   // ── Lobby ─────────────────────────────────────────────────────────────────
   private handle(player: Player, msg: ClientMessage): void {
-    if (this.paused && (msg.t === 'input' || msg.t === 'seat' || msg.t === 'controlMode' || msg.t === 'bossTakeover')) return;
+    if (this.paused && (msg.t === 'input' || msg.t === 'seat' || msg.t === 'controlMode')) return;
     switch (msg.t) {
       case 'hello':
         return;
@@ -586,6 +586,7 @@ export class Room {
     const reply = (ok: boolean, reason: string | null): void => {
       if (player.conn) this.send(player.conn, { t: 'bossTakeoverResult', seat, ok, reason });
     };
+    if (this.paused) return reply(false, 'The browser host paused the burn. Try again after it resumes.');
     const match = this.match;
     if (!match || this.phase !== 'playing') {
       return reply(false, 'Camp takeover is only available during an active match.');

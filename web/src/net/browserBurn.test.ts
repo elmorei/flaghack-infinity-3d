@@ -1,12 +1,22 @@
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { Room } from '../../server/room';
-import { browserRoomSocket, localWires } from './browserBurn';
+import type { Match } from '../../server/match';
+import { bossFixture } from '../../tests/bossFixture';
+import { eliminateByBoss } from '../sim/systems/victory';
+import { NetClient } from './client';
+import { browserClientSocket, browserRoomSocket, localWires } from './browserBurn';
 import { BUILD_ID } from './build';
-import { PROTOCOL_VERSION } from './protocol';
+import { LOBBY_CHANGE_COOLDOWN_MS, PROTOCOL_VERSION } from './protocol';
 import type { ServerMessage } from './protocol';
 
 let current: Room | null = null;
-afterEach(async () => { await current?.shutdown('test complete'); current = null; });
+let claimant: NetClient | null = null;
+afterEach(async () => {
+  claimant?.leave();
+  claimant = null;
+  await current?.shutdown('test complete');
+  current = null;
+});
 
 const flush = async (): Promise<void> => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 function endpoint(room: Room, name: string, token: string | null = null) {
@@ -46,3 +56,56 @@ it('starts, pauses, and reclaims an authoritative browser room seat through the 
   room.setPaused(false);
   expect(room.isPaused).toBe(false);
 }, 20_000);
+
+it.each(['spectator', 'eliminated'] as const)('lets a paused %s retry a camp claim without reconnecting', async (role) => {
+  const room = current = new Room({ serverName: 'Browser test', admit: () => true, addressKey: key => key, log: () => {} });
+  const host = endpoint(room, 'host');
+  if (role === 'spectator') {
+    await flush();
+    host.send({ t: 'start' });
+    await vi.waitFor(() => expect(host.messages.some(m => m.t === 'matchStart')).toBe(true));
+  }
+  const [serverWire, clientWire] = localWires();
+  room.connect(browserRoomSocket(serverWire), { address: 'p', peer: 'p' });
+  const client = claimant = new NetClient({
+    url: '', name: 'claimant', password: '', serverName: 'Browser test', connect: () => browserClientSocket(clientWire),
+    manualReconnect: true, tokens: { load: () => null, save: () => {} },
+    hooks: { lobby: () => {}, matchStart: () => {}, state: () => {}, closed: () => {} },
+  });
+  if (role === 'eliminated') {
+    await vi.waitFor(() => expect(client.connected).toBe(true));
+    client.setReady(true);
+    await flush();
+    host.send({ t: 'start' });
+  }
+  await vi.waitFor(() => expect(client.status).toBe('match'));
+  const match = (room as unknown as { match: Match }).match;
+  const world = match.world;
+  world.effigyRevealedAt = world.time;
+  world.boss = { ...bossFixture(), pos: { ...world.map.effigy }, action: 'emerge',
+    target: null, held: null, barrier: null, actionAt: world.time };
+  if (role === 'eliminated') {
+    expect(client.seat).toBe(1);
+    for (const id of world.factions[1].hearthIds) world.buildings.delete(id);
+    world.factions[1].hearthIds = [];
+    eliminateByBoss(world, 1);
+  } else expect(client.seat).toBeNull();
+
+  const id = client.playerId;
+  room.setPaused(true);
+  await flush();
+  client.requestBossTakeover(2, 'rts');
+  expect(client.pendingBossTakeover).toBe(2);
+  await flush();
+  expect(client.pendingBossTakeover).toBeNull();
+  expect(client.bossTakeoverError).toMatch(/paused.*resumes/);
+  expect(match.drivenByNpc(2)).toBe(true);
+
+  if (role === 'eliminated') await new Promise(resolve => setTimeout(resolve, LOBBY_CHANGE_COOLDOWN_MS));
+  room.setPaused(false);
+  client.requestBossTakeover(2, 'rts');
+  await vi.waitFor(() => expect(client.seat).toBe(2), { timeout: 3_000 });
+  expect(client.playerId).toBe(id);
+  expect(client.bossTakeoverError).toBeNull();
+  expect(world.factions[2].controlMode).toBe('rts');
+}, 15_000);

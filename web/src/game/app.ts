@@ -277,10 +277,10 @@ export class App implements AppApi {
         new URLSearchParams(location.search).get('browser-host') !== '1') return;
     const { BrowserBurnPanel } = await import('../ui/browserBurnPanel');
     if (this.session.screen !== 'title') return;
-    this.browserBurn ??= new BrowserBurnPanel((name, socket, room) => {
+    this.browserBurn ??= new BrowserBurnPanel((name, socket, room, welcomed) => {
       if (this.joiningHost || this.online || this.session.screen !== 'title') return false;
       this.dropClient();
-      this.connectHost(name, '', '', 'browser-room:' + room, socket);
+      this.connectHost(name, '', '', 'browser-room:' + room, socket, welcomed);
       return true;
     });
     this.browserBurn.open();
@@ -299,13 +299,18 @@ export class App implements AppApi {
     }
   }
 
-  private connectHost(name: string, password: string, socketUrl: string, origin: string, peer?: ClientSocket): void {
+  private connectHost(name: string, password: string, socketUrl: string, origin: string, peer?: ClientSocket, welcomed?: () => void): void {
     let client: NetClient | null = null;
+    let firstLobby = welcomed;
     // Callbacks only count for the session that is current (a replaced one may still close late).
     const mine = (): NetClient | null => (client !== null && client === this.client ? client : null);
     const hooks: NetClientHooks = {
       lobby: (lobby) => {
-        if (mine()) this.onLobby(lobby);
+        if (!mine()) return;
+        this.onLobby(lobby);
+        const done = firstLobby;
+        firstLobby = undefined;
+        done?.();
       },
       matchStart: (options, seat, snapshot) => {
         const c = mine();
