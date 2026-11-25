@@ -482,6 +482,19 @@ const MESSAGES: { [K in MessageType]: Entry<Extract<ClientMessage, { t: K }>> } 
     keys: ['t', 'inputEpoch'],
     parse: ({ inputEpoch }) => isInt(inputEpoch, 1) ? { t: 'hippieAltar', inputEpoch } : null,
   },
+  hippieTask: {
+    keys: ['t', 'inputEpoch', 'start'],
+    parse: ({ inputEpoch, start }) => isInt(inputEpoch, 1) && typeof start === 'boolean' ? { t: 'hippieTask', inputEpoch, start } : null,
+  },
+  hippieFrick: {
+    keys: ['t', 'inputEpoch', 'action', 'id', 'revision', 'wager'],
+    parse: ({ inputEpoch, action, id, revision, wager }) =>
+      isInt(inputEpoch, 1) && isInt(id, 0) && isInt(revision, 0) && isInt(wager, 0) &&
+      (action === 'open' ? id === 0 && revision === 0 && wager === 0 :
+        id > 0 && (action === 'bet' ? wager > 0 : wager === 0 && (action === 'hit' || action === 'stand' || action === 'exit')))
+      && (action === 'open' || action === 'bet' || action === 'hit' || action === 'stand' || action === 'exit')
+        ? { t: 'hippieFrick', inputEpoch, action, id, revision, wager } : null,
+  },
   hippieThrow: {
     keys: ['t', 'inputEpoch', 'x', 'z'],
     parse: ({ inputEpoch, x, z }) => isInt(inputEpoch, 1) && isNum(x) && isNum(z) &&

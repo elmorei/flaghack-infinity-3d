@@ -63,6 +63,9 @@ export interface FrickFrackSession {
   /** Order of public reveals only; hidden dealer IDs must never enter this list. */
   revealedCardOrder?: number[];
 }
+/** Public view sent privately to the hippie sitting at the wizard's SWAG table. */
+export type SwagTable = Omit<FrickFrackSession, 'faction' | 'dialogueVariant'>;
+export type SwagTableAction = 'open' | 'bet' | 'hit' | 'stand' | 'exit';
 export interface FrickFrackState {
   wizardId: number;
   /** Completed conversation starts per faction, retained after leaving/disconnecting. */

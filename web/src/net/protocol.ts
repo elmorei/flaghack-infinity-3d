@@ -1,3 +1,5 @@
+import type { HippieTask } from '../sim/hippiePlayer';
+import type { SwagTable, SwagTableAction } from '../sim/frickFrack';
 /**
  * FLAGHACK ∞ multiplayer wire protocol (contract shared by the host server, the browser client,
  * the replication codec and the UI). Transport: one WebSocket per player at WS_PATH on the
@@ -26,7 +28,7 @@ import type { FrickFrackPrivateView } from '../sim/frickFrackPrivate';
 // v23: Elevated building levels and beacon recruitment (recruited via beacon).
 // Pages clients and standalone hosts must share an exact release build.
 // v27: NPC takeover requests may choose an authoritative Avatar or RTS control mode.
-export const PROTOCOL_VERSION = 28;
+export const PROTOCOL_VERSION = 29;
 export const DEFAULT_PORT = 8787;
 export const WS_PATH = '/ws';
 /** GET → HostInfo (JSON). Only a host server answers it: the client uses it to detect online mode. */
@@ -136,6 +138,8 @@ export type ClientMessage =
   | { t: 'hippieThrow'; inputEpoch: number; x: number; z: number }
   | { t: 'hippiePickup'; inputEpoch: number }
   | { t: 'hippieAltar'; inputEpoch: number }
+  | { t: 'hippieTask'; inputEpoch: number; start: boolean }
+  | { t: 'hippieFrick'; inputEpoch: number; action: SwagTableAction; id: number; revision: number; wager: number }
   | { t: 'controlMode'; mode: 'avatar' | 'rts' }
   | { t: 'ready'; ready: boolean }
   /** Leader only. */
@@ -169,7 +173,8 @@ export type ServerMessage =
   /** Successful claims take effect with the following matchStart, never by client prediction. */
   | { t: 'bossTakeoverResult'; seat: FactionId; ok: boolean; reason: string | null }
   /** Private to an overflow participant. Not visible in the shared lobby or state. */
-  | { t: 'hippieRole'; available: boolean; queued: boolean; id: number | null; error: string | null }
+  | { t: 'hippieRole'; available: boolean; queued: boolean; id: number | null; error: string | null;
+      swag: number; task: HippieTask | null; active: boolean; completed: number; table: SwagTable | null }
   | { t: 'state'; frame: StateFrame }
   /** Authenticated seat-only knowledge; never included in a shared state frame. */
   | { t: 'frickFrackPrivate'; seat: FactionId; inputEpoch: number; view: FrickFrackPrivateView | null }

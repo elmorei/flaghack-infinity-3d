@@ -1,3 +1,4 @@
+import type { SwagTableAction } from '../sim/frickFrack';
 /**
  * Browser side of a FLAGHACK host connection: the WebSocket, hello/welcome (the token reclaims
  * the same player and seat), lobby/chat/notice state for the UI (NetSession, polled through
@@ -275,6 +276,19 @@ export class NetClient implements NetSession {
       this.hippieRole = { ...this.hippieRole, error: null };
       this.changed();
       this.send({ t: 'hippieAltar', inputEpoch: this.inputEpoch });
+    }
+  }
+
+  hippieTask(start: boolean): void {
+    if (this.connected && this.inputEpoch !== null && this.hippieRole?.id != null)
+      this.send({ t: 'hippieTask', inputEpoch: this.inputEpoch, start });
+  }
+
+  hippieFrick(action: SwagTableAction, wager = 0): void {
+    if (this.connected && this.inputEpoch !== null && this.hippieRole?.id != null) {
+      const table = this.hippieRole.table;
+      this.send({ t: 'hippieFrick', inputEpoch: this.inputEpoch, action, wager,
+        id: action === 'open' ? 0 : table?.id ?? 0, revision: action === 'open' ? 0 : table?.revision ?? 0 });
     }
   }
 

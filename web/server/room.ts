@@ -1,4 +1,5 @@
-import { setHippiePlayer, tossHippieFlag } from '../src/sim/hippiePlayer';
+import { closeSwagTable, playSwagTable, swagTableView } from '../src/sim/systems/frickFrack';
+import { cancelHippieTask, hippieProgress, resetHippieProgress, setHippiePlayer, startHippieTask, tossHippieFlag } from '../src/sim/hippiePlayer';
 import { pickUpHippieFlag } from '../src/sim/systems/flags';
 import { hasEffect } from '../src/sim/systems/effects';
 import { canRecruit, joinFromAltarFlag } from '../src/sim/systems/recruitment';
@@ -465,7 +466,7 @@ export class Room {
     p.pendingBossSeat = null;
     p.pendingBossMode = null;
     if (this.match && p.seat !== null) this.match.holdStill(p.seat);
-    if (this.match && p.hippieId !== null) setHippiePlayer(this.match.world, p.hippieId, undefined);
+    this.detachHippie(p);
     if (this.closing) return;
     this.log(`${p.name} disconnected (${this.connectedCount()} connected)`);
     this.announce(p, `${p.name} wandered off into the dust.`);
@@ -512,13 +513,31 @@ export class Room {
       case 'hippieMove':
       case 'hippiePickup':
       case 'hippieAltar':
+      case 'hippieTask':
+      case 'hippieFrick':
       case 'hippieThrow': {
         const w = this.match?.world;
         if (w && this.phase === 'playing' && !this.paused && player.inMatch &&
             player.hippieId !== null && player.inputEpoch === msg.inputEpoch) {
           const h = w.hippies.get(player.hippieId);
           if (!h || h.status === 'ko' || h.airborne || hasEffect(w, h, 'stun') || hasEffect(w, h, 'knockback')) return;
-          if (msg.t === 'hippieMove') setHippiePlayer(w, h.id, { x: msg.x, z: msg.z });
+          if (msg.t === 'hippieFrick') {
+            const error = playSwagTable(w, h, msg.action, msg.id, msg.revision, msg.wager);
+            this.sendHippieRole(player, error);
+            return;
+          }
+          if (swagTableView(w, h.id)) return;
+          if (msg.t === 'hippieTask') {
+            if (msg.start) {
+              if (!startHippieTask(w, h)) this.sendHippieRole(player, 'No new AI task is available yet.');
+            } else cancelHippieTask(w, h.id);
+            this.sendHippieRole(player);
+            return;
+          }
+          if (msg.t === 'hippieMove') {
+            cancelHippieTask(w, h.id);
+            setHippiePlayer(w, h.id, { x: msg.x, z: msg.z });
+          }
           else if (msg.t === 'hippieThrow') tossHippieFlag(w, h, { x: msg.x, z: msg.z });
           else if (msg.t === 'hippieAltar') {
             if (!joinFromAltarFlag(w, h)) this.sendHippieRole(player, 'Move to a stocked altar with empty hands to join its camp.');
@@ -565,10 +584,14 @@ export class Room {
     const queued = p.wantsHippie && available;
     const previous = this.hippieRolesSent.get(p);
     if (!available && !queued && p.hippieId === null && previous === undefined && error === null) return;
-    const signature = `${Number(available)}:${Number(queued)}:${p.hippieId}`;
+    const world = this.match?.world;
+    const h = p.hippieId === null ? undefined : world?.hippies.get(p.hippieId);
+    const score = h && world ? hippieProgress(world, h) : { swag: 0, active: false, task: null, completed: 0 };
+    const table = h && world ? swagTableView(world, h.id) : null;
+    const signature = `${Number(available)}:${Number(queued)}:${p.hippieId}:${score.swag}:${score.completed}:${score.task}:${Number(score.active)}:${table?.id}:${table?.revision}`;
     if (signature === previous && error === null) return;
     this.hippieRolesSent.set(p, signature);
-    this.send(p.conn, { t: 'hippieRole', available, queued, id: p.hippieId, error });
+    this.send(p.conn, { t: 'hippieRole', available, queued, id: p.hippieId, error, ...score, table });
   }
 
   private claimHippie(p: Player): void {
@@ -591,6 +614,7 @@ export class Room {
     for (const h of world.hippies.values()) {
       if (!canRecruit(h) || h.airborne || reserved.has(h.id)) continue;
       p.hippieId = h.id;
+      resetHippieProgress(world, h.id);
       setHippiePlayer(world, h.id, null);
       if (p.seat !== null) {
         const from = p.seat;
@@ -606,8 +630,16 @@ export class Room {
     this.sendHippieRole(p, 'No awake neutral hippies are free right now. Try again later.');
   }
 
+  private detachHippie(p: Player): void {
+    if (!this.match || p.hippieId === null) return;
+    const world = this.match.world;
+    closeSwagTable(world, p.hippieId);
+    cancelHippieTask(world, p.hippieId);
+    setHippiePlayer(world, p.hippieId, undefined);
+  }
+
   private releaseHippie(p: Player): void {
-    if (this.match && p.hippieId !== null) setHippiePlayer(this.match.world, p.hippieId, undefined);
+    this.detachHippie(p);
     p.hippieId = null;
     p.wantsHippie = false;
     this.sendHippieRole(p);

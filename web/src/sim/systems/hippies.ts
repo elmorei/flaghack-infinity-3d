@@ -1,4 +1,4 @@
-import { hippiePlayerGoal, setHippiePlayer } from '../hippiePlayer';
+import { cancelHippieTask, completeHippieTask, hippiePlayerGoal, setHippiePlayer, workingHippieTask } from '../hippiePlayer';
 import { flagOrderBearer } from './flagOrderBearers';
 import { stepFrickFrackWizard } from './frickFrack';
 /**
@@ -301,6 +301,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
   if (stepHippieAirborne(world, h, dt)) return;
   if (b.faction !== h.faction) convert(world, h, b);
   if (h.status === 'ko') {
+    cancelHippieTask(world, h.id);
     if (world.time >= h.koUntil) respawn(world, h, b);
     return;
   }
@@ -327,7 +328,7 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
   if (fightBoss(world, sys, h, b, dt)) { cancelSceneryService(world, h); return; }
   const f = h.faction;
   const goal = hippiePlayerGoal(world, h.id);
-  if (goal !== undefined && !h.order && !hasEffect(world, h, 'overstimulated') && b.task !== 'distracted') {
+  if (goal !== undefined && !workingHippieTask(world, h) && !h.order && !hasEffect(world, h, 'overstimulated') && b.task !== 'distracted') {
     if (b.task !== 'goto') beginTask(world, h, b, 'goto');
     b.pace = HIPPIE_AI.neutralPace;
     if (goal) {
@@ -343,11 +344,13 @@ function updateHippie(world: World, sys: UnitsState, h: Hippie, dt: number, audi
   if (f === NEUTRAL) {
     // Real camp recruitment takes precedence over the pre-Burn audience, including wipes.
     if (attractToRecruiter(world, sys, h, b)) {
+      if (!b.moving && h.status === 'idle') completeHippieTask(world, h, 'wander');
       locomote(world, sys, h, b, dt);
       return;
     }
     // The audience uses normal movement; recruitment, KO and boss combat take priority.
     if (audience && watchEffigy(world, sys, h, b)) {
+      if (!b.moving && h.status === 'idle') completeHippieTask(world, h, 'wander');
       locomote(world, sys, h, b, dt);
       faceEffigy(world, h, b);
       return;
@@ -471,11 +474,15 @@ function shove(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId)
   if (target < 0) return;
   b.nextShoveAt = world.time + HIPPIE.shoveInterval / Math.max(0.25, speedMultiplier(world, h));
   h.facing = Math.atan2(tx - h.pos.x, tz - h.pos.z);
-  if (damageMelee(world, target, HIPPIE.shoveDamage, h.id)) knockback(world, target, h.pos, HIPPIE.shoveKnockback);
+  if (damageMelee(world, target, HIPPIE.shoveDamage, h.id)) {
+    if (b.task === 'engage') completeHippieTask(world, h, 'defend', 'raid');
+    knockback(world, target, h.pos, HIPPIE.shoveKnockback);
+  }
 }
 
 /** Recruitment, Dialectics or capture changed the hippie's faction: it starts over with the new camp. */
 function convert(world: World, h: Hippie, b: Brain): void {
+  cancelHippieTask(world, h.id);
   releaseTask(world, h, b);
   b.faction = h.faction;
   b.jobSince = -Infinity;

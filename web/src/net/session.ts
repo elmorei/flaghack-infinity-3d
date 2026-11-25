@@ -1,3 +1,4 @@
+import type { SwagTableAction } from '../sim/frickFrack';
 /**
  * Client-side online session API (what the UI reads and calls). Implemented by net/client.ts;
  * the App exposes the active one as `app.net`. The UI polls: compare `version` each update.
@@ -42,6 +43,8 @@ export interface NetSession {
   claimHippie?(): void;
   hippiePickup?(): void;
   hippieAltar?(): void;
+  hippieTask?(start: boolean): void;
+  hippieFrick?(action: SwagTableAction, wager?: number): void;
   hippieTarget?(x: number, z: number, throwing: boolean): void;
 
   setControlMode(mode: 'avatar' | 'rts'): void;

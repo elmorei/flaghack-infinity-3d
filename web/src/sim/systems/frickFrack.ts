@@ -1,3 +1,4 @@
+import { cancelHippieTask, changeHippieSwag, hippieProgress, setHippiePlayer } from '../hippiePlayer';
 import { frickFrackFlags } from '../frickFrackInventory';
 /** Host-owned Frick-frack economy and hand state. Never serialize this module's WeakMap. */
 import type { World } from '../world';
@@ -13,7 +14,7 @@ import type { Brain } from './units/brain';
 import { locomote, moveTo } from './units/move';
 import type { UnitsState } from './units/state';
 import { frickFrackDialogue, frickFrackDialogueVariant, FRICK_FRACK_DIALOGUE, FRICK_FRACK_EMPTY, FRICK_FRACK_SIDEBOARD_CAP, frickFrackTextDuration, frickFrackTotal, frickFrackTarget, FRICK_FRACK_ROLL_SECONDS, createFrickFrackDeck, createFrickFrackCheatCard, frickFrackParodyRemark } from '../frickFrack';
-import type { FrickFrackCard, FrickFrackSession } from '../frickFrack';
+import type { FrickFrackCard, FrickFrackSession, SwagTable, SwagTableAction } from '../frickFrack';
 import { applyFrickFrackArcana } from '../frickFrackArcana';
 import type { FrickFrackHand } from '../frickFrackArcana';
 import { resolveFrickFrackBattle } from '../frickFrackBattle';
@@ -23,6 +24,93 @@ import { resetWizardCircuit, wanderFrickFrackWizard } from './frickFrackWander';
 
 type PrivateHand = FrickFrackHand;
 interface PrivateState { rng: Rng; hands: Map<FactionId, PrivateHand>; nextSession: number; cooldown: Map<FactionId, number> }
+interface SwagHand { id: number; public: SwagTable; hand: PrivateHand | null; lastActionAt: number }
+const swagTables = new WeakMap<World, SwagHand>();
+
+export function swagTableView(w: World, id: number): SwagTable | null {
+  const table = swagTables.get(w);
+  return table?.id === id ? table.public : null;
+}
+export function closeSwagTable(w: World, id: number): void {
+  if (swagTables.get(w)?.id === id) swagTables.delete(w);
+}
+export function canReachSwagWizard(w: World, h: Hippie): boolean {
+  const wizard = w.hippies.get(w.frickFrack.wizardId);
+  return !!wizard?.wizard && wizard.hp > 0 && wizard.koUntil === 0 && !wizard.airborne && h.hp > 0 &&
+    h.koUntil === 0 && !h.airborne && w.phase === 'playing' && Math.hypot(h.pos.x - wizard.pos.x, h.pos.z - wizard.pos.z) <= 3 &&
+    Math.abs(w.collision.groundHeight(h.pos.x, h.pos.z) - w.collision.groundHeight(wizard.pos.x, wizard.pos.z)) <= 1.2 &&
+    w.nav.lineOfSight(h.pos.x, h.pos.z, wizard.pos.x, wizard.pos.z);
+}
+
+export function playSwagTable(w: World, h: Hippie, action: SwagTableAction, id: number, revision: number, wager: number): string | null {
+  const active = swagTables.get(w);
+  if (action === 'open') {
+    if (active?.id === h.id) return null;
+    if (!canReachSwagWizard(w, h)) return 'Move closer to the wizard.';
+    if (active || Object.values(w.frickFrack.sessions).some(Boolean)) return 'The wizard is playing with someone else.';
+    if (!hippieProgress(w, h).swag) return 'Earn SWAG from a task before betting.';
+    cancelHippieTask(w, h.id);
+    setHippiePlayer(w, h.id, null);
+    swagTables.set(w, { id: h.id, lastActionAt: w.time, hand: null, public: {
+      id: privateState(w).nextSession++, revision: 0, phase: 'betting', dialogueIndex: 0,
+      dialogueStartedAt: w.time, readyAt: w.time, wager: 0, player: [], dealer: [], result: null, message: '',
+    } });
+    return null;
+  }
+  if (!active || active.id !== h.id || active.public.id !== id || active.public.revision !== revision) return null;
+  if (action === 'exit') { closeSwagTable(w, h.id); return null; }
+  if (!canReachSwagWizard(w, h)) { closeSwagTable(w, h.id); return 'The wizard is out of reach.'; }
+  const s = active.public;
+  if (action === 'bet' && (s.phase === 'betting' || s.phase === 'result')) {
+    if (!Number.isSafeInteger(wager) || wager < 1 || !changeHippieSwag(w, h.id, -wager))
+      return 'Bet between 1 and your available SWAG.';
+    s.player = []; s.dealer = []; s.result = null; s.message = '';
+    delete s.revealedCardOrder; delete s.defeated; delete s.remark;
+    s.wager = wager; s.revision++; active.lastActionAt = w.time;
+    beginRoll(w, s);
+    return null;
+  }
+  if (s.phase !== 'playing' || !active.hand) return null;
+  if (action === 'hit' && active.hand.deck.length > 0) {
+    const card = draw(active.hand);
+    s.player.push(card); revealPlayerCard(s, active.hand, card);
+    s.revision++; active.lastActionAt = w.time;
+    if (frickFrackTotal(s.player, frickFrackTarget(s)) >= frickFrackTarget(s)) finishSwag(w, active);
+  } else if (action === 'stand') {
+    s.revision++; active.lastActionAt = w.time;
+    finishSwag(w, active);
+  }
+  return null;
+}
+
+function finishSwag(w: World, session: SwagHand): void {
+  const hand = session.hand;
+  if (!hand) return;
+  const s = session.public;
+  const outcome = settleDealer(w, s, hand);
+  const profit = outcome === 'win' ? s.wager * evaluateFrickFrackPoker(s.player, frickFrackTarget(s)).profitMultiplier : 0;
+  const payout = outcome === 'win' ? s.wager + profit : outcome === 'push' ? s.wager : 0;
+  changeHippieSwag(w, session.id, payout);
+  s.phase = 'result'; s.result = outcome;
+  s.message = outcome === 'win' ? `You win ${profit} SWAG.` :
+    outcome === 'push' ? 'A tie. Your SWAG is returned.' : `The wizard wins ${s.wager} SWAG.`;
+  session.hand = null;
+}
+
+function updateSwagTable(w: World): void {
+  const t = swagTables.get(w);
+  if (!t) return;
+  const h = w.hippies.get(t.id);
+  if (!h || !canReachSwagWizard(w, h) || w.time - t.lastActionAt > 90) { closeSwagTable(w, t.id); return; }
+  const s = t.public;
+  if (s.phase !== 'rolling' || w.time < (s.rollEndsAt ?? Infinity)) return;
+  const hand: PrivateHand = { deck: [], dealer: [], usedNumeric: [], temporaryIds: [], revealDealer: false, revealedIds: [], holeId: null };
+  t.hand = hand; s.phase = 'playing'; s.revision++;
+  dealFresh(w, s, hand);
+  const target = frickFrackTarget(s);
+  if (frickFrackTotal(s.player, target) === target || frickFrackTotal(hand.dealer, target) === target) finishSwag(w, t);
+}
+
 const secrets = new WeakMap<World, PrivateState>();
 function privateState(w: World): PrivateState {
   let s = secrets.get(w);
@@ -88,7 +176,7 @@ export function cmdTalkWizard(w: World, c: CommandOf<'talkWizard'>): void {
   if (w.frickFrack.sessions[f]) return; // Repeated taps cannot restart or charge a session.
   const reject = (reason: string) => w.emit({ t: 'rejected', faction: f, reason });
   if ((privateState(w).cooldown.get(f) ?? 0) > w.time) return;
-  if (Object.values(w.frickFrack.sessions).some(Boolean)) { reject('The wizard is finishing another conversation. Try again shortly.'); return; }
+  if (swagTables.has(w) || Object.values(w.frickFrack.sessions).some(Boolean)) { reject('The wizard is finishing another conversation. Try again shortly.'); return; }
   if (w.factions[f].controlMode !== 'rts' && !withinConversationReach(w, h, f, AVATAR.pullReach)) {
     reject('Move your vexillomancer closer to the wizard to talk.'); return;
   }
@@ -99,7 +187,7 @@ export function cmdTalkWizard(w: World, c: CommandOf<'talkWizard'>): void {
 }
 /** Giving is not an entry fee. Thrown gifts reserve a pursuit without locking the giver. */
 export function offerFrickFrackFlag(w: World, h: Hippie, f: FactionId, flagId: number): boolean {
-  if (w.factions[f]?.controlMode === 'rts' || !h.wizard || h.id !== w.frickFrack.wizardId || h.hp <= 0 || h.status === 'ko' || !canPlay(w, f)) return false;
+  if (swagTables.has(w) || w.factions[f]?.controlMode === 'rts' || !h.wizard || h.id !== w.frickFrack.wizardId || h.hp <= 0 || h.status === 'ko' || !canPlay(w, f)) return false;
   const av = w.avatarOf(f), flag = w.flags.get(flagId), secret = privateState(w);
   const existing = w.frickFrack.sessions[f];
   if ((secret.cooldown.get(f) ?? 0) > w.time || !flag || flag.owner !== f ||
@@ -153,18 +241,18 @@ function cleanupTemporary(w: World, f: FactionId): void {
   w.frickFrack.sideboards[f] = w.frickFrack.sideboards[f].filter(c => !c.temporary);
 }
 /** One host roll after committing the wager; commands cannot skip or reroll its reveal interval. */
-function beginRoll(w: World, s: FrickFrackSession): void {
+function beginRoll(w: World, s: SwagTable): void {
   s.dieResult = privateState(w).rng.int(1, 6); s.target = 20 + s.dieResult;
   s.rollNumber = (s.rollNumber ?? 0) + 1; s.rollStartedAt = w.time;
   s.rollEndsAt = w.time + FRICK_FRACK_ROLL_SECONDS; s.readyAt = s.rollEndsAt;
   s.phase = 'rolling';
 }
-function syncDealer(s: FrickFrackSession, hand: PrivateHand): void {
+function syncDealer(s: SwagTable, hand: PrivateHand): void {
   if (!hand.dealer.some(c => c.id === hand.holeId)) hand.holeId = null;
   s.dealer = hand.dealer.map(c => !hand.revealDealer && c.id === hand.holeId ? null : { ...c });
 }
 /** Reveal order, not array position, controls CCG battles. Private peeks never call this. */
-function revealCard(s: FrickFrackSession, hand: PrivateHand, id: number): void {
+function revealCard(s: SwagTable, hand: PrivateHand, id: number): void {
   if (hand.revealedIds.includes(id)) return;
   const allowed = new Set([...hand.revealedIds,id]);
   const player = s.player.filter(c => allowed.has(c.id));
@@ -186,7 +274,7 @@ function revealCard(s: FrickFrackSession, hand: PrivateHand, id: number): void {
   }
   syncDealer(s, hand);
 }
-function revealPlayerCard(s: FrickFrackSession, hand: PrivateHand, card: FrickFrackCard): void {
+function revealPlayerCard(s: SwagTable, hand: PrivateHand, card: FrickFrackCard): void {
   const remark = frickFrackParodyRemark(card); if (remark) s.remark = remark;
   revealCard(s, hand, card.id);
   // Strength protects a draw that is still present after its CCG battle, not a transformed old card.
@@ -195,12 +283,12 @@ function revealPlayerCard(s: FrickFrackSession, hand: PrivateHand, card: FrickFr
     s.remark = 'Strength discards that draw before it can make you bust.';
   }
 }
-function revealDealer(s: FrickFrackSession, hand: PrivateHand): void {
+function revealDealer(s: SwagTable, hand: PrivateHand): void {
   hand.revealDealer = true;
   for (const c of [...hand.dealer]) revealCard(s,hand,c.id);
   syncDealer(s,hand);
 }
-function dealFresh(w: World, s: FrickFrackSession, hand: PrivateHand): void {
+function dealFresh(w: World, s: SwagTable, hand: PrivateHand): void {
   const deck=createFrickFrackDeck(()=>w.newId()); privateState(w).rng.shuffle(deck);
   hand.deck=deck;hand.dealer=[];hand.revealedIds=[];hand.revealDealer=false;
   delete s.defeated; delete s.revealedCardOrder;
@@ -245,11 +333,14 @@ function result(w: World, s: FrickFrackSession, outcome: 'win' | 'lose' | 'push'
 function draw(hand: PrivateHand): FrickFrackCard { return hand.deck.pop()!; }
 function stand(w: World, s: FrickFrackSession): void {
   const hand = privateState(w).hands.get(s.faction); if (!hand) return;
+  result(w, s, settleDealer(w, s, hand));
+}
+function settleDealer(w: World, s: SwagTable, hand: PrivateHand): 'win' | 'lose' | 'push' {
   revealDealer(s,hand);
   // A revealed CCG can remove cards from either hand; recompute after every draw/battle.
   while (frickFrackTotal(hand.dealer,frickFrackTarget(s)) < frickFrackTarget(s) - 4 && hand.deck.length) { const c=draw(hand);hand.dealer.push(c);if(s.arcana)delete s.arcana.softDealer;revealCard(s,hand,c.id); }
   const player = frickFrackTotal(s.player,frickFrackTarget(s)), dealer = frickFrackTotal(hand.dealer,frickFrackTarget(s));
-  result(w, s, player > frickFrackTarget(s) ? 'lose' : dealer > frickFrackTarget(s) || player > dealer || (player === dealer && s.arcana?.justice) ? 'win' : player === dealer ? 'push' : 'lose');
+  return player > frickFrackTarget(s) ? 'lose' : dealer > frickFrackTarget(s) || player > dealer || (player === dealer && s.arcana?.justice) ? 'win' : player === dealer ? 'push' : 'lose';
 }
 function finishPlayerChange(w: World, s: FrickFrackSession, hand: PrivateHand): void {
   if (s.arcana?.choices?.length) return;
@@ -332,6 +423,7 @@ function conversationSeparated(w: World, h: Hippie, f: FactionId): boolean {
     Math.abs(av.pos.y - w.collision.groundHeight(h.pos.x, h.pos.z) - (h.airborne?.y ?? 0)) > 2.5;
 }
 export function updateFrickFrack(w: World): void {
+  updateSwagTable(w);
   const wizard = w.hippies.get(w.frickFrack.wizardId);
   for (const f of [0, 1, 2, 3] as const) {
     const s = w.frickFrack.sessions[f];
@@ -364,6 +456,13 @@ export function updateFrickFrack(w: World): void {
  */
 export function stepFrickFrackWizard(w: World, sys: UnitsState, h: Hippie, b: Brain, dt: number): boolean {
   if (!h.wizard || h.id !== w.frickFrack.wizardId) return false;
+  const swag = swagTables.get(w);
+  if (swag) {
+    const player = w.hippies.get(swag.id);
+    b.moving = false; h.vel.x = 0; h.vel.z = 0; h.status = 'idle'; h.statusTarget = null;
+    if (player) h.facing = Math.atan2(player.pos.x - h.pos.x, player.pos.z - h.pos.z);
+    return true;
+  }
   const sessions = Object.values(w.frickFrack.sessions).filter((s): s is FrickFrackSession => !!s && canPlay(w, s.faction) && !(s.phase === 'chasing' && w.factions[s.faction].controlMode === 'rts')).sort((a, c) => a.id - c.id);
   if (!sessions.length) { wanderFrickFrackWizard(w, sys, h, b, dt); return true; }
   resetWizardCircuit(w);

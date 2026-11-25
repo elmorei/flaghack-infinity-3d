@@ -1,3 +1,4 @@
+import { completeHippieTask, serveHippieTask } from '../../hippiePlayer';
 import { buildingBaseHeight } from '../../buildingGeometry';
 /**
  * Hippie task execution: one tick of whatever the brain's task is. Every branch keeps the
@@ -125,7 +126,7 @@ export function act(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
       actChop(world, sys, h, b, dt);
       return;
     case 'drum':
-      actDrum(world, sys, h, b, f);
+      actDrum(world, sys, h, b, f, dt);
       return;
     case 'patrol':
       actPatrol(world, sys, h, b);
@@ -288,6 +289,7 @@ function actPlant(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Faction
   b.work += dt * speedMultiplier(world, h);
   if (b.work < HIPPIE.plantTime) return;
   if (!canPlantAt(world, node, f) || !plantFlag(world, flagId, node, f, h.id)) avoidNode(world, b, node);
+  else completeHippieTask(world, h, 'survey');
   endTask(world, h, b, ordered);
 }
 
@@ -329,6 +331,7 @@ function actPull(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
   const spot = fl.state !== 'planted' || prev === f ? -1 : plan.has(fl.node) ? fl.node : plan.has(fl.altNode) ? fl.altNode : -1;
   pullFlag(world, fl.id, h.id);
   const got = h.carryingFlag === fl.id;
+  if (got && prev !== f && prev !== NEUTRAL) completeHippieTask(world, h, 'raid', 'defend');
   if (got && spot >= 0 && canPlantAt(world, spot, f)) {
     if (ordered) h.order = null;
     startPlant(world, sys, h, b, spot);
@@ -383,12 +386,13 @@ function actDeliver(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
   }
   b.moving = false;
   if (stow) {
-    depositToStock(world, h.carryingFlag, hb.id);
+    if (depositToStock(world, h.carryingFlag, hb.id)) completeHippieTask(world, h, 'survey');
     b.stolen = false;
   } else {
     const amount = h.carryingLumber;
     world.factions[f].lumber += amount;
     h.carryingLumber = 0;
+    completeHippieTask(world, h, 'gather');
     world.emit({ t: 'lumberDelivered', faction: f, amount, pos: { x: hb.pos.x, z: hb.pos.z } });
   }
   releaseTask(world, h, b);
@@ -419,7 +423,7 @@ function actChop(world: World, sys: UnitsState, h: Hippie, b: Brain, dt: number)
   releaseTask(world, h, b);
 }
 
-function actDrum(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId): void {
+function actDrum(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionId, dt: number): void {
   const c = world.buildings.get(b.target);
   const slots = sys.drumSlots.get(b.target);
   if (!c || c.faction !== f || c.built < 1 || c.disabled || !slots || slots[b.slot] !== h.id) {
@@ -439,7 +443,7 @@ function actDrum(world: World, sys: UnitsState, h: Hippie, b: Brain, f: FactionI
       return;
     }
     setStatusAt(h, b, 'drumming', c.pos.x, c.pos.z);
-    if (there) h.facing = Math.atan2(dx, dz);
+    if (there) { h.facing = Math.atan2(dx, dz); serveHippieTask(world, h, 'ritual', dt, 2); }
   } else setStatusAt(h, b, 'walking', c.pos.x, c.pos.z);
 }
 
@@ -450,7 +454,9 @@ function actPatrol(world: World, sys: UnitsState, h: Hippie, b: Brain): void {
     b.moving = false;
     return;
   }
-  if (!moveTo(world, sys, h, b, b.px, b.pz, 1) && b.route !== 'blocked') return;
+  const arrived = moveTo(world, sys, h, b, b.px, b.pz, 1);
+  if (!arrived && b.route !== 'blocked') return;
+  if (arrived) completeHippieTask(world, h, 'defend');
   b.waitUntil = world.time + world.rng.range(1.5, 4);
   pickSpotAround(world, b, b.ax, b.az, b.patrolR * 0.4, b.patrolR);
 }
@@ -500,6 +506,7 @@ function actRespond(world: World, sys: UnitsState, h: Hippie, b: Brain, f: Facti
   }
   if (b.waitUntil === 0) b.waitUntil = world.time + PING_HOLD;
   else if (world.time >= b.waitUntil) {
+    completeHippieTask(world, h, 'defend', 'raid');
     b.answeredAt = world.time;
     releaseTask(world, h, b);
   }
@@ -741,7 +748,9 @@ export function wander(world: World, sys: UnitsState, h: Hippie, b: Brain): void
     setStatus(h, 'idle');
     return;
   }
-  if (moveTo(world, sys, h, b, b.px, b.pz, 2) || routeExhausted(h, b)) {
+  const arrived = moveTo(world, sys, h, b, b.px, b.pz, 2);
+  if (arrived || routeExhausted(h, b)) {
+    if (arrived) completeHippieTask(world, h, 'wander');
     b.waitUntil = world.time + world.rng.range(LINGER_MIN, LINGER_MAX);
     pickWanderSpot(world, h, b);
     setStatus(h, 'idle');

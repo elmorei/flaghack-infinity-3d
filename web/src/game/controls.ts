@@ -319,11 +319,15 @@ export class Controls {
       this.followHippie = hippie.id;
       if (input.locked) input.exitLock();
       if (hippie.carryingFlag === -1) s.hippieThrow = false;
-      const playable = !input.typing && !this.cursorWanted(s) && world.phase === 'playing' && hippie.status !== 'ko';
+      const table = !!this.app.net?.hippieRole?.table;
+      const playable = !table && !input.typing && !this.cursorWanted(s) && world.phase === 'playing' && hippie.status !== 'ko';
       input.touch.enabled = playable && isMobileCommandLayout();
       if (!input.touch.enabled) input.touch.cancel();
       else input.touch.poll(performance.now());
-      if (!input.typing && input.wasPressed('Escape') && !this.cursorWanted(s)) this.app.setPaused(true);
+      if (!input.typing && input.wasPressed('Escape') && !this.cursorWanted(s)) {
+        if (table) this.app.net?.hippieFrick?.('exit');
+        else this.app.setPaused(true);
+      }
       this.idle(s);
       this.updateCamera(world, s, av, false, dt);
       if (playable && !effigyCameraTarget(world)) {

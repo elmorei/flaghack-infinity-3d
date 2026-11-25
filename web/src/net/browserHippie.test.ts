@@ -3,7 +3,7 @@ import { Room } from '../../server/room';
 import type { Match } from '../../server/match';
 import { MAP_HALF } from '../sim/constants';
 import { spawnFlag } from '../sim/factory';
-import { hippiePlayerGoal } from '../sim/hippiePlayer';
+import { completeHippieTask, hippiePlayerGoal } from '../sim/hippiePlayer';
 import { recruitWithFlag } from '../sim/systems/recruitment';
 import { eliminateByBoss } from '../sim/systems/victory';
 import { NEUTRAL } from '../sim/types';
@@ -175,3 +175,42 @@ it('validates hippie inputs and does not accept unit or faction overrides', () =
   expect(parseClientMessage(JSON.stringify({ t: 'hippiePickup', inputEpoch: 1, id: 2 }))).toBeNull();
   expect(parseClientMessage(JSON.stringify({ t: 'claimHippie', faction: 2 }))).toBeNull();
 });
+
+it('syncs task progress and SWAG bets only to the hippie who earned them', async () => {
+  burn();
+  const [leader, other] = [join('one'), join('two'), join('three'), join('four')];
+  const fifth = join('five');
+  await spin();
+  fifth.client.claimHippie();
+  await spin();
+  leader.client.start();
+  await spin();
+  const w = world();
+  const h = w.hippies.get(fifth.client.hippieRole!.id!)!;
+  expect(fifth.client.hippieRole).toMatchObject({ task: 'wander', swag: 0, active: false });
+  fifth.client.hippieTask(true);
+  await spin();
+  expect(fifth.client.hippieRole?.active).toBe(true);
+  h.pos.x += 2;
+  completeHippieTask(w, h, 'wander');
+  await vi.waitFor(() => expect(fifth.client.hippieRole).toMatchObject({ task: 'wander', swag: 1, completed: 1, active: false }));
+  const wizard = w.hippies.get(w.frickFrack.wizardId)!;
+  Object.assign(h.pos, wizard.pos);
+  fifth.client.hippieFrick('open');
+  await spin();
+  expect(fifth.client.hippieRole?.table?.phase).toBe('betting');
+  expect(other.client.hippieRole).toBeNull();
+  fifth.client.hippieFrick('bet', 1);
+  await spin();
+  expect(fifth.client.hippieRole).toMatchObject({ swag: 0, table: { phase: 'rolling', wager: 1 } });
+  await vi.waitFor(() => expect(fifth.client.hippieRole?.table?.phase).toMatch(/playing|result/), { timeout: 5000 });
+  if (fifth.client.hippieRole?.table?.phase === 'playing') {
+    fifth.client.hippieFrick('stand');
+    await spin();
+  }
+  expect(fifth.client.hippieRole?.table?.phase).toBe('result');
+  fifth.client.hippieFrick('exit');
+  await spin();
+  expect(fifth.client.hippieRole?.table).toBeNull();
+  expect(leader.client.hippieRole).toBeNull();
+}, 15_000);

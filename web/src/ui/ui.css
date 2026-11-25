@@ -4398,3 +4398,6 @@ html[data-device-layout='mobile'] .build-btn:disabled { filter: grayscale(1); op
 .hippie-role { max-width: min(34rem, 92vw); padding: .45rem .65rem; text-align: center; }
 .hippie-role-tools { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-top: .3rem; }
 .hippie-role-tools .btn { min-height: 2.5rem; }
+.hippie-swag-table { max-height: 60dvh; overflow: auto; padding: .35rem; }
+.hippie-swag-table p { margin: .4rem 0; }
+.hippie-wager { width: 5.5rem; font-size: 16px; }
