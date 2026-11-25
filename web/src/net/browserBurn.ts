@@ -121,8 +121,10 @@ export class BrowserBurn {
   private guestGeneration = 0;
   private pendingHostSetup = false;
   get paused(): boolean { return this.room?.isPaused ?? false; }
+  get performancePaused(): boolean { return this.room?.performancePaused ?? false; }
 
-  constructor(private readonly join: Join, private readonly onInviteStatus: (status: InviteStatus) => void) {}
+  constructor(private readonly join: Join, private readonly onInviteStatus: (status: InviteStatus) => void,
+    private readonly onPerformancePause: () => void = () => {}) {}
   get hosting(): boolean { return this.room !== null; }
   get connectedPeers(): number { return this.peers.size; }
 
@@ -132,7 +134,7 @@ export class BrowserBurn {
     this.certificate = await RTCPeerConnection.generateCertificate(algorithm);
     const [roomWire, clientWire] = localWires();
     const room = new Room({ serverName: 'Browser-hosted burn', admit: (password) => password === '',
-      addressKey: (privateChannel) => privateChannel, log: () => {} });
+      addressKey: (privateChannel) => privateChannel, log: () => {}, onPerformancePause: this.onPerformancePause });
     // Membership is granted only when the host manually applies a given peer's answer.
     room.connect(browserRoomSocket(roomWire), { address: 'browser-host', peer: 'browser-host' });
     this.room = room;

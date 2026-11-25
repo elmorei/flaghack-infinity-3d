@@ -14,3 +14,10 @@ Serve the preview web build over HTTPS to both devices. Add `?browser-host=1` to
 **Manage browser burn** on the host provides manual pause and resume while the host tab stays alive. Keep that tab foregrounded and the device awake. There is no automatic host choice, handoff, durable checkpoint, matchmaking, or relay. Camp claims that were not finalized before a pause can be retried after the host resumes. Closing or reloading the host ends the match. Direct connectivity depends on the devices and network; this is not an internet or cellular play guarantee. The standard Windows host path remains available.
 
 Phone hosting runs the same simulation and update cadence. Before lowering fidelity, measure real-device performance, including several players, a late-game rejoin, and backgrounding or locking the host phone.
+
+The browser host automatically pauses for everyone after a long host stall (1.5 seconds
+behind schedule) or repeated loss of at least a quarter-second of simulation time within
+two seconds. A single short hitch or low FPS on a guest does not trigger it. This does not
+change game rules or reduce simulation quality. Keep the host tab in front, address heavy
+background activity, and select **Try resuming** in the host controls. If the host still
+cannot keep up, the guard pauses again. It never resumes by itself.

@@ -100,6 +100,7 @@ export interface RoomOptions {
   admit: (password: string) => boolean;
   addressKey: (address: string) => string;
   log: (line: string) => void;
+  onPerformancePause?(): void;
 }
 
 export interface RoomSocket {
@@ -170,7 +171,8 @@ export class Room {
   readonly instanceId = randomHex(16);
   private readonly admit: RoomOptions['admit'];
   private readonly addressKey: RoomOptions['addressKey'];
-  private paused = false;
+  private pauseReason: 'manual' | 'performance' | null = null;
+  private get paused(): boolean { return this.pauseReason !== null; }
   private readonly throttle = new FailureThrottle(FAILURE_LIMIT, FAILURE_WINDOW_MS);
   private readonly peerThrottle = new FailureThrottle(PEER_FAILURE_LIMIT, FAILURE_WINDOW_MS);
   private readonly log: (line: string) => void;
@@ -217,6 +219,14 @@ export class Room {
     this.admit = opts.admit;
     this.addressKey = opts.addressKey;
     this.log = opts.log;
+    const notifyPerformancePause = opts.onPerformancePause;
+    if (notifyPerformancePause) {
+      this.listener.overloaded = () => this.safely('host performance pause', () => {
+        if (this.phase !== 'playing' || this.paused) return;
+        this.setPaused(true, 'performance');
+        if (this.performancePaused) notifyPerformancePause();
+      });
+    }
     this.housekeeping = setInterval(() => this.safely('housekeeping', () => this.tidy()), HOUSEKEEPING_MS);
   }
 
@@ -281,9 +291,11 @@ export class Room {
 
   get isPaused(): boolean { return this.paused; }
 
-  setPaused(paused: boolean): void {
+  get performancePaused(): boolean { return this.pauseReason === 'performance'; }
+
+  setPaused(paused: boolean, reason: 'manual' | 'performance' = 'manual'): void {
     if (this.closing || this.paused === paused || this.phase !== 'playing' || !this.match) return;
-    this.paused = paused;
+    this.pauseReason = paused ? reason : null;
     if (paused) {
       this.match.stop();
       this.match.clearPausedInput();
@@ -294,7 +306,9 @@ export class Room {
       }
       this.listener.resync();
       this.syncJoining(this.match);
-      this.system('Browser host paused the burn. Keep its tab open.');
+      this.system(reason === 'performance'
+        ? 'Burn paused automatically: the browser host could not keep up. The host can try resuming when ready.'
+        : 'Browser host paused the burn. Keep its tab open.');
     } else {
       this.match.start();
       this.system('Browser host resumed the burn.');
@@ -786,7 +800,7 @@ export class Room {
 
   /** Drop the world and return everyone to the lobby. */
   private endMatch(): void {
-    this.paused = false;
+    this.pauseReason = null;
     this.match?.stop();
     this.match = null;
     this.phase = 'lobby';

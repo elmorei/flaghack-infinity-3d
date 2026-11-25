@@ -12,13 +12,14 @@ export class BrowserBurnPanel {
   private readonly offer = document.createElement('textarea');
   private readonly answer = document.createElement('textarea');
   private readonly status = document.createElement('p');
+  private readonly performance = document.createElement('p');
   private readonly prep = document.createElement('div');
   private readonly hosting = document.createElement('div');
   private readonly pause: HTMLButtonElement;
   private busy = false;
 
   constructor(join: (name: string, socket: ClientSocket, room: string, welcomed?: () => void) => boolean) {
-    this.burn = new BrowserBurn(join, (status) => this.inviteStatus(status));
+    this.burn = new BrowserBurn(join, (status) => this.inviteStatus(status), () => this.view());
     this.dialog.className = 'browser-burn';
     this.dialog.setAttribute('aria-label', 'Browser multiplayer preview');
     this.manage.className = 'btn browser-burn-manage';
@@ -79,7 +80,9 @@ export class BrowserBurnPanel {
     this.label(codes, 'Offer code', this.offer);
     this.label(codes, 'Answer code', this.answer);
     this.status.setAttribute('aria-live', 'polite');
-    this.dialog.append(title, info, this.prep, this.hosting, codes, this.status);
+    this.performance.setAttribute('role', 'status');
+    this.performance.textContent = 'The host could not keep up, so the burn paused for everyone. Keep this tab in front and close other heavy apps or tabs. Try resuming when ready. The burn will pause again if the host still cannot keep up.';
+    this.dialog.append(title, info, this.performance, this.prep, this.hosting, codes, this.status);
     this.button(this.dialog, 'Close', () => this.dialog.close());
     // Dialog events never become game input. Native Tab and Escape still operate normally.
     for (const type of ['keydown', 'keyup', 'pointerdown', 'pointerup']) {
@@ -129,7 +132,10 @@ export class BrowserBurnPanel {
     this.hosting.hidden = this.manage.hidden = !isHost;
     this.offer.readOnly = isHost;
     this.answer.readOnly = !isHost;
-    this.pause.textContent = this.burn.paused ? 'Resume burn' : 'Pause burn';
+    const overloaded = this.burn.performancePaused;
+    this.performance.hidden = !overloaded;
+    this.manage.textContent = overloaded ? 'Burn paused: host performance' : 'Manage browser burn';
+    this.pause.textContent = overloaded ? 'Try resuming' : this.burn.paused ? 'Resume burn' : 'Pause burn';
   }
   private button(parent: HTMLElement, text: string, fn: () => unknown): HTMLButtonElement {
     const button = document.createElement('button');

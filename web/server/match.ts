@@ -33,6 +33,11 @@ const TICK_MS = 1000 / SIM_HZ;
 const TICKS_PER_FRAME = SIM_HZ / NET_HZ;
 /** Ticks one timer wake-up may catch up; a longer stall is skipped rather than replayed. */
 const MAX_CATCH_UP = 5;
+// Browser preview only. Ignore a short isolated hitch; a long stall or repeated lost
+// time means the host is no longer sustaining the authoritative clock.
+const HOST_STALL_MS = 1_500;
+const HOST_LOSS_WINDOW_MS = 2_000;
+const HOST_LOST_TICKS = Math.ceil(SIM_HZ * 0.25);
 /** More queued input frames than this and the seat folds the whole queue into one tick. */
 const MAX_BACKLOG = 6;
 /** Ticks (0.5 s) over which a queue that never ran below two frames counts as standing latency. */
@@ -58,6 +63,8 @@ const STATS_EVERY_MS = 60_000;
 export interface MatchListener {
   /** Commit validated control handoffs after this tick, before its authoritative snapshot. */
   beforeFrame?(): void;
+  /** Optional browser-host safeguard. Called outside simulation steps. */
+  overloaded?(): void;
   /** A state frame is serialized: send it to every client in the match, then admit joiners. */
   frame(text: string): void;
   /** world.phase just became 'ended'. */
@@ -95,6 +102,9 @@ export class Match {
   /** Last consumed seq per human player; serialized into every frame. */
   private readonly acks: Record<string, number> = {};
   private timer: NodeJS.Timeout | undefined;
+  private lossWindowStart = 0;
+  private lossEvents = 0;
+  private lostTicks = 0;
   private running = false;
   private next = 0;
   private ticks = 0;
@@ -205,6 +215,8 @@ export class Match {
     if (this.running) return;
     this.running = true;
     this.next = performance.now();
+    this.lossWindowStart = this.next;
+    this.lossEvents = this.lostTicks = 0;
     this.statsAt = Date.now();
     this.loop();
   }
@@ -224,6 +236,11 @@ export class Match {
     this.timer = undefined;
     if (!this.running) return;
     const now = performance.now();
+    // Catch a stalled or suspended host before advancing the world on its next wake.
+    if (this.listener.overloaded && now - this.next >= HOST_STALL_MS) {
+      this.listener.overloaded();
+      if (!this.running) return;
+    }
     let steps = 0;
     while (now >= this.next && steps < MAX_CATCH_UP && this.running) {
       const t0 = performance.now();
@@ -238,8 +255,21 @@ export class Match {
     }
     if (!this.running) return;
     if (now - this.next > MAX_CATCH_UP * TICK_MS) {
-      this.statSkipped += Math.floor((now - this.next) / TICK_MS);
+      const lost = Math.floor((now - this.next) / TICK_MS);
+      this.statSkipped += lost;
       this.next = now;
+      if (this.listener.overloaded) {
+        if (this.lossEvents === 0 || now - this.lossWindowStart >= HOST_LOSS_WINDOW_MS) {
+          this.lossWindowStart = now;
+          this.lossEvents = this.lostTicks = 0;
+        }
+        this.lossEvents++;
+        this.lostTicks += lost;
+        if (this.lossEvents >= 2 && this.lostTicks >= HOST_LOST_TICKS) {
+          this.listener.overloaded();
+          if (!this.running) return;
+        }
+      }
     }
     this.maybeLogStats();
     this.timer = setTimeout(this.loop, Math.max(0, this.next - performance.now()));

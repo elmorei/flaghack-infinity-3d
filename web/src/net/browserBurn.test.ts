@@ -124,3 +124,72 @@ it.each(['spectator', 'eliminated'] as const)('lets a paused %s retry a camp cla
   expect(client.bossTakeoverError).toBeNull();
   expect(world.factions[2].controlMode).toBe('rts');
 }, 15_000);
+
+it.each([true, false])('guards a stalled browser host only when enabled (%s)', async (guarded) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance'] });
+  const realNow = performance.now.bind(performance);
+  let delay = 0;
+  const clock = vi.spyOn(performance, 'now').mockImplementation(() => realNow() + delay);
+  let pauses = 0;
+  try {
+    const room = current = new Room({
+      serverName: 'Browser test', admit: () => true, addressKey: key => key, log: () => {},
+      ...(guarded ? { onPerformancePause: () => { pauses++; } } : {}),
+    });
+    const host = endpoint(room, 'host'), guest = endpoint(room, 'guest');
+    await flush();
+    guest.send({ t: 'ready', ready: true });
+    await flush();
+    host.send({ t: 'start' });
+    await flush();
+    const match = (room as unknown as { match: Match }).match;
+    expect(match).toBeDefined();
+    const assertPauseMessage = () => expect(guest.messages.some(m =>
+      m.t === 'chat' && m.line.text.includes('paused automatically'))).toBe(true);
+    const wakeAfterHitch = (ms: number) => { delay += ms; vi.advanceTimersByTime(17); };
+
+    wakeAfterHitch(250);
+    expect(room.isPaused).toBe(false); // one brief hitch is not enough
+    await vi.advanceTimersByTimeAsync(2_100);
+    wakeAfterHitch(250);
+    expect(room.isPaused).toBe(false); // old debt has expired
+    wakeAfterHitch(250);
+    expect(room.isPaused).toBe(guarded);
+    await flush();
+    if (!guarded) {
+      const before = match.world.tick;
+      wakeAfterHitch(1_600);
+      expect(room.isPaused).toBe(false);
+      expect(match.world.tick).toBeGreaterThan(before);
+      expect(pauses).toBe(0);
+      return;
+    }
+
+    expect(room.performancePaused).toBe(true);
+    expect(pauses).toBe(1);
+    assertPauseMessage();
+    const pausedTick = match.world.tick;
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(match.world.tick).toBe(pausedTick);
+    expect(room.isPaused).toBe(true); // never resumes on its own
+
+    room.setPaused(false);
+    expect(room.performancePaused).toBe(false);
+    await vi.advanceTimersByTimeAsync(34);
+    expect(match.world.tick).toBeGreaterThan(pausedTick);
+    wakeAfterHitch(250);
+    expect(room.isPaused).toBe(false); // resume reset the missed-time window
+    const beforeStall = match.world.tick;
+    wakeAfterHitch(1_600);
+    expect(room.performancePaused).toBe(true);
+    expect(pauses).toBe(2);
+    expect(match.world.tick).toBe(beforeStall); // no catch-up steps after a severe stall
+  } finally {
+    const shutdown = current?.shutdown('test complete');
+    await vi.advanceTimersByTimeAsync(25);
+    await shutdown;
+    current = null;
+    clock.mockRestore();
+    vi.useRealTimers();
+  }
+}, 20_000);
